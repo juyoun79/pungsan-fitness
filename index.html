@@ -2704,8 +2704,8 @@
               <div style="width:36px;height:36px;border-radius:10px;background:${color}18;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${eq.emoji}</div>
               <div style="flex:1;">
                 <div style="display:flex;align-items:center;gap:6px;">
-                  <span style="font-size:11px;font-weight:700;color:white;background:${color};padding:2px 6px;border-radius:5px;">${eq.no}번</span>
-                  <span style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${eq.name}${item.subName ? ' · ' + item.subName : ''}</span>
+                  <span style="font-size:11px;font-weight:700;color:white;background:${color};padding:2px 6px;border-radius:5px;white-space:nowrap;">${eq.no}번</span>
+                  <span style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.subName ? item.subName : eq.name}</span>
                 </div>
                 <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${eq.muscles}${maxW > 0 ? ' · 최고 '+maxW+'kg' : ''}</div>
               </div>
