@@ -2705,13 +2705,13 @@
               <div style="flex:1;">
                 <div style="display:flex;align-items:center;gap:6px;">
                   <span style="font-size:11px;font-weight:700;color:white;background:${color};padding:2px 6px;border-radius:5px;">${eq.no}번</span>
-                  <span style="font-size:14px;font-weight:700;color:var(--text);">${eq.name}${item.subName ? ' · ' + item.subName : ''}</span>
+                  <span style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${eq.name}${item.subName ? ' · ' + item.subName : ''}</span>
                 </div>
                 <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${eq.muscles}${maxW > 0 ? ' · 최고 '+maxW+'kg' : ''}</div>
               </div>
               <div style="display:flex;align-items:center;gap:6px;">
                 <div style="font-size:12px;color:var(--text-hint);">${record.savedAt||''}</div>
-                <button onclick="openEditWorkoutModal('workout_${eq.key}_${localStorage.getItem('current_user')}','${dateStr}')"
+                <button onclick="openEditWorkoutModal('${eq.key === 'dual_inner_out' ? (item.subName === '이너타이' ? 'workout_dual_inner_' : 'workout_dual_outer_') + localStorage.getItem('current_user') : 'workout_' + eq.key + '_' + localStorage.getItem('current_user')}','${dateStr}')"
                   style="background:var(--blue-light);color:var(--blue);border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
               </div>
             </div>
@@ -3370,7 +3370,11 @@
         <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
             <div style="font-size:13px;font-weight:700;color:${cardColor};">${label}</div>
-            <div style="font-size:12px;color:var(--text-hint);">${r.dateLabel} ${r.savedAt}</div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <div style="font-size:12px;color:var(--text-hint);">${r.dateLabel} ${r.savedAt}</div>
+              <button onclick="openEditWorkoutModal('${key}','${r.date}')"
+                style="background:${cardColor}18;color:${cardColor};border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
+            </div>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:${r.memo ? '10px' : '0'};">
             ${r.sets.map(s => `
