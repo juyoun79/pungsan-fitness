@@ -3606,10 +3606,17 @@
   // ── 출석 완료 처리 ──
   function completeAttendance() {
     const userId = localStorage.getItem('current_user');
-    const todayKey = 'attend_' + userId + '_' + getToday();
-    localStorage.setItem(todayKey, 'done');
+    const today = getToday();
 
-    // 포인트 적립 (+10P)
+    // Firebase에 출석 저장
+    db.ref('users/' + userId + '/attendance/' + today).set(true);
+
+    // Firebase에 포인트 적립 (+10P)
+    db.ref('users/' + userId + '/points').transaction(cur => (cur || 0) + 10);
+
+    // 로컬스토리지 호환성 유지 (updateStats용)
+    const todayKey = 'attend_' + userId + '_' + today;
+    localStorage.setItem(todayKey, 'done');
     const pointKey = 'points_' + userId;
     const cur = parseInt(localStorage.getItem(pointKey) || '0');
     localStorage.setItem(pointKey, cur + 10);
@@ -3678,17 +3685,25 @@
   function updateStats() {
     const userId = localStorage.getItem('current_user');
     if (!userId) return;
-    // 이번달 출석 수 계산
     const now = new Date();
-    const prefix = 'attend_' + userId + '_' + now.getFullYear() + '-' + (now.getMonth()+1) + '-';
-    let count = 0;
-    for (let d = 1; d <= 31; d++) {
-      if (localStorage.getItem(prefix + d) === 'done') count++;
-    }
-    document.getElementById('stat-days').textContent = count;
-    // 포인트
-    const pts = localStorage.getItem('points_' + userId) || '0';
-    document.getElementById('stat-points').textContent = pts;
+    const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
+
+    // Firebase에서 출석 불러오기
+    db.ref('users/' + userId + '/attendance').once('value', snap => {
+      let count = 0;
+      snap.forEach(child => {
+        if (child.key.startsWith(monthPrefix)) count++;
+      });
+      const el = document.getElementById('stat-days');
+      if (el) el.textContent = count;
+    });
+
+    // Firebase에서 포인트 불러오기
+    db.ref('users/' + userId + '/points').once('value', snap => {
+      const pts = snap.val() || 0;
+      const el = document.getElementById('stat-points');
+      if (el) el.textContent = pts;
+    });
   }
 
 
