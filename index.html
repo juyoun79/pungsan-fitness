@@ -1516,9 +1516,9 @@
 
       <!-- 듀얼 기구 두 섹션 (이너타이 / 아웃타이) -->
       <div id="dual-section-wrap" style="display:none;">
-        <!-- 이너타이 섹션 -->
+        <!-- 전면 섹션 -->
         <div style="margin-bottom:8px;">
-          <div class="section-title" style="margin-bottom:0;color:#4a7fd4;">이너타이 세트 기록</div>
+          <div class="section-title" id="dual-inner-title" style="margin-bottom:0;color:#4a7fd4;">이너타이 세트 기록</div>
         </div>
         <!-- 이너타이 휴식 타이머 -->
         <div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -1549,9 +1549,9 @@
         <!-- 구분선 -->
         <div style="border-top:1.5px solid var(--border);margin:4px 0 16px;"></div>
 
-        <!-- 아웃타이 섹션 -->
+        <!-- 후면 섹션 -->
         <div style="margin-bottom:8px;">
-          <div class="section-title" style="margin-bottom:0;color:#d4537e;">아웃타이 세트 기록</div>
+          <div class="section-title" id="dual-outer-title" style="margin-bottom:0;color:#d4537e;">아웃타이 세트 기록</div>
         </div>
         <!-- 아웃타이 휴식 타이머 -->
         <div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -2422,7 +2422,7 @@
   // ══════════════════════════════
   const EQUIPMENT_LIST = [
     { no:1,  name:'체스트 프레스',             muscles:'가슴',                          effect:'자세교정(상체), 어깨·목 부담 감소',          brand:'DRAX',        emoji:'🏋️', key:'chest_press' },
-    { no:2,  name:'펙덱 플라이',               muscles:'전면:가슴 / 후면:어깨',         effect:'가슴 안쪽 근육 강화, 상체 라인 정리',        brand:'DRAX',        emoji:'🤸', key:'pec_deck' },
+    { no:2,  name:'펙덱 플라이 & 리어 델토이드', muscles:'가슴·어깨 후면',                 effect:'가슴 안쪽 근육 강화, 어깨 후면 강화',        brand:'DRAX',        emoji:'🤸', key:'dual_pec_rear' },
     { no:3,  name:'랫풀 다운',                 muscles:'등',                            effect:'허리통증 개선, 굽은 자세 개선',              brand:'DRAX',        emoji:'💪', key:'lat_pull' },
     { no:4,  name:'롱풀',                      muscles:'등',                            effect:'굽은 자세 펴는데 도움',                      brand:'DRAX',        emoji:'💪', key:'long_pull' },
     { no:5,  name:'크런치 밴치',               muscles:'복부',                          effect:'배 근육 강화, 몸 중심 잡아줌',               brand:'DRAX',        emoji:'🔥', key:'crunch' },
@@ -2599,14 +2599,15 @@
     // 기구 기록 수집
     const dayRecords = [];
     for (const eq of EQUIPMENT_LIST) {
-      if (eq.key === 'dual_inner_out') {
+      if (isDualEquipment(eq.key)) {
         // 듀얼 기구는 이너/아웃타이 각각 확인
-        const innerRecords = JSON.parse(localStorage.getItem('workout_dual_inner_' + userId) || '[]');
-        const outerRecords = JSON.parse(localStorage.getItem('workout_dual_outer_' + userId) || '[]');
+        const dNames2 = getDualNames(eq.key) || { front: '전면', back: '후면' };
+        const innerRecords = JSON.parse(localStorage.getItem('workout_dual_front_' + eq.key + '_' + userId) || '[]');
+        const outerRecords = JSON.parse(localStorage.getItem('workout_dual_back_' + eq.key + '_' + userId) || '[]');
         const innerFound = innerRecords.find(r => r.date === dateStr);
         const outerFound = outerRecords.find(r => r.date === dateStr);
-        if (innerFound) dayRecords.push({ type:'equipment', eq, record: innerFound, subName: '이너타이' });
-        if (outerFound) dayRecords.push({ type:'equipment', eq, record: outerFound, subName: '아웃타이' });
+        if (innerFound) dayRecords.push({ type:'equipment', eq, record: innerFound, subName: dNames2.front });
+        if (outerFound) dayRecords.push({ type:'equipment', eq, record: outerFound, subName: dNames2.back });
       } else {
         const key = 'workout_' + eq.key + '_' + userId;
         const records = JSON.parse(localStorage.getItem(key) || '[]');
@@ -2721,7 +2722,7 @@
               </div>
               <div style="display:flex;align-items:center;gap:6px;">
                 <div style="font-size:12px;color:var(--text-hint);">${record.savedAt||''}</div>
-                <button onclick="openEditWorkoutModal('${eq.key === 'dual_inner_out' ? (item.subName === '이너타이' ? 'workout_dual_inner_' : 'workout_dual_outer_') + localStorage.getItem('current_user') : 'workout_' + eq.key + '_' + localStorage.getItem('current_user')}','${dateStr}')"
+                <button onclick="openEditWorkoutModal('${isDualEquipment(eq.key) ? (item.subName === getDualNames(eq.key)?.front ? 'workout_dual_front_' : 'workout_dual_back_') + localStorage.getItem('current_user') : 'workout_' + eq.key + '_' + localStorage.getItem('current_user')}','${dateStr}')"
                   style="background:var(--blue-light);color:var(--blue);border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
               </div>
             </div>
@@ -3061,6 +3062,17 @@
   // ══════════════════════════════
   let setCount = 0;
   let currentEquipment = null; // 현재 선택된 기구 객체
+  // 듀얼 기구 여부 판별
+  function isDualEquipment(key) {
+    return ['dual_inner_out', 'dual_pec_rear'].includes(key);
+  }
+  // 듀얼 기구 섹션 이름 반환
+  function getDualNames(key) {
+    if (key === 'dual_inner_out') return { front: '이너타이', back: '아웃타이', frontColor: '#4a7fd4', backColor: '#d4537e', frontBg: '#E6F1FB', backBg: '#FBEAF0', frontText: '#185FA5', backText: '#993556' };
+    if (key === 'dual_pec_rear') return { front: '펙덱 플라이', back: '리어 델토이드', frontColor: '#4a7fd4', backColor: '#d4537e', frontBg: '#E6F1FB', backBg: '#FBEAF0', frontText: '#185FA5', backText: '#993556' };
+    return null;
+  }
+
   let innerSetCount = 0; // 이너타이 세트 카운터
   let outerSetCount = 0; // 아웃타이 세트 카운터
 
@@ -3140,11 +3152,20 @@
     // 듀얼 기구 여부에 따라 섹션 전환
     const dualWrap = document.getElementById('dual-section-wrap');
     const normalWrap = document.getElementById('normal-set-wrap');
-    if (eq.key === 'dual_inner_out') {
+    if (isDualEquipment(eq.key)) {
       dualWrap.style.display = 'block';
       normalWrap.style.display = 'none';
       document.getElementById('inner-set-list').innerHTML = '';
+      document.getElementById('outer-set-list').innerHTML = '';
       const dMemo = document.getElementById('dual-workout-memo'); if (dMemo) dMemo.value = '';
+      // 섹션 타이틀 동적 변경
+      const dn = getDualNames(eq.key);
+      if (dn) {
+        const innerTitle = document.getElementById('dual-inner-title');
+        const outerTitle = document.getElementById('dual-outer-title');
+        if (innerTitle) { innerTitle.textContent = dn.front + ' 세트 기록'; innerTitle.style.color = dn.frontColor; }
+        if (outerTitle) { outerTitle.textContent = dn.back + ' 세트 기록'; outerTitle.style.color = dn.backColor; }
+      }
       document.getElementById('outer-set-list').innerHTML = '';
       document.getElementById('inner-rest-min').value = 0;
       document.getElementById('inner-rest-sec').value = 0;
@@ -3236,13 +3257,16 @@
     const savedAt = now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' });
     const memo = document.getElementById('dual-workout-memo')?.value || '';
 
-    // 이너타이 저장
+    const eqKey = currentEquipment.key;
+    const dualNames = getDualNames(eqKey);
+
+    // 전면(이너타이/펙덱) 저장
     if (innerSets.length > 0) {
       const sets = innerSets.map((s, i) => ({ set: i+1, weight: parseFloat(s.weight)||0, reps: parseInt(s.reps)||0 }));
       const vol = sets.reduce((a, s) => a + s.weight * s.reps, 0);
       const kcal = calcKcalByMET(5.0, sets.length * 3, vol);
       const record = { date, dateLabel, sets, memo, kcal, savedAt };
-      const key = 'workout_dual_inner_' + userId;
+      const key = 'workout_dual_front_' + eqKey + '_' + userId;
       const existing = JSON.parse(localStorage.getItem(key) || '[]');
       const idx = existing.findIndex(r => r.date === date);
       if (idx !== -1) existing[idx] = record; else existing.unshift(record);
@@ -3250,13 +3274,13 @@
       localStorage.setItem(key, JSON.stringify(existing));
     }
 
-    // 아웃타이 저장
+    // 후면(아웃타이/리어델토이드) 저장
     if (outerSets.length > 0) {
       const sets = outerSets.map((s, i) => ({ set: i+1, weight: parseFloat(s.weight)||0, reps: parseInt(s.reps)||0 }));
       const vol = sets.reduce((a, s) => a + s.weight * s.reps, 0);
       const kcal = calcKcalByMET(5.0, sets.length * 3, vol);
       const record = { date, dateLabel, sets, memo, kcal, savedAt };
-      const key = 'workout_dual_outer_' + userId;
+      const key = 'workout_dual_back_' + eqKey + '_' + userId;
       const existing = JSON.parse(localStorage.getItem(key) || '[]');
       const idx = existing.findIndex(r => r.date === date);
       if (idx !== -1) existing[idx] = record; else existing.unshift(record);
@@ -3286,7 +3310,7 @@
     const userId = localStorage.getItem('current_user');
 
     // 듀얼 기구면 이너/아웃타이 각각 수집
-    if (currentEquipment.key === 'dual_inner_out') {
+    if (isDualEquipment(currentEquipment.key)) {
       const innerSets = [];
       const outerSets = [];
       document.querySelectorAll('[id^="inner-set-row-"]').forEach((row, i) => {
@@ -3369,9 +3393,10 @@
     const color = getMuscleColor(currentEquipment.muscles);
 
     // 듀얼 기구면 이너/아웃타이 각각 표시
-    if (currentEquipment.key === 'dual_inner_out') {
-      const innerKey = 'workout_dual_inner_' + userId;
-      const outerKey = 'workout_dual_outer_' + userId;
+    if (isDualEquipment(currentEquipment.key)) {
+      const eqKey = currentEquipment.key;
+      const innerKey = 'workout_dual_front_' + eqKey + '_' + userId;
+      const outerKey = 'workout_dual_back_' + eqKey + '_' + userId;
       const innerRecords = JSON.parse(localStorage.getItem(innerKey) || '[]');
       const outerRecords = JSON.parse(localStorage.getItem(outerKey) || '[]');
       if (innerRecords.length === 0 && outerRecords.length === 0) {
@@ -3399,8 +3424,11 @@
           ${r.memo ? `<div style="font-size:13px;color:var(--text-sub);background:var(--bg);border-radius:8px;padding:8px 10px;">📝 ${r.memo}</div>` : ''}
         </div>`;
       container.innerHTML =
-        innerRecords.slice(0,5).map(r => makeCard(r, innerKey, '이너타이', '#4a7fd4')).join('') +
-        outerRecords.slice(0,5).map(r => makeCard(r, outerKey, '아웃타이', '#d4537e')).join('');
+        const dNames = getDualNames(currentEquipment.key) || { front: '전면', back: '후면' };
+        container.innerHTML =
+        innerRecords.slice(0,5).map(r => makeCard(r, innerKey, dNames.front, '#4a7fd4')).join('') +
+        outerRecords.slice(0,5).map(r => makeCard(r, outerKey, dNames.back, '#d4537e')).join('');
+        return;
       return;
     }
 
