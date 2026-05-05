@@ -3423,13 +3423,11 @@
           </div>
           ${r.memo ? `<div style="font-size:13px;color:var(--text-sub);background:var(--bg);border-radius:8px;padding:8px 10px;">📝 ${r.memo}</div>` : ''}
         </div>`;
-      container.innerHTML =
         const dNames = getDualNames(currentEquipment.key) || { front: '전면', back: '후면' };
         container.innerHTML =
         innerRecords.slice(0,5).map(r => makeCard(r, innerKey, dNames.front, '#4a7fd4')).join('') +
         outerRecords.slice(0,5).map(r => makeCard(r, outerKey, dNames.back, '#d4537e')).join('');
         return;
-      return;
     }
 
     const key = 'workout_' + currentEquipment.key + '_' + userId;
