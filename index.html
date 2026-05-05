@@ -1877,10 +1877,11 @@
         <span id="edit-workout-title">운동기록 수정</span>
         <button class="modal-close" onclick="closeEditWorkoutModal()">×</button>
       </div>
-      <div style="display:grid;grid-template-columns:36px 1fr 1fr 36px;gap:4px;padding:7px 6px 7px 8px;background:var(--blue-light);border-radius:8px;margin-bottom:8px;">
+      <div style="display:grid;grid-template-columns:36px 1fr 1fr 36px 36px;gap:4px;padding:7px 6px 7px 8px;background:var(--blue-light);border-radius:8px;margin-bottom:8px;">
         <div style="font-size:11px;font-weight:700;color:var(--blue);text-align:center;">세트</div>
         <div style="font-size:11px;font-weight:700;color:var(--blue);text-align:center;">무게 (kg)</div>
         <div style="font-size:11px;font-weight:700;color:var(--blue);text-align:center;">횟수 (회)</div>
+        <div></div>
         <div></div>
       </div>
       <div id="edit-set-list" style="margin-bottom:12px;"></div>
@@ -2023,9 +2024,8 @@
       </div>
 
       <!-- 세트 입력 -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="margin-bottom:8px;">
         <div style="font-size:14px;font-weight:700;color:var(--text);">세트 기록</div>
-        <button onclick="addFwSet()" style="background:var(--blue-light);color:var(--blue);border:none;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 세트 추가</button>
       </div>
 
       <!-- 휴식 타이머 설정 (프리웨이트) -->
@@ -2052,10 +2052,11 @@
       </div>
 
       <!-- 세트 헤더 -->
-      <div style="display:grid;grid-template-columns:36px 1fr 1fr 36px;gap:4px;padding:7px 6px 7px 8px;background:var(--blue-light);border-radius:8px;margin-bottom:8px;">
+      <div style="display:grid;grid-template-columns:36px 1fr 1fr 36px 36px;gap:4px;padding:7px 6px 7px 8px;background:var(--blue-light);border-radius:8px;margin-bottom:8px;">
         <div style="font-size:11px;font-weight:700;color:var(--blue);text-align:center;">세트</div>
         <div style="font-size:11px;font-weight:700;color:var(--blue);text-align:center;">무게 (kg)</div>
         <div style="font-size:11px;font-weight:700;color:var(--blue);text-align:center;">횟수 (회)</div>
+        <div></div>
         <div></div>
       </div>
 
@@ -3928,17 +3929,19 @@
     const list = document.getElementById('fw-set-list');
     const row = document.createElement('div');
     row.id = 'fw-row-' + fwSetCount;
-    row.style.cssText = 'display:grid;grid-template-columns:36px 1fr 1fr 36px;gap:4px;margin-bottom:8px;align-items:center;padding-right:2px;';
+    row.style.cssText = 'display:grid;grid-template-columns:36px 1fr 1fr 36px 36px;gap:4px;margin-bottom:8px;align-items:center;padding-right:2px;';
     row.innerHTML = `
       <div style="text-align:center;font-size:13px;font-weight:700;color:white;background:#f59e0b;border-radius:8px;height:40px;display:flex;align-items:center;justify-content:center;">${fwSetCount}</div>
       <input type="number" placeholder="0" min="0" max="500" step="2.5"
-        style="padding:9px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:'Noto Sans KR',sans-serif;width:100%;box-sizing:border-box;"
+        style="width:100%;box-sizing:border-box;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:'Noto Sans KR',sans-serif;"
         id="fw-weight-${fwSetCount}" onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='var(--border)'" />
       <input type="number" placeholder="0" min="0" max="9999"
-        style="padding:9px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:'Noto Sans KR',sans-serif;width:100%;box-sizing:border-box;"
+        style="width:100%;box-sizing:border-box;padding:9px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:'Noto Sans KR',sans-serif;"
         id="fw-reps-${fwSetCount}" onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='var(--border)'" />
+      <button onclick="addFwSet()"
+        style="width:36px;height:36px;border:none;background:var(--blue-light);color:var(--blue);border-radius:8px;cursor:pointer;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;">+</button>
       <button onclick="removeFwSet(${fwSetCount})"
-        style="width:36px;height:36px;border:none;background:#fee2e2;color:#ef4444;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">×</button>
+        style="width:36px;height:36px;border:none;background:#fee2e2;color:#ef4444;border-radius:8px;cursor:pointer;font-size:16px;display:${fwSetCount === 1 ? 'none' : 'flex'};align-items:center;justify-content:center;">×</button>
     `;
     list.appendChild(row);
     // 2세트부터 타이머 시작
