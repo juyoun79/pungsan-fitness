@@ -3194,10 +3194,10 @@
     row.innerHTML = `
       <div style="text-align:center;font-size:14px;font-weight:700;color:white;background:${color};border-radius:8px;height:44px;display:flex;align-items:center;justify-content:center;">${setCount}</div>
       <input type="number" placeholder="0" min="0" max="500" step="2.5"
-        style="padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:'Noto Sans KR',sans-serif;"
+        style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:'Noto Sans KR',sans-serif;"
         id="weight-${setCount}" onfocus="this.style.borderColor='${color}'" onblur="this.style.borderColor='var(--border)'" />
       <input type="number" placeholder="0" min="0" max="100"
-        style="padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:'Noto Sans KR',sans-serif;"
+        style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:'Noto Sans KR',sans-serif;"
         id="reps-${setCount}" onfocus="this.style.borderColor='${color}'" onblur="this.style.borderColor='var(--border)'" />
       <button onclick="addSet()"
         style="width:36px;height:36px;border:none;background:var(--blue-light);color:var(--blue);border-radius:8px;cursor:pointer;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;">+</button>
