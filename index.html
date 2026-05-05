@@ -4097,8 +4097,11 @@
   function skipRestTimer() {
     if (restTimerInterval) { clearInterval(restTimerInterval); restTimerInterval = null; }
     stopRestAlarm();
-    const box = document.getElementById('rest-timer-box');
-    if (box) box.style.display = 'none';
+    // 일반/이너/아웃타이 타이머 박스 모두 숨김
+    ['rest-timer-box', 'inner-rest-timer-box', 'outer-rest-timer-box'].forEach(id => {
+      const box = document.getElementById(id);
+      if (box) box.style.display = 'none';
+    });
   }
 
   function skipFwRestTimer() {
