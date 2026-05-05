@@ -1517,9 +1517,8 @@
       <!-- 듀얼 기구 두 섹션 (이너타이 / 아웃타이) -->
       <div id="dual-section-wrap" style="display:none;">
         <!-- 이너타이 섹션 -->
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div style="margin-bottom:8px;">
           <div class="section-title" style="margin-bottom:0;color:#4a7fd4;">이너타이 세트 기록</div>
-          <button onclick="addInnerSet()" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 세트 추가</button>
         </div>
         <!-- 이너타이 휴식 타이머 -->
         <div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -1530,7 +1529,8 @@
             <input type="number" id="inner-rest-sec" min="0" max="59" value="0" style="width:44px;padding:5px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;" onfocus="this.style.borderColor='#4a7fd4'" onblur="this.style.borderColor='var(--border)'">
             <span style="font-size:12px;color:var(--text-sub);">초</span>
           </div>
-          <span style="font-size:11px;color:var(--text-hint);">기록 입력 후 세트 추가 시 자동 시작</span>
+          <span style="font-size:11px;color:var(--text-hint);flex:1;">기록 입력 후 세트 추가 시 자동 시작</span>
+          <button onclick="addInnerSet()" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">+ 세트 추가</button>
         </div>
         <div style="display:grid;grid-template-columns:40px 1fr 1fr 36px;gap:6px;padding:8px 8px 8px 10px;background:#E6F1FB;border-radius:8px;margin-bottom:8px;">
           <div style="font-size:12px;font-weight:700;color:#185FA5;text-align:center;">세트</div>
@@ -1551,9 +1551,8 @@
         <div style="border-top:1.5px solid var(--border);margin:4px 0 16px;"></div>
 
         <!-- 아웃타이 섹션 -->
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div style="margin-bottom:8px;">
           <div class="section-title" style="margin-bottom:0;color:#d4537e;">아웃타이 세트 기록</div>
-          <button onclick="addOuterSet()" style="background:#FBEAF0;color:#993556;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 세트 추가</button>
         </div>
         <!-- 아웃타이 휴식 타이머 -->
         <div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -1564,7 +1563,8 @@
             <input type="number" id="outer-rest-sec" min="0" max="59" value="0" style="width:44px;padding:5px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;" onfocus="this.style.borderColor='#d4537e'" onblur="this.style.borderColor='var(--border)'">
             <span style="font-size:12px;color:var(--text-sub);">초</span>
           </div>
-          <span style="font-size:11px;color:var(--text-hint);">기록 입력 후 세트 추가 시 자동 시작</span>
+          <span style="font-size:11px;color:var(--text-hint);flex:1;">기록 입력 후 세트 추가 시 자동 시작</span>
+          <button onclick="addOuterSet()" style="background:#FBEAF0;color:#993556;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">+ 세트 추가</button>
         </div>
         <div style="display:grid;grid-template-columns:40px 1fr 1fr 36px;gap:6px;padding:8px 8px 8px 10px;background:#FBEAF0;border-radius:8px;margin-bottom:8px;">
           <div style="font-size:12px;font-weight:700;color:#993556;text-align:center;">세트</div>
@@ -1583,9 +1583,8 @@
 
       <!-- 일반 기구 세트 입력 영역 -->
       <div id="normal-set-wrap">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div style="margin-bottom:8px;">
           <div class="section-title" style="margin-bottom:0;">세트 기록</div>
-          <button onclick="addSet()" style="background:var(--blue-light);color:var(--blue);border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 세트 추가</button>
         </div>
 
       <!-- 휴식 타이머 설정 -->
@@ -1601,7 +1600,8 @@
             onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
           <span style="font-size:12px;color:var(--text-sub);">초</span>
         </div>
-        <span style="font-size:11px;color:var(--text-hint);">기록 입력 후 세트 추가 시 자동 시작</span>
+        <span style="font-size:11px;color:var(--text-hint);flex:1;">기록 입력 후 세트 추가 시 자동 시작</span>
+        <button onclick="addSet()" style="background:var(--blue-light);color:var(--blue);border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">+ 세트 추가</button>
       </div>
 
       <!-- 휴식 타이머 카운트다운 -->
@@ -2037,7 +2037,8 @@
             onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='var(--border)'" />
           <span style="font-size:12px;color:var(--text-sub);">초</span>
         </div>
-        <span style="font-size:11px;color:var(--text-hint);">기록 입력 후 세트 추가 시 자동 시작</span>
+        <span style="font-size:11px;color:var(--text-hint);flex:1;">기록 입력 후 세트 추가 시 자동 시작</span>
+        <button onclick="addSet()" style="background:var(--blue-light);color:var(--blue);border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">+ 세트 추가</button>
       </div>
 
       <!-- 휴식 타이머 카운트다운 (프리웨이트) -->
