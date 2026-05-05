@@ -1529,10 +1529,9 @@
             <input type="number" id="inner-rest-sec" min="0" max="59" value="0" style="width:44px;padding:5px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;" onfocus="this.style.borderColor='#4a7fd4'" onblur="this.style.borderColor='var(--border)'">
             <span style="font-size:12px;color:var(--text-sub);">초</span>
           </div>
-          <span style="font-size:11px;color:var(--text-hint);flex:1;">기록 입력 후 세트 추가 시 자동 시작</span>
-          <button onclick="addInnerSet()" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">+ 세트 추가</button>
         </div>
-        <div style="display:grid;grid-template-columns:40px 1fr 1fr 36px;gap:6px;padding:8px 8px 8px 10px;background:#E6F1FB;border-radius:8px;margin-bottom:8px;">
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:8px;">기록 입력 후 + 버튼으로 세트 추가 시 자동 시작</div>
+        <div style="display:grid;grid-template-columns:40px 1fr 1fr 36px 36px;gap:6px;padding:8px 8px 8px 10px;background:#E6F1FB;border-radius:8px;margin-bottom:8px;">
           <div style="font-size:12px;font-weight:700;color:#185FA5;text-align:center;">세트</div>
           <div style="font-size:12px;font-weight:700;color:#185FA5;text-align:center;">무게 (kg)</div>
           <div style="font-size:12px;font-weight:700;color:#185FA5;text-align:center;">횟수 (회)</div>
@@ -1563,10 +1562,9 @@
             <input type="number" id="outer-rest-sec" min="0" max="59" value="0" style="width:44px;padding:5px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;" onfocus="this.style.borderColor='#d4537e'" onblur="this.style.borderColor='var(--border)'">
             <span style="font-size:12px;color:var(--text-sub);">초</span>
           </div>
-          <span style="font-size:11px;color:var(--text-hint);flex:1;">기록 입력 후 세트 추가 시 자동 시작</span>
-          <button onclick="addOuterSet()" style="background:#FBEAF0;color:#993556;border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">+ 세트 추가</button>
         </div>
-        <div style="display:grid;grid-template-columns:40px 1fr 1fr 36px;gap:6px;padding:8px 8px 8px 10px;background:#FBEAF0;border-radius:8px;margin-bottom:8px;">
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:8px;">기록 입력 후 + 버튼으로 세트 추가 시 자동 시작</div>
+        <div style="display:grid;grid-template-columns:40px 1fr 1fr 36px 36px;gap:6px;padding:8px 8px 8px 10px;background:#FBEAF0;border-radius:8px;margin-bottom:8px;">
           <div style="font-size:12px;font-weight:700;color:#993556;text-align:center;">세트</div>
           <div style="font-size:12px;font-weight:700;color:#993556;text-align:center;">무게 (kg)</div>
           <div style="font-size:12px;font-weight:700;color:#993556;text-align:center;">횟수 (회)</div>
@@ -1600,9 +1598,8 @@
             onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
           <span style="font-size:12px;color:var(--text-sub);">초</span>
         </div>
-        <span style="font-size:11px;color:var(--text-hint);flex:1;">기록 입력 후 세트 추가 시 자동 시작</span>
-        <button onclick="addSet()" style="background:var(--blue-light);color:var(--blue);border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">+ 세트 추가</button>
       </div>
+      <div style="font-size:11px;color:var(--text-hint);margin-bottom:8px;">기록 입력 후 + 버튼으로 세트 추가 시 자동 시작</div>
 
       <!-- 휴식 타이머 카운트다운 -->
       <div id="rest-timer-box" style="display:none;background:linear-gradient(135deg,#1a6fd4,#0d4fa8);border-radius:10px;padding:14px;margin-bottom:10px;text-align:center;">
@@ -1612,7 +1609,7 @@
       </div>
 
       <!-- 세트 헤더 -->
-      <div style="display:grid;grid-template-columns:40px 1fr 1fr 36px;gap:6px;padding:8px 8px 8px 10px;background:var(--blue-light);border-radius:8px;margin-bottom:8px;">
+      <div style="display:grid;grid-template-columns:40px 1fr 1fr 36px 36px;gap:6px;padding:8px 8px 8px 10px;background:var(--blue-light);border-radius:8px;margin-bottom:8px;">
         <div style="font-size:12px;font-weight:700;color:var(--blue);text-align:center;">세트</div>
         <div style="font-size:12px;font-weight:700;color:var(--blue);text-align:center;">무게 (kg)</div>
         <div style="font-size:12px;font-weight:700;color:var(--blue);text-align:center;">횟수 (회)</div>
@@ -2037,9 +2034,8 @@
             onfocus="this.style.borderColor='#f59e0b'" onblur="this.style.borderColor='var(--border)'" />
           <span style="font-size:12px;color:var(--text-sub);">초</span>
         </div>
-        <span style="font-size:11px;color:var(--text-hint);flex:1;">기록 입력 후 세트 추가 시 자동 시작</span>
-        <button onclick="addSet()" style="background:var(--blue-light);color:var(--blue);border:none;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">+ 세트 추가</button>
       </div>
+      <div style="font-size:11px;color:var(--text-hint);margin-bottom:8px;">기록 입력 후 + 버튼으로 세트 추가 시 자동 시작</div>
 
       <!-- 휴식 타이머 카운트다운 (프리웨이트) -->
       <div id="fw-rest-timer-box" style="display:none;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:10px;padding:14px;margin-bottom:10px;text-align:center;">
@@ -3068,7 +3064,7 @@
     const list = document.getElementById('inner-set-list');
     const row = document.createElement('div');
     row.id = 'inner-set-row-' + n;
-    row.style.cssText = 'display:grid;grid-template-columns:40px 1fr 1fr 36px;gap:6px;margin-bottom:8px;align-items:center;padding-right:2px;';
+    row.style.cssText = 'display:grid;grid-template-columns:40px 1fr 1fr 36px 36px;gap:6px;margin-bottom:8px;align-items:center;padding-right:2px;';
     row.innerHTML = `
       <div style="background:#4a7fd4;color:white;border-radius:8px;height:40px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;">${n}</div>
       <input type="number" id="inner-weight-${n}" placeholder="0" min="0" step="0.5"
@@ -3077,6 +3073,7 @@
       <input type="number" id="inner-reps-${n}" placeholder="0" min="0"
         style="width:100%;box-sizing:border-box;height:40px;border:1.5px solid var(--border);border-radius:8px;text-align:center;font-size:15px;font-weight:700;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);outline:none;"
         onfocus="this.style.borderColor='#4a7fd4'" onblur="this.style.borderColor='var(--border)'">
+      <button onclick="addInnerSet()" style="background:#E6F1FB;border:none;border-radius:8px;height:40px;width:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#185FA5;">+</button>
       <button onclick="removeInnerSet(${n})" style="background:#fee2e2;border:none;border-radius:8px;height:40px;width:36px;cursor:pointer;display:${innerSetCount === 1 ? 'none' : 'flex'};align-items:center;justify-content:center;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>`;
@@ -3099,7 +3096,7 @@
     const list = document.getElementById('outer-set-list');
     const row = document.createElement('div');
     row.id = 'outer-set-row-' + n;
-    row.style.cssText = 'display:grid;grid-template-columns:40px 1fr 1fr 36px;gap:6px;margin-bottom:8px;align-items:center;padding-right:2px;';
+    row.style.cssText = 'display:grid;grid-template-columns:40px 1fr 1fr 36px 36px;gap:6px;margin-bottom:8px;align-items:center;padding-right:2px;';
     row.innerHTML = `
       <div style="background:#d4537e;color:white;border-radius:8px;height:40px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;">${n}</div>
       <input type="number" id="outer-weight-${n}" placeholder="0" min="0" step="0.5"
@@ -3108,6 +3105,7 @@
       <input type="number" id="outer-reps-${n}" placeholder="0" min="0"
         style="width:100%;box-sizing:border-box;height:40px;border:1.5px solid var(--border);border-radius:8px;text-align:center;font-size:15px;font-weight:700;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);outline:none;"
         onfocus="this.style.borderColor='#d4537e'" onblur="this.style.borderColor='var(--border)'">
+      <button onclick="addOuterSet()" style="background:#FBEAF0;border:none;border-radius:8px;height:40px;width:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#993556;">+</button>
       <button onclick="removeOuterSet(${n})" style="background:#fee2e2;border:none;border-radius:8px;height:40px;width:36px;cursor:pointer;display:${outerSetCount === 1 ? 'none' : 'flex'};align-items:center;justify-content:center;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>`;
@@ -3192,7 +3190,7 @@
     const list = document.getElementById('set-list');
     const row = document.createElement('div');
     row.id = 'set-row-' + setCount;
-    row.style.cssText = 'display:grid;grid-template-columns:40px 1fr 1fr 36px;gap:6px;margin-bottom:8px;align-items:center;padding-right:2px;';
+    row.style.cssText = 'display:grid;grid-template-columns:40px 1fr 1fr 36px 36px;gap:6px;margin-bottom:8px;align-items:center;padding-right:2px;';
     row.innerHTML = `
       <div style="text-align:center;font-size:14px;font-weight:700;color:white;background:${color};border-radius:8px;height:44px;display:flex;align-items:center;justify-content:center;">${setCount}</div>
       <input type="number" placeholder="0" min="0" max="500" step="2.5"
@@ -3201,6 +3199,8 @@
       <input type="number" placeholder="0" min="0" max="100"
         style="padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:'Noto Sans KR',sans-serif;"
         id="reps-${setCount}" onfocus="this.style.borderColor='${color}'" onblur="this.style.borderColor='var(--border)'" />
+      <button onclick="addSet()"
+        style="width:36px;height:36px;border:none;background:var(--blue-light);color:var(--blue);border-radius:8px;cursor:pointer;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;">+</button>
       <button onclick="removeSet(${setCount})"
         style="width:36px;height:36px;border:none;background:#fee2e2;color:#ef4444;border-radius:8px;cursor:pointer;font-size:18px;display:${setCount === 1 ? 'none' : 'flex'};align-items:center;justify-content:center;">×</button>
     `;
