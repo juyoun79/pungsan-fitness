@@ -806,7 +806,7 @@
           <div style="font-size:11px;color:#94a3b8;" id="home-weight-range">최근 기록</div>
         </div>
         <!-- 그래프 캔버스 -->
-        <canvas id="home-weight-graph" height="80" style="width:100%;display:block;"></canvas>
+        <canvas id="home-weight-graph" height="80" style="width:100%;display:block;cursor:pointer;" onclick="openWeightDetail()" title="터치하면 전체 기록 보기"></canvas>
         <!-- 목표 메시지 -->
         <div id="home-weight-msg" style="font-size:12px;font-weight:600;margin:6px 0 8px;min-height:16px;"></div>
         <!-- 오늘 체중 입력 - 완전히 카드 안에 포함 -->
@@ -866,6 +866,37 @@
     </div><!-- /home-body -->
 
   </div><!-- /screen-home -->
+
+  <!-- 체중 전체 기록 화면 -->
+  <div class="screen" id="screen-weight-detail">
+    <div style="background:var(--card);padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;">
+      <button onclick="closeWeightDetail()" style="background:none;border:none;cursor:pointer;padding:4px;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div style="font-size:17px;font-weight:700;color:var(--text);">⚖️ 체중 기록</div>
+    </div>
+    <div style="padding:16px;overflow-y:auto;padding-bottom:80px;">
+
+      <!-- 기간 필터 -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button onclick="setWeightFilter(7)"  id="wf-7"  style="flex:1;padding:8px;border:1.5px solid var(--blue);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--blue);color:white;">1주</button>
+        <button onclick="setWeightFilter(30)" id="wf-30" style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">1달</button>
+        <button onclick="setWeightFilter(0)"  id="wf-0"  style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">전체</button>
+      </div>
+
+      <!-- 요약 카드 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;" id="weight-summary-cards"></div>
+
+      <!-- 전체 그래프 -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:16px;">
+        <canvas id="weight-detail-graph" height="180" style="width:100%;display:block;"></canvas>
+      </div>
+
+      <!-- 날짜별 목록 -->
+      <div class="section-title">날짜별 기록</div>
+      <div id="weight-detail-list"></div>
+    </div>
+  </div>
 
   <!-- 알림 팝업 -->
   <div id="notif-popup" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;">
@@ -6497,25 +6528,160 @@
       ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
       ctx.fillStyle = 'white';
       ctx.fill();
-      // 무게 레이블 (첫/마지막)
-      if (i === 0 || i === pts.length - 1) {
-        ctx.fillStyle   = '#2563eb';
-        ctx.font        = 'bold 10px sans-serif';
-        ctx.textAlign   = 'center';
-        ctx.fillText(p.w + 'kg', p.x, p.y - 8);
-      }
-      // 날짜 레이블 (첫/중간/마지막만)
-      const showDate = recent.length <= 4
-        ? true
-        : (i === 0 || i === Math.floor((recent.length-1)/2) || i === recent.length - 1);
-      if (showDate) {
-        ctx.fillStyle = '#94a3b8';
-        ctx.font      = '9px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(p.date, p.x, H - 4);
+      // 무게 레이블 (모든 점)
+      ctx.fillStyle   = '#2563eb';
+      ctx.font        = 'bold 10px sans-serif';
+      ctx.textAlign   = 'center';
+      ctx.fillText(p.w + 'kg', p.x, p.y - 8);
+      // 날짜 레이블 (모든 점)
+      ctx.fillStyle = '#94a3b8';
+      ctx.font      = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(p.date, p.x, H - 4);
+    });
+  }
+  let weightFilter = 7;
+
+  function openWeightDetail() {
+    showScreen('screen-weight-detail');
+    weightFilter = 7;
+    _updateWeightFilterBtns(7);
+    _renderWeightDetail();
+  }
+
+  function closeWeightDetail() {
+    const userId = localStorage.getItem('current_user');
+    const lastTab = localStorage.getItem('last_tab_' + userId) || 'home';
+    showScreen('screen-home');
+  }
+
+  function setWeightFilter(days) {
+    weightFilter = days;
+    _updateWeightFilterBtns(days);
+    _renderWeightDetail();
+  }
+
+  function _updateWeightFilterBtns(days) {
+    [7, 30, 0].forEach(d => {
+      const btn = document.getElementById('wf-' + d);
+      if (!btn) return;
+      if (d === days) {
+        btn.style.background = 'var(--blue)';
+        btn.style.color = 'white';
+        btn.style.borderColor = 'var(--blue)';
+      } else {
+        btn.style.background = 'var(--card)';
+        btn.style.color = 'var(--text)';
+        btn.style.borderColor = 'var(--border)';
       }
     });
   }
+
+  function _renderWeightDetail() {
+    const userId = localStorage.getItem('current_user');
+    const history = JSON.parse(localStorage.getItem('weight_history_' + userId) || '[]');
+    if (history.length === 0) return;
+
+    const data = weightFilter === 0 ? history : history.slice(-weightFilter);
+
+    // 요약 카드
+    const weights = data.map(r => r.weight);
+    const maxW = Math.max(...weights);
+    const minW = Math.min(...weights);
+    const avgW = (weights.reduce((a, b) => a + b, 0) / weights.length).toFixed(1);
+    const cards = document.getElementById('weight-summary-cards');
+    if (cards) {
+      cards.innerHTML = `
+        <div style="background:var(--blue-light);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:11px;color:var(--blue);margin-bottom:4px;font-weight:700;">최고</div>
+          <div style="font-size:18px;font-weight:700;color:var(--text);">${maxW}kg</div>
+        </div>
+        <div style="background:var(--blue-light);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:11px;color:var(--blue);margin-bottom:4px;font-weight:700;">최저</div>
+          <div style="font-size:18px;font-weight:700;color:var(--text);">${minW}kg</div>
+        </div>
+        <div style="background:var(--blue-light);border-radius:10px;padding:10px;text-align:center;">
+          <div style="font-size:11px;color:var(--blue);margin-bottom:4px;font-weight:700;">평균</div>
+          <div style="font-size:18px;font-weight:700;color:var(--text);">${avgW}kg</div>
+        </div>`;
+    }
+
+    // 전체 그래프
+    const canvas = document.getElementById('weight-detail-graph');
+    if (canvas && data.length > 0) {
+      const W = canvas.parentElement.clientWidth - 28;
+      const H = 180;
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, W, H);
+
+      const wMin = Math.min(...weights) - 1;
+      const wMax = Math.max(...weights) + 1;
+      const range = wMax - wMin || 1;
+      const GRAPH_H = H - 24;
+
+      const pts = data.map((r, i) => ({
+        x: W * 0.05 + (W * 0.9) * (i / Math.max(data.length - 1, 1)),
+        y: GRAPH_H * 0.1 + (GRAPH_H * 0.75) * (1 - (r.weight - wMin) / range),
+        w: r.weight,
+        date: r.date ? r.date.slice(5) : ''
+      }));
+
+      // 그라데이션
+      const grad = ctx.createLinearGradient(0, 0, 0, GRAPH_H);
+      grad.addColorStop(0, 'rgba(37,99,235,0.15)');
+      grad.addColorStop(1, 'rgba(37,99,235,0)');
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, GRAPH_H);
+      pts.forEach(p => ctx.lineTo(p.x, p.y));
+      ctx.lineTo(pts[pts.length-1].x, GRAPH_H);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // 선
+      ctx.beginPath();
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+      ctx.stroke();
+
+      // 점 + 레이블
+      const showAll = data.length <= 7;
+      pts.forEach((p, i) => {
+        ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#2563eb'; ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+        ctx.fillStyle = 'white'; ctx.fill();
+
+        const show = showAll || i === 0 || i === pts.length - 1 || i % Math.ceil(data.length / 7) === 0;
+        if (show) {
+          ctx.fillStyle = '#2563eb';
+          ctx.font = 'bold 10px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(p.w + 'kg', p.x, p.y - 8);
+          ctx.fillStyle = '#94a3b8';
+          ctx.font = '9px sans-serif';
+          ctx.fillText(p.date, p.x, H - 4);
+        }
+      });
+    }
+
+    // 날짜별 목록 (최신순)
+    const list = document.getElementById('weight-detail-list');
+    if (list) {
+      const reversed = [...data].reverse();
+      list.innerHTML = reversed.map(r => `
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:14px;color:var(--text-sub);">${r.date}</div>
+          <div style="font-size:18px;font-weight:700;color:var(--blue);">${r.weight}kg</div>
+        </div>
+      `).join('');
+    }
+  }
+
   function selectGender(gender) {
     document.getElementById('body-gender').value = gender;
     _applyGenderStyle('gender-male', 'gender-female', gender);
