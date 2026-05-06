@@ -5403,8 +5403,7 @@
       if (lunch)     parts.push('☀️ 점심: ' + lunch);
       if (dinner)    parts.push('🌙 저녁: ' + dinner);
       if (snack)     parts.push('🍎 간식: ' + snack);
-      if (parts.length > 0) content = parts.join('
-');
+      if (parts.length > 0) content = parts.join('\n');
     }
     if (!content) { alert('내용을 입력해주세요!'); return; }
 
