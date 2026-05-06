@@ -4171,6 +4171,29 @@
 
   // ── 휴식 타이머 ──
   let restTimerInterval = null;
+  let wakeLock = null;
+
+  // Wake Lock 활성화 (타이머 작동 중 화면 꺼짐 방지)
+  async function requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLock = await navigator.wakeLock.request('screen');
+        console.log('🔆 Wake Lock 활성화');
+      }
+    } catch (e) {
+      console.log('Wake Lock 미지원:', e);
+    }
+  }
+
+  // Wake Lock 해제
+  function releaseWakeLock() {
+    if (wakeLock) {
+      wakeLock.release().then(() => {
+        wakeLock = null;
+        console.log('🔅 Wake Lock 해제');
+      }).catch(() => { wakeLock = null; });
+    }
+  }
   let restTimerRemain = 0;
   let restAlarmInterval = null; // 반복 진동/소리용
 
@@ -4190,6 +4213,7 @@
 
     box.style.display = 'block';
     updateTimerDisplay(countEl, restTimerRemain);
+    requestWakeLock(); // 화면 꺼짐 방지
 
     restTimerInterval = setInterval(() => {
       restTimerRemain--;
@@ -4254,6 +4278,7 @@
   function skipRestTimer() {
     if (restTimerInterval) { clearInterval(restTimerInterval); restTimerInterval = null; }
     stopRestAlarm();
+    releaseWakeLock(); // 화면 꺼짐 방지 해제
     // 일반/이너/아웃타이 타이머 박스 모두 숨김
     ['rest-timer-box', 'inner-rest-timer-box', 'outer-rest-timer-box'].forEach(id => {
       const box = document.getElementById(id);
@@ -4264,6 +4289,7 @@
   function skipFwRestTimer() {
     if (restTimerInterval) { clearInterval(restTimerInterval); restTimerInterval = null; }
     stopRestAlarm();
+    releaseWakeLock(); // 화면 꺼짐 방지 해제
     const box = document.getElementById('fw-rest-timer-box');
     if (box) box.style.display = 'none';
   }
