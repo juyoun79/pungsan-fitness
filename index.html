@@ -1112,11 +1112,29 @@
       </div>
 
       <!-- 글 내용 -->
-      <div style="margin-bottom:16px;">
+      <div style="margin-bottom:12px;">
         <label class="field-label">내용 *</label>
         <textarea id="post-content" placeholder="운동 후기, 오늘의 식단, 운동 팁을 공유해보세요! 💪"
           style="width:100%;box-sizing:border-box;padding:12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:100px;margin-top:6px;"
           onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"></textarea>
+      </div>
+
+      <!-- AI 칼로리 계산 버튼 (식단 카테고리 선택 시만 표시) -->
+      <div id="calorie-calc-wrap" style="display:none;margin-bottom:12px;">
+        <button onclick="calcCalorieAI()" id="calorie-calc-btn"
+          style="width:100%;padding:11px;background:#EAF3DE;color:#27500A;border:1px solid #97C459;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;">
+          🤖 AI 칼로리 계산하기
+        </button>
+        <!-- 칼로리 결과 -->
+        <div id="calorie-result" style="display:none;margin-top:10px;background:#EAF3DE;border:0.5px solid #97C459;border-radius:var(--radius-sm);padding:12px 14px;">
+          <div style="font-size:12px;color:#3B6D11;margin-bottom:8px;font-weight:700;">🤖 AI 칼로리 분석 결과</div>
+          <div id="calorie-result-list" style="margin-bottom:10px;"></div>
+          <div style="border-top:0.5px solid #97C459;padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:13px;color:#3B6D11;font-weight:700;">총 칼로리</span>
+            <span id="calorie-total" style="font-size:18px;font-weight:700;color:#27500A;"></span>
+          </div>
+          <div style="font-size:11px;color:#3B6D11;margin-top:6px;">* AI 추정값으로 실제와 다를 수 있어요</div>
+        </div>
       </div>
 
       <button class="btn-primary" onclick="submitPost()" id="post-submit-btn">게시하기 🚀</button>
@@ -5154,6 +5172,67 @@
     document.querySelectorAll('.cat-select').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('post-category').value = cat;
+    // 카테고리별 placeholder 변경
+    const textarea = document.getElementById('post-content');
+    const calcWrap = document.getElementById('calorie-calc-wrap');
+    const calorieResult = document.getElementById('calorie-result');
+    if (cat === '식단') {
+      textarea.placeholder = '예) 닭가슴살 200g, 현미밥 한 공기, 브로콜리 100g, 삶은 달걀 2개';
+      if (calcWrap) calcWrap.style.display = 'block';
+    } else {
+      textarea.placeholder = '운동 후기, 오늘의 식단, 운동 팁을 공유해보세요! 💪';
+      if (calcWrap) calcWrap.style.display = 'none';
+      if (calorieResult) calorieResult.style.display = 'none';
+    }
+  }
+
+  // AI 칼로리 계산 함수
+  async function calcCalorieAI() {
+    const content = document.getElementById('post-content').value.trim();
+    if (!content) { alert('내용에 음식 이름과 양을 입력해주세요!'); return; }
+    const btn = document.getElementById('calorie-calc-btn');
+    btn.textContent = '🤖 분석 중...';
+    btn.disabled = true;
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{
+            role: 'user',
+            content: `다음 식단의 칼로리를 계산해줘. 반드시 JSON 형식으로만 응답해. 다른 텍스트는 절대 포함하지 마.
+
+식단: ${content}
+
+응답 형식:
+{"items":[{"name":"음식명","kcal":숫자}],"total":숫자}`
+          }]
+        })
+      });
+      const data = await response.json();
+      const text = data.content[0].text;
+      const clean = text.replace(/\`\`\`json|\`\`\`/g, '').trim();
+      const result = JSON.parse(clean);
+      // 결과 표시
+      const listEl = document.getElementById('calorie-result-list');
+      const totalEl = document.getElementById('calorie-total');
+      const resultEl = document.getElementById('calorie-result');
+      listEl.innerHTML = result.items.map(item => `
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
+          <span style="color:var(--text-sub);">${item.name}</span>
+          <span style="color:var(--text);font-weight:700;">약 ${item.kcal} kcal</span>
+        </div>
+      `).join('');
+      totalEl.textContent = '약 ' + result.total + ' kcal';
+      resultEl.style.display = 'block';
+    } catch (e) {
+      alert('칼로리 계산 중 오류가 발생했어요. 다시 시도해주세요.');
+    } finally {
+      btn.textContent = '🤖 AI 칼로리 계산하기';
+      btn.disabled = false;
+    }
   }
 
   function previewPostPhoto(input) {
