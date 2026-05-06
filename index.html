@@ -5274,12 +5274,7 @@
           max_tokens: 1000,
           messages: [{
             role: 'user',
-            content: '다음 끼니별 식단의 칼로리를 계산해줘. 반드시 JSON 형식으로만 응답해. 다른 텍스트는 절대 포함하지 마.
-
-' + mealText + '
-
-응답 형식:
-{"meals":{"breakfast":숫자또는null,"lunch":숫자또는null,"dinner":숫자또는null,"snack":숫자또는null},"total":숫자}'
+            content: '다음 끼니별 식단의 칼로리를 계산해줘. 반드시 JSON 형식으로만 응답해. 다른 텍스트는 절대 포함하지 마.' + '\n\n' + mealText + '\n\n응답 형식:\n{"meals":{"breakfast":숫자또는null,"lunch":숫자또는null,"dinner":숫자또는null,"snack":숫자또는null},"total":숫자}'
           }]
         })
       });
