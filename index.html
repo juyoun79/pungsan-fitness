@@ -1121,68 +1121,43 @@
 
       <!-- 식단 끼니별 입력 (식단 카테고리 선택 시만 표시) -->
       <div id="calorie-calc-wrap" style="display:none;margin-bottom:12px;">
-        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">오늘의 식단</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">🥗 오늘의 식단</div>
 
-        <!-- 아침 -->
-        <div style="background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:6px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <div style="font-size:13px;font-weight:700;color:#BA7517;">🌅 아침</div>
-            <div id="kcal-breakfast" style="font-size:12px;color:var(--text-hint);"></div>
+        <!-- 음식 검색창 -->
+        <div style="background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:8px;position:relative;">
+          <div style="font-size:12px;color:var(--text-sub);margin-bottom:6px;">음식 이름을 검색해서 추가하세요</div>
+          <div style="display:flex;gap:6px;margin-bottom:6px;">
+            <input id="food-search-input" type="text" placeholder="예) 닭가슴살, 현미밥, 바나나..."
+              style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
+              oninput="onFoodSearchInput(this.value)"
+              onfocus="this.style.borderColor='#185FA5'" onblur="setTimeout(()=>hideFoodDropdown(),200)">
+            <select id="food-meal-type" style="padding:9px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);outline:none;">
+              <option value="아침">🌅 아침</option>
+              <option value="점심">☀️ 점심</option>
+              <option value="저녁">🌙 저녁</option>
+              <option value="간식">🍎 간식</option>
+            </select>
           </div>
-          <textarea id="meal-breakfast" placeholder="예) 현미밥 반 공기, 된장찌개, 계란 후라이"
-            style="width:100%;box-sizing:border-box;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:60px;background:var(--card);color:var(--text);"
-            onfocus="this.style.borderColor='#BA7517'" onblur="this.style.borderColor='var(--border)'"></textarea>
+          <!-- 검색 결과 드롭다운 -->
+          <div id="food-search-dropdown" style="display:none;position:absolute;left:12px;right:12px;background:var(--card);border:1px solid var(--border);border-radius:8px;max-height:200px;overflow-y:auto;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,0.15);"></div>
+          <div id="food-search-status" style="font-size:11px;color:var(--text-hint);min-height:16px;"></div>
         </div>
 
-        <!-- 점심 -->
-        <div style="background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:6px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <div style="font-size:13px;font-weight:700;color:#185FA5;">☀️ 점심</div>
-            <div id="kcal-lunch" style="font-size:12px;color:var(--text-hint);"></div>
-          </div>
-          <textarea id="meal-lunch" placeholder="예) 닭가슴살 200g, 현미밥 한 공기, 브로콜리 100g"
-            style="width:100%;box-sizing:border-box;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:60px;background:var(--card);color:var(--text);"
-            onfocus="this.style.borderColor='#185FA5'" onblur="this.style.borderColor='var(--border)'"></textarea>
-        </div>
-
-        <!-- 저녁 -->
-        <div style="background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:6px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <div style="font-size:13px;font-weight:700;color:#5F5E5A;">🌙 저녁</div>
-            <div id="kcal-dinner" style="font-size:12px;color:var(--text-hint);"></div>
-          </div>
-          <textarea id="meal-dinner" placeholder="예) 고구마 1개, 닭가슴살 150g, 샐러드"
-            style="width:100%;box-sizing:border-box;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:60px;background:var(--card);color:var(--text);"
-            onfocus="this.style.borderColor='#5F5E5A'" onblur="this.style.borderColor='var(--border)'"></textarea>
-        </div>
-
-        <!-- 간식 -->
-        <div style="background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:10px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-            <div style="font-size:13px;font-weight:700;color:#993556;">🍎 간식</div>
-            <div id="kcal-snack" style="font-size:12px;color:var(--text-hint);"></div>
-          </div>
-          <textarea id="meal-snack" placeholder="예) 바나나 1개, 단백질 바 1개"
-            style="width:100%;box-sizing:border-box;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:60px;background:var(--card);color:var(--text);"
-            onfocus="this.style.borderColor='#993556'" onblur="this.style.borderColor='var(--border)'"></textarea>
-        </div>
-
-        <!-- AI 계산 버튼 -->
-        <button onclick="calcCalorieAI()" id="calorie-calc-btn"
-          style="width:100%;padding:11px;background:#EAF3DE;color:#27500A;border:1px solid #97C459;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px;">
-          🤖 전체 칼로리 계산하기
-        </button>
-
-        <!-- 칼로리 결과 -->
-        <div id="calorie-result" style="display:none;background:#EAF3DE;border:0.5px solid #97C459;border-radius:var(--radius-sm);padding:12px 14px;">
-          <div style="font-size:12px;color:#3B6D11;margin-bottom:8px;font-weight:700;">🤖 AI 칼로리 분석 결과</div>
-          <div id="calorie-result-list" style="margin-bottom:10px;"></div>
-          <div style="border-top:0.5px solid #97C459;padding-top:8px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <span style="font-size:13px;color:#3B6D11;font-weight:700;">총 칼로리</span>
+        <!-- 추가된 음식 목록 -->
+        <div id="food-added-list" style="background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:8px;display:none;">
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;">📋 추가된 음식</div>
+          <div id="food-items-container"></div>
+          <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:4px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:13px;font-weight:700;color:var(--text);">총 칼로리</span>
             <span id="calorie-total" style="font-size:18px;font-weight:700;color:#27500A;"></span>
           </div>
-          <div id="calorie-msg" style="border-radius:8px;padding:8px 10px;text-align:center;font-size:12px;font-weight:700;"></div>
-          <div style="font-size:11px;color:#3B6D11;margin-top:6px;">* AI 추정값으로 실제와 다를 수 있어요</div>
+          <div id="calorie-msg" style="border-radius:8px;padding:8px 10px;text-align:center;font-size:12px;font-weight:700;margin-top:8px;"></div>
+        </div>
+
+        <!-- 숨겨진 칼로리 결과 (기존 호환) -->
+        <div id="calorie-result" style="display:none;">
+          <div id="calorie-result-list"></div>
+        </div>
         </div>
       </div>
 
@@ -5202,7 +5177,8 @@
     }
     postPhotoFile = null;
     document.getElementById('post-content').value = '';
-    ['meal-breakfast','meal-lunch','meal-dinner','meal-snack'].forEach(id => {
+    addedFoodItems = []; renderAddedFoods();
+  ['meal-breakfast','meal-lunch','meal-dinner','meal-snack'].forEach(id => {
       const el = document.getElementById(id); if (el) el.value = '';
     });
     ['kcal-breakfast','kcal-lunch','kcal-dinner','kcal-snack'].forEach(id => {
@@ -5245,597 +5221,162 @@
     }
   }
 
-  const FOOD_DB = [
-    { name: "흰밥 한 공기", kcal: 300 },
-    { name: "현미밥 한 공기", kcal: 280 },
-    { name: "잡곡밥 한 공기", kcal: 290 },
-    { name: "보리밥 한 공기", kcal: 270 },
-    { name: "흑미밥 한 공기", kcal: 295 },
-    { name: "콩밥 한 공기", kcal: 310 },
-    { name: "팥밥 한 공기", kcal: 305 },
-    { name: "귀리밥 한 공기", kcal: 265 },
-    { name: "찰밥 한 공기", kcal: 320 },
-    { name: "김치볶음밥 한 공기", kcal: 450 },
-    { name: "계란볶음밥 한 공기", kcal: 420 },
-    { name: "새우볶음밥 한 공기", kcal: 440 },
-    { name: "소고기볶음밥 한 공기", kcal: 480 },
-    { name: "참치볶음밥 한 공기", kcal: 430 },
-    { name: "비빔밥 한 그릇", kcal: 550 },
-    { name: "돌솥비빔밥 한 그릇", kcal: 580 },
-    { name: "산채비빔밥 한 그릇", kcal: 500 },
-    { name: "불고기비빔밥 한 그릇", kcal: 620 },
-    { name: "오징어덮밥 한 그릇", kcal: 520 },
-    { name: "제육덮밥 한 그릇", kcal: 580 },
-    { name: "닭갈비덮밥 한 그릇", kcal: 560 },
-    { name: "카레라이스 한 그릇", kcal: 550 },
-    { name: "하이라이스 한 그릇", kcal: 520 },
-    { name: "오무라이스 한 그릇", kcal: 580 },
-    { name: "김밥 한 줄", kcal: 350 },
-    { name: "참치김밥 한 줄", kcal: 380 },
-    { name: "소고기김밥 한 줄", kcal: 400 },
-    { name: "치즈김밥 한 줄", kcal: 390 },
-    { name: "충무김밥 한 줄", kcal: 280 },
-    { name: "누드김밥 한 줄", kcal: 370 },
-    { name: "주먹밥 1개", kcal: 200 },
-    { name: "삼각김밥 참치마요", kcal: 185 },
-    { name: "삼각김밥 불고기", kcal: 190 },
-    { name: "삼각김밥 김치", kcal: 175 },
-    { name: "흰밥 반 공기", kcal: 150 },
-    { name: "현미밥 반 공기", kcal: 140 },
-    { name: "잡곡밥 반 공기", kcal: 145 },
-    { name: "된장국", kcal: 60 },
-    { name: "미역국", kcal: 50 },
-    { name: "콩나물국", kcal: 40 },
-    { name: "계란국", kcal: 70 },
-    { name: "시금치국", kcal: 45 },
-    { name: "북어국", kcal: 80 },
-    { name: "황태국", kcal: 85 },
-    { name: "무국", kcal: 35 },
-    { name: "갈비탕", kcal: 350 },
-    { name: "설렁탕", kcal: 300 },
-    { name: "삼계탕", kcal: 500 },
-    { name: "추어탕", kcal: 200 },
-    { name: "곰탕", kcal: 250 },
-    { name: "육개장", kcal: 200 },
-    { name: "해장국", kcal: 280 },
-    { name: "뼈해장국", kcal: 350 },
-    { name: "감자탕", kcal: 400 },
-    { name: "순대국밥", kcal: 500 },
-    { name: "돼지국밥", kcal: 480 },
-    { name: "닭곰탕", kcal: 280 },
-    { name: "오리탕", kcal: 380 },
-    { name: "우거지탕", kcal: 150 },
-    { name: "시래기탕", kcal: 140 },
-    { name: "선지해장국", kcal: 250 },
-    { name: "김치찌개", kcal: 180 },
-    { name: "된장찌개", kcal: 150 },
-    { name: "순두부찌개", kcal: 180 },
-    { name: "부대찌개", kcal: 350 },
-    { name: "청국장찌개", kcal: 160 },
-    { name: "동태찌개", kcal: 150 },
-    { name: "꽃게찌개", kcal: 180 },
-    { name: "두루치기", kcal: 350 },
-    { name: "소고기전골", kcal: 380 },
-    { name: "해물전골", kcal: 300 },
-    { name: "버섯전골", kcal: 200 },
-    { name: "곱창전골", kcal: 420 },
-    { name: "낙지전골", kcal: 200 },
-    { name: "명란찌개", kcal: 160 },
-    { name: "콩비지찌개", kcal: 170 },
-    { name: "삼겹살 200g", kcal: 680 },
-    { name: "목살 200g", kcal: 620 },
-    { name: "항정살 200g", kcal: 650 },
-    { name: "갈비살 200g", kcal: 600 },
-    { name: "소갈비 200g", kcal: 520 },
-    { name: "소불고기 200g", kcal: 380 },
-    { name: "LA갈비 200g", kcal: 560 },
-    { name: "닭갈비 200g", kcal: 340 },
-    { name: "닭꼬치 1개", kcal: 180 },
-    { name: "돼지갈비 200g", kcal: 580 },
-    { name: "양념갈비 200g", kcal: 620 },
-    { name: "오리구이 200g", kcal: 380 },
-    { name: "고등어구이 1마리", kcal: 320 },
-    { name: "삼치구이 1마리", kcal: 280 },
-    { name: "조기구이 1마리", kcal: 200 },
-    { name: "꽁치구이 1마리", kcal: 250 },
-    { name: "갈치구이 1마리", kcal: 220 },
-    { name: "장어구이 100g", kcal: 255 },
-    { name: "전어구이 100g", kcal: 180 },
-    { name: "김치 100g", kcal: 20 },
-    { name: "깍두기 100g", kcal: 25 },
-    { name: "총각김치 100g", kcal: 22 },
-    { name: "백김치 100g", kcal: 18 },
-    { name: "열무김치 100g", kcal: 20 },
-    { name: "동치미 100g", kcal: 15 },
-    { name: "겉절이 100g", kcal: 20 },
-    { name: "파김치 100g", kcal: 25 },
-    { name: "오이소박이 100g", kcal: 20 },
-    { name: "갓김치 100g", kcal: 22 },
-    { name: "시금치나물 100g", kcal: 30 },
-    { name: "콩나물무침 100g", kcal: 25 },
-    { name: "고사리나물 100g", kcal: 40 },
-    { name: "도라지무침 100g", kcal: 35 },
-    { name: "취나물 100g", kcal: 28 },
-    { name: "계란후라이 1개", kcal: 90 },
-    { name: "계란찜 100g", kcal: 80 },
-    { name: "두부조림 100g", kcal: 120 },
-    { name: "감자조림 100g", kcal: 130 },
-    { name: "연근조림 100g", kcal: 140 },
-    { name: "우엉조림 100g", kcal: 150 },
-    { name: "멸치볶음 50g", kcal: 120 },
-    { name: "오징어채볶음 100g", kcal: 160 },
-    { name: "어묵볶음 100g", kcal: 150 },
-    { name: "잡채 100g", kcal: 180 },
-    { name: "떡갈비 100g", kcal: 220 },
-    { name: "동그랑땡 100g", kcal: 210 },
-    { name: "소시지볶음 100g", kcal: 280 },
-    { name: "햄 100g", kcal: 280 },
-    { name: "스팸 100g", kcal: 300 },
-    { name: "참치전 100g", kcal: 200 },
-    { name: "김치전 100g", kcal: 210 },
-    { name: "해물파전 100g", kcal: 220 },
-    { name: "감자전 100g", kcal: 190 },
-    { name: "호박전 100g", kcal: 150 },
-    { name: "동태전 100g", kcal: 180 },
-    { name: "낙지볶음 200g", kcal: 180 },
-    { name: "제육볶음 200g", kcal: 380 },
-    { name: "불고기 200g", kcal: 380 },
-    { name: "간장게장 100g", kcal: 150 },
-    { name: "양념게장 100g", kcal: 170 },
-    { name: "라면 1봉", kcal: 500 },
-    { name: "컵라면 1개", kcal: 380 },
-    { name: "냉면 물냉면", kcal: 450 },
-    { name: "냉면 비빔냉면", kcal: 520 },
-    { name: "잔치국수", kcal: 380 },
-    { name: "칼국수", kcal: 480 },
-    { name: "수제비", kcal: 420 },
-    { name: "막국수", kcal: 400 },
-    { name: "콩국수", kcal: 420 },
-    { name: "비빔국수", kcal: 450 },
-    { name: "쌀국수", kcal: 380 },
-    { name: "짜파게티 1봉", kcal: 550 },
-    { name: "신라면 1봉", kcal: 510 },
-    { name: "우동 한 그릇", kcal: 450 },
-    { name: "소면 한 그릇", kcal: 350 },
-    { name: "보쌈 200g", kcal: 350 },
-    { name: "족발 200g", kcal: 380 },
-    { name: "수육 200g", kcal: 350 },
-    { name: "순대 200g", kcal: 360 },
-    { name: "아구찜 200g", kcal: 250 },
-    { name: "갈비찜 200g", kcal: 420 },
-    { name: "닭볶음탕 200g", kcal: 380 },
-    { name: "해물볶음 200g", kcal: 220 },
-    { name: "오삼불고기 200g", kcal: 380 },
-    { name: "곱창볶음 200g", kcal: 380 },
-    { name: "대창볶음 200g", kcal: 480 },
-    { name: "막창 200g", kcal: 520 },
-    { name: "육회 100g", kcal: 130 },
-    { name: "마라탕 200g", kcal: 350 },
-    { name: "마라샹궈 200g", kcal: 420 },
-    { name: "짜장면", kcal: 620 },
-    { name: "짬뽕", kcal: 550 },
-    { name: "중식볶음밥", kcal: 680 },
-    { name: "울면", kcal: 500 },
-    { name: "탕수육 200g", kcal: 520 },
-    { name: "깐풍기 200g", kcal: 480 },
-    { name: "마파두부 200g", kcal: 280 },
-    { name: "팔보채 200g", kcal: 320 },
-    { name: "유산슬 200g", kcal: 350 },
-    { name: "양장피 200g", kcal: 380 },
-    { name: "군만두 5개", kcal: 350 },
-    { name: "물만두 5개", kcal: 280 },
-    { name: "찐만두 5개", kcal: 290 },
-    { name: "왕만두 1개", kcal: 150 },
-    { name: "짬뽕밥", kcal: 580 },
-    { name: "훠궈 200g", kcal: 380 },
-    { name: "양꼬치 1개", kcal: 80 },
-    { name: "멘보샤 1개", kcal: 120 },
-    { name: "중식볶음면", kcal: 580 },
-    { name: "냉채 200g", kcal: 180 },
-    { name: "초밥 1피스", kcal: 60 },
-    { name: "참치초밥 1피스", kcal: 70 },
-    { name: "연어초밥 1피스", kcal: 75 },
-    { name: "새우초밥 1피스", kcal: 65 },
-    { name: "광어초밥 1피스", kcal: 60 },
-    { name: "계란초밥 1피스", kcal: 75 },
-    { name: "초밥 10피스", kcal: 650 },
-    { name: "사시미 200g", kcal: 200 },
-    { name: "라멘", kcal: 550 },
-    { name: "돈코츠라멘", kcal: 650 },
-    { name: "미소라멘", kcal: 530 },
-    { name: "일본식우동", kcal: 420 },
-    { name: "소바", kcal: 380 },
-    { name: "돈까스 200g", kcal: 520 },
-    { name: "치킨까스 200g", kcal: 480 },
-    { name: "오야코동", kcal: 580 },
-    { name: "규동", kcal: 620 },
-    { name: "카츠동", kcal: 680 },
-    { name: "텐동", kcal: 650 },
-    { name: "캘리포니아롤 6피스", kcal: 300 },
-    { name: "연어롤 6피스", kcal: 320 },
-    { name: "스파이시참치롤 6피스", kcal: 300 },
-    { name: "타코야키 6개", kcal: 280 },
-    { name: "오코노미야키 200g", kcal: 350 },
-    { name: "야키소바", kcal: 480 },
-    { name: "에다마메 100g", kcal: 120 },
-    { name: "차슈 100g", kcal: 280 },
-    { name: "일본식카레", kcal: 600 },
-    { name: "토마토파스타", kcal: 480 },
-    { name: "크림파스타", kcal: 650 },
-    { name: "카르보나라", kcal: 700 },
-    { name: "알리오올리오", kcal: 550 },
-    { name: "봉골레", kcal: 500 },
-    { name: "로제파스타", kcal: 620 },
-    { name: "피자 마르게리타 1조각", kcal: 280 },
-    { name: "피자 페퍼로니 1조각", kcal: 320 },
-    { name: "피자 콤비네이션 1조각", kcal: 330 },
-    { name: "피자 고구마 1조각", kcal: 300 },
-    { name: "빅맥 1개", kcal: 540 },
-    { name: "불고기버거 1개", kcal: 420 },
-    { name: "치킨버거 1개", kcal: 430 },
-    { name: "치즈버거 1개", kcal: 510 },
-    { name: "더블패티버거 1개", kcal: 680 },
-    { name: "와퍼 1개", kcal: 660 },
-    { name: "스테이크 200g", kcal: 380 },
-    { name: "안심스테이크 200g", kcal: 360 },
-    { name: "등심스테이크 200g", kcal: 420 },
-    { name: "치킨스테이크 200g", kcal: 340 },
-    { name: "연어스테이크 200g", kcal: 360 },
-    { name: "그린샐러드 200g", kcal: 80 },
-    { name: "시저샐러드 200g", kcal: 180 },
-    { name: "코브샐러드 200g", kcal: 250 },
-    { name: "그릭샐러드 200g", kcal: 150 },
-    { name: "감자튀김 100g", kcal: 312 },
-    { name: "어니언링 100g", kcal: 280 },
-    { name: "클램차우더", kcal: 220 },
-    { name: "토마토수프", kcal: 120 },
-    { name: "콘수프", kcal: 180 },
-    { name: "BLT샌드위치 1개", kcal: 380 },
-    { name: "클럽샌드위치 1개", kcal: 420 },
-    { name: "참치샌드위치 1개", kcal: 350 },
-    { name: "치킨샌드위치 1개", kcal: 400 },
-    { name: "에그마요샌드위치 1개", kcal: 350 },
-    { name: "아보카도토스트 1개", kcal: 280 },
-    { name: "베이글크림치즈 1개", kcal: 380 },
-    { name: "오믈렛 1개", kcal: 200 },
-    { name: "에그베네딕트 1개", kcal: 350 },
-    { name: "프렌치토스트 1장", kcal: 180 },
-    { name: "와플 1개", kcal: 250 },
-    { name: "팬케이크 1장", kcal: 180 },
-    { name: "리조또", kcal: 520 },
-    { name: "그라탕 200g", kcal: 350 },
-    { name: "라자냐 200g", kcal: 380 },
-    { name: "뇨키", kcal: 480 },
-    { name: "피쉬앤칩스 200g", kcal: 450 },
-    { name: "떡볶이 200g", kcal: 300 },
-    { name: "오징어튀김 1개", kcal: 120 },
-    { name: "새우튀김 1개", kcal: 80 },
-    { name: "고구마튀김 1개", kcal: 130 },
-    { name: "야채튀김 1개", kcal: 90 },
-    { name: "핫도그 1개", kcal: 280 },
-    { name: "치즈핫도그 1개", kcal: 320 },
-    { name: "계란빵 1개", kcal: 200 },
-    { name: "붕어빵 1개", kcal: 130 },
-    { name: "호떡 1개", kcal: 220 },
-    { name: "씨앗호떡 1개", kcal: 250 },
-    { name: "꽈배기 1개", kcal: 180 },
-    { name: "찹쌀도넛 1개", kcal: 200 },
-    { name: "토스트 1개", kcal: 280 },
-    { name: "계란토스트 1개", kcal: 320 },
-    { name: "치즈토스트 1개", kcal: 300 },
-    { name: "라볶이", kcal: 480 },
-    { name: "로제떡볶이 200g", kcal: 350 },
-    { name: "크림떡볶이 200g", kcal: 380 },
-    { name: "치킨강정 200g", kcal: 480 },
-    { name: "닭강정 200g", kcal: 460 },
-    { name: "치즈볼 5개", kcal: 250 },
-    { name: "호두과자 1개", kcal: 60 },
-    { name: "국화빵 1개", kcal: 80 },
-    { name: "후라이드치킨 1조각", kcal: 230 },
-    { name: "양념치킨 1조각", kcal: 250 },
-    { name: "간장치킨 1조각", kcal: 240 },
-    { name: "마늘치킨 1조각", kcal: 245 },
-    { name: "치킨윙 1개", kcal: 100 },
-    { name: "치킨봉 1개", kcal: 180 },
-    { name: "치킨너겟 5개", kcal: 250 },
-    { name: "맥너겟 6개", kcal: 280 },
-    { name: "치킨텐더 3개", kcal: 270 },
-    { name: "순살치킨 200g", kcal: 420 },
-    { name: "치킨무 100g", kcal: 40 },
-    { name: "반반치킨 반마리", kcal: 580 },
-    { name: "징거버거 1개", kcal: 580 },
-    { name: "KFC오리지널 1조각", kcal: 220 },
-    { name: "삼각김밥 1개", kcal: 180 },
-    { name: "편의점도시락 1개", kcal: 650 },
-    { name: "편의점샌드위치 1개", kcal: 350 },
-    { name: "편의점핫도그 1개", kcal: 280 },
-    { name: "편의점크로와상 1개", kcal: 280 },
-    { name: "오뎅바 1개", kcal: 100 },
-    { name: "삶은계란 1개", kcal: 75 },
-    { name: "편의점닭가슴살 100g", kcal: 100 },
-    { name: "바나나 1개", kcal: 90 },
-    { name: "사과 1개", kcal: 80 },
-    { name: "배 1개", kcal: 100 },
-    { name: "귤 1개", kcal: 45 },
-    { name: "오렌지 1개", kcal: 60 },
-    { name: "딸기 100g", kcal: 33 },
-    { name: "포도 100g", kcal: 60 },
-    { name: "수박 200g", kcal: 60 },
-    { name: "참외 1개", kcal: 55 },
-    { name: "복숭아 1개", kcal: 50 },
-    { name: "망고 100g", kcal: 65 },
-    { name: "파인애플 100g", kcal: 50 },
-    { name: "키위 1개", kcal: 45 },
-    { name: "블루베리 100g", kcal: 57 },
-    { name: "체리 100g", kcal: 63 },
-    { name: "자몽 1개", kcal: 70 },
-    { name: "레몬 1개", kcal: 20 },
-    { name: "감 1개", kcal: 80 },
-    { name: "석류 100g", kcal: 68 },
-    { name: "무화과 1개", kcal: 40 },
-    { name: "멜론 200g", kcal: 70 },
-    { name: "천도복숭아 1개", kcal: 55 },
-    { name: "자두 1개", kcal: 45 },
-    { name: "살구 1개", kcal: 20 },
-    { name: "아보카도 1개", kcal: 230 },
-    { name: "리치 100g", kcal: 66 },
-    { name: "용과 100g", kcal: 60 },
-    { name: "파파야 100g", kcal: 43 },
-    { name: "구아바 100g", kcal: 68 },
-    { name: "패션프루트 1개", kcal: 17 },
-    { name: "크랜베리 100g", kcal: 46 },
-    { name: "라즈베리 100g", kcal: 52 },
-    { name: "블랙베리 100g", kcal: 43 },
-    { name: "토마토 1개", kcal: 35 },
-    { name: "방울토마토 10개", kcal: 30 },
-    { name: "수박 한 조각", kcal: 80 },
-    { name: "천혜향 1개", kcal: 55 },
-    { name: "한라봉 1개", kcal: 65 },
-    { name: "레드향 1개", kcal: 60 },
-    { name: "황금향 1개", kcal: 58 },
-    { name: "아메리카노", kcal: 10 },
-    { name: "라떼", kcal: 150 },
-    { name: "카푸치노", kcal: 120 },
-    { name: "에스프레소", kcal: 5 },
-    { name: "카페모카", kcal: 250 },
-    { name: "바닐라라떼", kcal: 280 },
-    { name: "캐러멜마키아토", kcal: 260 },
-    { name: "녹차", kcal: 5 },
-    { name: "홍차", kcal: 5 },
-    { name: "허브티", kcal: 5 },
-    { name: "보리차", kcal: 0 },
-    { name: "탄산수", kcal: 0 },
-    { name: "오렌지주스 200ml", kcal: 90 },
-    { name: "사과주스 200ml", kcal: 95 },
-    { name: "포도주스 200ml", kcal: 130 },
-    { name: "토마토주스 200ml", kcal: 40 },
-    { name: "당근주스 200ml", kcal: 80 },
-    { name: "콜라 355ml", kcal: 150 },
-    { name: "사이다 355ml", kcal: 140 },
-    { name: "에너지드링크 250ml", kcal: 110 },
-    { name: "이온음료 500ml", kcal: 100 },
-    { name: "우유 200ml", kcal: 130 },
-    { name: "저지방우유 200ml", kcal: 100 },
-    { name: "두유 200ml", kcal: 90 },
-    { name: "아몬드우유 200ml", kcal: 60 },
-    { name: "프로틴쉐이크", kcal: 150 },
-    { name: "단백질음료 250ml", kcal: 130 },
-    { name: "식혜 200ml", kcal: 130 },
-    { name: "수정과 200ml", kcal: 120 },
-    { name: "매실음료 200ml", kcal: 80 },
-    { name: "녹차라떼", kcal: 180 },
-    { name: "말차라떼", kcal: 200 },
-    { name: "딸기라떼", kcal: 250 },
-    { name: "고구마라떼", kcal: 280 },
-    { name: "유자차", kcal: 80 },
-    { name: "생강차", kcal: 40 },
-    { name: "쌍화차", kcal: 80 },
-    { name: "콤부차 250ml", kcal: 30 },
-    { name: "케피어 200ml", kcal: 110 },
-    { name: "라씨 200ml", kcal: 130 },
-    { name: "오트밀크 200ml", kcal: 80 },
-    { name: "계란 1개", kcal: 75 },
-    { name: "계란흰자 1개", kcal: 17 },
-    { name: "계란노른자 1개", kcal: 55 },
-    { name: "스크램블에그 2개분", kcal: 180 },
-    { name: "그릭요거트 100g", kcal: 59 },
-    { name: "플레인요거트 100g", kcal: 60 },
-    { name: "떠먹는요거트 100g", kcal: 100 },
-    { name: "슬라이스치즈 1장", kcal: 70 },
-    { name: "체다치즈 30g", kcal: 120 },
-    { name: "모짜렐라치즈 30g", kcal: 85 },
-    { name: "코티지치즈 100g", kcal: 98 },
-    { name: "크림치즈 30g", kcal: 100 },
-    { name: "버터 10g", kcal: 72 },
-    { name: "사워크림 30g", kcal: 60 },
-    { name: "식빵 1장", kcal: 80 },
-    { name: "통밀식빵 1장", kcal: 70 },
-    { name: "호밀빵 1장", kcal: 65 },
-    { name: "바게트 100g", kcal: 270 },
-    { name: "크루아상 1개", kcal: 280 },
-    { name: "소보로빵 1개", kcal: 320 },
-    { name: "단팥빵 1개", kcal: 280 },
-    { name: "크림빵 1개", kcal: 310 },
-    { name: "도넛 글레이즈드 1개", kcal: 250 },
-    { name: "도넛 초코 1개", kcal: 280 },
-    { name: "머핀 1개", kcal: 350 },
-    { name: "스콘 1개", kcal: 280 },
-    { name: "베이글 1개", kcal: 270 },
-    { name: "또띠아 1장", kcal: 120 },
-    { name: "마카롱 1개", kcal: 100 },
-    { name: "에클레어 1개", kcal: 260 },
-    { name: "초콜릿 100g", kcal: 550 },
-    { name: "다크초콜릿 100g", kcal: 520 },
-    { name: "아이스크림 100ml", kcal: 200 },
-    { name: "팥빙수", kcal: 350 },
-    { name: "인절미 100g", kcal: 220 },
-    { name: "백설기 100g", kcal: 200 },
-    { name: "송편 1개", kcal: 80 },
-    { name: "약과 1개", kcal: 120 },
-    { name: "팝콘 100g", kcal: 380 },
-    { name: "감자칩 100g", kcal: 536 },
-    { name: "땅콩 100g", kcal: 567 },
-    { name: "아몬드 30g", kcal: 170 },
-    { name: "호두 30g", kcal: 196 },
-    { name: "캐슈넛 30g", kcal: 157 },
-    { name: "피스타치오 30g", kcal: 171 },
-    { name: "해바라기씨 30g", kcal: 173 },
-    { name: "건포도 30g", kcal: 90 },
-    { name: "건망고 30g", kcal: 95 },
-    { name: "믹스넛 30g", kcal: 180 },
-    { name: "그래놀라바 1개", kcal: 180 },
-    { name: "단백질바 1개", kcal: 200 },
-    { name: "프로틴볼 1개", kcal: 100 },
-    { name: "닭가슴살 100g", kcal: 109 },
-    { name: "닭가슴살 150g", kcal: 164 },
-    { name: "닭가슴살 200g", kcal: 218 },
-    { name: "훈제닭가슴살 100g", kcal: 115 },
-    { name: "닭안심 100g", kcal: 105 },
-    { name: "닭다리살 100g", kcal: 180 },
-    { name: "닭다리 1개", kcal: 250 },
-    { name: "닭날개 1개", kcal: 100 },
-    { name: "닭봉 1개", kcal: 130 },
-    { name: "소고기 안심 100g", kcal: 160 },
-    { name: "소고기 등심 100g", kcal: 220 },
-    { name: "소고기 사태 100g", kcal: 160 },
-    { name: "돼지고기 안심 100g", kcal: 143 },
-    { name: "돼지고기 앞다리 100g", kcal: 165 },
-    { name: "연어 100g", kcal: 208 },
-    { name: "연어 150g", kcal: 312 },
-    { name: "참치캔 100g", kcal: 116 },
-    { name: "물참치캔 100g", kcal: 100 },
-    { name: "고등어 100g", kcal: 202 },
-    { name: "삼치 100g", kcal: 155 },
-    { name: "조기 100g", kcal: 120 },
-    { name: "갈치 100g", kcal: 130 },
-    { name: "꽁치 100g", kcal: 190 },
-    { name: "새우 100g", kcal: 85 },
-    { name: "오징어 100g", kcal: 88 },
-    { name: "문어 100g", kcal: 82 },
-    { name: "낙지 100g", kcal: 74 },
-    { name: "게 100g", kcal: 97 },
-    { name: "조개 100g", kcal: 75 },
-    { name: "홍합 100g", kcal: 88 },
-    { name: "굴 100g", kcal: 69 },
-    { name: "전복 100g", kcal: 97 },
-    { name: "두부 100g", kcal: 76 },
-    { name: "연두부 100g", kcal: 45 },
-    { name: "순두부 100g", kcal: 40 },
-    { name: "콩 100g", kcal: 350 },
-    { name: "렌틸콩 100g", kcal: 116 },
-    { name: "병아리콩 100g", kcal: 164 },
-    { name: "고구마 1개", kcal: 130 },
-    { name: "고구마 100g", kcal: 90 },
-    { name: "찐고구마 100g", kcal: 88 },
-    { name: "감자 1개", kcal: 150 },
-    { name: "감자 100g", kcal: 66 },
-    { name: "찐감자 100g", kcal: 80 },
-    { name: "오트밀 40g", kcal: 147 },
-    { name: "귀리 100g", kcal: 389 },
-    { name: "퀴노아 100g", kcal: 368 },
-    { name: "옥수수 1개", kcal: 120 },
-    { name: "삶은옥수수 1개", kcal: 130 },
-    { name: "브로콜리 100g", kcal: 34 },
-    { name: "콜리플라워 100g", kcal: 25 },
-    { name: "시금치 100g", kcal: 23 },
-    { name: "케일 100g", kcal: 49 },
-    { name: "상추 100g", kcal: 15 },
-    { name: "양상추 100g", kcal: 14 },
-    { name: "양배추 100g", kcal: 25 },
-    { name: "당근 100g", kcal: 41 },
-    { name: "파프리카 100g", kcal: 31 },
-    { name: "오이 100g", kcal: 16 },
-    { name: "셀러리 100g", kcal: 16 },
-    { name: "아스파라거스 100g", kcal: 20 },
-    { name: "버섯 100g", kcal: 22 },
-    { name: "표고버섯 100g", kcal: 34 },
-    { name: "새송이버섯 100g", kcal: 35 },
-    { name: "팽이버섯 100g", kcal: 37 },
-    { name: "양송이버섯 100g", kcal: 27 },
-    { name: "가지 100g", kcal: 25 },
-    { name: "호박 100g", kcal: 20 },
-    { name: "단호박 100g", kcal: 91 },
-    { name: "무 100g", kcal: 18 },
-    { name: "배추 100g", kcal: 15 },
-    { name: "양파 100g", kcal: 40 },
-    { name: "콩나물 100g", kcal: 30 },
-    { name: "숙주 100g", kcal: 30 },
-    { name: "깻잎 100g", kcal: 43 },
-    { name: "부추 100g", kcal: 32 },
-    { name: "광어 100g", kcal: 97 },
-    { name: "우럭 100g", kcal: 99 },
-    { name: "농어 100g", kcal: 107 },
-    { name: "방어 100g", kcal: 154 },
-    { name: "참돔 100g", kcal: 128 },
-    { name: "송어 100g", kcal: 147 },
-    { name: "황태 100g", kcal: 320 },
-    { name: "건오징어 100g", kcal: 298 },
-    { name: "왕새우 1마리", kcal: 40 },
-    { name: "킹크랩 100g", kcal: 84 },
-    { name: "대게 100g", kcal: 83 },
-    { name: "바지락 100g", kcal: 57 },
-    { name: "소라 100g", kcal: 90 },
-    { name: "해삼 100g", kcal: 32 },
-    { name: "미역 100g", kcal: 16 },
-    { name: "다시마 100g", kcal: 35 },
-    { name: "소시지 1개", kcal: 120 },
-    { name: "비엔나소시지 1개", kcal: 50 },
-    { name: "베이컨 2장", kcal: 120 },
-    { name: "핫도그소시지 1개", kcal: 180 },
-    { name: "어묵 100g", kcal: 110 },
-    { name: "게맛살 100g", kcal: 96 },
-    { name: "시리얼 100g", kcal: 378 },
-    { name: "그래놀라 100g", kcal: 450 },
-    { name: "웨이프로틴 1스쿱", kcal: 120 },
-    { name: "카제인프로틴 1스쿱", kcal: 115 },
-    { name: "식물성프로틴 1스쿱", kcal: 110 },
-    { name: "BCAA 1스쿱", kcal: 10 },
-    { name: "크레아틴 1스쿱", kcal: 20 },
-    { name: "아마씨 30g", kcal: 166 },
-    { name: "치아씨드 30g", kcal: 146 },
-    { name: "햄프씨드 30g", kcal: 166 },
-    { name: "호박씨 30g", kcal: 180 },
-    { name: "잣 30g", kcal: 204 },
-    { name: "마카다미아 30g", kcal: 214 },
-    { name: "브라질너트 30g", kcal: 196 },
-    { name: "피칸 30g", kcal: 207 },
-    { name: "땅콩버터 30g", kcal: 190 },
-    { name: "아몬드버터 30g", kcal: 185 },
-    { name: "참깨 30g", kcal: 173 },
-    { name: "들깨 30g", kcal: 168 },
-    { name: "낫토 100g", kcal: 200 },
-    { name: "청국장 100g", kcal: 120 },
-    { name: "템페 100g", kcal: 190 },
-    { name: "사우어크라우트 100g", kcal: 19 },
-    { name: "피클 100g", kcal: 11 },
-    { name: "케첩 1큰술", kcal: 15 },
-    { name: "마요네즈 1큰술", kcal: 90 },
-    { name: "머스타드 1큰술", kcal: 10 },
-    { name: "간장 1큰술", kcal: 10 },
-    { name: "된장 1큰술", kcal: 30 },
-    { name: "고추장 1큰술", kcal: 35 },
-    { name: "올리브오일 1큰술", kcal: 120 },
-    { name: "참기름 1큰술", kcal: 120 },
-    { name: "꿀 1큰술", kcal: 64 },
-    { name: "땅콩버터 1큰술", kcal: 95 },
-    { name: "후무스 30g", kcal: 75 },
-    { name: "살사소스 30g", kcal: 15 },
-    { name: "닭가슴살샐러드 200g", kcal: 180 },
-    { name: "참치샐러드 200g", kcal: 200 },
-    { name: "연어샐러드 200g", kcal: 280 },
-    { name: "그릭요거트볼 200g", kcal: 180 },
-    { name: "오트밀볼 200g", kcal: 250 },
-    { name: "스무디볼 200g", kcal: 220 },
-    { name: "프로틴팬케이크 2장", kcal: 280 },
-    { name: "닭가슴살주먹밥 1개", kcal: 180 },
-    { name: "현미김밥 1줄", kcal: 320 },
-    { name: "두부면 100g", kcal: 80 },
-    { name: "곤약 100g", kcal: 8 },
-    { name: "곤약면 100g", kcal: 10 },
-    { name: "곤약밥 100g", kcal: 15 },
-  ];
 
-  // 텍스트에서 칼로리 계산 (로컬 DB 기반)
+  // ── 공공데이터 식품영양성분 API ──
+  const FOOD_API_KEY = 'dcd0f2b913cecf0c2ae6802452789280c371ea591501d2b51db2914b9eaa76a1';
+  const FOOD_API_URL = 'https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02';
+  let foodSearchTimer = null;
+  let addedFoodItems = []; // {name, kcal, meal, amount}
+
+  async function searchFoodAPI(query) {
+    const status = document.getElementById('food-search-status');
+    if (!query || query.length < 1) { hideFoodDropdown(); return; }
+    if (status) status.textContent = '검색 중...';
+    try {
+      const url = `${FOOD_API_URL}?serviceKey=${encodeURIComponent(FOOD_API_KEY)}&pageNo=1&numOfRows=10&type=json&FOOD_NM_KR=${encodeURIComponent(query)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const items = data?.body?.items || [];
+      if (status) status.textContent = items.length > 0 ? `${items.length}개 검색됨` : '결과 없음';
+      showFoodDropdown(items);
+    } catch(e) {
+      if (status) status.textContent = '검색 오류. 다시 시도해주세요.';
+      hideFoodDropdown();
+    }
+  }
+
+  function onFoodSearchInput(val) {
+    clearTimeout(foodSearchTimer);
+    if (!val) { hideFoodDropdown(); document.getElementById('food-search-status').textContent = ''; return; }
+    foodSearchTimer = setTimeout(() => searchFoodAPI(val), 400);
+  }
+
+  function showFoodDropdown(items) {
+    const dd = document.getElementById('food-search-dropdown');
+    if (!dd) return;
+    if (!items || items.length === 0) { dd.style.display = 'none'; return; }
+    dd.innerHTML = items.map((item, i) => {
+      const name = item.FOOD_NM_KR || '';
+      const kcal = Math.round(parseFloat(item.AMT_NUM1) || 0);
+      const maker = item.MAKER_NM ? ` (${item.MAKER_NM})` : '';
+      return `<div onclick="addFoodItem('${name.replace(/'/g,"\'")}',${kcal})"
+        style="padding:10px 12px;cursor:pointer;border-bottom:0.5px solid var(--border);font-size:13px;"
+        onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='var(--card)'">
+        <div style="font-weight:600;color:var(--text);">${name}${maker}</div>
+        <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">100g당 ${kcal} kcal</div>
+      </div>`;
+    }).join('');
+    dd.style.display = 'block';
+  }
+
+  function hideFoodDropdown() {
+    const dd = document.getElementById('food-search-dropdown');
+    if (dd) dd.style.display = 'none';
+  }
+
+  function addFoodItem(name, kcalPer100g) {
+    hideFoodDropdown();
+    const mealType = document.getElementById('food-meal-type')?.value || '아침';
+    const input = document.getElementById('food-search-input');
+    if (input) { input.value = ''; }
+    const status = document.getElementById('food-search-status');
+    if (status) status.textContent = '';
+
+    // 기본 100g 기준으로 추가
+    const item = { name, kcal: kcalPer100g, kcalPer100g, amount: 100, meal: mealType, id: Date.now() };
+    addedFoodItems.push(item);
+    renderAddedFoods();
+  }
+
+  function renderAddedFoods() {
+    const container = document.getElementById('food-items-container');
+    const listWrap = document.getElementById('food-added-list');
+    if (!container) return;
+
+    if (addedFoodItems.length === 0) {
+      if (listWrap) listWrap.style.display = 'none';
+      return;
+    }
+    if (listWrap) listWrap.style.display = 'block';
+
+    const mealColors = { '아침':'#BA7517','점심':'#185FA5','저녁':'#5F5E5A','간식':'#993556' };
+    container.innerHTML = addedFoodItems.map(item => `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:8px 10px;background:var(--card);border-radius:8px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
+          <div style="font-size:11px;color:${mealColors[item.meal]||'var(--text-hint)'};">${item.meal}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <input type="number" value="${item.amount}" min="1" max="9999"
+            onchange="updateFoodAmount(${item.id}, this.value)"
+            style="width:52px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-align:center;background:var(--card);color:var(--text);font-family:'Noto Sans KR',sans-serif;">
+          <span style="font-size:11px;color:var(--text-hint);">g</span>
+        </div>
+        <div style="font-size:13px;font-weight:700;color:#27500A;min-width:56px;text-align:right;">${Math.round(item.kcalPer100g * item.amount / 100)} kcal</div>
+        <button onclick="removeFoodItem(${item.id})"
+          style="background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;padding:0 2px;">✕</button>
+      </div>
+    `).join('');
+
+    updateTotalCalorie();
+  }
+
+  function updateFoodAmount(id, val) {
+    const item = addedFoodItems.find(i => i.id === id);
+    if (item) { item.amount = parseFloat(val) || 100; }
+    renderAddedFoods();
+  }
+
+  function removeFoodItem(id) {
+    addedFoodItems = addedFoodItems.filter(i => i.id !== id);
+    renderAddedFoods();
+  }
+
+  function updateTotalCalorie() {
+    const total = addedFoodItems.reduce((sum, i) => sum + Math.round(i.kcalPer100g * i.amount / 100), 0);
+    const totalEl = document.getElementById('calorie-total');
+    if (totalEl) totalEl.textContent = total > 0 ? '약 ' + total + ' kcal' : '';
+
+    const userId = localStorage.getItem('current_user');
+    const goalType = localStorage.getItem('body_goal_type_' + userId) || 'diet';
+    const goalKcal = goalType === 'diet' ? 1500 : goalType === 'bulk' ? 2500 : 2000;
+    const diff = goalKcal - total;
+    const msgEl = document.getElementById('calorie-msg');
+    if (msgEl && total > 0) {
+      if (diff > 0) {
+        msgEl.style.background = '#C0DD97'; msgEl.style.color = '#27500A';
+        msgEl.textContent = '👍 목표보다 ' + diff + ' kcal 적어요!';
+      } else if (diff < 0) {
+        msgEl.style.background = '#F7C1C1'; msgEl.style.color = '#791F1F';
+        msgEl.textContent = '⚠️ 목표보다 ' + Math.abs(diff) + ' kcal 초과했어요';
+      } else {
+        msgEl.style.background = '#C0DD97'; msgEl.style.color = '#27500A';
+        msgEl.textContent = '🎯 목표 칼로리 딱 맞아요!';
+      }
+      msgEl.style.display = 'block';
+    } else if (msgEl) { msgEl.style.display = 'none'; }
+  }
+
+  function getMealSummaryForPost() {
+    if (addedFoodItems.length === 0) return '';
+    const meals = { '아침':[], '점심':[], '저녁':[], '간식':[] };
+    addedFoodItems.forEach(i => { if (meals[i.meal]) meals[i.meal].push(i.name); });
+    let summary = '';
+    if (meals['아침'].length) summary += `🌅 아침: ${meals['아침'].join(', ')}
+`;
+    if (meals['점심'].length) summary += `☀️ 점심: ${meals['점심'].join(', ')}
+`;
+    if (meals['저녁'].length) summary += `🌙 저녁: ${meals['저녁'].join(', ')}
+`;
+    if (meals['간식'].length) summary += `🍎 간식: ${meals['간식'].join(', ')}
+`;
+    const total = addedFoodItems.reduce((s,i) => s + Math.round(i.kcalPer100g*i.amount/100), 0);
+    if (total > 0) summary += `🔥 총 칼로리: 약 ${total} kcal`;
+    return summary.trim();
+  }
+
+  // 기존 코드 호환용 (사용 안 함)
+  function calcCalorieAI() {}
   function calcKcalFromText(text) {
     if (!text) return 0;
     let total = 0;
@@ -6008,18 +5549,10 @@
   async function submitPost() {
     const category = document.getElementById('post-category').value;
     let content = document.getElementById('post-content').value.trim();
-    // 식단 카테고리면 끼니별 내용 합치기
+    // 식단 카테고리면 추가된 음식 목록으로 내용 합치기
     if (category === '식단') {
-      const breakfast = document.getElementById('meal-breakfast')?.value.trim();
-      const lunch     = document.getElementById('meal-lunch')?.value.trim();
-      const dinner    = document.getElementById('meal-dinner')?.value.trim();
-      const snack     = document.getElementById('meal-snack')?.value.trim();
-      const parts = [];
-      if (breakfast) parts.push('🌅 아침: ' + breakfast);
-      if (lunch)     parts.push('☀️ 점심: ' + lunch);
-      if (dinner)    parts.push('🌙 저녁: ' + dinner);
-      if (snack)     parts.push('🍎 간식: ' + snack);
-      if (parts.length > 0) content = parts.join('\n');
+      const mealSummary = getMealSummaryForPost();
+      if (mealSummary) content = mealSummary;
     }
     if (!content) { alert('내용을 입력해주세요!'); return; }
 
