@@ -5839,8 +5839,7 @@
   function calcKcalFromText(text) {
     if (!text) return 0;
     let total = 0;
-    const lines = text.split(/[,
-]/);
+    const lines = text.split(/[,\n]/);
     lines.forEach(line => {
       line = line.trim();
       if (!line) return;
