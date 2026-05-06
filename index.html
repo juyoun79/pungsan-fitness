@@ -2670,7 +2670,7 @@
                 <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${timeStr}</div>
               </div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:${record.memo?'10px':'0'};">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
               <div style="background:#ef444412;border-radius:8px;padding:8px;text-align:center;">
                 <div style="font-size:11px;color:#ef4444;margin-bottom:2px;font-weight:600;">시간</div>
                 <div style="font-size:13px;font-weight:700;color:var(--text);">${timeStr}</div>
@@ -2710,7 +2710,7 @@
                 <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${eq.muscles}${maxW > 0 ? ' · 최고 '+maxW+'kg' : ''}</div>
               </div>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:${record.memo?'10px':'0'};">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;">
               ${record.sets.map(s=>`
                 <div style="background:${color}12;border-radius:8px;padding:8px;text-align:center;">
                   <div style="font-size:11px;color:${color};margin-bottom:2px;font-weight:600;">${s.set}세트</div>
@@ -2739,7 +2739,7 @@
                 <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${maxW > 0 ? '최고 '+maxW+'kg' : '맨몸 운동'}</div>
               </div>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:${record.memo?'10px':'0'};">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;">
               ${record.sets.map(s=>`
                 <div style="background:#f59e0b12;border-radius:8px;padding:8px;text-align:center;">
                   <div style="font-size:11px;color:#d97706;margin-bottom:2px;font-weight:600;">${s.set}세트</div>
