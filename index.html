@@ -3903,7 +3903,11 @@
 
     // 유산소 인덱스 등록
     const cardioIndex = JSON.parse(localStorage.getItem('cardio_index_' + userId) || '[]');
-    if (!cardioIndex.includes(type)) { cardioIndex.push(type); localStorage.setItem('cardio_index_' + userId, JSON.stringify(cardioIndex)); }
+    if (!cardioIndex.includes(type)) {
+      cardioIndex.push(type);
+      localStorage.setItem('cardio_index_' + userId, JSON.stringify(cardioIndex));
+      db.ref('users/' + userId + '/cardioIndex').set(cardioIndex);
+    }
 
     closeCardioModal();
     cardioEditDate = null; // 수정 날짜 초기화
@@ -4110,7 +4114,11 @@
 
     // 달력 갱신용 날짜 인덱스에도 등록
     const fwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
-    if (!fwIndex.includes(name)) { fwIndex.push(name); localStorage.setItem('freeweight_index_' + userId, JSON.stringify(fwIndex)); }
+    if (!fwIndex.includes(name)) {
+      fwIndex.push(name);
+      localStorage.setItem('freeweight_index_' + userId, JSON.stringify(fwIndex));
+      db.ref('users/' + userId + '/fwIndex').set(fwIndex);
+    }
 
     closeFreeweightModal();
 
@@ -5563,6 +5571,22 @@
   function addEditSet() { addEditSetWithValue(0, 0); }
   function removeEditSet(n) { const r = document.getElementById('edit-row-' + n); if (r) r.remove(); }
 
+  // localStorage 키 → Firebase 경로 변환
+  function getFirebaseWorkoutPath(storageKey, userId) {
+    // workout_기구key_userId → workouts/기구key
+    // freeweight_운동명_userId → workouts/fw_운동명
+    // workout_dual_front_기구key_userId → workouts/dual_front_기구key
+    // workout_dual_back_기구key_userId → workouts/dual_back_기구key
+    // cardio_종류_userId → workouts/cardio_종류
+    const base = storageKey.replace('_' + userId, '');
+    if (base.startsWith('workout_dual_front_')) return 'workouts/dual_front_' + base.replace('workout_dual_front_', '');
+    if (base.startsWith('workout_dual_back_'))  return 'workouts/dual_back_'  + base.replace('workout_dual_back_', '');
+    if (base.startsWith('workout_'))            return 'workouts/' + base.replace('workout_', '');
+    if (base.startsWith('freeweight_'))         return 'workouts/fw_' + base.replace('freeweight_', '');
+    if (base.startsWith('cardio_'))             return 'workouts/' + base;
+    return null;
+  }
+
   function saveEditedWorkout() {
     const sets = [];
     for (let i = 1; i <= editSetCount; i++) {
@@ -5577,17 +5601,30 @@
     const memo = document.getElementById('edit-workout-memo').value.trim();
     const records = JSON.parse(localStorage.getItem(editWorkoutKey) || '[]');
     const idx = records.findIndex(r => r.date === editWorkoutDate);
-    if (idx !== -1) { records[idx].sets = sets; records[idx].memo = memo; localStorage.setItem(editWorkoutKey, JSON.stringify(records)); }
+    if (idx !== -1) {
+      records[idx].sets = sets;
+      records[idx].memo = memo;
+      localStorage.setItem(editWorkoutKey, JSON.stringify(records));
+      // Firebase 반영
+      const userId = localStorage.getItem('current_user');
+      const fbPath = getFirebaseWorkoutPath(editWorkoutKey, userId);
+      if (fbPath) db.ref('users/' + userId + '/' + fbPath + '/' + editWorkoutDate).update({ sets, memo });
+    }
     closeEditWorkoutModal();
     if (calSelectedDate) renderDayDetail(calSelectedDate);
     if (currentEquipment) loadPrevRecords();
     alert('수정됐어요! ✅');
   }
+
   function deleteWorkoutRecord() {
     if (!confirm('이 날의 운동기록을 삭제할까요?')) return;
+    const userId = localStorage.getItem('current_user');
     const records = JSON.parse(localStorage.getItem(editWorkoutKey) || '[]');
     const filtered = records.filter(r => r.date !== editWorkoutDate);
     localStorage.setItem(editWorkoutKey, JSON.stringify(filtered));
+    // Firebase 반영
+    const fbPath = getFirebaseWorkoutPath(editWorkoutKey, userId);
+    if (fbPath) db.ref('users/' + userId + '/' + fbPath + '/' + editWorkoutDate).remove();
     closeEditWorkoutModal();
     if (calSelectedDate) renderDayDetail(calSelectedDate);
     if (currentEquipment) loadPrevRecords();
@@ -5831,8 +5868,12 @@
     const newPt = prompt('포인트를 입력하세요 (현재: ' + cur + 'P):');
     if (newPt === null) return;
     if (isNaN(newPt)) { alert('숫자만 입력해주세요.'); return; }
-    localStorage.setItem('points_' + currentMemberPhone, newPt);
-    alert('포인트가 ' + newPt + 'P로 변경됐어요.');
+    const pt = parseInt(newPt);
+    // 로컬스토리지 업데이트
+    localStorage.setItem('points_' + currentMemberPhone, pt);
+    // Firebase 반영
+    db.ref('users/' + currentMemberPhone + '/points').set(pt);
+    alert('포인트가 ' + pt + 'P로 변경됐어요.');
     closeMemberModal();
     loadMemberList();
   }
