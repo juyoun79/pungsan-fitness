@@ -5262,8 +5262,7 @@
     const mealText = Object.entries(meals)
       .filter(([k, m]) => m.val)
       .map(([k, m]) => `${m.label}: ${m.val}`)
-      .join('
-');
+      .join('\n');
 
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
