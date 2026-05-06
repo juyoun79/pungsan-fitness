@@ -803,7 +803,10 @@
         <!-- 타이틀 -->
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <div style="font-size:13px;font-weight:700;color:#1e293b;">⚖️ 체중 변화</div>
-          <div style="font-size:11px;color:#94a3b8;" id="home-weight-range">최근 기록</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="font-size:11px;color:#94a3b8;" id="home-weight-range">최근 기록</div>
+            <button onclick="openWeightDetail()" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📊 전체보기</button>
+          </div>
         </div>
         <!-- 그래프 캔버스 -->
         <canvas id="home-weight-graph" height="80" style="width:100%;display:block;cursor:pointer;" onclick="openWeightDetail()" title="터치하면 전체 기록 보기"></canvas>
@@ -6510,32 +6513,35 @@
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
     }
 
-    // 선 (파란색)
-    ctx.beginPath();
-    ctx.strokeStyle = '#2563eb';
-    ctx.lineWidth   = 2.5;
-    ctx.lineJoin    = 'round';
-    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-    ctx.stroke();
+    // 선 색상 구분 (1+2 조합)
+    for (let i = 1; i < pts.length; i++) {
+      const lineColor = pts[i].w > pts[i-1].w ? '#E24B4A' : pts[i].w < pts[i-1].w ? '#378ADD' : '#888780';
+      ctx.beginPath();
+      ctx.moveTo(pts[i-1].x, pts[i-1].y);
+      ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.strokeStyle = lineColor;
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
 
-    // 점 + 무게 레이블
+    // 점 + 무게/날짜 레이블 (모든 점, 색상 구분)
     pts.forEach((p, i) => {
+      const dotColor = i === 0 ? '#888780' : p.w > pts[i-1].w ? '#E24B4A' : p.w < pts[i-1].w ? '#378ADD' : '#888780';
       ctx.beginPath();
       ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-      ctx.fillStyle = '#2563eb';
+      ctx.fillStyle = dotColor;
       ctx.fill();
       ctx.beginPath();
       ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
       ctx.fillStyle = 'white';
       ctx.fill();
-      // 무게 레이블 (모든 점)
-      ctx.fillStyle   = '#2563eb';
-      ctx.font        = 'bold 10px sans-serif';
-      ctx.textAlign   = 'center';
+      ctx.fillStyle = dotColor;
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
       ctx.fillText(p.w + 'kg', p.x, p.y - 8);
-      // 날짜 레이블 (모든 점)
       ctx.fillStyle = '#94a3b8';
-      ctx.font      = '9px sans-serif';
+      ctx.font = '9px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(p.date, p.x, H - 4);
     });
@@ -6640,25 +6646,30 @@
       ctx.fillStyle = grad;
       ctx.fill();
 
-      // 선
-      ctx.beginPath();
-      ctx.strokeStyle = '#2563eb';
-      ctx.lineWidth = 2.5;
-      ctx.lineJoin = 'round';
-      pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-      ctx.stroke();
+      // 선 색상 구분 (1+2 조합)
+      for (let i = 1; i < pts.length; i++) {
+        const lineColor = pts[i].w > pts[i-1].w ? '#E24B4A' : pts[i].w < pts[i-1].w ? '#378ADD' : '#888780';
+        ctx.beginPath();
+        ctx.moveTo(pts[i-1].x, pts[i-1].y);
+        ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = 2.5;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+      }
 
-      // 점 + 레이블
+      // 점 + 레이블 (색상 구분)
       const showAll = data.length <= 7;
       pts.forEach((p, i) => {
+        const dotColor = i === 0 ? '#888780' : p.w > pts[i-1].w ? '#E24B4A' : p.w < pts[i-1].w ? '#378ADD' : '#888780';
         ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-        ctx.fillStyle = '#2563eb'; ctx.fill();
+        ctx.fillStyle = dotColor; ctx.fill();
         ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
         ctx.fillStyle = 'white'; ctx.fill();
 
         const show = showAll || i === 0 || i === pts.length - 1 || i % Math.ceil(data.length / 7) === 0;
         if (show) {
-          ctx.fillStyle = '#2563eb';
+          ctx.fillStyle = dotColor;
           ctx.font = 'bold 10px sans-serif';
           ctx.textAlign = 'center';
           ctx.fillText(p.w + 'kg', p.x, p.y - 8);
