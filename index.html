@@ -6060,6 +6060,22 @@
   function loadHomeWeightCard() {
     const userId = localStorage.getItem('current_user');
     if (!userId || userId === ADMIN_ID) return;
+    // Firebase에서 신체정보 불러오기 (없으면 로컬스토리지 fallback)
+    db.ref('users/' + userId + '/body').once('value', snap => {
+      if (snap.exists()) {
+        const body = snap.val();
+        localStorage.setItem('body_weight_'      + userId, body.weight || '');
+        localStorage.setItem('body_goal_weight_' + userId, body.goalWeight || '');
+        localStorage.setItem('body_goal_type_'   + userId, body.goalType || 'diet');
+        localStorage.setItem('body_gender_'      + userId, body.gender || 'female');
+        localStorage.setItem('body_age_'         + userId, body.age || '');
+        localStorage.setItem('body_height_'      + userId, body.height || '');
+      }
+      _renderHomeWeightCard(userId);
+    });
+  }
+
+  function _renderHomeWeightCard(userId) {
     const weight     = localStorage.getItem('body_weight_'      + userId);
     const goalWeight = localStorage.getItem('body_goal_weight_' + userId);
     const goalType   = localStorage.getItem('body_goal_type_'   + userId) || 'diet';
@@ -6253,6 +6269,20 @@
   // ── 홈 체중 그래프 ──
   function renderHomeWeightGraph() {
     const userId  = localStorage.getItem('current_user');
+    // Firebase에서 체중 기록 불러와서 그래프 렌더링
+    db.ref('users/' + userId + '/weightHistory').once('value', snap => {
+      const fbHistory = [];
+      snap.forEach(child => { fbHistory.push({ date: child.key, weight: child.val() }); });
+      fbHistory.sort((a, b) => a.date.localeCompare(b.date));
+      if (fbHistory.length > 0) {
+        // Firebase 데이터를 로컬스토리지에도 동기화
+        localStorage.setItem('weight_history_' + userId, JSON.stringify(fbHistory));
+      }
+      _drawWeightGraph(userId);
+    });
+  }
+
+  function _drawWeightGraph(userId) {
     const history = JSON.parse(localStorage.getItem('weight_history_' + userId) || '[]');
     const canvas  = document.getElementById('home-weight-graph');
     const rangeEl = document.getElementById('home-weight-range');
@@ -6378,6 +6408,10 @@
     localStorage.setItem('body_goal_type_'   + userId, goalType);
     if (goalWeight >= 20) localStorage.setItem('body_goal_weight_' + userId, goalWeight);
     saveWeightHistory(userId, weight);
+    // Firebase 신체정보 저장
+    const bodyData = { gender, age, height, weight, goalType };
+    if (goalWeight >= 20) bodyData.goalWeight = goalWeight;
+    db.ref('users/' + userId + '/body').set(bodyData);
     const memberName = localStorage.getItem('name_' + userId) || userId;
     goHome(memberName, true);
   }
@@ -6396,6 +6430,8 @@
     // 최근 30개 유지
     if (history.length > 30) history.shift();
     localStorage.setItem(key, JSON.stringify(history));
+    // Firebase 체중 기록 저장
+    db.ref('users/' + userId + '/weightHistory/' + dateStr).set(weight);
   }
 
   function renderWeightGraph() {
@@ -6440,6 +6476,10 @@
     localStorage.setItem('body_goal_type_'   + userId, goalType);
     if (goalWeight >= 20) localStorage.setItem('body_goal_weight_' + userId, goalWeight);
     saveWeightHistory(userId, weight);
+    // Firebase 신체정보 수정 저장
+    const bodyData = { gender, age, height, weight, goalType };
+    if (goalWeight >= 20) bodyData.goalWeight = goalWeight;
+    db.ref('users/' + userId + '/body').set(bodyData);
     document.getElementById('change-nickname-modal').classList.remove('active');
     loadMyInfo();
     alert('✅ 신체정보가 업데이트됐어요!');
