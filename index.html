@@ -3274,6 +3274,8 @@
       if (idx !== -1) existing[idx] = record; else existing.unshift(record);
       if (existing.length > 30) existing.pop();
       localStorage.setItem(key, JSON.stringify(existing));
+      // Firebase 저장
+      db.ref('users/' + userId + '/workouts/dual_front_' + eqKey + '/' + date).set(record);
     }
 
     // 후면(아웃타이/리어델토이드) 저장
@@ -3288,6 +3290,8 @@
       if (idx !== -1) existing[idx] = record; else existing.unshift(record);
       if (existing.length > 30) existing.pop();
       localStorage.setItem(key, JSON.stringify(existing));
+      // Firebase 저장
+      db.ref('users/' + userId + '/workouts/dual_back_' + eqKey + '/' + date).set(record);
     }
 
     // 완료 팝업
@@ -3366,6 +3370,8 @@
     }
     if (existing.length > 30) existing.pop();
     localStorage.setItem(key, JSON.stringify(existing));
+    // Firebase 저장
+    db.ref('users/' + userId + '/workouts/' + currentEquipment.key + '/' + record.date).set(record);
 
     const maxWeight = Math.max(...sets.map(s => s.weight));
     const totalVol = sets.reduce((sum, s) => sum + s.weight * s.reps, 0);
@@ -3905,6 +3911,8 @@
     else existing.unshift(record);
     if (existing.length > 30) existing.pop();
     localStorage.setItem(safeKey, JSON.stringify(existing));
+    // Firebase 저장
+    db.ref('users/' + userId + '/workouts/cardio_' + type + '/' + record.date).set(record);
 
     // 유산소 인덱스 등록
     const cardioIndex = JSON.parse(localStorage.getItem('cardio_index_' + userId) || '[]');
@@ -4027,6 +4035,9 @@
     }
     if (existing.length > 30) existing.pop();
     localStorage.setItem(safeKey, JSON.stringify(existing));
+    // Firebase 저장
+    const fwFirebaseKey = name.replace(/\s+/g,'_');
+    db.ref('users/' + userId + '/workouts/fw_' + fwFirebaseKey + '/' + record.date).set(record);
 
     // 달력 갱신용 날짜 인덱스에도 등록
     const fwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
