@@ -2669,11 +2669,6 @@
                 </div>
                 <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${timeStr}</div>
               </div>
-              <div style="display:flex;align-items:center;gap:6px;">
-                <div style="font-size:12px;color:var(--text-hint);">${record.savedAt||''}</div>
-                <button onclick="openEditCardioModal('${item.name}','${dateStr}')"
-                  style="background:#ef444418;color:#ef4444;border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
-              </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:${record.memo?'10px':'0'};">
               <div style="background:#ef444412;border-radius:8px;padding:8px;text-align:center;">
@@ -2689,7 +2684,12 @@
                 <div style="font-size:13px;font-weight:700;color:var(--text);">${record.kcal > 0 ? '약 ' + record.kcal + 'kcal' : '-'}</div>
               </div>
             </div>
-            ${record.memo ? `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;display:flex;gap:8px;"><span style="font-size:14px;">📝</span><div style="font-size:13px;color:var(--text-sub);line-height:1.6;">${record.memo}</div></div>` : ''}
+            ${record.memo ? `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;gap:8px;"><span style="font-size:14px;">📝</span><div style="font-size:13px;color:var(--text-sub);line-height:1.6;">${record.memo}</div></div>` : ''}
+            <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;">
+              <span style="font-size:12px;color:var(--text-hint);">${formatTime(record.savedAt)}</span>
+              <button onclick="openEditCardioModal('${item.name}','${dateStr}')"
+                style="background:#ef444418;color:#ef4444;border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
+            </div>
           </div>`;
       }
 
@@ -2709,11 +2709,6 @@
                 </div>
                 <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${eq.muscles}${maxW > 0 ? ' · 최고 '+maxW+'kg' : ''}</div>
               </div>
-              <div style="display:flex;align-items:center;gap:6px;">
-                <div style="font-size:12px;color:var(--text-hint);">${record.savedAt||''}</div>
-                <button onclick="openEditWorkoutModal('${isDualEquipment(eq.key) ? (item.subName === getDualNames(eq.key)?.front ? 'workout_dual_front_' : 'workout_dual_back_') + localStorage.getItem('current_user') : 'workout_' + eq.key + '_' + localStorage.getItem('current_user')}','${dateStr}')"
-                  style="background:var(--blue-light);color:var(--blue);border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
-              </div>
             </div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:${record.memo?'10px':'0'};">
               ${record.sets.map(s=>`
@@ -2723,7 +2718,12 @@
                   <div style="font-size:11px;color:var(--text-sub);">${s.reps}회</div>
                 </div>`).join('')}
             </div>
-            ${record.memo ? `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;display:flex;gap:8px;"><span style="font-size:14px;">📝</span><div style="font-size:13px;color:var(--text-sub);line-height:1.6;">${record.memo}</div></div>` : ''}
+            ${record.memo ? `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;gap:8px;"><span style="font-size:14px;">📝</span><div style="font-size:13px;color:var(--text-sub);line-height:1.6;">${record.memo}</div></div>` : ''}
+            <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;">
+              <span style="font-size:12px;color:var(--text-hint);">${formatTime(record.savedAt)}</span>
+              <button onclick="openEditWorkoutModal('${isDualEquipment(eq.key) ? (item.subName === getDualNames(eq.key)?.front ? 'workout_dual_front_' : 'workout_dual_back_') + localStorage.getItem('current_user') : 'workout_' + eq.key + '_' + localStorage.getItem('current_user')}','${dateStr}')"
+                style="background:${color}18;color:${color};border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
+            </div>
           </div>`;
       } else {
         // 프리웨이트
@@ -2733,26 +2733,26 @@
               <div style="width:36px;height:36px;border-radius:10px;background:#f59e0b18;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏋️</div>
               <div style="flex:1;">
                 <div style="display:flex;align-items:center;gap:6px;">
-                  <span style="font-size:11px;font-weight:700;color:white;background:#f59e0b;padding:2px 6px;border-radius:5px;">프리웨이트</span>
+                  <span style="font-size:11px;font-weight:700;color:white;background:#d97706;padding:2px 6px;border-radius:5px;white-space:nowrap;">프리웨이트</span>
                   <span style="font-size:14px;font-weight:700;color:var(--text);">${item.name}</span>
                 </div>
                 <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${maxW > 0 ? '최고 '+maxW+'kg' : '맨몸 운동'}</div>
-              </div>
-              <div style="display:flex;align-items:center;gap:6px;">
-                <div style="font-size:12px;color:var(--text-hint);">${record.savedAt||''}</div>
-                <button onclick="openEditWorkoutModal('freeweight_${item.name.replace(/\s+/g,'_')}_${localStorage.getItem('current_user')}','${dateStr}')"
-                  style="background:#f59e0b18;color:#f59e0b;border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
               </div>
             </div>
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:${record.memo?'10px':'0'};">
               ${record.sets.map(s=>`
                 <div style="background:#f59e0b12;border-radius:8px;padding:8px;text-align:center;">
-                  <div style="font-size:11px;color:#f59e0b;margin-bottom:2px;font-weight:600;">${s.set}세트</div>
+                  <div style="font-size:11px;color:#d97706;margin-bottom:2px;font-weight:600;">${s.set}세트</div>
                   <div style="font-size:13px;font-weight:700;color:var(--text);">${s.weight > 0 ? s.weight+'kg' : '-'}</div>
                   <div style="font-size:11px;color:var(--text-sub);">${s.reps}회</div>
                 </div>`).join('')}
             </div>
-            ${record.memo ? `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;display:flex;gap:8px;"><span style="font-size:14px;">📝</span><div style="font-size:13px;color:var(--text-sub);line-height:1.6;">${record.memo}</div></div>` : ''}
+            ${record.memo ? `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;gap:8px;"><span style="font-size:14px;">📝</span><div style="font-size:13px;color:var(--text-sub);line-height:1.6;">${record.memo}</div></div>` : ''}
+            <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;">
+              <span style="font-size:12px;color:var(--text-hint);">${formatTime(record.savedAt)}</span>
+              <button onclick="openEditWorkoutModal('freeweight_${item.name.replace(/\s+/g,'_')}_${localStorage.getItem('current_user')}','${dateStr}')"
+                style="background:#f59e0b18;color:#d97706;border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
+            </div>
           </div>`;
       }
     }).join('');
@@ -3928,6 +3928,12 @@
 
 
   let fwSetCount = 0;
+
+  // 시간에서 오전/오후 제거 (예: "오전 09:47" → "09:47")
+  function formatTime(savedAt) {
+    if (!savedAt) return '';
+    return savedAt.replace('오전 ', '').replace('오후 ', '').trim();
+  }
 
   // 프리웨이트 운동 목록
   const FW_EXERCISE_LIST = [
