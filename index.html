@@ -1119,20 +1119,69 @@
           onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"></textarea>
       </div>
 
-      <!-- AI 칼로리 계산 버튼 (식단 카테고리 선택 시만 표시) -->
+      <!-- 식단 끼니별 입력 (식단 카테고리 선택 시만 표시) -->
       <div id="calorie-calc-wrap" style="display:none;margin-bottom:12px;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">오늘의 식단</div>
+
+        <!-- 아침 -->
+        <div style="background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-size:13px;font-weight:700;color:#BA7517;">🌅 아침</div>
+            <div id="kcal-breakfast" style="font-size:12px;color:var(--text-hint);"></div>
+          </div>
+          <textarea id="meal-breakfast" placeholder="예) 현미밥 반 공기, 된장찌개, 계란 후라이"
+            style="width:100%;box-sizing:border-box;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:60px;background:var(--card);color:var(--text);"
+            onfocus="this.style.borderColor='#BA7517'" onblur="this.style.borderColor='var(--border)'"></textarea>
+        </div>
+
+        <!-- 점심 -->
+        <div style="background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-size:13px;font-weight:700;color:#185FA5;">☀️ 점심</div>
+            <div id="kcal-lunch" style="font-size:12px;color:var(--text-hint);"></div>
+          </div>
+          <textarea id="meal-lunch" placeholder="예) 닭가슴살 200g, 현미밥 한 공기, 브로콜리 100g"
+            style="width:100%;box-sizing:border-box;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:60px;background:var(--card);color:var(--text);"
+            onfocus="this.style.borderColor='#185FA5'" onblur="this.style.borderColor='var(--border)'"></textarea>
+        </div>
+
+        <!-- 저녁 -->
+        <div style="background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-size:13px;font-weight:700;color:#5F5E5A;">🌙 저녁</div>
+            <div id="kcal-dinner" style="font-size:12px;color:var(--text-hint);"></div>
+          </div>
+          <textarea id="meal-dinner" placeholder="예) 고구마 1개, 닭가슴살 150g, 샐러드"
+            style="width:100%;box-sizing:border-box;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:60px;background:var(--card);color:var(--text);"
+            onfocus="this.style.borderColor='#5F5E5A'" onblur="this.style.borderColor='var(--border)'"></textarea>
+        </div>
+
+        <!-- 간식 -->
+        <div style="background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <div style="font-size:13px;font-weight:700;color:#993556;">🍎 간식</div>
+            <div id="kcal-snack" style="font-size:12px;color:var(--text-hint);"></div>
+          </div>
+          <textarea id="meal-snack" placeholder="예) 바나나 1개, 단백질 바 1개"
+            style="width:100%;box-sizing:border-box;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:60px;background:var(--card);color:var(--text);"
+            onfocus="this.style.borderColor='#993556'" onblur="this.style.borderColor='var(--border)'"></textarea>
+        </div>
+
+        <!-- AI 계산 버튼 -->
         <button onclick="calcCalorieAI()" id="calorie-calc-btn"
-          style="width:100%;padding:11px;background:#EAF3DE;color:#27500A;border:1px solid #97C459;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;">
-          🤖 AI 칼로리 계산하기
+          style="width:100%;padding:11px;background:#EAF3DE;color:#27500A;border:1px solid #97C459;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px;">
+          🤖 전체 칼로리 계산하기
         </button>
+
         <!-- 칼로리 결과 -->
-        <div id="calorie-result" style="display:none;margin-top:10px;background:#EAF3DE;border:0.5px solid #97C459;border-radius:var(--radius-sm);padding:12px 14px;">
+        <div id="calorie-result" style="display:none;background:#EAF3DE;border:0.5px solid #97C459;border-radius:var(--radius-sm);padding:12px 14px;">
           <div style="font-size:12px;color:#3B6D11;margin-bottom:8px;font-weight:700;">🤖 AI 칼로리 분석 결과</div>
           <div id="calorie-result-list" style="margin-bottom:10px;"></div>
-          <div style="border-top:0.5px solid #97C459;padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
+          <div style="border-top:0.5px solid #97C459;padding-top:8px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <span style="font-size:13px;color:#3B6D11;font-weight:700;">총 칼로리</span>
             <span id="calorie-total" style="font-size:18px;font-weight:700;color:#27500A;"></span>
           </div>
+          <div id="calorie-msg" style="border-radius:8px;padding:8px 10px;text-align:center;font-size:12px;font-weight:700;"></div>
           <div style="font-size:11px;color:#3B6D11;margin-top:6px;">* AI 추정값으로 실제와 다를 수 있어요</div>
         </div>
       </div>
@@ -5153,6 +5202,14 @@
     }
     postPhotoFile = null;
     document.getElementById('post-content').value = '';
+    ['meal-breakfast','meal-lunch','meal-dinner','meal-snack'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    ['kcal-breakfast','kcal-lunch','kcal-dinner','kcal-snack'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.textContent = '';
+    });
+    const cr = document.getElementById('calorie-result'); if (cr) cr.style.display = 'none';
+    const cw = document.getElementById('calorie-calc-wrap'); if (cw) cw.style.display = 'none';
     document.getElementById('post-photo-preview-wrap').style.display = 'none';
     document.getElementById('post-photo-buttons').style.display = 'flex';
     document.getElementById('post-photo-camera').value = '';
@@ -5186,13 +5243,28 @@
     }
   }
 
-  // AI 칼로리 계산 함수
+  // AI 칼로리 계산 함수 (끼니별)
   async function calcCalorieAI() {
-    const content = document.getElementById('post-content').value.trim();
-    if (!content) { alert('내용에 음식 이름과 양을 입력해주세요!'); return; }
+    const meals = {
+      breakfast: { label: '🌅 아침', val: document.getElementById('meal-breakfast')?.value.trim() },
+      lunch:     { label: '☀️ 점심', val: document.getElementById('meal-lunch')?.value.trim() },
+      dinner:    { label: '🌙 저녁', val: document.getElementById('meal-dinner')?.value.trim() },
+      snack:     { label: '🍎 간식', val: document.getElementById('meal-snack')?.value.trim() },
+    };
+    const hasAny = Object.values(meals).some(m => m.val);
+    if (!hasAny) { alert('최소 한 끼니 이상 입력해주세요!'); return; }
+
     const btn = document.getElementById('calorie-calc-btn');
-    btn.textContent = '🤖 분석 중...';
+    btn.innerHTML = '🤖 분석 중...';
     btn.disabled = true;
+
+    // 끼니별 식단 텍스트 구성
+    const mealText = Object.entries(meals)
+      .filter(([k, m]) => m.val)
+      .map(([k, m]) => `${m.label}: ${m.val}`)
+      .join('
+');
+
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -5202,35 +5274,65 @@
           max_tokens: 1000,
           messages: [{
             role: 'user',
-            content: `다음 식단의 칼로리를 계산해줘. 반드시 JSON 형식으로만 응답해. 다른 텍스트는 절대 포함하지 마.
+            content: '다음 끼니별 식단의 칼로리를 계산해줘. 반드시 JSON 형식으로만 응답해. 다른 텍스트는 절대 포함하지 마.
 
-식단: ${content}
+' + mealText + '
 
 응답 형식:
-{"items":[{"name":"음식명","kcal":숫자}],"total":숫자}`
+{"meals":{"breakfast":숫자또는null,"lunch":숫자또는null,"dinner":숫자또는null,"snack":숫자또는null},"total":숫자}'
           }]
         })
       });
       const data = await response.json();
       const text = data.content[0].text;
-      const clean = text.replace(/\`\`\`json|\`\`\`/g, '').trim();
+      const clean = text.replace(/```json|```/g, '').trim();
       const result = JSON.parse(clean);
-      // 결과 표시
+
+      // 끼니별 칼로리 표시
+      const mealMap = { breakfast: '🌅 아침', lunch: '☀️ 점심', dinner: '🌙 저녁', snack: '🍎 간식' };
+      const mealKcalIds = { breakfast: 'kcal-breakfast', lunch: 'kcal-lunch', dinner: 'kcal-dinner', snack: 'kcal-snack' };
+      Object.entries(result.meals).forEach(([key, kcal]) => {
+        const el = document.getElementById(mealKcalIds[key]);
+        if (el) el.textContent = kcal ? '약 ' + kcal + ' kcal' : '';
+      });
+
+      // 결과 목록
       const listEl = document.getElementById('calorie-result-list');
-      const totalEl = document.getElementById('calorie-total');
-      const resultEl = document.getElementById('calorie-result');
-      listEl.innerHTML = result.items.map(item => `
+      listEl.innerHTML = Object.entries(result.meals).map(([key, kcal]) => `
         <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;">
-          <span style="color:var(--text-sub);">${item.name}</span>
-          <span style="color:var(--text);font-weight:700;">약 ${item.kcal} kcal</span>
+          <span style="color:var(--text-sub);">${mealMap[key]}</span>
+          <span style="color:var(--text);font-weight:700;">${kcal ? '약 ' + kcal + ' kcal' : '미입력'}</span>
         </div>
       `).join('');
-      totalEl.textContent = '약 ' + result.total + ' kcal';
-      resultEl.style.display = 'block';
+
+      // 총 칼로리
+      document.getElementById('calorie-total').textContent = '약 ' + result.total + ' kcal';
+
+      // 목표 칼로리 대비 메시지
+      const userId = localStorage.getItem('current_user');
+      const goalType = localStorage.getItem('body_goal_type_' + userId) || 'diet';
+      const goalKcal = goalType === 'diet' ? 1500 : goalType === 'bulk' ? 2500 : 2000;
+      const diff = goalKcal - result.total;
+      const msgEl = document.getElementById('calorie-msg');
+      if (diff > 0) {
+        msgEl.style.background = '#C0DD97';
+        msgEl.style.color = '#27500A';
+        msgEl.textContent = '👍 목표보다 ' + diff + ' kcal 적게 드셨어요!';
+      } else if (diff < 0) {
+        msgEl.style.background = '#F7C1C1';
+        msgEl.style.color = '#791F1F';
+        msgEl.textContent = '⚠️ 목표보다 ' + Math.abs(diff) + ' kcal 더 드셨어요';
+      } else {
+        msgEl.style.background = '#C0DD97';
+        msgEl.style.color = '#27500A';
+        msgEl.textContent = '🎯 목표 칼로리에 딱 맞게 드셨어요!';
+      }
+
+      document.getElementById('calorie-result').style.display = 'block';
     } catch (e) {
       alert('칼로리 계산 중 오류가 발생했어요. 다시 시도해주세요.');
     } finally {
-      btn.textContent = '🤖 AI 칼로리 계산하기';
+      btn.innerHTML = '🤖 전체 칼로리 계산하기';
       btn.disabled = false;
     }
   }
@@ -5294,8 +5396,22 @@
 
   // ── 게시글 제출 ──
   async function submitPost() {
-    const content = document.getElementById('post-content').value.trim();
     const category = document.getElementById('post-category').value;
+    let content = document.getElementById('post-content').value.trim();
+    // 식단 카테고리면 끼니별 내용 합치기
+    if (category === '식단') {
+      const breakfast = document.getElementById('meal-breakfast')?.value.trim();
+      const lunch     = document.getElementById('meal-lunch')?.value.trim();
+      const dinner    = document.getElementById('meal-dinner')?.value.trim();
+      const snack     = document.getElementById('meal-snack')?.value.trim();
+      const parts = [];
+      if (breakfast) parts.push('🌅 아침: ' + breakfast);
+      if (lunch)     parts.push('☀️ 점심: ' + lunch);
+      if (dinner)    parts.push('🌙 저녁: ' + dinner);
+      if (snack)     parts.push('🍎 간식: ' + snack);
+      if (parts.length > 0) content = parts.join('
+');
+    }
     if (!content) { alert('내용을 입력해주세요!'); return; }
 
     const userId = localStorage.getItem('current_user');
