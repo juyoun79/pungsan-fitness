@@ -5808,26 +5808,57 @@
   }
 
   // ── 임시저장 ──
-  function saveDietDraftAuto() {
+  // 사진 압축 (임시저장용 - 가로 400px, 품질 50% → 약 50~80KB)
+  function compressPhotoForDraft(base64) {
+    return new Promise(res => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 400;
+        const ratio = Math.min(MAX / img.width, MAX / img.height, 1);
+        const canvas = document.createElement('canvas');
+        canvas.width  = Math.round(img.width  * ratio);
+        canvas.height = Math.round(img.height * ratio);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        res(canvas.toDataURL('image/jpeg', 0.5));
+      };
+      img.onerror = () => res(null);
+      img.src = base64;
+    });
+  }
+
+  async function saveDietDraftAuto() {
     const today = new Date().toISOString().slice(0, 10);
+    // 사진 압축 후 저장 (용량 초과 방지)
+    const compressedPhotos = await Promise.all(
+      mealPhotos.map(p => p ? compressPhotoForDraft(p) : Promise.resolve(null))
+    );
     const draft = {
-      date: today,
+      date:      today,
       breakfast: document.getElementById('meal-breakfast')?.value || '',
       lunch:     document.getElementById('meal-lunch')?.value || '',
       dinner:    document.getElementById('meal-dinner')?.value || '',
       snack:     document.getElementById('meal-snack')?.value || '',
-      photos:    mealPhotos,
+      photos:    compressedPhotos,
     };
-    localStorage.setItem('diet_draft', JSON.stringify(draft));
+    try {
+      localStorage.setItem('diet_draft', JSON.stringify(draft));
+      return true;
+    } catch(e) {
+      // 그래도 용량 초과 시 사진 없이 텍스트만 저장
+      draft.photos = [null, null, null, null];
+      try { localStorage.setItem('diet_draft', JSON.stringify(draft)); } catch(e2) {}
+      return false;
+    }
   }
 
-  function saveDietDraft() {
-    saveDietDraftAuto();
-    // 토스트 메시지
+  async function saveDietDraft() {
     const toast = document.createElement('div');
-    toast.textContent = '💾 임시저장 완료!';
-    toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#185FA5;color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:9999;font-family:"Noto Sans KR",sans-serif;';
+    toast.textContent = '저장 중...';
+    toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#888;color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:9999;font-family:"Noto Sans KR",sans-serif;';
     document.body.appendChild(toast);
+    const ok = await saveDietDraftAuto();
+    toast.textContent = ok ? '💾 임시저장 완료!' : '💾 텍스트만 저장됐어요 (사진 용량 초과)';
+    toast.style.background = ok ? '#185FA5' : '#e67e22';
     setTimeout(() => toast.remove(), 2000);
   }
 
