@@ -1103,16 +1103,7 @@
             <button onclick="removePostPhoto()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:white;border:none;border-radius:20px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✕ 제거</button>
           </div>
         </div>
-        <div id="post-photo-buttons" style="display:none;gap:8px;margin-top:6px;">
-          <button onclick="document.getElementById('post-photo-camera').click()"
-            style="flex:1;padding:12px;background:var(--card);border:1.5px dashed var(--border);border-radius:var(--radius-sm);color:var(--text-sub);font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;">
-            📷 카메라 촬영
-          </button>
-          <button onclick="document.getElementById('post-photo-gallery').click()"
-            style="flex:1;padding:12px;background:var(--card);border:1.5px dashed var(--border);border-radius:var(--radius-sm);color:var(--text-sub);font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;">
-            🖼️ 갤러리 선택
-          </button>
-        </div>
+
 
         <!-- 숨겨진 파일 input들 -->
         <input type="file" id="post-photo-camera" accept="image/*" capture="environment" style="display:none;" onchange="previewPostPhoto(this)" />
@@ -5249,7 +5240,7 @@
     const cw = document.getElementById('calorie-calc-wrap'); if (cw) cw.style.display = 'none';
     const pcw = document.getElementById('post-content-wrap'); if (pcw) pcw.style.display = 'block';
     document.getElementById('post-photo-preview-wrap').style.display = 'none';
-    document.getElementById('post-photo-buttons').style.display = 'flex';
+    
     document.getElementById('post-photo-camera').value = '';
     document.getElementById('post-photo-gallery').value = '';
     document.getElementById('post-submit-btn').textContent = '게시하기 🚀';
@@ -5275,12 +5266,10 @@
     const calcWrap = document.getElementById('calorie-calc-wrap');
     const calorieResult = document.getElementById('calorie-result');
     const mealGrid = document.getElementById('meal-photo-grid');
-    const normalPhotoBtn = document.getElementById('post-photo-buttons');
     if (cat === '식단') {
       if (contentWrap) contentWrap.style.display = 'none';
       if (calcWrap) calcWrap.style.display = 'block';
       if (mealGrid) mealGrid.style.display = 'grid';
-      if (normalPhotoBtn) normalPhotoBtn.style.display = 'none';
     } else {
       // 다른 카테고리: 내용 입력창 표시, 식단 입력창 숨기기
       if (contentWrap) contentWrap.style.display = 'block';
@@ -5894,7 +5883,7 @@
     reader.onload = e => {
       document.getElementById('post-photo-preview').src = e.target.result;
       document.getElementById('post-photo-preview-wrap').style.display = 'block';
-      document.getElementById('post-photo-buttons').style.display = 'none';
+      
     };
     reader.readAsDataURL(postPhotoFile);
   }
@@ -5902,7 +5891,7 @@
   function removePostPhoto() {
     postPhotoFile = null;
     document.getElementById('post-photo-preview-wrap').style.display = 'none';
-    document.getElementById('post-photo-buttons').style.display = 'flex';
+    
     document.getElementById('post-photo-camera').value = '';
     document.getElementById('post-photo-gallery').value = '';
   }
