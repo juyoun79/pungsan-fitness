@@ -5475,12 +5475,8 @@
     if (total > 0) summary += `🔥 총 칼로리: 약 ${total} kcal`;
     return summary.trim();
   }
-    if (total > 0) summary += `🔥 총 칼로리: 약 ${total} kcal`;
-    return summary.trim();
-  }
 
   // 기존 코드 호환용 (사용 안 함)
-  function calcCalorieAI() {}
   function calcKcalFromText(text) {
     if (!text) return 0;
     let total = 0;
@@ -7286,7 +7282,6 @@
   function saveNickname()   { saveBodyInfo(); }
   function skipBodyInfo()   { const u = localStorage.getItem('current_user'); goHome(localStorage.getItem('name_' + u) || u); }
   function saveNewWeight()  { saveBodyInfoEdit(); }
-  function openChangeNickname() { openEditWeightModal(); }
 
   // ── 홈으로 이동 + 팝업 표시 ──
 
