@@ -5222,33 +5222,98 @@
   }
 
 
-  // ── 공공데이터 식품영양성분 API ──
+  // ── 구글 시트 식품DB + 식약처 API 통합 검색 ──
+  const SHEET_ID = '195YAstT2ER7qJg4_49TPJPg7OyIdVfrV-6R7donHk-g';
+  const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&tq=`;
   const FOOD_API_KEY = 'dcd0f2b913cecf0c2ae6802452789280c371ea591501d2b51db2914b9eaa76a1';
   const FOOD_API_URL = 'https://apis.data.go.kr/1471000/FoodNtrCpntDbInfo02/getFoodNtrCpntDbInq02';
   let foodSearchTimer = null;
-  let addedFoodItems = []; // {name, kcal, meal, amount}
+  let addedFoodItems = [];
 
   async function searchFoodAPI(query) {
     const status = document.getElementById('food-search-status');
     if (!query || query.length < 1) { hideFoodDropdown(); return; }
     if (status) status.textContent = '검색 중...';
+
     try {
-      const url = `${FOOD_API_URL}?serviceKey=${encodeURIComponent(FOOD_API_KEY)}&pageNo=1&numOfRows=10&type=json&FOOD_NM_KR=${encodeURIComponent(query)}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      const items = data?.body?.items || [];
-      if (status) status.textContent = items.length > 0 ? `${items.length}개 검색됨` : '결과 없음';
-      showFoodDropdown(items);
+      // 1차: 구글 시트에서 검색 (296,569개 통합DB)
+      const tq = encodeURIComponent(`SELECT A, B, C, D, E, F, G WHERE A CONTAINS '${query.replace(/'/g,"\'")}' LIMIT 15`);
+      const sheetRes = await fetch(`${SHEET_URL}${tq}`);
+      const sheetText = await sheetRes.text();
+      const json = JSON.parse(sheetText.replace(/.*?({.*})/s, '$1'));
+      const rows = json?.table?.rows || [];
+      
+      let results = rows.map(row => ({
+        name: row.c[0]?.v || '',
+        category: row.c[1]?.v || '',
+        kcal: Math.round(parseFloat(row.c[2]?.v) || 0),
+        protein: row.c[3]?.v || 0,
+        fat: row.c[4]?.v || 0,
+        carb: row.c[5]?.v || 0,
+        unit: row.c[6]?.v || '100g',
+        source: '내부DB'
+      })).filter(r => r.name && r.kcal > 0);
+
+      // 2차: 식약처 API로 보완 검색
+      try {
+        const apiUrl = `${FOOD_API_URL}?serviceKey=${encodeURIComponent(FOOD_API_KEY)}&pageNo=1&numOfRows=10&type=json&FOOD_NM_KR=${encodeURIComponent(query)}`;
+        const apiRes = await fetch(apiUrl);
+        const apiData = await apiRes.json();
+        const apiItems = (apiData?.body?.items || []).map(item => ({
+          name: item.FOOD_NM_KR || '',
+          category: item.BGN_YEAR || '',
+          kcal: Math.round(parseFloat(item.AMT_NUM1) || 0),
+          protein: 0, fat: 0, carb: 0,
+          unit: '100g',
+          source: '식약처'
+        })).filter(r => r.name && r.kcal > 0);
+        
+        // 중복 제거 후 합치기
+        const names = new Set(results.map(r => r.name));
+        apiItems.forEach(item => { if (!names.has(item.name)) results.push(item); });
+      } catch(e) {}
+
+      if (status) status.textContent = results.length > 0 ? `${results.length}개 검색됨` : '결과 없음';
+      showFoodDropdownNew(results);
+
     } catch(e) {
-      if (status) status.textContent = '검색 오류. 다시 시도해주세요.';
-      hideFoodDropdown();
+      // 구글 시트 실패시 식약처 API만 사용
+      try {
+        const apiUrl = `${FOOD_API_URL}?serviceKey=${encodeURIComponent(FOOD_API_KEY)}&pageNo=1&numOfRows=15&type=json&FOOD_NM_KR=${encodeURIComponent(query)}`;
+        const apiRes = await fetch(apiUrl);
+        const apiData = await apiRes.json();
+        const items = apiData?.body?.items || [];
+        if (status) status.textContent = items.length > 0 ? `${items.length}개 검색됨` : '결과 없음';
+        showFoodDropdown(items);
+      } catch(e2) {
+        if (status) status.textContent = '검색 오류. 다시 시도해주세요.';
+        hideFoodDropdown();
+      }
     }
+  }
+
+  function showFoodDropdownNew(results) {
+    const dd = document.getElementById('food-search-dropdown');
+    if (!dd) return;
+    if (!results || results.length === 0) { dd.style.display = 'none'; return; }
+    dd.innerHTML = results.map(item => `
+      <div onclick="addFoodItemDirect('${item.name.replace(/'/g,"\'")}',${item.kcal})"
+        style="padding:10px 12px;cursor:pointer;border-bottom:0.5px solid var(--border);font-size:13px;"
+        onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='var(--card)'">
+        <div style="font-weight:600;color:var(--text);">${item.name}</div>
+        <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">100g당 ${item.kcal} kcal ${item.category ? '· '+item.category : ''}</div>
+      </div>`).join('');
+    dd.style.display = 'block';
+  }
+
+  function addFoodItemDirect(name, kcalPer100g) {
+    addFoodItem(name, kcalPer100g);
   }
 
   function onFoodSearchInput(val) {
     clearTimeout(foodSearchTimer);
     if (!val) { hideFoodDropdown(); document.getElementById('food-search-status').textContent = ''; return; }
-    foodSearchTimer = setTimeout(() => searchFoodAPI(val), 400);
+    foodSearchTimer = setTimeout(() => searchFoodAPI(val), 500);
   }
 
   function showFoodDropdown(items) {
