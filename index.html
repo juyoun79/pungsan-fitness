@@ -1074,42 +1074,62 @@
 
       <!-- 사진 업로드 -->
       <div style="margin-bottom:14px;">
-        <label class="field-label">사진 (선택)</label>
+        <label class="field-label">사진 (선택 · 끼니별 최대 4장)</label>
 
-        <!-- 사진 미리보기 (촬영/선택 후) -->
+        <!-- 2×2 그리드 사진 영역 (식단) -->
+        <div id="meal-photo-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px;border-radius:10px;overflow:hidden;">
+          <div onclick="openPhotoSheet(0)" id="meal-photo-cell-0" style="position:relative;aspect-ratio:1;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;border:1.5px dashed var(--border);">
+            <div style="font-size:20px;">📷</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:4px;">🌅 아침</div>
+          </div>
+          <div onclick="openPhotoSheet(1)" id="meal-photo-cell-1" style="position:relative;aspect-ratio:1;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;border:1.5px dashed var(--border);">
+            <div style="font-size:20px;">📷</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:4px;">☀️ 점심</div>
+          </div>
+          <div onclick="openPhotoSheet(2)" id="meal-photo-cell-2" style="position:relative;aspect-ratio:1;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;border:1.5px dashed var(--border);">
+            <div style="font-size:20px;">📷</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:4px;">🌙 저녁</div>
+          </div>
+          <div onclick="openPhotoSheet(3)" id="meal-photo-cell-3" style="position:relative;aspect-ratio:1;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;border:1.5px dashed var(--border);">
+            <div style="font-size:20px;">📷</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:4px;">🍎 간식</div>
+          </div>
+        </div>
+
+        <!-- 일반 게시물 사진 (식단 아닐 때) -->
         <div id="post-photo-preview-wrap" style="display:none;margin-top:6px;">
           <div style="position:relative;">
             <img id="post-photo-preview" style="width:100%;border-radius:10px;max-height:200px;object-fit:cover;display:block;" />
             <button onclick="removePostPhoto()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:white;border:none;border-radius:20px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✕ 제거</button>
           </div>
         </div>
-
-        <!-- 카메라/갤러리 선택 버튼 -->
-        <div id="post-photo-buttons" style="display:flex;gap:8px;margin-top:6px;">
+        <div id="post-photo-buttons" style="display:none;gap:8px;margin-top:6px;">
           <button onclick="document.getElementById('post-photo-camera').click()"
-            style="flex:1;padding:12px;background:var(--card);border:1.5px dashed var(--border);border-radius:var(--radius-sm);color:var(--text-sub);font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.15s;"
-            onmouseenter="this.style.borderColor='#1a6fd4';this.style.color='#1a6fd4'"
-            onmouseleave="this.style.borderColor='var(--border)';this.style.color='var(--text-sub)'">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
-              <circle cx="12" cy="13" r="4"/>
-            </svg>
-            카메라 촬영
+            style="flex:1;padding:12px;background:var(--card);border:1.5px dashed var(--border);border-radius:var(--radius-sm);color:var(--text-sub);font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;">
+            📷 카메라 촬영
           </button>
           <button onclick="document.getElementById('post-photo-gallery').click()"
-            style="flex:1;padding:12px;background:var(--card);border:1.5px dashed var(--border);border-radius:var(--radius-sm);color:var(--text-sub);font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.15s;"
-            onmouseenter="this.style.borderColor='#1a6fd4';this.style.color='#1a6fd4'"
-            onmouseleave="this.style.borderColor='var(--border)';this.style.color='var(--text-sub)'">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-              <polyline points="21 15 16 10 5 21"/>
-            </svg>
-            갤러리 선택
+            style="flex:1;padding:12px;background:var(--card);border:1.5px dashed var(--border);border-radius:var(--radius-sm);color:var(--text-sub);font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;">
+            🖼️ 갤러리 선택
           </button>
         </div>
 
+        <!-- 숨겨진 파일 input들 -->
         <input type="file" id="post-photo-camera" accept="image/*" capture="environment" style="display:none;" onchange="previewPostPhoto(this)" />
         <input type="file" id="post-photo-gallery" accept="image/*" style="display:none;" onchange="previewPostPhoto(this)" />
+        <input type="file" id="meal-photo-camera-input" accept="image/*" capture="environment" style="display:none;" onchange="handleMealPhoto(this)" />
+        <input type="file" id="meal-photo-gallery-input" accept="image/*" style="display:none;" onchange="handleMealPhoto(this)" />
+      </div>
+
+      <!-- 바텀시트: 카메라/갤러리 선택 -->
+      <div id="photo-sheet-overlay" onclick="closePhotoSheet()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:3000;"></div>
+      <div id="photo-sheet" style="display:none;position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--card);border-radius:16px 16px 0 0;z-index:3001;padding:16px 16px 32px;">
+        <div style="width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;"></div>
+        <div id="photo-sheet-title" style="font-size:14px;font-weight:700;color:var(--text);text-align:center;margin-bottom:14px;"></div>
+        <button onclick="chooseMealPhoto('camera')" style="width:100%;padding:14px;background:var(--bg);border:none;border-radius:10px;font-size:14px;font-weight:600;color:var(--text);cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;">📷 카메라 촬영</button>
+        <button onclick="chooseMealPhoto('gallery')" style="width:100%;padding:14px;background:var(--bg);border:none;border-radius:10px;font-size:14px;font-weight:600;color:var(--text);cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;">🖼️ 갤러리 선택</button>
+        <button id="photo-sheet-delete" onclick="deleteMealPhoto()" style="display:none;width:100%;padding:14px;background:#FFF0F0;border:none;border-radius:10px;font-size:14px;font-weight:600;color:#c0392b;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;">🗑️ 사진 삭제</button>
+        <button onclick="closePhotoSheet()" style="width:100%;padding:14px;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:14px;font-weight:600;color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
       </div>
 
       <!-- 글 내용 -->
@@ -1190,7 +1210,15 @@
         </div>
       </div>
 
-      <button class="btn-primary" onclick="submitPost()" id="post-submit-btn">게시하기 🚀</button>
+      <!-- 임시저장 안내 + 버튼 -->
+      <div style="background:#F0F7FF;border-radius:10px;padding:10px 12px;margin-bottom:10px;text-align:center;">
+        <div style="font-size:12px;color:#185FA5;font-weight:600;margin-bottom:2px;">💾 입력 내용은 오늘 하루 자동저장돼요</div>
+        <div style="font-size:11px;color:#5a8fc0;">나갔다 와도 이어서 기입할 수 있어요!</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:4px;">
+        <button onclick="saveDietDraft()" style="flex:1;padding:13px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-weight:700;color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 임시저장</button>
+        <button class="btn-primary" onclick="submitPost()" id="post-submit-btn" style="flex:2;">게시하기 🚀</button>
+      </div>
     </div>
   </div>
 
@@ -5205,6 +5233,7 @@
       return;
     }
     postPhotoFile = null;
+    mealPhotos = [null, null, null, null];
     document.getElementById('post-content').value = '';
     addedFoodItems = []; renderAddedFoods();
   ['meal-breakfast','meal-lunch','meal-dinner','meal-snack'].forEach(id => {
@@ -5213,6 +5242,9 @@
     ['kcal-breakfast','kcal-lunch','kcal-dinner','kcal-snack'].forEach(id => {
       const el = document.getElementById(id); if (el) el.textContent = '';
     });
+    renderMealPhotoGrid();
+    // 오늘 임시저장 불러오기
+    setTimeout(() => loadDietDraft(), 100);
     const cr = document.getElementById('calorie-result'); if (cr) cr.style.display = 'none';
     const cw = document.getElementById('calorie-calc-wrap'); if (cw) cw.style.display = 'none';
     const pcw = document.getElementById('post-content-wrap'); if (pcw) pcw.style.display = 'block';
@@ -5242,14 +5274,21 @@
     const contentWrap = document.getElementById('post-content-wrap');
     const calcWrap = document.getElementById('calorie-calc-wrap');
     const calorieResult = document.getElementById('calorie-result');
+    const mealGrid = document.getElementById('meal-photo-grid');
+    const normalPhotoBtn = document.getElementById('post-photo-buttons');
     if (cat === '식단') {
-      // 식단: 내용 입력창 숨기고 끼니별 입력창 표시
       if (contentWrap) contentWrap.style.display = 'none';
       if (calcWrap) calcWrap.style.display = 'block';
+      if (mealGrid) mealGrid.style.display = 'grid';
+      if (normalPhotoBtn) normalPhotoBtn.style.display = 'none';
     } else {
       // 다른 카테고리: 내용 입력창 표시, 식단 입력창 숨기기
       if (contentWrap) contentWrap.style.display = 'block';
       if (calcWrap) calcWrap.style.display = 'none';
+      const mg = document.getElementById('meal-photo-grid');
+      const nb = document.getElementById('post-photo-buttons');
+      if (mg) mg.style.display = 'none';
+      if (nb) nb.style.display = 'flex';
       if (calorieResult) calorieResult.style.display = 'none';
     }
   }
@@ -5655,6 +5694,168 @@
     document.getElementById('calorie-result').style.display = 'block';
   }
 
+
+  // ── 식단 사진 그리드 관련 ──
+  let mealPhotos = [null, null, null, null]; // 0:아침 1:점심 2:저녁 3:간식
+  let currentPhotoIndex = 0;
+  const mealPhotoLabels = ['🌅 아침', '☀️ 점심', '🌙 저녁', '🍎 간식'];
+
+  function openPhotoSheet(idx) {
+    currentPhotoIndex = idx;
+    const sheet = document.getElementById('photo-sheet');
+    const overlay = document.getElementById('photo-sheet-overlay');
+    const title = document.getElementById('photo-sheet-title');
+    const deleteBtn = document.getElementById('photo-sheet-delete');
+    title.textContent = mealPhotoLabels[idx] + ' 사진';
+    deleteBtn.style.display = mealPhotos[idx] ? 'block' : 'none';
+    sheet.style.display = 'block';
+    overlay.style.display = 'block';
+  }
+
+  function closePhotoSheet() {
+    document.getElementById('photo-sheet').style.display = 'none';
+    document.getElementById('photo-sheet-overlay').style.display = 'none';
+  }
+
+  function chooseMealPhoto(type) {
+    closePhotoSheet();
+    const input = document.getElementById(
+      type === 'camera' ? 'meal-photo-camera-input' : 'meal-photo-gallery-input'
+    );
+    input.value = '';
+    input.click();
+  }
+
+  function handleMealPhoto(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = e => {
+      mealPhotos[currentPhotoIndex] = e.target.result;
+      renderMealPhotoGrid();
+      saveDietDraftAuto();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function deleteMealPhoto() {
+    mealPhotos[currentPhotoIndex] = null;
+    renderMealPhotoGrid();
+    closePhotoSheet();
+    saveDietDraftAuto();
+  }
+
+  function renderMealPhotoGrid() {
+    const labels = ['🌅 아침', '☀️ 점심', '🌙 저녁', '🍎 간식'];
+    for (let i = 0; i < 4; i++) {
+      const cell = document.getElementById('meal-photo-cell-' + i);
+      if (!cell) continue;
+      if (mealPhotos[i]) {
+        cell.innerHTML = `
+          <img src="${mealPhotos[i]}" style="width:100%;height:100%;object-fit:cover;display:block;" />
+          <div style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,0.5);color:white;font-size:10px;padding:2px 6px;border-radius:8px;">${labels[i]}</div>`;
+        cell.style.border = 'none';
+      } else {
+        cell.innerHTML = `
+          <div style="font-size:20px;">📷</div>
+          <div style="font-size:11px;color:var(--text-hint);margin-top:4px;">${labels[i]}</div>`;
+        cell.style.border = '1.5px dashed var(--border)';
+      }
+    }
+  }
+
+  // canvas로 사진 합성 (1~4장 → 1장)
+  async function composeMealPhotos() {
+    const photos = mealPhotos.filter(Boolean);
+    if (photos.length === 0) return null;
+
+    const SIZE = 800; // 출력 캔버스 크기
+    const canvas = document.createElement('canvas');
+    canvas.width = SIZE;
+    canvas.height = SIZE;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#f5f5f5';
+    ctx.fillRect(0, 0, SIZE, SIZE);
+
+    const loadImg = src => new Promise(res => {
+      const img = new Image();
+      img.onload = () => res(img);
+      img.src = src;
+    });
+
+    const imgs = await Promise.all(photos.map(loadImg));
+    const n = imgs.length;
+
+    if (n === 1) {
+      ctx.drawImage(imgs[0], 0, 0, SIZE, SIZE);
+    } else if (n === 2) {
+      ctx.drawImage(imgs[0], 0, 0, SIZE/2 - 1, SIZE);
+      ctx.drawImage(imgs[1], SIZE/2 + 1, 0, SIZE/2 - 1, SIZE);
+    } else if (n === 3) {
+      ctx.drawImage(imgs[0], 0, 0, SIZE/2 - 1, SIZE);
+      ctx.drawImage(imgs[1], SIZE/2 + 1, 0, SIZE/2 - 1, SIZE/2 - 1);
+      ctx.drawImage(imgs[2], SIZE/2 + 1, SIZE/2 + 1, SIZE/2 - 1, SIZE/2 - 1);
+    } else {
+      const h = SIZE / 2 - 1;
+      const w = SIZE / 2 - 1;
+      ctx.drawImage(imgs[0], 0,       0,       w, h);
+      ctx.drawImage(imgs[1], SIZE/2+1, 0,       w, h);
+      ctx.drawImage(imgs[2], 0,       SIZE/2+1, w, h);
+      ctx.drawImage(imgs[3], SIZE/2+1, SIZE/2+1, w, h);
+    }
+
+    return new Promise(res => canvas.toBlob(blob => res(blob), 'image/jpeg', 0.75));
+  }
+
+  // ── 임시저장 ──
+  function saveDietDraftAuto() {
+    const today = new Date().toISOString().slice(0, 10);
+    const draft = {
+      date: today,
+      breakfast: document.getElementById('meal-breakfast')?.value || '',
+      lunch:     document.getElementById('meal-lunch')?.value || '',
+      dinner:    document.getElementById('meal-dinner')?.value || '',
+      snack:     document.getElementById('meal-snack')?.value || '',
+      photos:    mealPhotos,
+    };
+    localStorage.setItem('diet_draft', JSON.stringify(draft));
+  }
+
+  function saveDietDraft() {
+    saveDietDraftAuto();
+    // 토스트 메시지
+    const toast = document.createElement('div');
+    toast.textContent = '💾 임시저장 완료!';
+    toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#185FA5;color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:9999;font-family:"Noto Sans KR",sans-serif;';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+  }
+
+  function loadDietDraft() {
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      const draft = JSON.parse(localStorage.getItem('diet_draft') || 'null');
+      if (!draft || draft.date !== today) return;
+      const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+      set('meal-breakfast', draft.breakfast || '');
+      set('meal-lunch',     draft.lunch     || '');
+      set('meal-dinner',    draft.dinner    || '');
+      set('meal-snack',     draft.snack     || '');
+      if (draft.photos) {
+        mealPhotos = draft.photos;
+        renderMealPhotoGrid();
+      }
+      calcMealKcal();
+      if (draft.breakfast || draft.lunch || draft.dinner || draft.snack) {
+        const toast = document.createElement('div');
+        toast.textContent = '💾 오늘 임시저장된 식단을 불러왔어요!';
+        toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#27500A;color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:9999;font-family:"Noto Sans KR",sans-serif;white-space:nowrap;';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2500);
+      }
+    } catch(e) {}
+  }
+
   function previewPostPhoto(input) {
     if (!input.files || !input.files[0]) return;
     postPhotoFile = input.files[0];
@@ -5732,25 +5933,34 @@
     try {
       let photoURL = null;
 
-      // 사진 압축 후 업로드
-      if (postPhotoFile) {
+      // 사진 업로드 (식단: 합성, 일반: 단일)
+      const hasMealPhotos = mealPhotos.some(Boolean);
+      if (category === '식단' && hasMealPhotos) {
+        try {
+          btn.textContent = '사진 합성 중...';
+          const composed = await composeMealPhotos();
+          if (composed) {
+            btn.textContent = '사진 업로드 중...';
+            const ref = storage.ref('posts/' + Date.now() + '_' + userId + '.jpg');
+            const snapshot = await ref.put(composed);
+            photoURL = await snapshot.ref.getDownloadURL();
+          }
+        } catch(photoErr) {
+          console.error('사진 업로드 오류:', photoErr);
+          const yn = confirm('사진 업로드에 실패했어요.\n사진 없이 글만 올릴까요?');
+          if (!yn) { btn.textContent = '게시하기 🚀'; btn.disabled = false; return; }
+        }
+      } else if (postPhotoFile) {
         try {
           btn.textContent = '사진 업로드 중...';
           const compressed = await compressImage(postPhotoFile);
-          const ext = 'jpg';
-          const ref = storage.ref('posts/' + Date.now() + '_' + userId + '.' + ext);
+          const ref = storage.ref('posts/' + Date.now() + '_' + userId + '.jpg');
           const snapshot = await ref.put(compressed);
           photoURL = await snapshot.ref.getDownloadURL();
         } catch(photoErr) {
           console.error('사진 업로드 오류:', photoErr);
-          // 사진 업로드 실패해도 글은 올라가도록
           const yn = confirm('사진 업로드에 실패했어요.\n사진 없이 글만 올릴까요?');
-          if (!yn) {
-            btn.textContent = '게시하기 🚀';
-            btn.disabled = false;
-            return;
-          }
-          photoURL = null;
+          if (!yn) { btn.textContent = '게시하기 🚀'; btn.disabled = false; return; }
         }
       }
 
@@ -5763,7 +5973,9 @@
       };
 
       await db.ref('posts').push(postData);
-      closePostModal();
+      localStorage.removeItem('diet_draft');
+    mealPhotos = [null, null, null, null];
+    closePostModal();
       // 피드 강제 갱신 (리스너 재등록)
       loadCommunityFeed(currentCategory);
 
