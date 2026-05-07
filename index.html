@@ -948,8 +948,8 @@
     <div style="display:flex;gap:6px;padding:10px 16px;overflow-x:auto;background:var(--card);border-bottom:1px solid var(--border);">
       <button class="cat-tab active" onclick="filterCommunity('전체')" id="cat-전체">전체</button>
       <button class="cat-tab" onclick="filterCommunity('오운완')" id="cat-오운완">💪 오운완</button>
-      <button class="cat-tab" onclick="filterCommunity('운동팁')" id="cat-운동팁">📋 운동팁</button>
       <button class="cat-tab" onclick="filterCommunity('식단')" id="cat-식단">🥗 식단</button>
+      <button class="cat-tab" onclick="filterCommunity('운동팁')" id="cat-운동팁">📋 운동팁</button>
       <button class="cat-tab" onclick="filterCommunity('자유')" id="cat-자유">💬 자유</button>
     </div>
 
@@ -1064,11 +1064,11 @@
       <div style="margin-bottom:14px;">
         <label class="field-label">카테고리</label>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
-          <button class="cat-select active" onclick="selectPostCat(this,'운동팁')">📋 운동팁</button>
-          <button class="cat-select" onclick="selectPostCat(this,'식단')">🥗 식단</button>
+          <button class="cat-select active" onclick="selectPostCat(this,'식단')">🥗 식단</button>
+          <button class="cat-select" onclick="selectPostCat(this,'운동팁')">📋 운동팁</button>
           <button class="cat-select" onclick="selectPostCat(this,'자유')">💬 자유</button>
         </div>
-        <input type="hidden" id="post-category" value="운동팁" />
+        <input type="hidden" id="post-category" value="식단" />
         <div style="margin-top:8px;font-size:12px;color:var(--text-hint);">💪 오운완은 출석체크 완료 시 자동 등록돼요</div>
       </div>
 
