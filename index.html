@@ -1126,7 +1126,7 @@
       <!-- 글 내용 -->
       <div id="post-content-wrap" style="margin-bottom:12px;">
         <label class="field-label">내용 *</label>
-        <textarea id="post-content" placeholder="운동 후기, 오늘의 식단, 운동 팁을 공유해보세요! 💪"
+        <textarea id="post-content" oninput="savePostDraft(document.getElementById('post-category')?.value||'자유')" placeholder="운동 후기, 오늘의 식단, 운동 팁을 공유해보세요! 💪"
           style="width:100%;box-sizing:border-box;padding:12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:100px;margin-top:6px;"
           onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"></textarea>
       </div>
@@ -5241,21 +5241,27 @@
     renderMealPhotoGrid();
     // 오늘 임시저장 불러오기
     setTimeout(() => loadDietDraft(), 100);
-    const cr = document.getElementById('calorie-result'); if (cr) cr.style.display = 'none';
-    const cw = document.getElementById('calorie-calc-wrap'); if (cw) cw.style.display = 'none';
-    const pcw = document.getElementById('post-content-wrap'); if (pcw) pcw.style.display = 'block';
+    // 카테고리 초기화 - 식단 기본값
+    document.querySelectorAll('.cat-select').forEach((b,i) => b.classList.toggle('active', i===0));
+    document.getElementById('post-category').value = '식단';
+
+    // UI 초기화
     document.getElementById('post-photo-preview-wrap').style.display = 'none';
-    
     document.getElementById('post-photo-camera').value = '';
     document.getElementById('post-photo-gallery').value = '';
     document.getElementById('post-submit-btn').textContent = '게시하기 🚀';
     document.getElementById('post-submit-btn').disabled = false;
-    document.querySelectorAll('.cat-select').forEach((b,i) => b.classList.toggle('active', i===0));
-    document.getElementById('post-category').value = '식단';
-    // 식단 입력창 자동 표시
-    const pcw2 = document.getElementById('post-content-wrap'); if (pcw2) pcw2.style.display = 'none';
-    const cw2 = document.getElementById('calorie-calc-wrap'); if (cw2) cw2.style.display = 'block';
+
+    // 식단 카테고리 UI 표시
+    const pcw = document.getElementById('post-content-wrap'); if (pcw) pcw.style.display = 'none';
+    const cw = document.getElementById('calorie-calc-wrap'); if (cw) cw.style.display = 'block';
+    const mg = document.getElementById('meal-photo-grid'); if (mg) mg.style.display = 'grid';
+    const cr = document.getElementById('calorie-result'); if (cr) cr.style.display = 'none';
     const fl = document.getElementById('food-added-list'); if (fl) fl.style.display = 'none';
+
+    // 임시저장 안내/버튼 표시
+    const draftWrap = document.getElementById('draft-save-wrap'); if (draftWrap) draftWrap.style.display = 'block';
+
     document.getElementById('post-modal').classList.add('active');
   }
 
@@ -5271,19 +5277,21 @@
     const calcWrap = document.getElementById('calorie-calc-wrap');
     const calorieResult = document.getElementById('calorie-result');
     const mealGrid = document.getElementById('meal-photo-grid');
+    // 임시저장 불러오기 (카테고리 전환 시)
+    loadPostDraft(cat);
+
     if (cat === '식단') {
       if (contentWrap) contentWrap.style.display = 'none';
       if (calcWrap) calcWrap.style.display = 'block';
       if (mealGrid) mealGrid.style.display = 'grid';
+      if (calorieResult) calorieResult.style.display = 'none';
+      const draftWrap = document.getElementById('draft-save-wrap'); if (draftWrap) draftWrap.style.display = 'block';
     } else {
-      // 다른 카테고리: 내용 입력창 표시, 식단 입력창 숨기기
       if (contentWrap) contentWrap.style.display = 'block';
       if (calcWrap) calcWrap.style.display = 'none';
-      const mg = document.getElementById('meal-photo-grid');
-      const nb = document.getElementById('post-photo-buttons');
-      if (mg) mg.style.display = 'none';
-      if (nb) nb.style.display = 'flex';
+      if (mealGrid) mealGrid.style.display = 'none';
       if (calorieResult) calorieResult.style.display = 'none';
+      const draftWrap = document.getElementById('draft-save-wrap'); if (draftWrap) draftWrap.style.display = 'block';
     }
   }
 
@@ -5509,6 +5517,41 @@
       total += Math.round(best.k * gramsPerUnit / 100) * qty;
     });
     return total;
+  }
+
+
+  // ── 카테고리별 임시저장 (운동팁/자유) ──
+  function savePostDraft(cat) {
+    if (cat === '식단') return; // 식단은 saveDietDraft()로 처리
+    const today = new Date().toISOString().slice(0, 10);
+    const content = document.getElementById('post-content')?.value || '';
+    localStorage.setItem('post_draft_' + cat, JSON.stringify({ date: today, content }));
+  }
+
+  function loadPostDraft(cat) {
+    if (cat === '식단') {
+      setTimeout(() => loadDietDraft(), 100);
+      return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      const draft = JSON.parse(localStorage.getItem('post_draft_' + cat) || 'null');
+      if (!draft || draft.date !== today) return;
+      const el = document.getElementById('post-content');
+      if (el && draft.content) {
+        el.value = draft.content;
+        const toast = document.createElement('div');
+        toast.textContent = '💾 오늘 임시저장된 내용을 불러왔어요!';
+        toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#27500A;color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:9999;font-family:"Noto Sans KR",sans-serif;white-space:nowrap;';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2500);
+      }
+    } catch(e) {}
+  }
+
+  function clearPostDraft(cat) {
+    if (cat === '식단') { localStorage.removeItem('diet_draft'); return; }
+    localStorage.removeItem('post_draft_' + cat);
   }
 
   function toggleDietTip() {
@@ -5850,6 +5893,16 @@
     toast.textContent = '저장 중...';
     toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#888;color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:9999;font-family:"Noto Sans KR",sans-serif;';
     document.body.appendChild(toast);
+    const cat = document.getElementById('post-category')?.value || '식단';
+    if (cat !== '식단') {
+      savePostDraft(cat);
+      const toast = document.createElement('div');
+      toast.textContent = '💾 임시저장 완료!';
+      toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#185FA5;color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:9999;font-family:"Noto Sans KR",sans-serif;';
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+      return;
+    }
     const ok = await saveDietDraftAuto();
     toast.textContent = ok ? '💾 임시저장 완료!' : '💾 텍스트만 저장됐어요 (사진 용량 초과)';
     toast.style.background = ok ? '#185FA5' : '#e67e22';
@@ -5998,7 +6051,8 @@
       };
 
       await db.ref('posts').push(postData);
-      localStorage.removeItem('diet_draft');
+      const postCat = document.getElementById('post-category')?.value || '식단';
+    clearPostDraft(postCat);
     mealPhotos = [null, null, null, null];
     closePostModal();
       // 피드 강제 갱신 (리스너 재등록)
