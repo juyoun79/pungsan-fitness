@@ -1074,7 +1074,7 @@
 
       <!-- 사진 업로드 -->
       <div style="margin-bottom:14px;">
-        <label class="field-label">사진 (선택 · 끼니별 최대 4장)</label>
+        <label class="field-label" id="photo-label">사진 (선택 · 끼니별 최대 4장)</label>
 
         <!-- 2×2 그리드 사진 영역 (식단) -->
         <div id="meal-photo-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px;border-radius:10px;overflow:hidden;">
@@ -1104,6 +1104,12 @@
           </div>
         </div>
 
+
+        <!-- 일반 사진 버튼 (운동팁/자유) -->
+        <div id="post-photo-buttons" style="display:none;margin-top:6px;gap:8px;display:none;">
+          <button onclick="document.getElementById('post-photo-camera').click()" style="width:100%;padding:11px;background:var(--bg);border:1.5px dashed var(--border);border-radius:10px;font-size:13px;font-weight:600;color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:6px;">📷 카메라 촬영</button>
+          <button onclick="document.getElementById('post-photo-gallery').click()" style="width:100%;padding:11px;background:var(--bg);border:1.5px dashed var(--border);border-radius:10px;font-size:13px;font-weight:600;color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🖼️ 갤러리 선택</button>
+        </div>
 
         <!-- 숨겨진 파일 input들 -->
         <input type="file" id="post-photo-camera" accept="image/*" capture="environment" style="display:none;" onchange="previewPostPhoto(this)" />
@@ -1213,6 +1219,31 @@
         <button onclick="saveDietDraft()" style="flex:1;padding:13px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-weight:700;color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 임시저장</button>
         <button class="btn-primary" onclick="submitPost()" id="post-submit-btn" style="flex:2;">게시하기 🚀</button>
       </div>
+    </div>
+  </div>
+
+
+  <!-- ── 게시글 수정 모달 ── -->
+  <div class="modal-overlay" id="edit-post-modal">
+    <div class="modal-sheet" style="overflow-y:auto;">
+      <div class="modal-title">
+        <span>✏️ 게시글 수정</span>
+        <button class="modal-close" onclick="closeEditPostModal()">×</button>
+      </div>
+      <!-- 카테고리 표시 (수정 불가) -->
+      <div style="margin-bottom:14px;">
+        <label class="field-label">카테고리</label>
+        <div id="edit-post-category-badge" style="display:inline-block;margin-top:6px;padding:4px 14px;background:var(--blue-light);border-radius:20px;font-size:13px;color:var(--blue);font-weight:600;"></div>
+      </div>
+      <!-- 내용 -->
+      <div style="margin-bottom:16px;">
+        <label class="field-label">내용 *</label>
+        <textarea id="edit-post-content"
+          style="width:100%;box-sizing:border-box;padding:12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:120px;margin-top:6px;"
+          onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"></textarea>
+      </div>
+      <button class="btn-primary" onclick="saveEditedPost()" style="margin-bottom:10px;">✅ 수정완료</button>
+      <button onclick="deletePostFromEdit()" style="width:100%;padding:14px;background:#fee2e2;color:#ef4444;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑 게시글 삭제</button>
     </div>
   </div>
 
@@ -5149,11 +5180,12 @@
             <span id="comment-count-${post.id}">${commentCount}</span>
           </button>
           ${canDelete ? `
-            <button class="feed-btn" onclick="deletePost('${post.id}','${post.photoURL||''}')" style="margin-left:auto;color:#ef4444;">
+            <button class="feed-btn" onclick="openEditPostModal('${post.id}')" style="margin-left:auto;color:#185FA5;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
               </svg>
-              삭제
+              수정
             </button>` : ''}
         </div>
       </div>`;
@@ -5192,6 +5224,50 @@
   }
 
   // ── 게시글 삭제 ──
+
+  // ── 게시글 수정 ──
+  let editingPostId = null;
+
+  function openEditPostModal(postId) {
+    const post = allCommunityPosts.find(p => p.id === postId);
+    if (!post) return;
+    editingPostId = postId;
+
+    const catMap = { '식단':'🥗 식단', '운동팁':'📋 운동팁', '자유':'💬 자유', '오운완':'💪 오운완' };
+    document.getElementById('edit-post-category-badge').textContent = catMap[post.category] || post.category || '';
+    document.getElementById('edit-post-content').value = post.content || '';
+    document.getElementById('edit-post-modal').classList.add('active');
+  }
+
+  function closeEditPostModal() {
+    document.getElementById('edit-post-modal').classList.remove('active');
+    editingPostId = null;
+  }
+
+  function saveEditedPost() {
+    if (!editingPostId) return;
+    const newContent = document.getElementById('edit-post-content').value.trim();
+    if (!newContent) { alert('내용을 입력해주세요.'); return; }
+    db.ref('posts/' + editingPostId).update({ content: newContent }).then(() => {
+      // 로컬 캐시 업데이트
+      const post = allCommunityPosts.find(p => p.id === editingPostId);
+      if (post) post.content = newContent;
+      renderCommunityFeed();
+      renderAdminCommunityFeed();
+      closeEditPostModal();
+      alert('✅ 수정됐어요!');
+    });
+  }
+
+  function deletePostFromEdit() {
+    if (!editingPostId) return;
+    const postId = editingPostId;
+    const post = allCommunityPosts.find(p => p.id === postId);
+    if (!confirm('게시글을 삭제할까요?')) return;
+    closeEditPostModal();
+    deletePost(postId, post?.photoURL || '');
+  }
+
   function deletePost(postId, photoURL) {
     if (!confirm('게시글을 삭제할까요?')) return;
     db.ref('posts/' + postId).remove().then(() => {
@@ -5256,6 +5332,8 @@
     const pcw = document.getElementById('post-content-wrap'); if (pcw) pcw.style.display = 'none';
     const cw = document.getElementById('calorie-calc-wrap'); if (cw) cw.style.display = 'block';
     const mg = document.getElementById('meal-photo-grid'); if (mg) mg.style.display = 'grid';
+    const pb = document.getElementById('post-photo-buttons'); if (pb) pb.style.display = 'none';
+    const pl = document.getElementById('photo-label'); if (pl) pl.textContent = '사진 (선택 · 끼니별 최대 4장)';
     const cr = document.getElementById('calorie-result'); if (cr) cr.style.display = 'none';
     const fl = document.getElementById('food-added-list'); if (fl) fl.style.display = 'none';
 
@@ -5280,17 +5358,24 @@
     // 임시저장 불러오기 (카테고리 전환 시)
     loadPostDraft(cat);
 
+    const photoLabel = document.getElementById('photo-label');
+    const photoButtons = document.getElementById('post-photo-buttons');
+
     if (cat === '식단') {
       if (contentWrap) contentWrap.style.display = 'none';
       if (calcWrap) calcWrap.style.display = 'block';
       if (mealGrid) mealGrid.style.display = 'grid';
       if (calorieResult) calorieResult.style.display = 'none';
+      if (photoLabel) photoLabel.textContent = '사진 (선택 · 끼니별 최대 4장)';
+      if (photoButtons) photoButtons.style.display = 'none';
       const draftWrap = document.getElementById('draft-save-wrap'); if (draftWrap) draftWrap.style.display = 'block';
     } else {
       if (contentWrap) contentWrap.style.display = 'block';
       if (calcWrap) calcWrap.style.display = 'none';
       if (mealGrid) mealGrid.style.display = 'none';
       if (calorieResult) calorieResult.style.display = 'none';
+      if (photoLabel) photoLabel.textContent = '사진 (선택)';
+      if (photoButtons) photoButtons.style.display = 'block';
       const draftWrap = document.getElementById('draft-save-wrap'); if (draftWrap) draftWrap.style.display = 'block';
     }
   }
