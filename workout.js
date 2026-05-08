@@ -1635,3 +1635,117 @@
     renderCalendar();
     if (calSelectedDate) renderDayDetail(calSelectedDate);
   }
+
+  // ══════════════════════════════
+  // 휴식 타이머 시스템
+  // ══════════════════════════════
+
+  let restTimerInterval = null;
+  let wakeLock = null;
+  let restTimerRemain = 0;
+  let restAlarmInterval = null;
+
+  async function requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLock = await navigator.wakeLock.request('screen');
+      }
+    } catch (e) {}
+  }
+
+  function releaseWakeLock() {
+    if (wakeLock) {
+      wakeLock.release().then(() => { wakeLock = null; }).catch(() => { wakeLock = null; });
+    }
+  }
+
+  function startRestTimer(timerBoxId, timerCountId, minInputId, secInputId) {
+    const min = parseInt(document.getElementById(minInputId)?.value) || 0;
+    const sec = parseInt(document.getElementById(secInputId)?.value) || 0;
+    const total = min * 60 + sec;
+    if (total <= 0) return;
+
+    if (restTimerInterval) clearInterval(restTimerInterval);
+    stopRestAlarm();
+    restTimerRemain = total;
+
+    const box = document.getElementById(timerBoxId);
+    const countEl = document.getElementById(timerCountId);
+    if (!box || !countEl) return;
+
+    box.style.display = 'block';
+    updateTimerDisplay(countEl, restTimerRemain);
+    requestWakeLock();
+
+    restTimerInterval = setInterval(() => {
+      restTimerRemain--;
+      updateTimerDisplay(countEl, restTimerRemain);
+      if (restTimerRemain <= 0) {
+        clearInterval(restTimerInterval);
+        restTimerInterval = null;
+        box.style.display = 'none';
+        document.getElementById('timer-done-msg').textContent = '다음 세트 시작하세요!';
+        document.getElementById('timer-done-overlay').classList.add('active');
+        startRestAlarm();
+      }
+    }, 1000);
+  }
+
+  function startRestAlarm() {
+    stopRestAlarm();
+    playBeep();
+    if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 600]);
+    restAlarmInterval = setInterval(() => {
+      playBeep();
+      if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 600]);
+    }, 2000);
+  }
+
+  function stopRestAlarm() {
+    if (restAlarmInterval) { clearInterval(restAlarmInterval); restAlarmInterval = null; }
+    if (navigator.vibrate) navigator.vibrate(0);
+  }
+
+  function playBeep() {
+    try {
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.5, ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.4);
+      osc.start();
+      osc.stop(ac.currentTime + 0.4);
+    } catch(e) {}
+  }
+
+  function closeTimerDonePopup() {
+    stopRestAlarm();
+    document.getElementById('timer-done-overlay').classList.remove('active');
+  }
+
+  function updateTimerDisplay(el, remain) {
+    const m = Math.floor(remain / 60);
+    const s = remain % 60;
+    el.textContent = m + ':' + String(s).padStart(2, '0');
+  }
+
+  function skipRestTimer() {
+    if (restTimerInterval) { clearInterval(restTimerInterval); restTimerInterval = null; }
+    stopRestAlarm();
+    releaseWakeLock();
+    ['rest-timer-box', 'inner-rest-timer-box', 'outer-rest-timer-box'].forEach(id => {
+      const box = document.getElementById(id);
+      if (box) box.style.display = 'none';
+    });
+  }
+
+  function skipFwRestTimer() {
+    if (restTimerInterval) { clearInterval(restTimerInterval); restTimerInterval = null; }
+    stopRestAlarm();
+    releaseWakeLock();
+    const box = document.getElementById('fw-rest-timer-box');
+    if (box) box.style.display = 'none';
+  }
