@@ -2662,7 +2662,7 @@
 
   function goHome(nickname, forceHome) {
     document.getElementById('home-nickname').textContent = nickname + '님';
-    updateStats();
+    if (typeof updateStats === 'function') updateStats();
     loadHomeNotices();
     loadHomeWeightCard();
     const userId = localStorage.getItem('current_user');

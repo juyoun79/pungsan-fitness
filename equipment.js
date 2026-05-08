@@ -48,11 +48,8 @@
   }
 
   // ══════════════════════════════
-  // 운동기록 달력
+  // 운동기록 달력 변수는 workout.js에서 선언
   // ══════════════════════════════
-  let calYear = new Date().getFullYear();
-  let calMonth = new Date().getMonth(); // 0-indexed
-  let calSelectedDate = null;
 
 
   const FW_EXERCISE_LIST = [
