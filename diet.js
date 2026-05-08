@@ -1,3 +1,9 @@
+  // ── foods.js 로드 안 됐을 때 빈 객체로 방어 ──
+  if (typeof LOCAL_FOODS === 'undefined') {
+    window.LOCAL_FOODS = { foods: [], units: {}, synonyms: {} };
+    console.warn('⚠️ foods.js 로드 안됨 - 로컬 식품 DB 비활성화');
+  }
+
   // ── 식단 / 음식 검색 변수 ──
   let foodSearchTimer = null;
   let addedFoodItems = [];

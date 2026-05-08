@@ -1479,48 +1479,6 @@
   }
 
   // 프리웨이트 운동 목록
-  const FW_EXERCISE_LIST = [
-    // 바벨 운동
-    { name: '바벨 벤치프레스', category: '바벨' },
-    { name: '바벨 백스쿼트', category: '바벨' },
-    { name: '바벨 프론트스쿼트', category: '바벨' },
-    { name: '바벨 벤트오버 로우', category: '바벨' },
-    { name: '바벨 오버헤드프레스', category: '바벨' },
-    { name: '바벨 런지', category: '바벨' },
-    { name: '바벨 컬', category: '바벨' },
-    { name: '루마니안 데드리프트', category: '바벨' },
-    { name: '컨벤셔널 데드리프트', category: '바벨' },
-    { name: '스모 데드리프트', category: '바벨' },
-    { name: '라잉 트라이셉스 익스텐션', category: '바벨' },
-    // 덤벨 운동
-    { name: '덤벨 벤치프레스', category: '덤벨' },
-    { name: '덤벨 플라이', category: '덤벨' },
-    { name: '덤벨 숄더프레스', category: '덤벨' },
-    { name: '덤벨 레터럴 레이즈', category: '덤벨' },
-    { name: '덤벨 프론트 레이즈', category: '덤벨' },
-    { name: '덤벨 벤트오버 로우', category: '덤벨' },
-    { name: '덤벨 컬', category: '덤벨' },
-    { name: '해머 컬', category: '덤벨' },
-    { name: '덤벨 트라이셉스 익스텐션', category: '덤벨' },
-    { name: '덤벨 런지', category: '덤벨' },
-    { name: '덤벨 스쿼트', category: '덤벨' },
-    { name: '덤벨 데드리프트', category: '덤벨' },
-    { name: '벤트오버 레터럴 레이즈', category: '덤벨' },
-    // 맨몸 운동
-    { name: '푸시업', category: '맨몸' },
-    { name: '풀업', category: '맨몸' },
-    { name: '친업', category: '맨몸' },
-    { name: '딥스', category: '맨몸' },
-    { name: '스쿼트', category: '맨몸' },
-    { name: '런지', category: '맨몸' },
-    { name: '플랭크', category: '맨몸' },
-    { name: '버피', category: '맨몸' },
-    { name: '크런치', category: '맨몸' },
-    { name: '레그 레이즈', category: '맨몸' },
-    { name: '마운틴 클라이머', category: '맨몸' },
-    { name: '데드버그', category: '맨몸' },
-    { name: '버드독', category: '맨몸' },
-  ];
 
   // 운동 검색 함수
   function searchFwExercise(query) {
