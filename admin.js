@@ -1,0 +1,571 @@
+  const ADMIN_ID = 'admin';
+
+  function checkAdminLogin(id, pw) {
+    return id === ADMIN_ID; // 1차 ID 체크만, 비번은 doLogin에서 Firebase 조회
+  }
+
+  // Firebase에 관리자 계정 초기화 (최초 1회)
+  function initAdminAccount() {
+    db.ref('admin_config/pw').once('value').then(snap => {
+      if (!snap.exists()) {
+        db.ref('admin_config/pw').set('admin123');
+      }
+    });
+  }
+
+  // ── 관리자 탭 전환 ──
+  function switchAdminTab(tabId) {
+    document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    event.target.classList.add('active');
+    if (tabId === 'tab-dashboard') loadAdminDashboard();
+    if (tabId === 'tab-members') loadMemberList();
+    if (tabId === 'tab-notice') loadNoticeListAdmin();
+    if (tabId === 'tab-community-admin') loadAdminCommunityFeed('전체');
+  }
+
+  function openNoticeDetail(id) {
+    db.ref('notices/' + id).once('value').then(snap => {
+      if (!snap.exists()) return;
+      const n = snap.val();
+      document.getElementById('notice-detail-content').innerHTML = `
+        <div style="margin-bottom:16px;">
+          <div style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px;line-height:1.4;">${n.title}</div>
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:14px;">${n.dateLabel}</div>
+          <div style="font-size:15px;color:var(--text-sub);line-height:1.8;white-space:pre-wrap;">${n.content}</div>
+        </div>`;
+      document.getElementById('notice-detail-modal').classList.add('active');
+    });
+  }
+  function closeNoticeDetail() {
+    document.getElementById('notice-detail-modal').classList.remove('active');
+  }
+
+  // ── 운동기록 수정 ──
+  let editWorkoutKey = null, editWorkoutDate = null, editSetCount = 0;
+
+  function openEditWorkoutModal(storageKey, date) {
+    editWorkoutKey = storageKey; editWorkoutDate = date; editSetCount = 0;
+    const records = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    const record = records.find(r => r.date === date);
+    if (!record) return;
+    document.getElementById('edit-set-list').innerHTML = '';
+    for (const s of record.sets) addEditSetWithValue(s.weight, s.reps);
+    document.getElementById('edit-workout-memo').value = record.memo || '';
+    document.getElementById('edit-workout-modal').classList.add('active');
+  }
+
+  function addEditSetWithValue(weight, reps) {
+    editSetCount++;
+    const list = document.getElementById('edit-set-list');
+    const row = document.createElement('div');
+    row.id = 'edit-row-' + editSetCount;
+    row.style.cssText = 'display:grid;grid-template-columns:36px 1fr 1fr 36px;gap:4px;margin-bottom:8px;align-items:center;padding-right:2px;';
+    row.innerHTML = `
+      <div style="text-align:center;font-size:13px;font-weight:700;color:white;background:var(--blue);border-radius:8px;height:40px;display:flex;align-items:center;justify-content:center;">${editSetCount}</div>
+      <input type="number" value="${weight||''}" placeholder="0" min="0" max="500" step="2.5"
+        style="padding:9px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:center;width:100%;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;outline:none;"
+        id="edit-weight-${editSetCount}" onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+      <input type="number" value="${reps||''}" placeholder="0" min="0" max="9999"
+        style="padding:9px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:center;width:100%;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;outline:none;"
+        id="edit-reps-${editSetCount}" onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+      <button onclick="removeEditSet(${editSetCount})" style="width:36px;height:36px;border:none;background:#fee2e2;color:#ef4444;border-radius:8px;cursor:pointer;font-size:16px;">×</button>`;
+    list.appendChild(row);
+  }
+  function addEditSet() { addEditSetWithValue(0, 0); }
+  function removeEditSet(n) { const r = document.getElementById('edit-row-' + n); if (r) r.remove(); }
+
+  // localStorage 키 → Firebase 경로 변환
+  function getFirebaseWorkoutPath(storageKey, userId) {
+    // workout_기구key_userId → workouts/기구key
+    // freeweight_운동명_userId → workouts/fw_운동명
+    // workout_dual_front_기구key_userId → workouts/dual_front_기구key
+    // workout_dual_back_기구key_userId → workouts/dual_back_기구key
+    // cardio_종류_userId → workouts/cardio_종류
+    const base = storageKey.replace('_' + userId, '');
+    if (base.startsWith('workout_dual_front_')) return 'workouts/dual_front_' + base.replace('workout_dual_front_', '');
+    if (base.startsWith('workout_dual_back_'))  return 'workouts/dual_back_'  + base.replace('workout_dual_back_', '');
+    if (base.startsWith('workout_'))            return 'workouts/' + base.replace('workout_', '');
+    if (base.startsWith('freeweight_'))         return 'workouts/fw_' + base.replace('freeweight_', '');
+    if (base.startsWith('cardio_'))             return 'workouts/' + base;
+    return null;
+  }
+
+  function saveEditedWorkout() {
+    const sets = [];
+    for (let i = 1; i <= editSetCount; i++) {
+      const wEl = document.getElementById('edit-weight-' + i);
+      const rEl = document.getElementById('edit-reps-' + i);
+      if (!wEl || !rEl) continue;
+      const w = parseFloat(wEl.value) || 0;
+      const r = parseInt(rEl.value) || 0;
+      if (w > 0 || r > 0) sets.push({ set: sets.length + 1, weight: w, reps: r });
+    }
+    if (sets.length === 0) { alert('최소 1세트 이상 입력해주세요!'); return; }
+    const memo = document.getElementById('edit-workout-memo').value.trim();
+    const records = JSON.parse(localStorage.getItem(editWorkoutKey) || '[]');
+    const idx = records.findIndex(r => r.date === editWorkoutDate);
+    if (idx !== -1) {
+      records[idx].sets = sets;
+      records[idx].memo = memo;
+      localStorage.setItem(editWorkoutKey, JSON.stringify(records));
+      // Firebase 반영
+      const userId = localStorage.getItem('current_user');
+      const fbPath = getFirebaseWorkoutPath(editWorkoutKey, userId);
+      if (fbPath) db.ref('users/' + userId + '/' + fbPath + '/' + editWorkoutDate).update({ sets, memo });
+    }
+    closeEditWorkoutModal();
+    if (calSelectedDate) renderDayDetail(calSelectedDate);
+    if (currentEquipment) loadPrevRecords();
+    alert('수정됐어요! ✅');
+  }
+
+  function deleteWorkoutRecord() {
+    if (!confirm('이 날의 운동기록을 삭제할까요?')) return;
+    const userId = localStorage.getItem('current_user');
+    const records = JSON.parse(localStorage.getItem(editWorkoutKey) || '[]');
+    const filtered = records.filter(r => r.date !== editWorkoutDate);
+    localStorage.setItem(editWorkoutKey, JSON.stringify(filtered));
+    // Firebase 반영
+    const fbPath = getFirebaseWorkoutPath(editWorkoutKey, userId);
+    if (fbPath) db.ref('users/' + userId + '/' + fbPath + '/' + editWorkoutDate).remove();
+    closeEditWorkoutModal();
+    if (calSelectedDate) renderDayDetail(calSelectedDate);
+    if (currentEquipment) loadPrevRecords();
+    alert('삭제됐어요! 🗑');
+  }
+
+  function closeEditWorkoutModal() {
+    document.getElementById('edit-workout-modal').classList.remove('active');
+    editWorkoutKey = null; editWorkoutDate = null;
+  }
+
+  // ══════════════════════════════
+  // Firebase 회원 DB
+
+  // 회원 정보 읽기 (Firebase)
+  function getMemberDB() {
+    return new Promise(resolve => {
+      db.ref('members').once('value').then(snap => {
+        resolve(snap.val() || {});
+      }).catch(() => resolve({}));
+    });
+  }
+
+  // ── 관리자 대시보드 ──
+  function loadAdminDashboard() {
+    getMemberDB().then(members => {
+      const memberList = Object.entries(members);
+      document.getElementById('admin-total-members').textContent = memberList.length;
+
+      const today = getToday();
+      let todayCount = 0, monthCount = 0;
+      const now = new Date();
+      const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
+      const todayRows = [];
+
+      for (const [phone, info] of memberList) {
+        const todayKey = 'attend_' + phone + '_' + today;
+        if (localStorage.getItem(todayKey) === 'done') {
+          todayCount++;
+          const nick = localStorage.getItem('name_' + phone) || info.name;
+          todayRows.push({ phone, name: info.name, nick });
+        }
+        for (let d = 1; d <= 31; d++) {
+          if (localStorage.getItem('attend_' + phone + '_' + monthPrefix + d) === 'done') monthCount++;
+        }
+      }
+
+      document.getElementById('admin-today-attend').textContent = todayCount;
+      document.getElementById('admin-month-attend').textContent = monthCount;
+
+      const listEl = document.getElementById('admin-today-list');
+      if (todayRows.length === 0) {
+        listEl.innerHTML = '<div class="empty-state">오늘 출석한 회원이 없어요</div>';
+      } else {
+        listEl.innerHTML = todayRows.map(m => `
+          <div class="member-row">
+            <div class="member-avatar">${m.name[0]}</div>
+            <div class="member-info">
+              <div class="member-name">${m.name}</div>
+              <div class="member-phone">${m.nick !== m.name ? '닉네임: ' + m.nick + ' · ' : ''}${m.phone}</div>
+            </div>
+            <span class="member-badge badge-active">출석완료</span>
+          </div>
+        `).join('');
+      }
+    });
+  }
+
+  // ── 회원 목록 ──
+  let currentMemberPhone = null;
+  let cachedMembers = {};
+
+  function loadMemberList(query = '') {
+    getMemberDB().then(members => {
+      cachedMembers = members;
+      const wrap = document.getElementById('member-list-wrap');
+      let entries = Object.entries(members);
+      if (query) {
+        entries = entries.filter(([phone, info]) =>
+          info.name.includes(query) || phone.includes(query)
+        );
+      }
+      if (entries.length === 0) {
+        wrap.innerHTML = '<div class="empty-state">등록된 회원이 없어요<br/>회원등록 탭에서 추가해주세요</div>';
+        return;
+      }
+      wrap.innerHTML = entries.map(([phone, info]) => {
+        const pts = localStorage.getItem('points_' + phone) || '0';
+        const now = new Date();
+        const prefix = 'attend_' + phone + '_' + now.getFullYear() + '-' + (now.getMonth()+1) + '-';
+        let attendCount = 0;
+        for (let d = 1; d <= 31; d++) {
+          if (localStorage.getItem(prefix + d) === 'done') attendCount++;
+        }
+        const nick = localStorage.getItem('name_' + phone) || '-';
+        return `
+          <div class="admin-card" style="cursor:pointer;" onclick="openMemberModal('${phone}')">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div class="member-avatar">${info.name[0]}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <div class="member-name">${info.name}</div>
+                  ${info.programs && info.programs.length > 0 ? `<span style="font-size:11px;color:var(--blue);background:var(--blue-light);padding:2px 6px;border-radius:6px;">${info.programs[0]}</span>` : ''}
+                </div>
+                <div class="member-phone">${phone}</div>
+                ${nick !== '-' ? `<div style="font-size:12px;color:var(--text-hint);margin-top:1px;">닉네임: ${nick}</div>` : ''}
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div class="stat-mini" style="margin-top:10px;">
+              <div class="stat-mini-item"><div class="stat-mini-val">${attendCount}</div><div class="stat-mini-label">이번달 출석</div></div>
+              <div class="stat-mini-item"><div class="stat-mini-val">${pts}</div><div class="stat-mini-label">포인트</div></div>
+              <div class="stat-mini-item"><div class="stat-mini-val">${info.programs ? info.programs.length : 0}</div><div class="stat-mini-label">프로그램</div></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    });
+  }
+
+  function searchMembers(query) { loadMemberList(query); }
+
+  // ── 회원 상세 모달 ──
+  function openMemberModal(phone) {
+    currentMemberPhone = phone;
+    const info = cachedMembers[phone];
+    if (!info) return;
+
+    const nick = localStorage.getItem('name_' + phone) || '미설정';
+    const pts = localStorage.getItem('points_' + phone) || '0';
+    const now = new Date();
+    const prefix = 'attend_' + phone + '_' + now.getFullYear() + '-' + (now.getMonth()+1) + '-';
+    let attendCount = 0;
+    for (let d = 1; d <= 31; d++) {
+      if (localStorage.getItem(prefix + d) === 'done') attendCount++;
+    }
+    const todayAttend = localStorage.getItem('attend_' + phone + '_' + getToday()) === 'done';
+
+    document.getElementById('modal-member-name').textContent = info.name + ' 회원';
+    document.getElementById('modal-member-info').innerHTML = `
+      <div style="background:var(--bg);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div><div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">이름</div><div style="font-size:14px;font-weight:700;">${info.name}</div></div>
+          <div><div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">닉네임</div><div style="font-size:14px;font-weight:700;">${nick}</div></div>
+          <div><div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">전화번호</div><div style="font-size:14px;font-weight:700;">${phone}</div></div>
+          <div><div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">오늘 출석</div><div style="font-size:14px;font-weight:700;">${todayAttend ? '✅ 완료' : '❌ 미완료'}</div></div>
+          <div><div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">이번달 출석</div><div style="font-size:14px;font-weight:700;">${attendCount}일</div></div>
+          <div><div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">보유 포인트</div><div style="font-size:14px;font-weight:700;">${pts}P</div></div>
+        </div>
+        ${info.programs && info.programs.length > 0 ? `
+          <div style="margin-top:10px;">
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">등록 프로그램</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">${info.programs.map(p => `<span style="background:var(--blue-light);color:var(--blue);font-size:12px;padding:4px 10px;border-radius:8px;font-weight:600;">${p}</span>`).join('')}</div>
+          </div>` : ''}
+      </div>
+    `;
+    document.getElementById('member-detail-modal').classList.add('active');
+  }
+
+  function closeMemberModal() {
+    document.getElementById('member-detail-modal').classList.remove('active');
+    currentMemberPhone = null;
+  }
+
+  function openEditMemberModal() {
+    const phone = currentMemberPhone;
+    const info = cachedMembers[phone];
+    if (!info) return;
+    document.getElementById('edit-member-name').value = info.name || '';
+    document.getElementById('edit-member-phone').value = phone;
+    // 프로그램 체크박스 초기화
+    document.querySelectorAll('#edit-member-programs input').forEach(cb => {
+      cb.checked = info.programs && info.programs.includes(cb.value);
+    });
+    document.getElementById('edit-member-modal').classList.add('active');
+  }
+
+  function closeEditMemberModal() {
+    document.getElementById('edit-member-modal').classList.remove('active');
+  }
+
+  function saveEditMember() {
+    const newName  = document.getElementById('edit-member-name').value.trim();
+    const newPhone = document.getElementById('edit-member-phone').value.trim().replace(/-/g, '');
+    const programs = [...document.querySelectorAll('#edit-member-programs input:checked')].map(el => el.value);
+    const oldPhone = currentMemberPhone;
+    const info = cachedMembers[oldPhone];
+
+    if (!newName)  { alert('이름을 입력해주세요.'); return; }
+    if (!newPhone || newPhone.length < 10) { alert('전화번호를 정확히 입력해주세요.'); return; }
+
+    const phoneChanged = newPhone !== oldPhone;
+
+    const doSave = () => {
+      if (phoneChanged) {
+        // 전화번호 변경: 기존 데이터 복사 후 삭제
+        const newData = { ...info, name: newName, programs };
+        db.ref('members/' + newPhone).set(newData).then(() => {
+          db.ref('members/' + oldPhone).remove();
+          closeEditMemberModal();
+          closeMemberModal();
+          loadMemberList();
+          alert('✅ 회원정보가 수정됐어요!\n새 아이디: ' + newPhone);
+        });
+      } else {
+        db.ref('members/' + oldPhone).update({ name: newName, programs }).then(() => {
+          // 이름도 localStorage 업데이트
+          localStorage.setItem('name_' + oldPhone, newName);
+          cachedMembers[oldPhone] = { ...info, name: newName, programs };
+          closeEditMemberModal();
+          closeMemberModal();
+          loadMemberList();
+          alert('✅ 회원정보가 수정됐어요!');
+        });
+      }
+    };
+
+    // 전화번호 변경 시 중복 확인
+    if (phoneChanged) {
+      db.ref('members/' + newPhone).once('value').then(snap => {
+        if (snap.exists()) { alert('이미 사용 중인 전화번호예요.'); return; }
+        if (!confirm('전화번호를 ' + newPhone + '으로 변경할까요?\n로그인 아이디도 바뀌어요.')) return;
+        doSave();
+      });
+    } else {
+      doSave();
+    }
+  }
+
+  function editMemberPw() {
+    const newPw = prompt('새 비밀번호를 입력하세요 (4자리):');
+    if (!newPw || newPw.length < 4) { alert('4자리를 입력해주세요.'); return; }
+    db.ref('members/' + currentMemberPhone + '/pw').set(newPw).then(() => {
+      alert('비밀번호가 변경됐어요: ' + newPw);
+      closeMemberModal();
+    });
+  }
+
+  function editMemberPoint() {
+    const cur = localStorage.getItem('points_' + currentMemberPhone) || '0';
+    const newPt = prompt('포인트를 입력하세요 (현재: ' + cur + 'P):');
+    if (newPt === null) return;
+    if (isNaN(newPt)) { alert('숫자만 입력해주세요.'); return; }
+    const pt = parseInt(newPt);
+    // 로컬스토리지 업데이트
+    localStorage.setItem('points_' + currentMemberPhone, pt);
+    // Firebase 반영
+    db.ref('users/' + currentMemberPhone + '/points').set(pt);
+    alert('포인트가 ' + pt + 'P로 변경됐어요.');
+    closeMemberModal();
+    loadMemberList();
+  }
+
+  // ── 회원 localStorage 데이터 초기화 ──
+  function clearMemberLocalData(userId) {
+    const keysToDelete = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      // 해당 userId 관련 키 모두 수집
+      if (key && (
+        key.endsWith('_' + userId) ||
+        key.includes('_' + userId + '_') ||
+        key.startsWith('attend_' + userId) ||
+        key.startsWith('points_' + userId) ||
+        key.startsWith('workout_') && key.endsWith('_' + userId) ||
+        key.startsWith('freeweight_') && key.endsWith('_' + userId) ||
+        key.startsWith('cardio_') && key.endsWith('_' + userId) ||
+        key === 'freeweight_index_' + userId ||
+        key === 'cardio_index_' + userId ||
+        key === 'name_' + userId ||
+        key === 'auto_login_user' && localStorage.getItem(key) === userId
+      )) {
+        keysToDelete.push(key);
+      }
+    }
+    keysToDelete.forEach(key => localStorage.removeItem(key));
+    console.log('회원 데이터 초기화 완료:', userId, '삭제된 키:', keysToDelete.length);
+  }
+
+  // ── 회원 삭제 ──
+  function deleteMember() {
+    const info = cachedMembers[currentMemberPhone];
+    const name = info ? info.name : '';
+    if (!confirm(name + ' 회원을 삭제할까요?\n삭제 후 복구가 어렵습니다.')) return;
+
+    const phone = currentMemberPhone;
+
+    // Firebase 회원 삭제
+    db.ref('members/' + phone).remove().then(() => {
+      // 삭제 기록 Firebase에 저장 (재등록 시 localStorage 초기화 용도)
+      db.ref('deleted_members/' + phone).set({
+        deletedAt: Date.now(),
+        name: name
+      }).then(() => {
+        closeMemberModal();
+        loadMemberList();
+        alert('✅ ' + name + ' 회원이 삭제됐어요.\n재등록 시 기존 데이터가 초기화됩니다.');
+      });
+    });
+  }
+
+  // ── 회원 등록 (Firebase) ──
+  function registerMember() {
+    const name = document.getElementById('reg-name').value.trim();
+    const phone = document.getElementById('reg-phone').value.trim().replace(/-/g, '');
+    const pwInput = document.getElementById('reg-pw').value.trim();
+    const pw = pwInput || phone.slice(-4);
+
+    if (!name) { alert('이름을 입력해주세요.'); return; }
+    if (!phone || phone.length < 10) { alert('휴대폰 번호를 정확히 입력해주세요.'); return; }
+
+    const programs = [...document.querySelectorAll('#reg-programs input:checked')].map(el => el.value);
+
+    // 번호 중복 + 이름 중복 확인
+    db.ref('members/' + phone).once('value').then(snap => {
+      if (snap.exists()) { alert('이미 등록된 전화번호예요.'); return; }
+
+      // 이름 중복 확인 - 전체 회원 조회
+      db.ref('members').once('value').then(allSnap => {
+        let duplicateName = false;
+        allSnap.forEach(child => {
+          if ((child.val().name || '').trim() === name) duplicateName = true;
+        });
+        if (duplicateName) {
+          alert('⚠️ 이미 같은 이름의 회원이 있어요.\n동명이인이면 등록을 계속 진행하세요.');
+          // 확인 팝업으로 계속 진행 여부 선택
+          if (!confirm('동명이인으로 등록할까요?')) return;
+        }
+
+        db.ref('members/' + phone).set({ name, pw, programs }).then(() => {
+          document.getElementById('reg-name').value = '';
+          document.getElementById('reg-phone').value = '';
+          document.getElementById('reg-pw').value = '';
+          document.querySelectorAll('#reg-programs input').forEach(el => el.checked = false);
+          alert('✅ ' + name + ' 회원이 등록됐어요!\n아이디: ' + phone + '\n비밀번호: ' + pw);
+        });
+      });
+    });
+  }
+
+  // ── 공지사항 (Firebase) ──
+  function debugNotices() {
+    db.ref('notices').once('value', snap => {
+      const total = snap.numChildren();
+      const items = [];
+      snap.forEach(child => {
+        const v = child.val();
+        items.push(`키: ${child.key} | 제목: ${v.title||'없음'} | createdAt: ${v.createdAt||'없음'} | id필드: ${v.id||'없음'}`);
+      });
+      alert(`Firebase notices 총 ${total}개\n\n${items.join('\n\n') || '데이터 없음'}`);
+    }, err => {
+      alert('Firebase 읽기 오류: ' + err.message + '\n\n→ Firebase 콘솔에서 DB 규칙을 확인해주세요.\n읽기 규칙이 true인지 확인하세요.');
+    });
+  }
+
+  function registerNotice() {
+    const title = document.getElementById('notice-title').value.trim();
+    const content = document.getElementById('notice-content').value.trim();
+    if (!title) { alert('제목을 입력해주세요.'); return; }
+    if (!content) { alert('내용을 입력해주세요.'); return; }
+    const now = new Date();
+    const notice = {
+      title, content,
+      createdAt: Date.now(),
+      date: (now.getMonth()+1) + '.' + now.getDate(),
+      dateLabel: now.getFullYear() + '.' + (now.getMonth()+1) + '.' + now.getDate()
+    };
+    db.ref('notices').push(notice).then(() => {
+      document.getElementById('notice-title').value = '';
+      document.getElementById('notice-content').value = '';
+      loadNoticeListAdmin();
+      loadHomeNotices();
+      alert('✅ 공지사항이 등록됐어요!');
+    }).catch(err => { alert('등록 실패: ' + err.message); });
+  }
+
+  function deleteNotice(key) {
+    if (!confirm('이 공지를 삭제할까요?')) return;
+    db.ref('notices/' + key).remove().then(() => {
+      loadNoticeListAdmin();
+      loadHomeNotices();
+    }).catch(err => { alert('삭제 실패: ' + err.message); });
+  }
+
+  function loadNoticeListAdmin() {
+    db.ref('notices').once('value', snap => {
+      const el = document.getElementById('notice-list-admin');
+      if (!el) return;
+      const notices = [];
+      snap.forEach(child => {
+        const v = child.val();
+        const sortKey = v.createdAt || v.id || 0;
+        notices.push({ firebaseKey: child.key, ...v, createdAt: sortKey });
+      });
+      notices.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      if (notices.length === 0) {
+        el.innerHTML = '<div class="empty-state">등록된 공지사항이 없어요</div>'; return;
+      }
+      el.innerHTML = notices.map(n => `
+        <div style="padding:12px 0;border-bottom:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+            <div style="flex:1;">
+              <div style="font-size:14px;font-weight:700;margin-bottom:4px;">${n.title}</div>
+              <div style="font-size:13px;color:var(--text-sub);line-height:1.5;">${n.content}</div>
+              <div style="font-size:12px;color:var(--text-hint);margin-top:4px;">${n.dateLabel||n.date||''}</div>
+            </div>
+            <button onclick="deleteNotice('${n.firebaseKey}')" class="btn-sm btn-red-sm" style="flex-shrink:0;">삭제</button>
+          </div>
+        </div>`).join('');
+    });
+  }
+
+  function loadHomeNotices() {
+    db.ref('notices').once('value', snap => {
+      const container = document.querySelector('#screen-home .notice-container');
+      if (!container) return;
+      const notices = [];
+      snap.forEach(child => {
+        const v = child.val();
+        const sortKey = v.createdAt || v.id || 0;
+        notices.push({ firebaseKey: child.key, ...v, createdAt: sortKey });
+      });
+      notices.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      if (notices.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">등록된 공지사항이 없어요</div>';
+        return;
+      }
+      container.innerHTML = notices.map((n, i) => `
+        <div class="notice-card" onclick="openNoticeDetail('${n.firebaseKey}')" style="cursor:pointer;">
+          <div class="notice-dot" style="${i > 0 ? 'background:#9aa3b2;' : ''}"></div>
+          <div class="notice-text">${n.title}</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+            <div class="notice-date">${n.date||''}</div>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>`).join('');
+    });
+  }
+
