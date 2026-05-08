@@ -5395,7 +5395,7 @@
     const q = query.trim().replace(/\s+/g, '');
     
     // 정확한 이름 우선, 그 다음 포함 순으로 정렬 (최대 20개)
-    const filtered = LOCAL_FOODS.filter(f => f.n.replace(/\s+/g, '').includes(q));
+    const filtered = LOCAL_FOODS.foods.filter(f => f.n.replace(/\s+/g, '').includes(q));
     filtered.sort((a, b) => {
       const an = a.n.replace(/\s+/g, '');
       const bn = b.n.replace(/\s+/g, '');
@@ -5546,7 +5546,7 @@
 
       // ③ DB 매칭 (정확한 이름 우선, 짧은 이름 우선)
       let best = null, bestScore = 0;
-      LOCAL_FOODS.forEach(food => {
+      LOCAL_FOODS.foods.forEach(food => {
         const fn = food.n.replace(/\s+/g, '').toLowerCase();
         const cn = cleanName.replace(/\s+/g, '').toLowerCase();
         if (!cn) return;
@@ -5737,7 +5737,7 @@
       // DB에서 매칭
       let best = null;
       let bestScore = 0;
-      LOCAL_FOODS.forEach(food => {
+      LOCAL_FOODS.foods.forEach(food => {
         const foodName = food.n.replace(/\s+/g, '').toLowerCase();
         const lineLower = line.replace(/\s+/g, '').toLowerCase();
         // 음식 이름의 핵심 단어 추출
