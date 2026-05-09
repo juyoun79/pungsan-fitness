@@ -621,6 +621,19 @@
     };
     try {
       localStorage.setItem('diet_draft', JSON.stringify(draft));
+      // Firebase에 텍스트 식단 저장 (사진 제외)
+      const userId = localStorage.getItem('current_user');
+      if (userId && typeof db !== 'undefined') {
+        const firebaseDraft = {
+          date:      draft.date,
+          breakfast: draft.breakfast,
+          lunch:     draft.lunch,
+          dinner:    draft.dinner,
+          snack:     draft.snack,
+          savedAt:   new Date().toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' })
+        };
+        db.ref('users/' + userId + '/diet/' + draft.date).set(firebaseDraft);
+      }
       return true;
     } catch(e) {
       // 그래도 용량 초과 시 사진 없이 텍스트만 저장
@@ -653,27 +666,48 @@
 
   function loadDietDraft() {
     const today = new Date().toISOString().slice(0, 10);
-    try {
-      const draft = JSON.parse(localStorage.getItem('diet_draft') || 'null');
-      if (!draft || draft.date !== today) return;
+    const userId = localStorage.getItem('current_user');
+
+    function applyDraft(draft, fromFirebase) {
+      if (!draft) return;
       const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
       set('meal-breakfast', draft.breakfast || '');
       set('meal-lunch',     draft.lunch     || '');
       set('meal-dinner',    draft.dinner    || '');
       set('meal-snack',     draft.snack     || '');
-      if (draft.photos) {
+      if (!fromFirebase && draft.photos) {
         mealPhotos = draft.photos;
         renderMealPhotoGrid();
       }
       calcMealKcal();
       if (draft.breakfast || draft.lunch || draft.dinner || draft.snack) {
         const toast = document.createElement('div');
-        toast.textContent = '💾 오늘 임시저장된 식단을 불러왔어요!';
+        toast.textContent = fromFirebase ? '☁️ 오늘 식단을 불러왔어요!' : '💾 오늘 임시저장된 식단을 불러왔어요!';
         toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#27500A;color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:9999;font-family:"Noto Sans KR",sans-serif;white-space:nowrap;';
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 2500);
       }
+    }
+
+    // localStorage 먼저 확인
+    try {
+      const draft = JSON.parse(localStorage.getItem('diet_draft') || 'null');
+      if (draft && draft.date === today) {
+        applyDraft(draft, false);
+        return;
+      }
     } catch(e) {}
+
+    // localStorage에 없으면 Firebase에서 불러오기
+    if (userId && typeof db !== 'undefined') {
+      db.ref('users/' + userId + '/diet/' + today).once('value', snap => {
+        const fbDraft = snap.val();
+        if (fbDraft) {
+          try { localStorage.setItem('diet_draft', JSON.stringify(fbDraft)); } catch(e) {}
+          applyDraft(fbDraft, true);
+        }
+      });
+    }
   }
 
   function previewPostPhoto(input) {
