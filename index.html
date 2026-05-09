@@ -560,20 +560,15 @@
         <!-- 칼로리 입력 안내 (접기/펼치기) -->
         <div id="diet-tip-box" style="display:none;background:#F0F7FF;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#185FA5;line-height:1.8;">
           <div style="font-weight:700;margin-bottom:4px;">💡 칼로리 자동 계산 팁</div>
-          <div>• <b>음식 이름을 치면 자동완성 목록이 떠요</b></div>
-          <div style="color:#555;padding-left:8px;">목록에서 음식을 선택하면 자동으로 입력돼요</div>
-          <div style="color:#555;padding-left:8px;">선택 후 수량(예: 2개 → 3개)은 직접 수정할 수 있어요</div>
           <div>• <b>쉼표로 여러 음식 구분</b></div>
           <div style="color:#555;padding-left:8px;">예) 현미밥 한공기, 계란 2개, 된장찌개 한그릇</div>
+          <div>• <b>단위 없이 써도 100g 기준으로 자동 계산</b></div>
+          <div style="color:#555;padding-left:8px;">예) 닭가슴살 → 165kcal (100g 기준)</div>
           <div>• <b>단위를 붙이면 더 정확해요</b></div>
           <div style="color:#555;padding-left:8px;">한/반 + 그릇·공기·마리·개·봉·인분·조각·접시</div>
           <div style="color:#555;padding-left:8px;">예) 잔치국수 한그릇, 치킨 반마리, 계란 2개</div>
-          <div>• <b>단위 없이 써도 100g 기준으로 자동 계산</b></div>
-          <div style="color:#555;padding-left:8px;">예) 닭가슴살 → 110kcal (100g 기준)</div>
           <div>• <b>g으로 직접 입력도 가능</b></div>
           <div style="color:#555;padding-left:8px;">예) 삼겹살 200g, 고등어 1마리, 참기름 1스푼</div>
-          <div>• <b>칼로리를 모를 땐 ✏️ 직접입력 버튼을 눌러요</b></div>
-          <div style="color:#555;padding-left:8px;">음식명과 칼로리를 직접 입력해서 기록할 수 있어요</div>
           <div>• <b>양념도 기록 가능해요</b></div>
           <div style="color:#555;padding-left:8px;">예) 간장 1큰술, 마요네즈 1스푼, 꿀 반스푼</div>
         </div>
@@ -590,7 +585,7 @@
           </div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:3px;">
             <button onclick="openDirectKcal('breakfast')" style="flex-shrink:0;padding:3px 10px;background:#f0f7ff;border:1px solid #185FA5;border-radius:14px;font-size:11px;font-weight:700;color:#185FA5;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 직접입력</button>
-            <div id="kcal-breakfast" style="width:fit-content;background:#f0f7ff;border:1px solid #d0e4f7;border-radius:14px;padding:3px 10px;font-size:11px;color:#185FA5;font-weight:700;min-height:24px;display:flex;align-items:center;"></div>
+            <div id="kcal-breakfast" style="flex:1;background:#f0f7ff;border:1px solid #d0e4f7;border-radius:14px;padding:3px 10px;font-size:11px;color:#185FA5;font-weight:700;min-height:24px;display:flex;align-items:center;justify-content:flex-end;"></div>
           </div>
         </div>
 
@@ -606,7 +601,7 @@
           </div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:3px;">
             <button onclick="openDirectKcal('lunch')" style="flex-shrink:0;padding:3px 10px;background:#f0f7ff;border:1px solid #185FA5;border-radius:14px;font-size:11px;font-weight:700;color:#185FA5;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 직접입력</button>
-            <div id="kcal-lunch" style="width:fit-content;background:#f0f7ff;border:1px solid #d0e4f7;border-radius:14px;padding:3px 10px;font-size:11px;color:#185FA5;font-weight:700;min-height:24px;display:flex;align-items:center;"></div>
+            <div id="kcal-lunch" style="flex:1;background:#f0f7ff;border:1px solid #d0e4f7;border-radius:14px;padding:3px 10px;font-size:11px;color:#185FA5;font-weight:700;min-height:24px;display:flex;align-items:center;justify-content:flex-end;"></div>
           </div>
         </div>
 
@@ -622,7 +617,7 @@
           </div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:3px;">
             <button onclick="openDirectKcal('dinner')" style="flex-shrink:0;padding:3px 10px;background:#f0f7ff;border:1px solid #185FA5;border-radius:14px;font-size:11px;font-weight:700;color:#185FA5;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 직접입력</button>
-            <div id="kcal-dinner" style="width:fit-content;background:#f0f7ff;border:1px solid #d0e4f7;border-radius:14px;padding:3px 10px;font-size:11px;color:#185FA5;font-weight:700;min-height:24px;display:flex;align-items:center;"></div>
+            <div id="kcal-dinner" style="flex:1;background:#f0f7ff;border:1px solid #d0e4f7;border-radius:14px;padding:3px 10px;font-size:11px;color:#185FA5;font-weight:700;min-height:24px;display:flex;align-items:center;justify-content:flex-end;"></div>
           </div>
         </div>
 
@@ -638,7 +633,7 @@
           </div>
           <div style="display:flex;align-items:center;gap:6px;margin-top:3px;">
             <button onclick="openDirectKcal('snack')" style="flex-shrink:0;padding:3px 10px;background:#f0f7ff;border:1px solid #185FA5;border-radius:14px;font-size:11px;font-weight:700;color:#185FA5;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 직접입력</button>
-            <div id="kcal-snack" style="width:fit-content;background:#f0f7ff;border:1px solid #d0e4f7;border-radius:14px;padding:3px 10px;font-size:11px;color:#185FA5;font-weight:700;min-height:24px;display:flex;align-items:center;"></div>
+            <div id="kcal-snack" style="flex:1;background:#f0f7ff;border:1px solid #d0e4f7;border-radius:14px;padding:3px 10px;font-size:11px;color:#185FA5;font-weight:700;min-height:24px;display:flex;align-items:center;justify-content:flex-end;"></div>
           </div>
         </div>
 
@@ -1915,15 +1910,35 @@
     // 체중 그래프 렌더링 (DOM 완전 렌더 후)
     setTimeout(() => renderWeightGraph(), 200);
 
-    // 이번달 출석
+    // 이번달 출석 - Firebase에서 불러오기
     const now = new Date();
-    const prefix = 'attend_' + userId + '_' + now.getFullYear() + '-' + (now.getMonth()+1) + '-';
-    let attendCount = 0;
-    for (let d = 1; d <= 31; d++) {
-      if (localStorage.getItem(prefix + d) === 'done') attendCount++;
-    }
-    document.getElementById('myinfo-attend').textContent = attendCount;
-    document.getElementById('myinfo-points').textContent = pts;
+    const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
+    db.ref('users/' + userId + '/attendance').once('value', snap => {
+      let attendCount = 0;
+      if (snap.exists()) {
+        snap.forEach(child => {
+          if (child.key.startsWith(monthPrefix)) attendCount++;
+        });
+        // localStorage에도 동기화
+        snap.forEach(child => {
+          localStorage.setItem('attend_' + userId + '_' + child.key, 'done');
+        });
+      } else {
+        // Firebase에 없으면 localStorage fallback
+        const prefix = 'attend_' + userId + '_' + monthPrefix;
+        for (let d = 1; d <= 31; d++) {
+          if (localStorage.getItem(prefix + d) === 'done') attendCount++;
+        }
+      }
+      document.getElementById('myinfo-attend').textContent = attendCount;
+    });
+
+    // 포인트 - Firebase에서 불러오기
+    db.ref('users/' + userId + '/points').once('value', snap => {
+      const pts = snap.val() || localStorage.getItem('points_' + userId) || '0';
+      localStorage.setItem('points_' + userId, String(pts));
+      document.getElementById('myinfo-points').textContent = pts;
+    });
 
     // 내 게시글 수 - 전체 로드 후 클라이언트에서 필터링
     db.ref('posts').once('value').then(snap => {

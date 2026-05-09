@@ -165,36 +165,57 @@
       const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
       const todayRows = [];
 
-      for (const [phone, info] of memberList) {
-        const todayKey = 'attend_' + phone + '_' + today;
-        if (localStorage.getItem(todayKey) === 'done') {
-          todayCount++;
-          const nick = localStorage.getItem('name_' + phone) || info.name;
-          todayRows.push({ phone, name: info.name, nick });
-        }
-        for (let d = 1; d <= 31; d++) {
-          if (localStorage.getItem('attend_' + phone + '_' + monthPrefix + d) === 'done') monthCount++;
-        }
-      }
+      // Firebase에서 전체 회원 출석 확인
+      const attendPromises = memberList.map(([phone, info]) =>
+        db.ref('users/' + phone + '/attendance').once('value').then(snap => {
+          const attendData = snap.val() || {};
+          // localStorage 동기화
+          Object.keys(attendData).forEach(dateKey => {
+            localStorage.setItem('attend_' + phone + '_' + dateKey, 'done');
+          });
+          const todayAttend = !!attendData[today];
+          const monthAtt = Object.keys(attendData).filter(k => k.startsWith(monthPrefix)).length;
+          return { phone, info, todayAttend, monthAtt };
+        }).catch(() => {
+          // Firebase 실패 시 localStorage fallback
+          const todayAttend = localStorage.getItem('attend_' + phone + '_' + today) === 'done';
+          let monthAtt = 0;
+          for (let d = 1; d <= 31; d++) {
+            if (localStorage.getItem('attend_' + phone + '_' + monthPrefix + d) === 'done') monthAtt++;
+          }
+          return { phone, info, todayAttend, monthAtt };
+        })
+      );
 
-      document.getElementById('admin-today-attend').textContent = todayCount;
-      document.getElementById('admin-month-attend').textContent = monthCount;
+      Promise.all(attendPromises).then(results => {
+        results.forEach(({ phone, info, todayAttend, monthAtt }) => {
+          if (todayAttend) {
+            todayCount++;
+            const nick = localStorage.getItem('name_' + phone) || info.name;
+            todayRows.push({ phone, name: info.name, nick });
+          }
+          monthCount += monthAtt;
+        });
 
-      const listEl = document.getElementById('admin-today-list');
-      if (todayRows.length === 0) {
-        listEl.innerHTML = '<div class="empty-state">오늘 출석한 회원이 없어요</div>';
-      } else {
-        listEl.innerHTML = todayRows.map(m => `
-          <div class="member-row">
-            <div class="member-avatar">${m.name[0]}</div>
-            <div class="member-info">
-              <div class="member-name">${m.name}</div>
-              <div class="member-phone">${m.nick !== m.name ? '닉네임: ' + m.nick + ' · ' : ''}${m.phone}</div>
+        document.getElementById('admin-today-attend').textContent = todayCount;
+        document.getElementById('admin-month-attend').textContent = monthCount;
+
+        const listEl = document.getElementById('admin-today-list');
+        if (todayRows.length === 0) {
+          listEl.innerHTML = '<div class="empty-state">오늘 출석한 회원이 없어요</div>';
+        } else {
+          listEl.innerHTML = todayRows.map(m => `
+            <div class="member-row">
+              <div class="member-avatar">${m.name[0]}</div>
+              <div class="member-info">
+                <div class="member-name">${m.name}</div>
+                <div class="member-phone">${m.nick !== m.name ? '닉네임: ' + m.nick + ' · ' : ''}${m.phone}</div>
+              </div>
+              <span class="member-badge badge-active">출석완료</span>
             </div>
-            <span class="member-badge badge-active">출석완료</span>
-          </div>
-        `).join('');
-      }
+          `).join('');
+        }
+      });
     });
   }
 
@@ -216,15 +237,30 @@
         wrap.innerHTML = '<div class="empty-state">등록된 회원이 없어요<br/>회원등록 탭에서 추가해주세요</div>';
         return;
       }
-      wrap.innerHTML = entries.map(([phone, info]) => {
-        const pts = localStorage.getItem('points_' + phone) || '0';
-        const now = new Date();
-        const prefix = 'attend_' + phone + '_' + now.getFullYear() + '-' + (now.getMonth()+1) + '-';
-        let attendCount = 0;
-        for (let d = 1; d <= 31; d++) {
-          if (localStorage.getItem(prefix + d) === 'done') attendCount++;
-        }
-        const nick = localStorage.getItem('name_' + phone) || '-';
+      // Firebase에서 출석/포인트 병렬 조회
+      const now = new Date();
+      const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
+      Promise.all(entries.map(([phone, info]) =>
+        Promise.all([
+          db.ref('users/' + phone + '/attendance').once('value'),
+          db.ref('users/' + phone + '/points').once('value')
+        ]).then(([attSnap, ptsSnap]) => {
+          const attendData = attSnap.val() || {};
+          const attendCount = Object.keys(attendData).filter(k => k.startsWith(monthPrefix)).length ||
+            (() => { let c=0; for(let d=1;d<=31;d++) { if(localStorage.getItem('attend_'+phone+'_'+monthPrefix+d)==='done') c++; } return c; })();
+          const pts = ptsSnap.val() ?? localStorage.getItem('points_' + phone) ?? '0';
+          localStorage.setItem('points_' + phone, String(pts));
+          const nick = localStorage.getItem('name_' + phone) || '-';
+          return [phone, info, attendCount, pts, nick];
+        }).catch(() => {
+          const pts = localStorage.getItem('points_' + phone) || '0';
+          let attendCount = 0;
+          for(let d=1;d<=31;d++) { if(localStorage.getItem('attend_'+phone+'_'+monthPrefix+d)==='done') attendCount++; }
+          const nick = localStorage.getItem('name_' + phone) || '-';
+          return [phone, info, attendCount, pts, nick];
+        })
+      )).then(memberData => {
+      wrap.innerHTML = memberData.map(([phone, info, attendCount, pts, nick]) => {
         return `
           <div class="admin-card" style="cursor:pointer;" onclick="openMemberModal('${phone}')">
             <div style="display:flex;align-items:center;gap:12px;">
@@ -247,6 +283,7 @@
           </div>
         `;
       }).join('');
+      }); // Promise.all 닫기
     });
   }
 
@@ -259,14 +296,33 @@
     if (!info) return;
 
     const nick = localStorage.getItem('name_' + phone) || '미설정';
-    const pts = localStorage.getItem('points_' + phone) || '0';
     const now = new Date();
-    const prefix = 'attend_' + phone + '_' + now.getFullYear() + '-' + (now.getMonth()+1) + '-';
-    let attendCount = 0;
-    for (let d = 1; d <= 31; d++) {
-      if (localStorage.getItem(prefix + d) === 'done') attendCount++;
-    }
-    const todayAttend = localStorage.getItem('attend_' + phone + '_' + getToday()) === 'done';
+    const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
+    const today = getToday();
+
+    // Firebase에서 출석/포인트 불러오기
+    Promise.all([
+      db.ref('users/' + phone + '/attendance').once('value'),
+      db.ref('users/' + phone + '/points').once('value')
+    ]).then(([attSnap, ptsSnap]) => {
+      const attendData = attSnap.val() || {};
+      const attendCount = Object.keys(attendData).filter(k => k.startsWith(monthPrefix)).length;
+      const todayAttend = !!attendData[today];
+      const pts = ptsSnap.val() ?? localStorage.getItem('points_' + phone) ?? '0';
+      localStorage.setItem('points_' + phone, String(pts));
+      _renderMemberModal(info, phone, nick, pts, attendCount, todayAttend);
+    }).catch(() => {
+      const pts = localStorage.getItem('points_' + phone) || '0';
+      let attendCount = 0;
+      for (let d = 1; d <= 31; d++) {
+        if (localStorage.getItem('attend_' + phone + '_' + monthPrefix + d) === 'done') attendCount++;
+      }
+      const todayAttend = localStorage.getItem('attend_' + phone + '_' + today) === 'done';
+      _renderMemberModal(info, phone, nick, pts, attendCount, todayAttend);
+    });
+  }
+
+  function _renderMemberModal(info, phone, nick, pts, attendCount, todayAttend) {
 
     document.getElementById('modal-member-name').textContent = info.name + ' 회원';
     document.getElementById('modal-member-info').innerHTML = `
