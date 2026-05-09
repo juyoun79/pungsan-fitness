@@ -168,6 +168,12 @@
       const found = records.find(r => r.date === dateStr);
       if (found) dayRecords.push({ type:'cardio', name: ctype, record: found });
     }
+    // savedAt 기준 오름차순 정렬 (일찍 한 운동이 위로)
+    dayRecords.sort((a, b) => {
+      const tA = (a.record.savedAt || '').replace('오전 ', '').replace('오후 ', '').trim();
+      const tB = (b.record.savedAt || '').replace('오전 ', '').replace('오후 ', '').trim();
+      return tA > tB ? 1 : tA < tB ? -1 : 0;
+    });
     if (dayRecords.length === 0) {
       detail.innerHTML = `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;text-align:center;"><div style="font-size:32px;margin-bottom:10px;">🏖️</div><div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">${dateLabel}</div><div style="font-size:13px;color:var(--text-hint);">이 날은 운동 기록이 없어요</div></div>`;
       return;
