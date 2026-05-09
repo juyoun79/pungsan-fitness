@@ -93,4 +93,27 @@
     { name: '마운틴 클라이머', category: '맨몸' },
     { name: '데드버그', category: '맨몸' },
     { name: '버드독', category: '맨몸' },
+    // 맨몸 추가
+    { name: '스플릿 스쿼트', category: '맨몸' },
+    { name: '힙 쓰러스트', category: '맨몸' },
+    { name: '사이드 플랭크', category: '맨몸' },
+    { name: '불가리안 스쿼트', category: '맨몸' },
+    { name: '리버스 런지', category: '맨몸' },
+    { name: '와이드 스쿼트', category: '맨몸' },
+    { name: '힙 브릿지', category: '맨몸' },
+    // 바벨 추가
+    { name: '스플릿 스쿼트', category: '바벨' },
+    { name: '바벨 힙 쓰러스트', category: '바벨' },
+    { name: '바벨 굿모닝', category: '바벨' },
+    { name: '바벨 업라이트 로우', category: '바벨' },
+    { name: '클로즈그립 벤치프레스', category: '바벨' },
+    { name: '바벨 쉬러그', category: '바벨' },
+    // 덤벨 추가
+    { name: '덤벨 스텝업', category: '덤벨' },
+    { name: '덤벨 킥백', category: '덤벨' },
+    { name: '덤벨 풀오버', category: '덤벨' },
+    { name: '덤벨 힙 쓰러스트', category: '덤벨' },
+    { name: '덤벨 리버스 플라이', category: '덤벨' },
+    { name: '덤벨 사이드런지', category: '덤벨' },
+    { name: '덤벨 스플릿 스쿼트', category: '덤벨' },
   ];
