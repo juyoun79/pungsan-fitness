@@ -3,6 +3,75 @@
   let calMonth = new Date().getMonth(); // 0-indexed
   let calSelectedDate = null;
 
+  // Firebase → localStorage 운동기록 동기화
+  function syncWorkoutsFromFirebase(callback) {
+    const userId = localStorage.getItem('current_user');
+    if (!userId || typeof db === 'undefined') {
+      if (callback) callback();
+      return;
+    }
+    db.ref('users/' + userId + '/workouts').once('value', snap => {
+      const data = snap.val();
+      if (!data) { if (callback) callback(); return; }
+
+      Object.entries(data).forEach(([fbKey, dateMap]) => {
+        if (!dateMap) return;
+        let localKey = '';
+
+        // 듀얼 전면
+        if (fbKey.startsWith('dual_front_')) {
+          const eqKey = fbKey.replace('dual_front_', '');
+          localKey = 'workout_dual_front_' + eqKey + '_' + userId;
+        }
+        // 듀얼 후면
+        else if (fbKey.startsWith('dual_back_')) {
+          const eqKey = fbKey.replace('dual_back_', '');
+          localKey = 'workout_dual_back_' + eqKey + '_' + userId;
+        }
+        // 유산소
+        else if (fbKey.startsWith('cardio_')) {
+          const type = fbKey.replace('cardio_', '');
+          localKey = 'cardio_' + type + '_' + userId;
+          // cardioIndex 동기화
+          const cardioIndex = JSON.parse(localStorage.getItem('cardio_index_' + userId) || '[]');
+          if (!cardioIndex.includes(type)) {
+            cardioIndex.push(type);
+            localStorage.setItem('cardio_index_' + userId, JSON.stringify(cardioIndex));
+          }
+        }
+        // 프리웨이트
+        else if (fbKey.startsWith('fw_')) {
+          const name = fbKey.replace('fw_', '').replace(/_/g, ' ');
+          localKey = 'freeweight_' + fbKey.replace('fw_', '') + '_' + userId;
+          // fwIndex 동기화
+          const fwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
+          if (!fwIndex.includes(name)) {
+            fwIndex.push(name);
+            localStorage.setItem('freeweight_index_' + userId, JSON.stringify(fwIndex));
+          }
+        }
+        // 일반 기구
+        else {
+          localKey = 'workout_' + fbKey + '_' + userId;
+        }
+
+        // dateMap을 배열로 변환해서 localStorage에 저장
+        const records = Object.values(dateMap).sort((a, b) => b.date > a.date ? 1 : -1);
+        const existing = JSON.parse(localStorage.getItem(localKey) || '[]');
+        // Firebase 기록을 기준으로 병합 (Firebase 우선)
+        records.forEach(fbRecord => {
+          const idx = existing.findIndex(r => r.date === fbRecord.date);
+          if (idx !== -1) existing[idx] = fbRecord;
+          else existing.unshift(fbRecord);
+        });
+        existing.sort((a, b) => b.date > a.date ? 1 : -1);
+        localStorage.setItem(localKey, JSON.stringify(existing));
+      });
+
+      if (callback) callback();
+    });
+  }
+
   function openWorkoutQr() {
     calYear = new Date().getFullYear();
     calMonth = new Date().getMonth();
@@ -11,6 +80,10 @@
     clearEquipmentSearch();
     renderCalendar();
     document.getElementById('cal-day-detail').innerHTML = '';
+    // Firebase에서 운동기록 동기화 후 캘린더 갱신
+    syncWorkoutsFromFirebase(() => {
+      renderCalendar();
+    });
   }
 
   function closeWorkoutQr() {
