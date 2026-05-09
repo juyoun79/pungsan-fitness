@@ -311,7 +311,7 @@
       const val = el.value.trim();
       if (!val) { kcalEl.textContent = ''; return; }
       const kcal = parseKcalFromText(val);
-      kcalEl.textContent = kcal > 0 ? `약 ${kcal} kcal` : '';
+      kcalEl.textContent = kcal > 0 ? `🔥 약 ${kcal} kcal` : '칼로리를 계산 중이에요';
       grandTotal += kcal;
     });
 
@@ -1009,4 +1009,144 @@
         loadComments(postId);
       });
     });
+  }
+
+  // ══════════════════════════════════════════
+  // 음식 자동완성 (빵→식빵,통밀빵 등)
+  // ══════════════════════════════════════════
+
+  let _currentSuggestMeal = null; // 현재 어느 끼니 자동완성 중인지
+
+  function showFoodSuggest(meal, text) {
+    const box = document.getElementById('suggest-' + meal);
+    if (!box) return;
+
+    // 마지막 쉼표 뒤 키워드만 추출
+    const parts = text.split(/[,，\n]/);
+    const keyword = parts[parts.length - 1].trim();
+
+    if (!keyword || keyword.length < 1) {
+      box.style.display = 'none';
+      return;
+    }
+
+    if (typeof LOCAL_FOODS === 'undefined') { box.style.display = 'none'; return; }
+
+    // 키워드 포함 음식 최대 10개 검색
+    const results = LOCAL_FOODS.foods.filter(f =>
+      f.n.includes(keyword)
+    ).slice(0, 10);
+
+    if (results.length === 0) { box.style.display = 'none'; return; }
+
+    _currentSuggestMeal = meal;
+
+    box.innerHTML = results.map(food => {
+      // 단위 버튼 생성
+      const units = LOCAL_FOODS.units && LOCAL_FOODS.units[food.n];
+      let unitBtns = '';
+      if (units) {
+        const unitEntries = Object.entries(units).slice(0, 3);
+        unitBtns = unitEntries.map(([unit, gram]) => {
+          const kcal = Math.round(food.k * gram / 100);
+          return `<button onmousedown="selectFood('${meal}','${food.n}','${unit}',${kcal})"
+            style="padding:3px 8px;background:#e8f4ff;border:1px solid #185FA5;border-radius:12px;font-size:11px;color:#185FA5;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">${unit} (${kcal}kcal)</button>`;
+        }).join('');
+      } else {
+        const kcal = food.k;
+        unitBtns = `<button onmousedown="selectFood('${meal}','${food.n}','100g',${kcal})"
+          style="padding:3px 8px;background:#e8f4ff;border:1px solid #185FA5;border-radius:12px;font-size:11px;color:#185FA5;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">100g (${kcal}kcal)</button>`;
+      }
+
+      return `<div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:13px;font-weight:700;color:var(--text);min-width:80px;">${food.n}</span>
+        ${unitBtns}
+      </div>`;
+    }).join('');
+
+    box.style.display = 'block';
+  }
+
+  function hideFoodSuggest(meal) {
+    const box = document.getElementById('suggest-' + meal);
+    if (box) box.style.display = 'none';
+  }
+
+  function selectFood(meal, foodName, unit, kcal) {
+    const ta = document.getElementById('meal-' + meal);
+    if (!ta) return;
+
+    // 현재 입력값의 마지막 항목을 선택한 음식으로 교체
+    const parts = ta.value.split(/([,，\n])/);
+    // 마지막 텍스트 부분 교체
+    let replaced = false;
+    for (let i = parts.length - 1; i >= 0; i--) {
+      if (!/^[,，\n]$/.test(parts[i])) {
+        parts[i] = foodName + ' ' + unit;
+        replaced = true;
+        break;
+      }
+    }
+    if (!replaced) parts.push(foodName + ' ' + unit);
+
+    ta.value = parts.join('');
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+
+    hideFoodSuggest(meal);
+    calcMealKcal();
+    ta.focus();
+  }
+
+  // ══════════════════════════════════════════
+  // 칼로리 직접입력
+  // ══════════════════════════════════════════
+
+  let _directKcalMeal = null;
+
+  function openDirectKcal(meal) {
+    _directKcalMeal = meal;
+    const mealNames = { breakfast:'🌅 아침', lunch:'☀️ 점심', dinner:'🌙 저녁', snack:'🍎 간식' };
+    document.querySelector('#modal-direct-kcal .modal-title') &&
+      (document.querySelector('#modal-direct-kcal .modal-title').textContent = mealNames[meal] + ' 칼로리 직접입력');
+    document.getElementById('direct-food-name').value = '';
+    document.getElementById('direct-kcal-value').value = '';
+    document.getElementById('modal-direct-kcal').style.display = 'flex';
+    setTimeout(() => document.getElementById('direct-kcal-value').focus(), 100);
+  }
+
+  function closeDirectKcal() {
+    document.getElementById('modal-direct-kcal').style.display = 'none';
+    _directKcalMeal = null;
+  }
+
+  function saveDirectKcal() {
+    if (!_directKcalMeal) return;
+    const kcal = parseInt(document.getElementById('direct-kcal-value').value) || 0;
+    const foodName = document.getElementById('direct-food-name').value.trim() || '직접입력';
+    if (kcal <= 0) {
+      alert('칼로리를 입력해주세요!');
+      return;
+    }
+
+    // 입력창에 추가
+    const ta = document.getElementById('meal-' + _directKcalMeal);
+    if (ta) {
+      const existing = ta.value.trim();
+      const addText = foodName + ' ' + kcal + 'kcal';
+      ta.value = existing ? existing + ', ' + addText : addText;
+      ta.style.height = 'auto';
+      ta.style.height = ta.scrollHeight + 'px';
+    }
+
+    // 칼로리 박스에 즉시 반영
+    const kcalEl = document.getElementById('kcal-' + _directKcalMeal);
+    if (kcalEl) {
+      // 기존 칼로리 + 직접입력 칼로리
+      const existing = ta ? parseInt(ta.value.match(/(\d+)\s*kcal$/)?.slice(-1)[0] || 0) : 0;
+      calcMealKcal();
+    }
+
+    closeDirectKcal();
+    calcMealKcal();
   }

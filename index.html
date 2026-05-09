@@ -576,41 +576,65 @@
         <!-- 아침 -->
         <div style="margin-bottom:10px;">
           <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:4px;">🌅 아침</div>
-          <textarea id="meal-breakfast" placeholder="예) 현미밥 한공기, 계란 2개, 미역국 한그릇"
-            style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);resize:none;box-sizing:border-box;min-height:54px;"
-            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';calcMealKcal()"
-            onfocus="this.style.borderColor='#185FA5'" onblur="this.style.borderColor='var(--border)'"></textarea>
-          <div id="kcal-breakfast" style="font-size:11px;color:#185FA5;font-weight:600;min-height:16px;margin-top:2px;text-align:right;"></div>
+          <div style="position:relative;">
+            <textarea id="meal-breakfast" placeholder="예) 현미밥 한공기, 계란 2개, 미역국 한그릇"
+              style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);resize:none;box-sizing:border-box;min-height:54px;"
+              oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';calcMealKcal();showFoodSuggest('breakfast',this.value)"
+              onfocus="this.style.borderColor='#185FA5'" onblur="setTimeout(()=>hideFoodSuggest('breakfast'),200)"></textarea>
+            <div id="suggest-breakfast" style="display:none;position:absolute;left:0;right:0;top:100%;background:var(--card);border:1.5px solid #185FA5;border-radius:10px;z-index:100;max-height:200px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.13);"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+            <button onclick="openDirectKcal('breakfast')" style="flex-shrink:0;padding:5px 12px;background:#f0f7ff;border:1.5px solid #185FA5;border-radius:20px;font-size:12px;font-weight:700;color:#185FA5;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 직접입력</button>
+            <div id="kcal-breakfast" style="flex:1;background:#f0f7ff;border:1.5px solid #d0e4f7;border-radius:20px;padding:5px 12px;font-size:12px;color:#185FA5;font-weight:700;min-height:30px;display:flex;align-items:center;justify-content:flex-end;"></div>
+          </div>
         </div>
 
         <!-- 점심 -->
         <div style="margin-bottom:10px;">
           <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:4px;">☀️ 점심</div>
-          <textarea id="meal-lunch" placeholder="예) 닭가슴살 1개, 샐러드, 고구마 1개"
-            style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);resize:none;box-sizing:border-box;min-height:54px;"
-            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';calcMealKcal()"
-            onfocus="this.style.borderColor='#185FA5'" onblur="this.style.borderColor='var(--border)'"></textarea>
-          <div id="kcal-lunch" style="font-size:11px;color:#185FA5;font-weight:600;min-height:16px;margin-top:2px;text-align:right;"></div>
+          <div style="position:relative;">
+            <textarea id="meal-lunch" placeholder="예) 닭가슴살 1개, 샐러드, 고구마 1개"
+              style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);resize:none;box-sizing:border-box;min-height:54px;"
+              oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';calcMealKcal();showFoodSuggest('lunch',this.value)"
+              onfocus="this.style.borderColor='#185FA5'" onblur="setTimeout(()=>hideFoodSuggest('lunch'),200)"></textarea>
+            <div id="suggest-lunch" style="display:none;position:absolute;left:0;right:0;top:100%;background:var(--card);border:1.5px solid #185FA5;border-radius:10px;z-index:100;max-height:200px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.13);"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+            <button onclick="openDirectKcal('lunch')" style="flex-shrink:0;padding:5px 12px;background:#f0f7ff;border:1.5px solid #185FA5;border-radius:20px;font-size:12px;font-weight:700;color:#185FA5;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 직접입력</button>
+            <div id="kcal-lunch" style="flex:1;background:#f0f7ff;border:1.5px solid #d0e4f7;border-radius:20px;padding:5px 12px;font-size:12px;color:#185FA5;font-weight:700;min-height:30px;display:flex;align-items:center;justify-content:flex-end;"></div>
+          </div>
         </div>
 
         <!-- 저녁 -->
         <div style="margin-bottom:10px;">
           <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:4px;">🌙 저녁</div>
-          <textarea id="meal-dinner" placeholder="예) 삼겹살 200g, 된장찌개, 쌀밥 반공기"
-            style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);resize:none;box-sizing:border-box;min-height:54px;"
-            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';calcMealKcal()"
-            onfocus="this.style.borderColor='#185FA5'" onblur="this.style.borderColor='var(--border)'"></textarea>
-          <div id="kcal-dinner" style="font-size:11px;color:#185FA5;font-weight:600;min-height:16px;margin-top:2px;text-align:right;"></div>
+          <div style="position:relative;">
+            <textarea id="meal-dinner" placeholder="예) 삼겹살 200g, 된장찌개, 쌀밥 반공기"
+              style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);resize:none;box-sizing:border-box;min-height:54px;"
+              oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';calcMealKcal();showFoodSuggest('dinner',this.value)"
+              onfocus="this.style.borderColor='#185FA5'" onblur="setTimeout(()=>hideFoodSuggest('dinner'),200)"></textarea>
+            <div id="suggest-dinner" style="display:none;position:absolute;left:0;right:0;top:100%;background:var(--card);border:1.5px solid #185FA5;border-radius:10px;z-index:100;max-height:200px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.13);"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+            <button onclick="openDirectKcal('dinner')" style="flex-shrink:0;padding:5px 12px;background:#f0f7ff;border:1.5px solid #185FA5;border-radius:20px;font-size:12px;font-weight:700;color:#185FA5;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 직접입력</button>
+            <div id="kcal-dinner" style="flex:1;background:#f0f7ff;border:1.5px solid #d0e4f7;border-radius:20px;padding:5px 12px;font-size:12px;color:#185FA5;font-weight:700;min-height:30px;display:flex;align-items:center;justify-content:flex-end;"></div>
+          </div>
         </div>
 
         <!-- 간식 -->
         <div style="margin-bottom:10px;">
           <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:4px;">🍎 간식</div>
-          <textarea id="meal-snack" placeholder="예) 바나나 1개, 아몬드 한줌, 단백질바 1개"
-            style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);resize:none;box-sizing:border-box;min-height:54px;"
-            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';calcMealKcal()"
-            onfocus="this.style.borderColor='#185FA5'" onblur="this.style.borderColor='var(--border)'"></textarea>
-          <div id="kcal-snack" style="font-size:11px;color:#185FA5;font-weight:600;min-height:16px;margin-top:2px;text-align:right;"></div>
+          <div style="position:relative;">
+            <textarea id="meal-snack" placeholder="예) 바나나 1개, 아몬드 한줌, 단백질바 1개"
+              style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);resize:none;box-sizing:border-box;min-height:54px;"
+              oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';calcMealKcal();showFoodSuggest('snack',this.value)"
+              onfocus="this.style.borderColor='#185FA5'" onblur="setTimeout(()=>hideFoodSuggest('snack'),200)"></textarea>
+            <div id="suggest-snack" style="display:none;position:absolute;left:0;right:0;top:100%;background:var(--card);border:1.5px solid #185FA5;border-radius:10px;z-index:100;max-height:200px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.13);"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+            <button onclick="openDirectKcal('snack')" style="flex-shrink:0;padding:5px 12px;background:#f0f7ff;border:1.5px solid #185FA5;border-radius:20px;font-size:12px;font-weight:700;color:#185FA5;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 직접입력</button>
+            <div id="kcal-snack" style="flex:1;background:#f0f7ff;border:1.5px solid #d0e4f7;border-radius:20px;padding:5px 12px;font-size:12px;color:#185FA5;font-weight:700;min-height:30px;display:flex;align-items:center;justify-content:flex-end;"></div>
+          </div>
         </div>
 
         <!-- 총 칼로리 -->
@@ -636,6 +660,22 @@
     </div>
   </div>
 
+
+
+  <!-- ── 칼로리 직접입력 모달 ── -->
+  <div id="modal-direct-kcal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3000;align-items:center;justify-content:center;">
+    <div style="background:var(--card);border-radius:16px;padding:24px 20px;width:88%;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+      <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:16px;text-align:center;">✏️ 칼로리 직접입력</div>
+      <div style="font-size:13px;color:var(--text-sub);margin-bottom:8px;">음식명 (선택)</div>
+      <input id="direct-food-name" type="text" placeholder="예) 집밥, 도시락 등" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);box-sizing:border-box;margin-bottom:12px;">
+      <div style="font-size:13px;color:var(--text-sub);margin-bottom:8px;">칼로리 (kcal) *</div>
+      <input id="direct-kcal-value" type="number" placeholder="예) 500" min="0" max="9999" style="width:100%;padding:10px 12px;border:1.5px solid #185FA5;border-radius:10px;font-size:18px;font-weight:700;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:#185FA5;box-sizing:border-box;margin-bottom:16px;text-align:center;">
+      <div style="display:flex;gap:8px;">
+        <button onclick="closeDirectKcal()" style="flex:1;padding:12px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-weight:700;color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button onclick="saveDirectKcal()" style="flex:2;padding:12px;background:#185FA5;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✅ 입력 완료</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ── 게시글 수정 모달 ── -->
   <div class="modal-overlay" id="edit-post-modal">
