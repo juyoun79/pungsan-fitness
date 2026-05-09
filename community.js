@@ -1,3 +1,8 @@
+  // ── 커뮤니티 전역 변수 ──
+  let adminAllPosts = [];
+  let adminCommunityCategory = '전체';
+  let adminCommunityQuery = '';
+
   function getTimeAgo(ts) {
     if (!ts) return '';
     const diff = Date.now() - ts;

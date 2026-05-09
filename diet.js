@@ -150,6 +150,12 @@
     const items = text.split(/[,，\n]+/).map(s => s.trim()).filter(Boolean);
 
     items.forEach(item => {
+      // ① 직접입력 kcal 파싱 ("xxx kcal직접" 형태)
+      const directKcalMatch = item.match(/(\d+)kcal직접/);
+      if (directKcalMatch) {
+        total += parseInt(directKcalMatch[1]);
+        return;
+      }
       // ① g/ml 직접 표기 확인 ("200g", "150ml")
       const gDirectMatch = item.match(/(\d+\.?\d*)\s*g(?!l)/i);
       const mlDirectMatch = item.match(/(\d+\.?\d*)\s*ml/i);
@@ -1032,10 +1038,14 @@
 
     if (typeof LOCAL_FOODS === 'undefined') { box.style.display = 'none'; return; }
 
-    // 키워드 포함 음식 최대 10개 검색
-    const results = LOCAL_FOODS.foods.filter(f =>
-      f.n.includes(keyword)
-    ).slice(0, 10);
+    // 키워드 포함 음식 최대 10개 검색 (정확 일치 맨 위)
+    const matched = LOCAL_FOODS.foods.filter(f => f.n.includes(keyword));
+    matched.sort((a, b) => {
+      const aExact = a.n === keyword ? 0 : (a.n.startsWith(keyword) ? 1 : 2);
+      const bExact = b.n === keyword ? 0 : (b.n.startsWith(keyword) ? 1 : 2);
+      return aExact - bExact || a.n.length - b.n.length;
+    });
+    const results = matched.slice(0, 10);
 
     if (results.length === 0) { box.style.display = 'none'; return; }
 
@@ -1129,22 +1139,14 @@
       return;
     }
 
-    // 입력창에 추가
+    // 입력창에 "음식명 (칼로리kcal)" 형태로 추가
     const ta = document.getElementById('meal-' + _directKcalMeal);
     if (ta) {
       const existing = ta.value.trim();
-      const addText = foodName + ' ' + kcal + 'kcal';
+      const addText = foodName + ' ' + kcal + 'kcal직접';
       ta.value = existing ? existing + ', ' + addText : addText;
       ta.style.height = 'auto';
       ta.style.height = ta.scrollHeight + 'px';
-    }
-
-    // 칼로리 박스에 즉시 반영
-    const kcalEl = document.getElementById('kcal-' + _directKcalMeal);
-    if (kcalEl) {
-      // 기존 칼로리 + 직접입력 칼로리
-      const existing = ta ? parseInt(ta.value.match(/(\d+)\s*kcal$/)?.slice(-1)[0] || 0) : 0;
-      calcMealKcal();
     }
 
     closeDirectKcal();
