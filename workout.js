@@ -3,6 +3,23 @@
   let calMonth = new Date().getMonth(); // 0-indexed
   let calSelectedDate = null;
 
+  // 한글 포함 운동 이름을 Firebase 키로 안전하게 변환
+  function toFirebaseKey(name) {
+    return Array.from(name).map(c => {
+      if (/[a-zA-Z0-9]/.test(c)) return c;
+      if (c === ' ' || c === '_') return '_';
+      return 'u' + c.codePointAt(0).toString(16).padStart(4, '0');
+    }).join('');
+  }
+
+  // Firebase 키를 원래 운동 이름으로 복원
+  function fromFirebaseKey(key) {
+    return key.replace(/u([0-9a-f]{4})/gi, (_, hex) =>
+      String.fromCodePoint(parseInt(hex, 16))
+    ).replace(/_/g, ' ');
+  }
+
+
   // Firebase → localStorage 운동기록 동기화
   function syncWorkoutsFromFirebase(callback) {
     const userId = localStorage.getItem('current_user');
@@ -41,7 +58,7 @@
         }
         // 프리웨이트
         else if (fbKey.startsWith('fw_')) {
-          const name = fbKey.replace('fw_', '').replace(/_/g, ' ');
+          const name = fromFirebaseKey(fbKey.replace('fw_', ''));
           localKey = 'freeweight_' + fbKey.replace('fw_', '') + '_' + userId;
           // fwIndex 동기화
           const fwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
@@ -1679,7 +1696,7 @@
     if (existing.length > 30) existing.pop();
     localStorage.setItem(safeKey, JSON.stringify(existing));
     // Firebase 저장
-    const fwFirebaseKey = name.replace(/\s+/g,'_');
+    const fwFirebaseKey = toFirebaseKey(name);
     db.ref('users/' + userId + '/workouts/fw_' + fwFirebaseKey + '/' + record.date).set(record);
 
     // 달력 갱신용 날짜 인덱스에도 등록
@@ -1687,7 +1704,7 @@
     if (!fwIndex.includes(name)) {
       fwIndex.push(name);
       localStorage.setItem('freeweight_index_' + userId, JSON.stringify(fwIndex));
-      db.ref('users/' + userId + '/fwIndex').set(fwIndex);
+      db.ref('users/' + userId + '/fwIndex').set(fwIndex.map(n => toFirebaseKey(n)));
     }
 
     closeFreeweightModal();
