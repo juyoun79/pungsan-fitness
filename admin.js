@@ -113,7 +113,7 @@
       // Firebase 반영
       const userId = localStorage.getItem('current_user');
       const fbPath = getFirebaseWorkoutPath(editWorkoutKey, userId);
-      if (fbPath) db.ref('users/' + userId + '/' + fbPath + '/' + editWorkoutDate).update({ sets, memo });
+      if (fbPath) db.ref('users/' + userId + '/' + fbPath + '/' + editWorkoutDate).set(records[idx]);
     }
     closeEditWorkoutModal();
     if (calSelectedDate) renderDayDetail(calSelectedDate);
