@@ -68,7 +68,7 @@
               if (!cardioIndex.includes(type)) { cardioIndex.push(type); localStorage.setItem('cardio_index_' + userId, JSON.stringify(cardioIndex)); }
             } else if (fbKey.startsWith('fw_')) {
               const rawName = fbKey.replace('fw_', '');
-              const name = fromFirebaseKey(rawName);
+              const name = rawName.replace(/_/g, ' ');
               localKey = 'freeweight_' + name.replace(/\s+/g, '_') + '_' + userId;
               const fwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
               if (!fwIndex.includes(name)) { fwIndex.push(name); localStorage.setItem('freeweight_index_' + userId, JSON.stringify(fwIndex)); }
@@ -885,7 +885,7 @@
     if (todayIdx !== -1) existing[todayIdx] = record; else existing.unshift(record);
     if (existing.length > 30) existing.pop();
     localStorage.setItem(safeKey, JSON.stringify(existing));
-    const fwFirebaseKey = toFirebaseKey(name);
+    const fwFirebaseKey = name.replace(/\s+/g, '_');
     db.ref('users/' + userId + '/workouts/fw_' + fwFirebaseKey + '/' + record.date).set(record);
     const fwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
     if (!fwIndex.includes(name)) { fwIndex.push(name); localStorage.setItem('freeweight_index_' + userId, JSON.stringify(fwIndex)); }
