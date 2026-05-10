@@ -69,7 +69,7 @@
             } else if (fbKey.startsWith('fw_')) {
               const rawName = fbKey.replace('fw_', '');
               const name = fromFirebaseKey(rawName);
-              localKey = 'freeweight_' + rawName + '_' + userId;
+              localKey = 'freeweight_' + name.replace(/\s+/g, '_') + '_' + userId;
               const fwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
               if (!fwIndex.includes(name)) { fwIndex.push(name); localStorage.setItem('freeweight_index_' + userId, JSON.stringify(fwIndex)); }
             } else {
