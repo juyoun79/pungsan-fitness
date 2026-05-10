@@ -113,4 +113,7 @@
     { name: '리버스 런지',               category: '맨몸', muscles: '하체·엉덩이' },
     { name: '와이드 스쿼트',             category: '맨몸', muscles: '하체·엉덩이·내전근' },
     { name: '힙 브릿지',                 category: '맨몸', muscles: '엉덩이·햄스트링' },
+    { name: '싱글 레그 힙힌지',          category: '맨몸', muscles: '햄스트링·엉덩이·코어' },
+    // 덤벨 추가
+    { name: '싱글 레그 데드리프트',      category: '덤벨', muscles: '햄스트링·엉덩이·코어' },
   ];
