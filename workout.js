@@ -26,8 +26,7 @@
       const fbFwIndex = fwSnap.val();
       if (fbFwIndex && Array.isArray(fbFwIndex)) {
         const localFwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
-        fbFwIndex.forEach(fbKey => {
-          const name = fromFirebaseKey(fbKey);
+        fbFwIndex.forEach(name => {
           if (!localFwIndex.includes(name)) localFwIndex.push(name);
         });
         localStorage.setItem('freeweight_index_' + userId, JSON.stringify(localFwIndex));
@@ -883,7 +882,9 @@
     const fwFirebaseKey = toFirebaseKey(name);
     db.ref('users/' + userId + '/workouts/fw_' + fwFirebaseKey + '/' + record.date).set(record);
     const fwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
-    if (!fwIndex.includes(name)) { fwIndex.push(name); localStorage.setItem('freeweight_index_' + userId, JSON.stringify(fwIndex)); db.ref('users/' + userId + '/fwIndex').set(fwIndex.map(n => toFirebaseKey(n))); }
+    if (!fwIndex.includes(name)) { fwIndex.push(name); localStorage.setItem('freeweight_index_' + userId, JSON.stringify(fwIndex)); }
+    // fwIndex를 운동이름 그대로 Firebase에 저장
+    db.ref('users/' + userId + '/fwIndex').set(fwIndex);
     closeFreeweightModal();
     const maxWeight = Math.max(...sets.map(s => s.weight));
     const totalVol = sets.reduce((sum, s) => sum + s.weight * s.reps, 0);
