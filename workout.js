@@ -21,17 +21,20 @@
     const userId = localStorage.getItem('current_user');
     if (!userId || typeof db === 'undefined') { if (callback) callback(); return; }
 
-    // fwIndex 먼저 Firebase에서 불러오기
+    // fwIndex 먼저 Firebase에서 불러오기 + 이상한 데이터 자동 정리
     db.ref('users/' + userId + '/fwIndex').once('value', fwSnap => {
       const fbFwIndex = fwSnap.val();
       if (fbFwIndex && Array.isArray(fbFwIndex)) {
         const localFwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
+        let needsUpdate = false;
         fbFwIndex.forEach(entry => {
-          // Firebase 키 형식이면 한국어로 변환, 아니면 그대로 사용
-          const name = /u[0-9a-f]{4}/i.test(entry) ? fromFirebaseKey(entry) : entry;
+          const isEncoded = /u[0-9a-f]{4}/i.test(entry);
+          const name = isEncoded ? fromFirebaseKey(entry) : entry;
+          if (isEncoded) needsUpdate = true;
           if (!localFwIndex.includes(name)) localFwIndex.push(name);
         });
         localStorage.setItem('freeweight_index_' + userId, JSON.stringify(localFwIndex));
+        if (needsUpdate) db.ref('users/' + userId + '/fwIndex').set(localFwIndex);
       }
 
       // cardioIndex도 Firebase에서 불러오기
