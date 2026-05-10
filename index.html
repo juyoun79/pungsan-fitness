@@ -2726,6 +2726,11 @@
     loadHomeNotices();
     loadHomeWeightCard();
     const userId = localStorage.getItem('current_user');
+    // fwIndex localStorage 이상한 데이터 자동 정리
+    const fwIndexKey = 'freeweight_index_' + userId;
+    const fwIndexRaw = JSON.parse(localStorage.getItem(fwIndexKey) || '[]');
+    const fwIndexCleaned = fwIndexRaw.map(entry => /u[0-9a-f]{4}/i.test(entry) ? entry.replace(/u([0-9a-f]{4})/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16))).replace(/_/g, ' ') : entry);
+    localStorage.setItem(fwIndexKey, JSON.stringify([...new Set(fwIndexCleaned)]));
     const lastTab = localStorage.getItem('last_tab_' + userId) || 'home';
     // 알림 리스너는 항상 시작 (탭 위치 무관)
     startNotifListener();
