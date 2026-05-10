@@ -26,7 +26,9 @@
       const fbFwIndex = fwSnap.val();
       if (fbFwIndex && Array.isArray(fbFwIndex)) {
         const localFwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
-        fbFwIndex.forEach(name => {
+        fbFwIndex.forEach(entry => {
+          // Firebase 키 형식이면 한국어로 변환, 아니면 그대로 사용
+          const name = /u[0-9a-f]{4}/i.test(entry) ? fromFirebaseKey(entry) : entry;
           if (!localFwIndex.includes(name)) localFwIndex.push(name);
         });
         localStorage.setItem('freeweight_index_' + userId, JSON.stringify(localFwIndex));
@@ -62,10 +64,11 @@
               const cardioIndex = JSON.parse(localStorage.getItem('cardio_index_' + userId) || '[]');
               if (!cardioIndex.includes(type)) { cardioIndex.push(type); localStorage.setItem('cardio_index_' + userId, JSON.stringify(cardioIndex)); }
             } else if (fbKey.startsWith('fw_')) {
-              const name = fromFirebaseKey(fbKey.replace('fw_', ''));
-              localKey = 'freeweight_' + fbKey.replace('fw_', '') + '_' + userId;
+              const rawName = fbKey.replace('fw_', '');
+              const name = fromFirebaseKey(rawName);
+              localKey = 'freeweight_' + rawName + '_' + userId;
               const fwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
-              if (!fwIndex.includes(name)) { fwIndex.push(name); localStorage.setItem('freeweight_index_' + userId, JSON.stringify(fwIndex)); db.ref('users/' + userId + '/fwIndex').set(fwIndex.map(n => toFirebaseKey(n))); }
+              if (!fwIndex.includes(name)) { fwIndex.push(name); localStorage.setItem('freeweight_index_' + userId, JSON.stringify(fwIndex)); }
             } else {
               localKey = 'workout_' + fbKey + '_' + userId;
             }
