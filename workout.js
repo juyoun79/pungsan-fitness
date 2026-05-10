@@ -20,41 +20,68 @@
   function syncWorkoutsFromFirebase(callback) {
     const userId = localStorage.getItem('current_user');
     if (!userId || typeof db === 'undefined') { if (callback) callback(); return; }
-    db.ref('users/' + userId + '/workouts').once('value', snap => {
-      const data = snap.val();
-      if (!data) { if (callback) callback(); return; }
-      Object.entries(data).forEach(([fbKey, dateMap]) => {
-        if (!dateMap) return;
-        let localKey = '';
-        if (fbKey.startsWith('dual_front_')) {
-          const eqKey = fbKey.replace('dual_front_', '');
-          localKey = 'workout_dual_front_' + eqKey + '_' + userId;
-        } else if (fbKey.startsWith('dual_back_')) {
-          const eqKey = fbKey.replace('dual_back_', '');
-          localKey = 'workout_dual_back_' + eqKey + '_' + userId;
-        } else if (fbKey.startsWith('cardio_')) {
-          const type = fbKey.replace('cardio_', '');
-          localKey = 'cardio_' + type + '_' + userId;
-          const cardioIndex = JSON.parse(localStorage.getItem('cardio_index_' + userId) || '[]');
-          if (!cardioIndex.includes(type)) { cardioIndex.push(type); localStorage.setItem('cardio_index_' + userId, JSON.stringify(cardioIndex)); }
-        } else if (fbKey.startsWith('fw_')) {
-          const name = fromFirebaseKey(fbKey.replace('fw_', ''));
-          localKey = 'freeweight_' + fbKey.replace('fw_', '') + '_' + userId;
-          const fwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
-          if (!fwIndex.includes(name)) { fwIndex.push(name); localStorage.setItem('freeweight_index_' + userId, JSON.stringify(fwIndex)); }
-        } else {
-          localKey = 'workout_' + fbKey + '_' + userId;
-        }
-        const records = Object.values(dateMap).sort((a, b) => b.date > a.date ? 1 : -1);
-        const existing = JSON.parse(localStorage.getItem(localKey) || '[]');
-        records.forEach(fbRecord => {
-          const idx = existing.findIndex(r => r.date === fbRecord.date);
-          if (idx !== -1) existing[idx] = fbRecord; else existing.unshift(fbRecord);
+
+    // fwIndex 먼저 Firebase에서 불러오기
+    db.ref('users/' + userId + '/fwIndex').once('value', fwSnap => {
+      const fbFwIndex = fwSnap.val();
+      if (fbFwIndex && Array.isArray(fbFwIndex)) {
+        const localFwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
+        fbFwIndex.forEach(fbKey => {
+          const name = fromFirebaseKey(fbKey);
+          if (!localFwIndex.includes(name)) localFwIndex.push(name);
         });
-        existing.sort((a, b) => b.date > a.date ? 1 : -1);
-        localStorage.setItem(localKey, JSON.stringify(existing));
+        localStorage.setItem('freeweight_index_' + userId, JSON.stringify(localFwIndex));
+      }
+
+      // cardioIndex도 Firebase에서 불러오기
+      db.ref('users/' + userId + '/cardioIndex').once('value', cardioSnap => {
+        const fbCardioIndex = cardioSnap.val();
+        if (fbCardioIndex && Array.isArray(fbCardioIndex)) {
+          const localCardioIndex = JSON.parse(localStorage.getItem('cardio_index_' + userId) || '[]');
+          fbCardioIndex.forEach(type => {
+            if (!localCardioIndex.includes(type)) localCardioIndex.push(type);
+          });
+          localStorage.setItem('cardio_index_' + userId, JSON.stringify(localCardioIndex));
+        }
+
+        // 운동기록 동기화
+        db.ref('users/' + userId + '/workouts').once('value', snap => {
+          const data = snap.val();
+          if (!data) { if (callback) callback(); return; }
+          Object.entries(data).forEach(([fbKey, dateMap]) => {
+            if (!dateMap) return;
+            let localKey = '';
+            if (fbKey.startsWith('dual_front_')) {
+              const eqKey = fbKey.replace('dual_front_', '');
+              localKey = 'workout_dual_front_' + eqKey + '_' + userId;
+            } else if (fbKey.startsWith('dual_back_')) {
+              const eqKey = fbKey.replace('dual_back_', '');
+              localKey = 'workout_dual_back_' + eqKey + '_' + userId;
+            } else if (fbKey.startsWith('cardio_')) {
+              const type = fbKey.replace('cardio_', '');
+              localKey = 'cardio_' + type + '_' + userId;
+              const cardioIndex = JSON.parse(localStorage.getItem('cardio_index_' + userId) || '[]');
+              if (!cardioIndex.includes(type)) { cardioIndex.push(type); localStorage.setItem('cardio_index_' + userId, JSON.stringify(cardioIndex)); }
+            } else if (fbKey.startsWith('fw_')) {
+              const name = fromFirebaseKey(fbKey.replace('fw_', ''));
+              localKey = 'freeweight_' + fbKey.replace('fw_', '') + '_' + userId;
+              const fwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
+              if (!fwIndex.includes(name)) { fwIndex.push(name); localStorage.setItem('freeweight_index_' + userId, JSON.stringify(fwIndex)); db.ref('users/' + userId + '/fwIndex').set(fwIndex.map(n => toFirebaseKey(n))); }
+            } else {
+              localKey = 'workout_' + fbKey + '_' + userId;
+            }
+            const records = Object.values(dateMap).sort((a, b) => b.date > a.date ? 1 : -1);
+            const existing = JSON.parse(localStorage.getItem(localKey) || '[]');
+            records.forEach(fbRecord => {
+              const idx = existing.findIndex(r => r.date === fbRecord.date);
+              if (idx !== -1) existing[idx] = fbRecord; else existing.unshift(fbRecord);
+            });
+            existing.sort((a, b) => b.date > a.date ? 1 : -1);
+            localStorage.setItem(localKey, JSON.stringify(existing));
+          });
+          if (callback) callback();
+        });
       });
-      if (callback) callback();
     });
   }
 
