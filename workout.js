@@ -181,9 +181,9 @@
       const hasLesson = lessonDaysCache.has(d);
       if (isToday)  { bg = '#22c55e'; textColor = 'white'; fontW = '700'; }
       if (hasWork && !isToday) { bg = 'var(--blue)'; textColor = 'white'; fontW = '700'; }
-      if (hasLesson && !isToday && !hasWork) { bg = '#f59e0b'; textColor = 'white'; fontW = '700'; }
+      if (hasLesson) { bg = '#f59e0b'; textColor = 'white'; fontW = '700'; }
       if (isSel)    { border = '2px solid #1a1a2e'; }
-      html += `<div onclick="selectCalDay(${d})" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${bg};color:${textColor};font-size:13px;font-weight:${fontW};cursor:pointer;border:${border};transition:opacity 0.1s;position:relative;" ontouchstart="this.style.opacity='0.7'" ontouchend="this.style.opacity='1'">${d}${hasWork && !isToday ? '<div style="position:absolute;bottom:1px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,0.8);"></div>' : ''}${hasLesson && !hasWork && !isToday ? '<div style="position:absolute;bottom:1px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,0.8);"></div>' : ''}</div>`;
+      html += `<div onclick="selectCalDay(${d})" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${bg};color:${textColor};font-size:13px;font-weight:${fontW};cursor:pointer;border:${border};transition:opacity 0.1s;position:relative;" ontouchstart="this.style.opacity='0.7'" ontouchend="this.style.opacity='1'">${d}${hasWork && !isToday ? '<div style="position:absolute;bottom:1px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,0.8);"></div>' : ''}</div>`;
     }
     document.getElementById('cal-grid').innerHTML = html;
   }
