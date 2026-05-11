@@ -174,7 +174,7 @@
       const isSat   = (new Date(calYear, calMonth, d).getDay() === 6);
       let bg = 'transparent', textColor = isSun ? '#ef4444' : isSat ? '#1a6fd4' : 'var(--text)';
       let border = 'none', fontW = '500';
-      const hasLesson = lessonDays.has(d);
+      const hasLesson = lessonDaysCache.has(d);
       if (isToday)  { bg = '#22c55e'; textColor = 'white'; fontW = '700'; }
       if (hasWork && !isToday) { bg = 'var(--blue)'; textColor = 'white'; fontW = '700'; }
       if (hasLesson && !isToday && !hasWork) { bg = '#f59e0b'; textColor = 'white'; fontW = '700'; }
