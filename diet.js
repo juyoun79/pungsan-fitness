@@ -257,9 +257,22 @@
           // 매칭된 단위에 숫자 없으면("반개","한공기","한줌") qty 고정
           unitQtyFixed = !/\d/.test(bestUnitWord);
         } else {
-          // 직접 매칭 없으면 1단위 기준 그램 사용
-          const oneUnit = Object.entries(unitMap).find(([w]) => w.startsWith('1'));
-          if (oneUnit) gramsPerUnit = oneUnit[1];
+          // 직접 매칭 없으면 단위 이름(개/마리/봉 등)으로 1단위 그램 찾기
+          const numUnitInItem = item.match(/(\d+\.?\d*)\s*(개|알|봉|봉지|팩|줄|장|마리|조각|인분|그릇|공기|캔|병|잔|컵|스쿱|스푼|큰술)/);
+          if (numUnitInItem) {
+            const unitName = numUnitInItem[2];
+            // 단위 테이블에서 해당 단위명으로 끝나는 1단위 항목 찾기
+            const oneUnit = Object.entries(unitMap).find(([w]) => w.replace(/^\d+/, '').trim() === unitName && w.startsWith('1'));
+            if (oneUnit) gramsPerUnit = oneUnit[1];
+            else {
+              // "1개" 형태 없으면 "한개" 등 숫자 없는 단위 찾기
+              const korUnit = Object.entries(unitMap).find(([w]) => w.replace(/^(한|두|세|네|다섯)/, '').trim() === unitName);
+              if (korUnit) gramsPerUnit = korUnit[1];
+            }
+          } else {
+            const oneUnit = Object.entries(unitMap).find(([w]) => w.startsWith('1'));
+            if (oneUnit) gramsPerUnit = oneUnit[1];
+          }
         }
       }
 
