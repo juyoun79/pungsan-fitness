@@ -108,7 +108,9 @@
     if (calMonth > 11) { calMonth = 0; calYear++; }
     if (calMonth < 0)  { calMonth = 11; calYear--; }
     calSelectedDate = null;
-    renderCalendar();
+    loadLessonDaysInMonth(calYear, calMonth, () => {
+      renderCalendar();
+    });
     document.getElementById('cal-day-detail').innerHTML = '';
   }
 
@@ -136,6 +138,24 @@
     return days;
   }
 
+  // 수업일 Set 반환 (Firebase에서)
+  let lessonDaysCache = new Set();
+  function loadLessonDaysInMonth(year, month, callback) {
+    const userId = localStorage.getItem('current_user');
+    const prefix = year + '-' + (month + 1) + '-';
+    db.ref('users/' + userId + '/lessons').once('value', snap => {
+      lessonDaysCache = new Set();
+      snap.forEach(child => {
+        const date = child.key;
+        if (date.startsWith(prefix)) {
+          const d = parseInt(date.split('-')[2]);
+          if (!isNaN(d)) lessonDaysCache.add(d);
+        }
+      });
+      if (callback) callback();
+    });
+  }
+
   function renderCalendar() {
     const now = new Date();
     const monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -154,10 +174,12 @@
       const isSat   = (new Date(calYear, calMonth, d).getDay() === 6);
       let bg = 'transparent', textColor = isSun ? '#ef4444' : isSat ? '#1a6fd4' : 'var(--text)';
       let border = 'none', fontW = '500';
+      const hasLesson = lessonDays.has(d);
       if (isToday)  { bg = '#22c55e'; textColor = 'white'; fontW = '700'; }
       if (hasWork && !isToday) { bg = 'var(--blue)'; textColor = 'white'; fontW = '700'; }
+      if (hasLesson && !isToday && !hasWork) { bg = '#f59e0b'; textColor = 'white'; fontW = '700'; }
       if (isSel)    { border = '2px solid #1a1a2e'; }
-      html += `<div onclick="selectCalDay(${d})" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${bg};color:${textColor};font-size:13px;font-weight:${fontW};cursor:pointer;border:${border};transition:opacity 0.1s;position:relative;" ontouchstart="this.style.opacity='0.7'" ontouchend="this.style.opacity='1'">${d}${hasWork && !isToday ? '<div style="position:absolute;bottom:1px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,0.8);"></div>' : ''}</div>`;
+      html += `<div onclick="selectCalDay(${d})" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${bg};color:${textColor};font-size:13px;font-weight:${fontW};cursor:pointer;border:${border};transition:opacity 0.1s;position:relative;" ontouchstart="this.style.opacity='0.7'" ontouchend="this.style.opacity='1'">${d}${hasWork && !isToday ? '<div style="position:absolute;bottom:1px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,0.8);"></div>' : ''}${hasLesson && !hasWork && !isToday ? '<div style="position:absolute;bottom:1px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,0.8);"></div>' : ''}</div>`;
     }
     document.getElementById('cal-grid').innerHTML = html;
   }
