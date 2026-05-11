@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "pungsan-fitness-app",
+  "name": "pungsan-fitness",
   "compatibility_date": "2026-05-06",
   "observability": {
     "enabled": true
