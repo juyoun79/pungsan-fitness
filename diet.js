@@ -44,11 +44,18 @@
     dd.innerHTML = results.map(item => {
       const name = (item.name || '').replace(/'/g, "\\'");
       const kcal = item.kcal || 0;
-      return `<div onclick="addFoodItem('${name}',${kcal})"
+      const units = (typeof LOCAL_FOODS !== 'undefined' && LOCAL_FOODS.units) ? LOCAL_FOODS.units[item.name] : null;
+      const firstUnit = units ? Object.entries(units)[0] : null;
+      const unitLabel = firstUnit ? firstUnit[0].replace(/\d+/,'').trim() || firstUnit[0] : 'g';
+      const unitGrams = firstUnit ? firstUnit[1] : 1;
+      const unitQty = firstUnit ? (firstUnit[0].match(/^(\d+)/) ? parseInt(firstUnit[0].match(/^(\d+)/)[1]) : 1) : 1;
+      const singleGram = firstUnit ? unitGrams / unitQty : 1;
+      const displayKcal = firstUnit ? Math.round(kcal * unitGrams / 100) : kcal;
+      return `<div onclick="addFoodItem('${name}',${kcal},'${unitLabel}',${singleGram})"
         style="padding:10px 12px;cursor:pointer;border-bottom:0.5px solid var(--border);font-size:13px;"
         onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='var(--card)'">
         <div style="font-weight:600;color:var(--text);">${item.name}</div>
-        <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">100g당 ${kcal} kcal</div>
+        <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${firstUnit ? unitLabel + '당 ' + Math.round(kcal * singleGram / 100) : '100g당 ' + kcal} kcal</div>
       </div>`;
     }).join('');
     dd.style.display = 'block';
@@ -59,7 +66,7 @@
     if (dd) dd.style.display = 'none';
   }
 
-  function addFoodItem(name, kcalPer100g) {
+  function addFoodItem(name, kcalPer100g, unitLabel, unitGrams) {
     hideFoodDropdown();
     const mealType = document.getElementById('food-meal-type')?.value || '아침';
     const input = document.getElementById('food-search-input');
@@ -67,8 +74,17 @@
     const status = document.getElementById('food-search-status');
     if (status) status.textContent = '';
 
-    // 기본 100g 기준으로 추가
-    const item = { name, kcal: kcalPer100g, kcalPer100g, amount: 100, meal: mealType, id: Date.now() };
+    // 단위 정보가 있으면 단위 기준으로, 없으면 100g 기준으로 추가
+    const hasUnit = unitLabel && unitGrams;
+    const item = {
+      name,
+      kcalPer100g,
+      amount: hasUnit ? 1 : 100,        // 단위있으면 1(개/공기 등), 없으면 100g
+      unitLabel: hasUnit ? unitLabel : 'g',  // 단위 표시 (개, 공기, g 등)
+      unitGrams: hasUnit ? unitGrams : 1,    // 단위당 g (1개=60g → 60, g단위면 1)
+      meal: mealType,
+      id: Date.now()
+    };
     addedFoodItems.push(item);
     renderAddedFoods();
   }
@@ -95,9 +111,9 @@
           <input type="number" value="${item.amount}" min="1" max="9999"
             onchange="updateFoodAmount(${item.id}, this.value)"
             style="width:52px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-align:center;background:var(--card);color:var(--text);font-family:'Noto Sans KR',sans-serif;">
-          <span style="font-size:11px;color:var(--text-hint);">g</span>
+          <span style="font-size:11px;color:var(--text-hint);">${item.unitLabel || 'g'}</span>
         </div>
-        <div style="font-size:13px;font-weight:700;color:#27500A;min-width:56px;text-align:right;">${Math.round(item.kcalPer100g * item.amount / 100)} kcal</div>
+        <div style="font-size:13px;font-weight:700;color:#27500A;min-width:56px;text-align:right;">${Math.round(item.kcalPer100g * item.amount * (item.unitGrams || 1) / 100)} kcal</div>
         <button onclick="removeFoodItem(${item.id})"
           style="background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;padding:0 2px;">✕</button>
       </div>
@@ -108,7 +124,7 @@
 
   function updateFoodAmount(id, val) {
     const item = addedFoodItems.find(i => i.id === id);
-    if (item) { item.amount = parseFloat(val) || 100; }
+    if (item) { item.amount = parseFloat(val) || (item.unitGrams > 1 ? 1 : 100); }
     renderAddedFoods();
   }
 
@@ -118,7 +134,7 @@
   }
 
   function updateTotalCalorie() {
-    const total = addedFoodItems.reduce((sum, i) => sum + Math.round(i.kcalPer100g * i.amount / 100), 0);
+    const total = addedFoodItems.reduce((sum, i) => sum + Math.round(i.kcalPer100g * i.amount * (i.unitGrams || 1) / 100), 0);
     const totalEl = document.getElementById('calorie-total');
     if (totalEl) totalEl.textContent = total > 0 ? '약 ' + total + ' kcal' : '';
 
@@ -1093,7 +1109,7 @@
         const unitEntries = Object.entries(units).slice(0, 3);
         unitBtns = unitEntries.map(([unit, gram]) => {
           const kcal = Math.round(food.k * gram / 100);
-          return `<button onmousedown="selectFood('${meal}','${food.n}','${unit}',${kcal})"
+          return `<button onmousedown="selectFood('${meal}','${food.n}','${unit}',${kcal},${gram})"
             style="padding:3px 8px;background:#e8f4ff;border:1px solid #185FA5;border-radius:12px;font-size:11px;color:#185FA5;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">${unit} (${kcal}kcal)</button>`;
         }).join('');
       } else {
@@ -1116,7 +1132,7 @@
     if (box) box.style.display = 'none';
   }
 
-  function selectFood(meal, foodName, unit, kcal) {
+  function selectFood(meal, foodName, unit, kcal, gram) {
     const ta = document.getElementById('meal-' + meal);
     if (!ta) return;
 
@@ -1134,6 +1150,27 @@
     if (!replaced) parts.push(foodName + ' ' + unit);
 
     ta.value = parts.join('');
+    // 단위 정보를 addedFoodItems에 직접 추가
+    if (gram && gram > 1) {
+      const food = (typeof LOCAL_FOODS !== 'undefined') ? LOCAL_FOODS.foods.find(f => f.n === foodName) : null;
+      const kcalPer100g = food ? food.k : Math.round(kcal * 100 / gram);
+      // 단위에서 숫자 추출 (예: "2개" → 2, "한공기" → 1)
+      const qtyMatch = unit.match(/^(\d+)/);
+      const qty = qtyMatch ? parseInt(qtyMatch[1]) : 1;
+      const singleGram = gram / qty;
+      const mealType = meal === 'breakfast' ? '아침' : meal === 'lunch' ? '점심' : meal === 'dinner' ? '저녁' : '간식';
+      const unitLabel = unit.replace(/^\d+/, '').trim() || unit;
+      addedFoodItems.push({
+        name: foodName + ' ' + unit,
+        kcalPer100g,
+        amount: qty,
+        unitLabel: unitLabel || '개',
+        unitGrams: singleGram,
+        meal: mealType,
+        id: Date.now()
+      });
+      renderAddedFoods();
+    }
     ta.style.height = 'auto';
     ta.style.height = ta.scrollHeight + 'px';
 
