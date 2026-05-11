@@ -487,7 +487,7 @@
     }
     ['home','attend','workout','community','myinfo'].forEach(t => {
       const el = document.getElementById('tab-' + t);
-      if (el) el.classList.toggle('active', t === tab);
+      if (el) el.classList.toggle('active', t === tab || (t === 'attend' && tab === 'trainer'));
     });
     // 마지막 탭 저장 (새로고침 복원용)
     if (userId && userId !== ADMIN_ID) localStorage.setItem('last_tab_' + userId, tab);
@@ -516,6 +516,9 @@
     } else if (tab === 'myinfo') {
       showScreen('screen-myinfo');
       loadMyInfo();
+    } else if (tab === 'trainer') {
+      showScreen('screen-trainer');
+      loadTrainerTab();
     }
   }
 

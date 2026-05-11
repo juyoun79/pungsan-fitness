@@ -625,3 +625,228 @@
     });
   }
 
+
+  // ══════════════════════════════
+  // 강사 관리 탭 기능
+  // ══════════════════════════════
+
+  let currentTraineeId = null; // 현재 선택된 담당 회원 ID
+  let currentTraineeTab = 'record'; // 현재 선택된 탭
+
+  // 강사 관리 탭 로드
+  function loadTrainerTab() {
+    const userId = localStorage.getItem('current_user');
+    db.ref('trainers/' + userId + '/trainees').once('value', snap => {
+      const data = snap.val();
+      const container = document.getElementById('trainee-list');
+      if (!container) return;
+      if (!data) {
+        container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:14px;">담당 회원이 없어요<br/>회원 추가 버튼을 눌러주세요</div>';
+        return;
+      }
+      const entries = Object.entries(data);
+      container.innerHTML = entries.map(([memberId, info]) => `
+        <div onclick="openTraineeDetail('${memberId}')"
+          style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer;"
+          ontouchstart="this.style.background='var(--blue-light)'" ontouchend="this.style.background='transparent'">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--blue);color:white;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;">
+            ${(info.name || '?')[0]}
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:700;color:var(--text);">${info.name || memberId}</div>
+            <div style="font-size:12px;color:var(--text-sub);">${info.type || '수업 종류 미설정'} · 잔여 ${info.remain || 0}회</div>
+          </div>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      `).join('');
+    });
+  }
+
+  // 담당 회원 추가 모달 열기
+  function openAddTraineeMember() {
+    document.getElementById('trainee-search').value = '';
+    document.getElementById('trainee-search-result').innerHTML = '';
+    document.getElementById('add-trainee-modal').style.display = 'flex';
+  }
+
+  // 담당 회원 추가 모달 닫기
+  function closeAddTraineeMember() {
+    document.getElementById('add-trainee-modal').style.display = 'none';
+  }
+
+  // 회원 검색
+  function searchTraineeMember(query) {
+    const q = query.trim();
+    const resultEl = document.getElementById('trainee-search-result');
+    if (!q) { resultEl.innerHTML = ''; return; }
+    db.ref('members').once('value', snap => {
+      const results = [];
+      snap.forEach(child => {
+        const member = child.val();
+        if ((member.name || '').includes(q) || child.key.includes(q)) {
+          results.push({ id: child.key, name: member.name || child.key });
+        }
+      });
+      if (results.length === 0) {
+        resultEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);">검색 결과가 없어요</div>';
+        return;
+      }
+      resultEl.innerHTML = results.map(m => `
+        <div onclick="selectTraineeMember('${m.id}', '${m.name}')"
+          style="padding:12px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:10px;"
+          ontouchstart="this.style.background='var(--blue-light)'" ontouchend="this.style.background='transparent'">
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--blue);color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">${m.name[0]}</div>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text);">${m.name}</div>
+            <div style="font-size:12px;color:var(--text-hint);">${m.id}</div>
+          </div>
+        </div>
+      `).join('');
+    });
+  }
+
+  // 담당 회원 선택 후 수업 정보 입력
+  function selectTraineeMember(memberId, memberName) {
+    const type = prompt(memberName + '님의 수업 종류를 입력해주세요\n(예: PT / 기구필라테스 / 기타)');
+    if (!type) return;
+    const total = parseInt(prompt('총 수업 횟수를 입력해주세요\n(예: 10, 20, 30)'));
+    if (!total || isNaN(total)) return;
+
+    const trainerId = localStorage.getItem('current_user');
+    db.ref('trainers/' + trainerId + '/trainees/' + memberId).set({
+      name: memberName,
+      type: type,
+      total: total,
+      remain: total,
+      addedAt: Date.now()
+    }).then(() => {
+      alert(memberName + '님이 담당 회원으로 추가됐어요! 💪');
+      closeAddTraineeMember();
+      loadTrainerTab();
+    });
+  }
+
+  // 담당 회원 상세 화면 열기
+  function openTraineeDetail(memberId) {
+    currentTraineeId = memberId;
+    const trainerId = localStorage.getItem('current_user');
+    db.ref('trainers/' + trainerId + '/trainees/' + memberId).once('value', snap => {
+      const info = snap.val();
+      if (!info) return;
+      document.getElementById('trainee-detail-name').textContent = info.name;
+      document.getElementById('trainee-card-name').textContent = info.name;
+      document.getElementById('trainee-card-type').textContent = info.type || '수업 종류 미설정';
+      document.getElementById('trainee-card-remain').textContent = info.remain || 0;
+      document.getElementById('trainee-card-total').textContent = info.total || 0;
+      showScreen('screen-trainee-detail');
+      switchTraineeTab('record');
+    });
+  }
+
+  // 수업 출석 체크 (잔여 횟수 차감)
+  function checkTraineeAttend() {
+    if (!currentTraineeId) return;
+    const trainerId = localStorage.getItem('current_user');
+    const ref = db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId);
+    ref.once('value', snap => {
+      const info = snap.val();
+      if (!info) return;
+      const remain = info.remain || 0;
+      if (remain <= 0) { alert('잔여 횟수가 없어요!'); return; }
+      if (!confirm(info.name + '님 오늘 수업 출석 체크할까요?\n잔여 횟수: ' + remain + ' → ' + (remain - 1) + '회')) return;
+      const today = new Date();
+      const dateStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+      ref.update({ remain: remain - 1 }).then(() => {
+        // 출석 기록 저장
+        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/attendLog/' + dateStr).set({
+          date: dateStr,
+          savedAt: today.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' })
+        });
+        document.getElementById('trainee-card-remain').textContent = remain - 1;
+        alert('✅ 출석 체크 완료! 잔여 ' + (remain - 1) + '회');
+      });
+    });
+  }
+
+  // 담당 회원 탭 전환
+  function switchTraineeTab(tab) {
+    currentTraineeTab = tab;
+    ['record', 'memo', 'log'].forEach(t => {
+      const btn = document.getElementById('trainee-tab-' + t);
+      if (btn) {
+        btn.style.background = t === tab ? 'var(--blue)' : 'var(--card)';
+        btn.style.color = t === tab ? 'white' : 'var(--text)';
+        btn.style.border = t === tab ? 'none' : '1px solid var(--border)';
+      }
+    });
+    const content = document.getElementById('trainee-tab-content');
+    if (!content || !currentTraineeId) return;
+
+    if (tab === 'record') {
+      // 운동기록 달력 표시
+      content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:14px;">운동기록 달력<br/>(준비 중)</div>';
+    } else if (tab === 'memo') {
+      // 메모 표시
+      const trainerId = localStorage.getItem('current_user');
+      db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/memo').once('value', snap => {
+        const memo = snap.val() || '';
+        content.innerHTML = `
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">📝 회원 메모</div>
+            <textarea id="trainee-memo-input" placeholder="회원 특이사항, 주의사항 등을 기록해주세요" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;min-height:120px;background:var(--bg);color:var(--text);">${memo}</textarea>
+            <button onclick="saveTraineeMemo()" style="width:100%;margin-top:8px;padding:12px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 메모 저장</button>
+          </div>`;
+      });
+    } else if (tab === 'log') {
+      // 수업일지 표시
+      const trainerId = localStorage.getItem('current_user');
+      const today = new Date();
+      const dateStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+      db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/logs').orderByChild('date').limitToLast(10).once('value', snap => {
+        const logs = [];
+        snap.forEach(child => logs.unshift({ key: child.key, ...child.val() }));
+        content.innerHTML = `
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;">
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">📋 오늘 수업일지 작성</div>
+            <textarea id="trainee-log-input" placeholder="오늘 수업 내용을 기록해주세요" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;min-height:100px;background:var(--bg);color:var(--text);"></textarea>
+            <button onclick="saveTraineeLog()" style="width:100%;margin-top:8px;padding:12px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 수업일지 저장</button>
+          </div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">📚 지난 수업일지</div>
+          ${logs.length === 0 ? '<div style="text-align:center;padding:16px;color:var(--text-hint);">아직 수업일지가 없어요</div>' :
+            logs.map(log => `
+              <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px;">
+                <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">${log.date} ${log.savedAt || ''}</div>
+                <div style="font-size:13px;color:var(--text);line-height:1.6;">${log.content}</div>
+              </div>`).join('')}`;
+      });
+    }
+  }
+
+  // 메모 저장
+  function saveTraineeMemo() {
+    if (!currentTraineeId) return;
+    const trainerId = localStorage.getItem('current_user');
+    const memo = document.getElementById('trainee-memo-input').value.trim();
+    db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/memo').set(memo).then(() => {
+      alert('메모가 저장됐어요! 📝');
+    });
+  }
+
+  // 수업일지 저장
+  function saveTraineeLog() {
+    if (!currentTraineeId) return;
+    const trainerId = localStorage.getItem('current_user');
+    const content = document.getElementById('trainee-log-input').value.trim();
+    if (!content) { alert('수업 내용을 입력해주세요!'); return; }
+    const today = new Date();
+    const dateStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+    const log = {
+      date: dateStr,
+      content: content,
+      savedAt: today.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' })
+    };
+    db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/logs/' + dateStr).set(log).then(() => {
+      alert('수업일지가 저장됐어요! 📋');
+      switchTraineeTab('log');
+    });
+  }

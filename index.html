@@ -1604,6 +1604,89 @@
        프리웨이트 / 기타 운동 기록 화면
   ══════════════════════════════ -->
 
+
+  <!-- 강사 관리 화면 -->
+  <div class="screen" id="screen-trainer">
+    <div class="sub-header">
+      <div class="sub-header-title">👨‍🏫 강사 관리</div>
+    </div>
+    <div style="padding:16px 16px var(--safe-pad);">
+
+      <!-- 담당 회원 섹션 -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;">
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:15px;font-weight:700;color:var(--text);">👥 담당 회원</div>
+          <button onclick="openAddTraineeMember()" style="background:var(--blue);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 회원 추가</button>
+        </div>
+        <div id="trainee-list" style="padding:12px 16px;">
+          <div style="text-align:center;padding:20px;color:var(--text-hint);font-size:14px;">담당 회원이 없어요<br/>회원 추가 버튼을 눌러주세요</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 담당 회원 추가 모달 -->
+  <div id="add-trainee-modal" class="modal-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:flex-end;">
+    <div style="background:var(--card);border-radius:16px 16px 0 0;padding:20px 16px;width:100%;max-height:80vh;overflow-y:auto;box-sizing:border-box;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:16px;font-weight:700;color:var(--text);">담당 회원 추가</div>
+        <button onclick="closeAddTraineeMember()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-hint);">×</button>
+      </div>
+      <input type="text" id="trainee-search" placeholder="회원 이름 또는 전화번호 검색"
+        oninput="searchTraineeMember(this.value)"
+        style="width:100%;box-sizing:border-box;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-bottom:12px;">
+      <div id="trainee-search-result" style="max-height:300px;overflow-y:auto;"></div>
+    </div>
+  </div>
+
+  <!-- 담당 회원 상세 화면 -->
+  <div class="screen" id="screen-trainee-detail">
+    <div class="sub-header">
+      <button class="back-btn" onclick="showScreen('screen-trainer');loadTrainerTab();">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+      <div class="sub-header-title" id="trainee-detail-name">회원 상세</div>
+      <div style="width:36px;"></div>
+    </div>
+    <div style="padding:16px 16px var(--safe-pad);">
+
+      <!-- 회원 정보 카드 -->
+      <div id="trainee-info-card" style="background:var(--blue);border-radius:var(--radius);padding:16px;color:white;margin-bottom:16px;">
+        <div style="font-size:18px;font-weight:700;margin-bottom:4px;" id="trainee-card-name"></div>
+        <div style="font-size:13px;opacity:0.85;" id="trainee-card-type"></div>
+        <div style="display:flex;gap:12px;margin-top:10px;">
+          <div style="background:rgba(255,255,255,0.2);border-radius:8px;padding:8px 14px;text-align:center;">
+            <div style="font-size:18px;font-weight:700;" id="trainee-card-remain">-</div>
+            <div style="font-size:11px;opacity:0.85;">잔여 횟수</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.2);border-radius:8px;padding:8px 14px;text-align:center;">
+            <div style="font-size:18px;font-weight:700;" id="trainee-card-total">-</div>
+            <div style="font-size:11px;opacity:0.85;">총 횟수</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 수업 출석 체크 버튼 -->
+      <button onclick="checkTraineeAttend()" style="width:100%;padding:14px;background:#22c55e;color:white;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;">
+        ✅ 오늘 수업 출석 체크
+      </button>
+
+      <!-- 탭 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:16px;">
+        <button id="trainee-tab-record" onclick="switchTraineeTab('record')" style="padding:10px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">운동기록</button>
+        <button id="trainee-tab-memo" onclick="switchTraineeTab('memo')" style="padding:10px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">메모</button>
+        <button id="trainee-tab-log" onclick="switchTraineeTab('log')" style="padding:10px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수업일지</button>
+      </div>
+
+      <!-- 탭 내용 -->
+      <div id="trainee-tab-content"></div>
+
+    </div>
+  </div>
+
   <div class="screen" id="screen-freeweight">
     <div style="background:var(--card);padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;">
       <button onclick="closeFreeweightModal()" style="background:none;border:none;cursor:pointer;padding:4px;">
@@ -2061,6 +2144,9 @@
         }
         const memberName = snap.val().name || id;
         localStorage.setItem('name_' + id, memberName);
+        // role 저장 (trainer / manager / member)
+        const role = snap.val().role || 'member';
+        localStorage.setItem('role_' + id, role);
         // 신체정보 미입력 시 입력 화면으로
         const hasBodyInfo = localStorage.getItem('body_weight_' + id);
         if (!hasBodyInfo) {
@@ -2433,6 +2519,22 @@
 
   function closeWeightDetail() {
     const userId = localStorage.getItem('current_user');
+    // 강사/매니저이면 출석 탭 → 관리 탭으로 교체
+    const role = localStorage.getItem('role_' + userId) || 'member';
+    const attendTab = document.getElementById('tab-attend');
+    if (role === 'trainer' || role === 'manager') {
+      if (attendTab) attendTab.outerHTML = `<div class="tab-item" id="tab-attend" onclick="switchTab('trainer')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        관리
+      </div>`;
+    } else {
+      if (attendTab) {
+        attendTab.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>출석`;
+        attendTab.onclick = function() { switchTab('attend'); };
+      }
+    }
     const lastTab = localStorage.getItem('last_tab_' + userId) || 'home';
     showScreen('screen-home');
   }
@@ -2735,6 +2837,22 @@
     const fwIndexRaw = JSON.parse(localStorage.getItem(fwIndexKey) || '[]');
     const fwIndexCleaned = fwIndexRaw.map(entry => /u[0-9a-f]{4}/i.test(entry) ? entry.replace(/u([0-9a-f]{4})/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16))).replace(/_/g, ' ') : entry);
     localStorage.setItem(fwIndexKey, JSON.stringify([...new Set(fwIndexCleaned)]));
+    // 강사/매니저이면 출석 탭 → 관리 탭으로 교체
+    const role = localStorage.getItem('role_' + userId) || 'member';
+    const attendTab = document.getElementById('tab-attend');
+    if (role === 'trainer' || role === 'manager') {
+      if (attendTab) attendTab.outerHTML = `<div class="tab-item" id="tab-attend" onclick="switchTab('trainer')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        관리
+      </div>`;
+    } else {
+      if (attendTab) {
+        attendTab.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>출석`;
+        attendTab.onclick = function() { switchTab('attend'); };
+      }
+    }
     const lastTab = localStorage.getItem('last_tab_' + userId) || 'home';
     // 알림 리스너는 항상 시작 (탭 위치 무관)
     startNotifListener();
