@@ -268,20 +268,7 @@
           <div class="stat-desc">출석할 때마다 적립!</div>
         </div>
       </div>
-      <!-- 걸음수 카드 -->
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-top:8px;margin-bottom:4px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <div style="font-size:13px;font-weight:700;color:var(--text);">🚶 오늘 걸음수</div>
-          <div style="font-size:13px;font-weight:700;color:#3B6D11;"><span id="stat-steps">0</span> / <span id="stat-steps-goal">10,000</span>보</div>
-        </div>
-        <div style="background:#C0DD97;border-radius:4px;height:8px;">
-          <div id="stat-steps-bar" style="background:#3B6D11;border-radius:4px;height:8px;width:0%;transition:width 0.5s;"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-top:4px;">
-          <div id="stat-steps-msg" style="font-size:11px;color:#3B6D11;">걷기를 시작해보세요!</div>
-          <div style="font-size:11px;color:var(--text-hint);"><span id="stat-steps-kcal">0</span> kcal</div>
-        </div>
-      </div>
+
 
       <!-- 커뮤니티 알림 (종 버튼 팝업으로 이동) -->
       <div id="home-notifications-wrap" style="display:none;">
@@ -1018,8 +1005,8 @@
       <!-- 검색 결과 드롭다운 -->
       <div id="equipment-search-result" style="display:none;background:var(--card);border:1.5px solid var(--blue);border-radius:var(--radius-sm);margin-bottom:14px;overflow:hidden;box-shadow:0 4px 16px rgba(26,111,212,0.12);max-height:280px;overflow-y:auto;"></div>
 
-      <!-- 운동 기록 추가 버튼 3개 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+      <!-- 운동 기록 추가 버튼 2개 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
         <button onclick="openFreeweightModal()"
           style="padding:12px 8px;background:var(--card);border:1.5px dashed #8b5cf6;border-radius:var(--radius-sm);color:#8b5cf6;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background 0.15s;"
           ontouchstart="this.style.background='#f3e8ff'" ontouchend="this.style.background='var(--card)'"
@@ -1037,14 +1024,6 @@
             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
           </svg>
           유산소 기록
-        </button>
-        <button onclick="openStepsScreen()"
-          style="padding:12px 8px;background:var(--card);border:1.5px dashed #3B6D11;border-radius:var(--radius-sm);color:#3B6D11;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background 0.15s;"
-          ontouchstart="this.style.background='#EAF3DE'" ontouchend="this.style.background='var(--card)'"
-          onmouseenter="this.style.background='#EAF3DE'" onmouseleave="this.style.background='var(--card)'">          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M13 4a1 1 0 1 0 2 0 1 1 0 0 0-2 0"/><path d="M7.5 17.5L9 13l3 2 2-5"/><path d="M9.5 6.5L11 11l3-2 1.5 4"/>
-          </svg>
-          걸음수 기록
         </button>
       </div>
 
@@ -1624,65 +1603,6 @@
   <!-- ══════════════════════════════
        프리웨이트 / 기타 운동 기록 화면
   ══════════════════════════════ -->
-
-  <!-- 걸음수 화면 -->
-  <div class="screen" id="screen-steps">
-    <div class="sub-header">
-      <button class="back-btn" onclick="closeStepsScreen()">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
-      </button>
-      <div class="sub-header-title">걸음수 기록</div>
-      <div style="width:36px;"></div>
-    </div>
-    <div style="padding:16px 16px var(--safe-pad);">
-
-      <!-- 걸음수 메인 카드 -->
-      <div style="background:#EAF3DE;border:1px solid #97C459;border-radius:var(--radius);padding:20px;margin-bottom:16px;text-align:center;">
-        <div style="font-size:13px;color:#3B6D11;margin-bottom:6px;">오늘 걸음수</div>
-        <div style="font-size:48px;font-weight:700;color:#27500A;line-height:1;"><span id="steps-count">0</span></div>
-        <div style="font-size:13px;color:#3B6D11;margin-bottom:12px;">/ <span id="steps-goal-display">10,000</span>보</div>
-        <div style="background:#C0DD97;border-radius:6px;height:10px;margin-bottom:8px;">
-          <div id="steps-progress-bar" style="background:#3B6D11;border-radius:6px;height:10px;width:0%;transition:width 0.5s;"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;">
-          <div id="steps-msg" style="font-size:12px;color:#3B6D11;">걷기를 시작해보세요! 💪</div>
-          <div style="font-size:12px;color:#3B6D11;"><span id="steps-kcal">0</span> kcal</div>
-        </div>
-      </div>
-
-      <!-- 측정 버튼 -->
-      <button id="steps-track-btn" onclick="toggleStepTracking()"
-        style="width:100%;padding:14px;background:#3B6D11;color:white;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;">
-        ▶ 걸음수 측정 시작
-      </button>
-      <div id="steps-status" style="text-align:center;font-size:12px;color:var(--text-hint);margin-bottom:16px;">핸드폰을 들고 걸으면 자동으로 측정돼요</div>
-
-      <!-- 목표 설정 -->
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;">
-        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">목표 걸음수 설정</div>
-        <div style="display:flex;gap:8px;">
-          <input type="number" id="steps-goal-input" placeholder="10000" min="1000" max="100000" step="1000"
-            style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);">
-          <button onclick="changeStepGoal()"
-            style="padding:10px 16px;background:#3B6D11;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">설정</button>
-        </div>
-        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
-          <button onclick="document.getElementById('steps-goal-input').value=5000" style="padding:4px 10px;background:var(--bg);border:1px solid var(--border);border-radius:14px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">5,000</button>
-          <button onclick="document.getElementById('steps-goal-input').value=7000" style="padding:4px 10px;background:var(--bg);border:1px solid var(--border);border-radius:14px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">7,000</button>
-          <button onclick="document.getElementById('steps-goal-input').value=10000" style="padding:4px 10px;background:var(--bg);border:1px solid var(--border);border-radius:14px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">10,000</button>
-          <button onclick="document.getElementById('steps-goal-input').value=15000" style="padding:4px 10px;background:var(--bg);border:1px solid var(--border);border-radius:14px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">15,000</button>
-        </div>
-      </div>
-
-      <!-- 초기화 버튼 -->
-      <button onclick="resetSteps()"
-        style="width:100%;padding:12px;background:var(--card);color:#ef4444;border:1px solid #ef4444;border-radius:var(--radius);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-        🔄 오늘 걸음수 초기화
-      </button>
-    </div>
-  </div>
 
   <div class="screen" id="screen-freeweight">
     <div style="background:var(--card);padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;">
@@ -2809,7 +2729,6 @@
     if (typeof updateStats === 'function') updateStats();
     loadHomeNotices();
     loadHomeWeightCard();
-    if (typeof updateHomeStepsCard === 'function') updateHomeStepsCard();
     const userId = localStorage.getItem('current_user');
     // fwIndex localStorage 이상한 데이터 자동 정리
     const fwIndexKey = 'freeweight_index_' + userId;
