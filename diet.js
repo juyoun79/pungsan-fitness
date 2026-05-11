@@ -1119,7 +1119,14 @@
       const units = LOCAL_FOODS.units && LOCAL_FOODS.units[food.n];
       let unitBtns = '';
       if (units) {
-        const unitEntries = Object.entries(units).slice(0, 3);
+        // 중복 그램값 제거 (예: 1개=60g, 한개=60g 중 1개만 표시)
+        const seenGrams = new Set();
+        const uniqueEntries = Object.entries(units).filter(([unit, gram]) => {
+          if (seenGrams.has(gram)) return false;
+          seenGrams.add(gram);
+          return true;
+        }).slice(0, 3);
+        const unitEntries = uniqueEntries;
         unitBtns = unitEntries.map(([unit, gram]) => {
           const kcal = Math.round(food.k * gram / 100);
           return `<button onmousedown="selectFood('${meal}','${food.n}','${unit}',${kcal},${gram})"
