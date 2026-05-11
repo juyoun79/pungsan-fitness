@@ -826,7 +826,7 @@
       const trainerId = localStorage.getItem('current_user');
       db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/signs').orderByChild('date').once('value', snap => {
         const signs = [];
-        snap.forEach(child => signs.unshift({ key: child.key, ...child.val() }));
+        snap.forEach(child => { signs.unshift({ key: child.key, ...child.val() }); });
         if (signs.length === 0) {
           content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:14px;">아직 서명 기록이 없어요</div>';
           return;
@@ -1021,7 +1021,7 @@
           signURL,
           memberName: signTargetMemberName
         };
-        await db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId + '/signs/' + dateStr).set(signData);
+        await db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId + '/signs/' + dateStr + '_' + Date.now()).set(signData);
 
         // 출석 횟수 차감
         const ref2 = db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId);
