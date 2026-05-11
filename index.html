@@ -1609,6 +1609,104 @@
 
 
 
+  <!-- 강사 기구운동 선택 모달 -->
+  <div id="trainer-eq-modal" class="modal-overlay">
+    <div class="modal-sheet" style="padding:0;max-height:80vh;display:flex;flex-direction:column;">
+      <div class="modal-title" style="padding:16px 20px;border-bottom:1px solid var(--border);margin-bottom:0;">
+        <span>🏋️ 기구 선택</span>
+        <button class="modal-close" onclick="closeTrainerEqModal()">×</button>
+      </div>
+      <div id="trainer-eq-list" style="overflow-y:auto;flex:1;"></div>
+    </div>
+  </div>
+
+  <!-- 강사 프리웨이트 선택 모달 -->
+  <div id="trainer-fw-modal" class="modal-overlay">
+    <div class="modal-sheet" style="padding:0;max-height:80vh;display:flex;flex-direction:column;">
+      <div class="modal-title" style="padding:16px 20px;border-bottom:1px solid var(--border);margin-bottom:0;">
+        <span>💪 프리웨이트 선택</span>
+        <button class="modal-close" onclick="closeTrainerFwModal()">×</button>
+      </div>
+      <div style="display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--border);overflow-x:auto;">
+        <button class="trainer-fw-cat-btn" data-cat="전체" onclick="renderTrainerFwList('전체')" style="padding:6px 12px;border-radius:20px;border:1px solid var(--border);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;background:var(--blue);color:white;font-family:'Noto Sans KR',sans-serif;">전체</button>
+        <button class="trainer-fw-cat-btn" data-cat="바벨" onclick="renderTrainerFwList('바벨')" style="padding:6px 12px;border-radius:20px;border:1px solid var(--border);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;background:var(--card);color:var(--text);font-family:'Noto Sans KR',sans-serif;">바벨</button>
+        <button class="trainer-fw-cat-btn" data-cat="덤벨" onclick="renderTrainerFwList('덤벨')" style="padding:6px 12px;border-radius:20px;border:1px solid var(--border);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;background:var(--card);color:var(--text);font-family:'Noto Sans KR',sans-serif;">덤벨</button>
+        <button class="trainer-fw-cat-btn" data-cat="맨몸" onclick="renderTrainerFwList('맨몸')" style="padding:6px 12px;border-radius:20px;border:1px solid var(--border);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;background:var(--card);color:var(--text);font-family:'Noto Sans KR',sans-serif;">맨몸</button>
+      </div>
+      <div id="trainer-fw-list" style="overflow-y:auto;flex:1;"></div>
+    </div>
+  </div>
+
+  <!-- 강사 기구운동 세트입력 모달 -->
+  <div id="trainer-workout-modal" class="modal-overlay" style="z-index:600;">
+    <div class="modal-sheet" style="padding:0;max-height:90vh;display:flex;flex-direction:column;">
+      <div class="modal-title" style="padding:16px 20px;border-bottom:1px solid var(--border);margin-bottom:0;">
+        <span id="trainer-workout-title"></span>
+        <button class="modal-close" onclick="closeTrainerWorkoutModal()">×</button>
+      </div>
+      <div style="overflow-y:auto;flex:1;padding:16px 20px;">
+        <div id="trainer-workout-date" style="font-size:13px;color:var(--text-hint);margin-bottom:12px;"></div>
+        <div id="trainer-set-list"></div>
+        <button onclick="addTrainerSet()" style="width:100%;padding:10px;background:var(--bg);border:1px dashed var(--border);border-radius:var(--radius);font-size:13px;color:var(--text-hint);cursor:pointer;margin-bottom:12px;font-family:'Noto Sans KR',sans-serif;">+ 세트 추가</button>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:12px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-hint);margin-bottom:8px;">⏱ 세트 간 휴식 타이머</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <input id="trainer-rest-min" type="number" value="1" min="0" max="10" style="width:50px;padding:6px;border:1px solid var(--border);border-radius:8px;font-size:14px;text-align:center;background:var(--card);color:var(--text);font-family:'Noto Sans KR',sans-serif;">
+            <span style="color:var(--text-hint);font-size:13px;">분</span>
+            <input id="trainer-rest-sec" type="number" value="30" min="0" max="59" style="width:50px;padding:6px;border:1px solid var(--border);border-radius:8px;font-size:14px;text-align:center;background:var(--card);color:var(--text);font-family:'Noto Sans KR',sans-serif;">
+            <span style="color:var(--text-hint);font-size:13px;">초</span>
+            <button onclick="startTrainerRestTimer()" style="flex:1;padding:8px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">▶ 시작</button>
+            <button onclick="skipTrainerRestTimer()" style="padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">■ 취소</button>
+          </div>
+          <div id="trainer-rest-timer-box" style="display:none;text-align:center;padding:8px;background:var(--blue);border-radius:8px;">
+            <div id="trainer-rest-timer-count" style="font-size:28px;font-weight:700;color:white;font-variant-numeric:tabular-nums;">1:30</div>
+          </div>
+        </div>
+        <textarea id="trainer-workout-memo" placeholder="메모 (선택)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--bg);color:var(--text);resize:none;height:60px;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;"></textarea>
+      </div>
+      <div style="padding:12px 20px;border-top:1px solid var(--border);">
+        <button onclick="saveTrainerWorkout()" style="width:100%;padding:14px;background:var(--blue);color:white;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✅ 저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 강사 프리웨이트 세트입력 모달 -->
+  <div id="trainer-fw-workout-modal" class="modal-overlay" style="z-index:600;">
+    <div class="modal-sheet" style="padding:0;max-height:90vh;display:flex;flex-direction:column;">
+      <div class="modal-title" style="padding:16px 20px;border-bottom:1px solid var(--border);margin-bottom:0;">
+        <span id="trainer-fw-workout-title"></span>
+        <button class="modal-close" onclick="closeTrainerFwWorkoutModal()">×</button>
+      </div>
+      <div style="overflow-y:auto;flex:1;padding:16px 20px;">
+        <div id="trainer-fw-workout-date" style="font-size:13px;color:var(--text-hint);margin-bottom:4px;"></div>
+        <div style="margin-bottom:12px;">
+          <span id="trainer-fw-name-display" style="font-size:15px;font-weight:700;color:var(--text);"></span>
+          <span id="trainer-fw-muscles-display" style="font-size:12px;color:var(--text-hint);margin-left:6px;"></span>
+        </div>
+        <div id="trainer-fw-set-list"></div>
+        <button onclick="addTrainerFwSet()" style="width:100%;padding:10px;background:var(--bg);border:1px dashed var(--border);border-radius:var(--radius);font-size:13px;color:var(--text-hint);cursor:pointer;margin-bottom:12px;font-family:'Noto Sans KR',sans-serif;">+ 세트 추가</button>
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:12px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-hint);margin-bottom:8px;">⏱ 세트 간 휴식 타이머</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <input id="trainer-fw-rest-min" type="number" value="1" min="0" max="10" style="width:50px;padding:6px;border:1px solid var(--border);border-radius:8px;font-size:14px;text-align:center;background:var(--card);color:var(--text);font-family:'Noto Sans KR',sans-serif;">
+            <span style="color:var(--text-hint);font-size:13px;">분</span>
+            <input id="trainer-fw-rest-sec" type="number" value="30" min="0" max="59" style="width:50px;padding:6px;border:1px solid var(--border);border-radius:8px;font-size:14px;text-align:center;background:var(--card);color:var(--text);font-family:'Noto Sans KR',sans-serif;">
+            <span style="color:var(--text-hint);font-size:13px;">초</span>
+            <button onclick="startTrainerFwRestTimer()" style="flex:1;padding:8px;background:#8b5cf6;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">▶ 시작</button>
+            <button onclick="skipTrainerFwRestTimer()" style="padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">■ 취소</button>
+          </div>
+          <div id="trainer-fw-rest-timer-box" style="display:none;text-align:center;padding:8px;background:#8b5cf6;border-radius:8px;">
+            <div id="trainer-fw-rest-timer-count" style="font-size:28px;font-weight:700;color:white;font-variant-numeric:tabular-nums;">1:30</div>
+          </div>
+        </div>
+        <textarea id="trainer-fw-memo" placeholder="메모 (선택)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--bg);color:var(--text);resize:none;height:60px;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;"></textarea>
+      </div>
+      <div style="padding:12px 20px;border-top:1px solid var(--border);">
+        <button onclick="saveTrainerFwWorkout()" style="width:100%;padding:14px;background:#8b5cf6;color:white;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✅ 저장</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 사인 모달 -->
   <div id="sign-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:2000;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
     <div style="background:var(--card);border-radius:16px;padding:20px 16px;width:100%;max-width:480px;box-sizing:border-box;">

@@ -633,6 +633,18 @@
   let currentTraineeId = null; // 현재 선택된 담당 회원 ID
   let currentTraineeTab = 'record'; // 현재 선택된 탭
 
+  // 강사 운동기록 관련 변수
+  let trainerCalYear = new Date().getFullYear();
+  let trainerCalMonth = new Date().getMonth() + 1;
+  let trainerCalSelectedDate = null;
+  let trainerCurrentEquipment = null;
+  let trainerSetCount = 0;
+  let trainerFwSetCount = 0;
+  let trainerRestTimer = null;
+  let trainerRestRemain = 0;
+  let trainerFwRestTimer = null;
+  let trainerFwRestRemain = 0;
+
   // 강사 관리 탭 로드
   function loadTrainerTab() {
     const userId = localStorage.getItem('current_user');
@@ -819,8 +831,7 @@
     if (!content || !currentTraineeId) return;
 
     if (tab === 'record') {
-      // 운동기록 달력 표시
-      content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:14px;">운동기록 달력<br/>(준비 중)</div>';
+      renderTrainerCal();
     } else if (tab === 'sign') {
       // 서명 기록 조회
       const trainerId = localStorage.getItem('current_user');
@@ -929,7 +940,7 @@
     signTargetMemberId = memberId;
     signTargetMemberName = memberName;
     const modal = document.getElementById('sign-modal');
-    modal.style.display = 'flex';
+    modal.classList.add('active');
 
     const infoEl = document.getElementById('sign-modal-info');
     const today = new Date();
@@ -1049,4 +1060,420 @@
         alert('저장 중 오류가 발생했어요. 다시 시도해주세요.');
       }
     }, 'image/png');
+  }
+
+  // ══════════════════════════════
+  // 강사 운동기록 탭 기능
+  // ══════════════════════════════
+
+  function trainerChangeCalMonth(dir) {
+    trainerCalMonth += dir;
+    if (trainerCalMonth > 12) { trainerCalMonth = 1; trainerCalYear++; }
+    if (trainerCalMonth < 1) { trainerCalMonth = 12; trainerCalYear--; }
+    renderTrainerCal();
+  }
+
+  function renderTrainerCal() {
+    const content = document.getElementById('trainee-tab-content');
+    if (!content || !currentTraineeId) return;
+    const traineeId = currentTraineeId;
+    const year = trainerCalYear, month = trainerCalMonth;
+
+    // Firebase에서 해당 월 운동기록 날짜 가져오기
+    db.ref('users/' + traineeId + '/workouts').once('value', snap => {
+      const workoutDays = new Set();
+      if (snap.exists()) {
+        snap.forEach(eqSnap => {
+          eqSnap.forEach(daySnap => {
+            const d = daySnap.val().date;
+            if (d) {
+              const parts = d.split('-');
+              if (parseInt(parts[0]) === year && parseInt(parts[1]) === month) {
+                workoutDays.add(parseInt(parts[2]));
+              }
+            }
+          });
+        });
+      }
+
+      const firstDay = new Date(year, month - 1, 1).getDay();
+      const lastDate = new Date(year, month, 0).getDate();
+      const today = new Date();
+      const todayStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+
+      let calHtml = `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <button onclick="trainerChangeCalMonth(-1)" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text);padding:4px 8px;">‹</button>
+          <div style="font-size:15px;font-weight:700;color:var(--text);">${year}년 ${month}월</div>
+          <button onclick="trainerChangeCalMonth(1)" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text);padding:4px 8px;">›</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
+          ${['일','월','화','수','목','금','토'].map((d,i) => `<div style="text-align:center;font-size:11px;font-weight:700;color:${i===0?'#ef4444':i===6?'#3b82f6':'var(--text-hint)'};padding:4px 0;">${d}</div>`).join('')}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">
+          ${Array(firstDay).fill('<div></div>').join('')}
+          ${Array.from({length:lastDate},(_,i)=>{
+            const day = i+1;
+            const dateStr = year+'-'+month+'-'+day;
+            const isToday = dateStr === todayStr;
+            const isSelected = dateStr === trainerCalSelectedDate;
+            const hasWorkout = workoutDays.has(day);
+            const dow = (firstDay + i) % 7;
+            let bg = isSelected ? 'var(--blue)' : isToday ? '#e8f0fe' : 'transparent';
+            let color = isSelected ? 'white' : dow===0 ? '#ef4444' : dow===6 ? '#3b82f6' : 'var(--text)';
+            return `<div onclick="selectTrainerCalDay('${dateStr}')" style="text-align:center;padding:6px 2px;border-radius:8px;cursor:pointer;background:${bg};position:relative;">
+              <div style="font-size:13px;font-weight:${isToday||isSelected?'700':'400'};color:${color};">${day}</div>
+              ${hasWorkout ? `<div style="width:5px;height:5px;border-radius:50%;background:${isSelected?'white':'var(--blue)'};margin:1px auto 0;"></div>` : '<div style="width:5px;height:5px;margin:1px auto 0;"></div>'}
+            </div>`;
+          }).join('')}
+        </div>`;
+
+      // 날짜 선택된 경우 하단에 운동기록 + 기구추가 버튼
+      if (trainerCalSelectedDate) {
+        const selParts = trainerCalSelectedDate.split('-');
+        if (parseInt(selParts[0])===year && parseInt(selParts[1])===month) {
+          calHtml += `<div id="trainer-day-detail" style="margin-top:12px;"></div>`;
+        }
+      }
+
+      content.innerHTML = calHtml;
+
+      if (trainerCalSelectedDate) {
+        const selParts = trainerCalSelectedDate.split('-');
+        if (parseInt(selParts[0])===year && parseInt(selParts[1])===month) {
+          renderTrainerDayDetail(trainerCalSelectedDate);
+        }
+      }
+    });
+  }
+
+  function selectTrainerCalDay(dateStr) {
+    trainerCalSelectedDate = dateStr;
+    renderTrainerCal();
+  }
+
+  function renderTrainerDayDetail(dateStr) {
+    const detailEl = document.getElementById('trainer-day-detail');
+    if (!detailEl || !currentTraineeId) return;
+    const traineeId = currentTraineeId;
+
+    db.ref('users/' + traineeId + '/workouts').once('value', snap => {
+      let records = [];
+      if (snap.exists()) {
+        snap.forEach(eqSnap => {
+          const eqKey = eqSnap.key;
+          eqSnap.forEach(daySnap => {
+            const r = daySnap.val();
+            if (r.date === dateStr) records.push({ eqKey, ...r });
+          });
+        });
+      }
+
+      const parts = dateStr.split('-');
+      const dateLabel = parts[0]+'년 '+parts[1]+'월 '+parts[2]+'일';
+
+      let html = `
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">📋 ${dateLabel} 운동기록</div>`;
+
+      if (records.length === 0) {
+        html += `<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">운동 기록이 없어요</div>`;
+      } else {
+        records.forEach(r => {
+          const eq = EQUIPMENT_LIST.find(e => e.key === r.eqKey || e.key === r.eqKey?.replace('dual_front_','')?.replace('dual_back_','')?.replace('fw_',''));
+          const name = eq ? eq.name : (r.name || r.eqKey);
+          html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;">
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">${name}</div>
+            <div style="font-size:12px;color:var(--text-hint);">
+              ${r.sets ? r.sets.map(s=>`${s.set}세트 ${s.weight}kg × ${s.reps}회`).join(' | ') : ''}
+              ${r.innerSets ? '앞면: '+r.innerSets.map(s=>`${s.weight}kg×${s.reps}회`).join(' | ') : ''}
+              ${r.outerSets ? ' / 뒷면: '+r.outerSets.map(s=>`${s.weight}kg×${s.reps}회`).join(' | ') : ''}
+            </div>
+          </div>`;
+        });
+      }
+
+      html += `
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button onclick="openTrainerEqSelect()" style="flex:1;padding:12px;background:var(--blue);color:white;border:none;border-radius:var(--radius);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🏋️ 기구운동 추가</button>
+          <button onclick="openTrainerFwSelect()" style="flex:1;padding:12px;background:#8b5cf6;color:white;border:none;border-radius:var(--radius);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💪 프리웨이트 추가</button>
+        </div>`;
+
+      detailEl.innerHTML = html;
+    });
+  }
+
+  // 기구운동 선택 모달 열기
+  function openTrainerEqSelect() {
+    const modal = document.getElementById('trainer-eq-modal');
+    if (!modal) return;
+    const list = document.getElementById('trainer-eq-list');
+    list.innerHTML = EQUIPMENT_LIST.map(eq => `
+      <div onclick="openTrainerWorkout('${eq.key}')" style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--border);cursor:pointer;">
+        <div style="width:36px;height:36px;border-radius:50%;background:${getMuscleColor(eq.muscles)};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${eq.emoji}</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);">${eq.no}. ${eq.name}</div>
+          <div style="font-size:11px;color:var(--text-hint);">${eq.muscles}</div>
+        </div>
+      </div>`).join('');
+    modal.classList.add('active');
+  }
+
+  function closeTrainerEqModal() {
+    document.getElementById('trainer-eq-modal').classList.remove('active');
+  }
+
+  // 프리웨이트 선택 모달 열기
+  function openTrainerFwSelect() {
+    const modal = document.getElementById('trainer-fw-modal');
+    if (!modal) return;
+    renderTrainerFwList('전체');
+    modal.classList.add('active');
+  }
+
+  function closeTrainerFwModal() {
+    document.getElementById('trainer-fw-modal').classList.remove('active');
+  }
+
+  function renderTrainerFwList(category) {
+    const list = document.getElementById('trainer-fw-list');
+    const filtered = category === '전체' ? FW_EXERCISE_LIST : FW_EXERCISE_LIST.filter(f => f.category === category);
+    document.querySelectorAll('.trainer-fw-cat-btn').forEach(btn => {
+      btn.style.background = btn.dataset.cat === category ? 'var(--blue)' : 'var(--card)';
+      btn.style.color = btn.dataset.cat === category ? 'white' : 'var(--text)';
+    });
+    list.innerHTML = filtered.map(f => `
+      <div onclick="openTrainerFwWorkout('${f.name}','${f.muscles}')" style="display:flex;align-items:center;justify-content:space-between;padding:12px;border-bottom:1px solid var(--border);cursor:pointer;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);">${f.name}</div>
+          <div style="font-size:11px;color:var(--text-hint);">${f.category} · ${f.muscles}</div>
+        </div>
+        <div style="font-size:18px;">›</div>
+      </div>`).join('');
+  }
+
+  // 기구운동 세트 입력 모달 열기
+  function openTrainerWorkout(eqKey) {
+    closeTrainerEqModal();
+    trainerCurrentEquipment = EQUIPMENT_LIST.find(e => e.key === eqKey);
+    if (!trainerCurrentEquipment) return;
+    trainerSetCount = 0;
+    const modal = document.getElementById('trainer-workout-modal');
+    if (!modal) return;
+    document.getElementById('trainer-workout-title').textContent = trainerCurrentEquipment.name + ' 기록';
+    document.getElementById('trainer-workout-date').textContent = (() => {
+      const p = (trainerCalSelectedDate||'').split('-');
+      return p.length===3 ? p[0]+'년 '+p[1]+'월 '+p[2]+'일 기록' : '';
+    })();
+    document.getElementById('trainer-set-list').innerHTML = '';
+    document.getElementById('trainer-workout-memo').value = '';
+    skipTrainerRestTimer();
+    addTrainerSet();
+    modal.classList.add('active');
+  }
+
+  function closeTrainerWorkoutModal() {
+    skipTrainerRestTimer();
+    document.getElementById('trainer-workout-modal').classList.remove('active');
+  }
+
+  // 프리웨이트 세트 입력 모달 열기
+  function openTrainerFwWorkout(name, muscles) {
+    closeTrainerFwModal();
+    trainerFwSetCount = 0;
+    const modal = document.getElementById('trainer-fw-workout-modal');
+    if (!modal) return;
+    document.getElementById('trainer-fw-workout-title').textContent = name + ' 기록';
+    document.getElementById('trainer-fw-workout-date').textContent = (() => {
+      const p = (trainerCalSelectedDate||'').split('-');
+      return p.length===3 ? p[0]+'년 '+p[1]+'월 '+p[2]+'일 기록' : '';
+    })();
+    document.getElementById('trainer-fw-name-display').textContent = name;
+    document.getElementById('trainer-fw-muscles-display').textContent = muscles;
+    document.getElementById('trainer-fw-set-list').innerHTML = '';
+    document.getElementById('trainer-fw-memo').value = '';
+    skipTrainerFwRestTimer();
+    addTrainerFwSet();
+    modal.classList.add('active');
+  }
+
+  function closeTrainerFwWorkoutModal() {
+    skipTrainerFwRestTimer();
+    document.getElementById('trainer-fw-workout-modal').classList.remove('active');
+  }
+
+  // 세트 추가/삭제
+  function addTrainerSet() {
+    trainerSetCount++;
+    const n = trainerSetCount;
+    const row = document.createElement('div');
+    row.id = 'trainer-set-row-' + n;
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+    row.innerHTML = `
+      <div style="width:28px;height:28px;border-radius:50%;background:var(--blue);color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">${n}</div>
+      <input id="trainer-weight-${n}" type="number" placeholder="무게(kg)" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;" inputmode="decimal">
+      <input id="trainer-reps-${n}" type="number" placeholder="횟수" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;" inputmode="numeric">
+      <button onclick="removeTrainerSet(${n})" style="background:none;border:none;color:var(--text-hint);font-size:18px;cursor:pointer;flex-shrink:0;">×</button>`;
+    document.getElementById('trainer-set-list').appendChild(row);
+  }
+
+  function removeTrainerSet(n) {
+    const row = document.getElementById('trainer-set-row-' + n);
+    if (row) row.remove();
+  }
+
+  function addTrainerFwSet() {
+    trainerFwSetCount++;
+    const n = trainerFwSetCount;
+    const row = document.createElement('div');
+    row.id = 'trainer-fw-set-row-' + n;
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+    row.innerHTML = `
+      <div style="width:28px;height:28px;border-radius:50%;background:#8b5cf6;color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">${n}</div>
+      <input id="trainer-fw-weight-${n}" type="number" placeholder="무게(kg)" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;" inputmode="decimal">
+      <input id="trainer-fw-reps-${n}" type="number" placeholder="횟수" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;" inputmode="numeric">
+      <button onclick="removeTrainerFwSet(${n})" style="background:none;border:none;color:var(--text-hint);font-size:18px;cursor:pointer;flex-shrink:0;">×</button>`;
+    document.getElementById('trainer-fw-set-list').appendChild(row);
+  }
+
+  function removeTrainerFwSet(n) {
+    const row = document.getElementById('trainer-fw-set-row-' + n);
+    if (row) row.remove();
+  }
+
+  // 기구운동 저장
+  function saveTrainerWorkout() {
+    if (!trainerCurrentEquipment || !currentTraineeId || !trainerCalSelectedDate) return;
+    const sets = [];
+    for (let i = 1; i <= trainerSetCount; i++) {
+      const wEl = document.getElementById('trainer-weight-' + i);
+      const rEl = document.getElementById('trainer-reps-' + i);
+      if (!wEl || !rEl) continue;
+      const w = parseFloat(wEl.value) || 0;
+      const r = parseInt(rEl.value) || 0;
+      if (w > 0 || r > 0) sets.push({ set: sets.length+1, weight: w, reps: r });
+    }
+    if (sets.length === 0) { alert('최소 1세트 이상 입력해주세요!'); return; }
+    const memo = document.getElementById('trainer-workout-memo').value;
+    const dateStr = trainerCalSelectedDate;
+    const parts = dateStr.split('-');
+    const dateLabel = parts[0]+'년 '+parts[1]+'월 '+parts[2]+'일';
+    const now = new Date();
+    const record = {
+      date: dateStr, dateLabel,
+      sets, memo,
+      savedAt: now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }),
+      recordedBy: 'trainer'
+    };
+    db.ref('users/' + currentTraineeId + '/workouts/' + trainerCurrentEquipment.key + '/' + dateStr).set(record)
+      .then(() => {
+        alert('✅ 운동기록 저장 완료!');
+        closeTrainerWorkoutModal();
+        renderTrainerCal();
+      })
+      .catch(e => { console.error(e); alert('저장 중 오류가 발생했어요.'); });
+  }
+
+  // 프리웨이트 저장
+  function saveTrainerFwWorkout() {
+    if (!currentTraineeId || !trainerCalSelectedDate) return;
+    const nameEl = document.getElementById('trainer-fw-name-display');
+    const name = nameEl ? nameEl.textContent : '';
+    if (!name) { alert('운동 이름이 없어요!'); return; }
+    const sets = [];
+    for (let i = 1; i <= trainerFwSetCount; i++) {
+      const wEl = document.getElementById('trainer-fw-weight-' + i);
+      const rEl = document.getElementById('trainer-fw-reps-' + i);
+      if (!wEl || !rEl) continue;
+      const w = parseFloat(wEl.value) || 0;
+      const r = parseInt(rEl.value) || 0;
+      if (w > 0 || r > 0) sets.push({ set: sets.length+1, weight: w, reps: r });
+    }
+    if (sets.length === 0) { alert('최소 1세트 이상 입력해주세요!'); return; }
+    const memo = document.getElementById('trainer-fw-memo').value;
+    const dateStr = trainerCalSelectedDate;
+    const parts = dateStr.split('-');
+    const dateLabel = parts[0]+'년 '+parts[1]+'월 '+parts[2]+'일';
+    const now = new Date();
+    const fwKey = 'fw_' + name.replace(/\s/g,'_');
+    const record = {
+      date: dateStr, dateLabel, name,
+      sets, memo,
+      savedAt: now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }),
+      recordedBy: 'trainer'
+    };
+    db.ref('users/' + currentTraineeId + '/workouts/' + fwKey + '/' + dateStr).set(record)
+      .then(() => {
+        alert('✅ 운동기록 저장 완료!');
+        closeTrainerFwWorkoutModal();
+        renderTrainerCal();
+      })
+      .catch(e => { console.error(e); alert('저장 중 오류가 발생했어요.'); });
+  }
+
+  // 타이머 (기구운동)
+  function startTrainerRestTimer() {
+    skipTrainerRestTimer();
+    const minEl = document.getElementById('trainer-rest-min');
+    const secEl = document.getElementById('trainer-rest-sec');
+    const min = parseInt(minEl?.value) || 0;
+    const sec = parseInt(secEl?.value) || 0;
+    trainerRestRemain = min * 60 + sec;
+    if (trainerRestRemain <= 0) return;
+    const boxEl = document.getElementById('trainer-rest-timer-box');
+    const countEl = document.getElementById('trainer-rest-timer-count');
+    if (boxEl) boxEl.style.display = 'block';
+    function tick() {
+      if (trainerRestRemain <= 0) {
+        if (boxEl) boxEl.style.display = 'none';
+        if (navigator.vibrate) navigator.vibrate([400,200,400,200,600]);
+        return;
+      }
+      const m = Math.floor(trainerRestRemain/60);
+      const s = trainerRestRemain % 60;
+      if (countEl) countEl.textContent = m + ':' + String(s).padStart(2,'0');
+      trainerRestRemain--;
+      trainerRestTimer = setTimeout(tick, 1000);
+    }
+    tick();
+  }
+
+  function skipTrainerRestTimer() {
+    if (trainerRestTimer) { clearTimeout(trainerRestTimer); trainerRestTimer = null; }
+    const boxEl = document.getElementById('trainer-rest-timer-box');
+    if (boxEl) boxEl.style.display = 'none';
+    trainerRestRemain = 0;
+  }
+
+  // 타이머 (프리웨이트)
+  function startTrainerFwRestTimer() {
+    skipTrainerFwRestTimer();
+    const minEl = document.getElementById('trainer-fw-rest-min');
+    const secEl = document.getElementById('trainer-fw-rest-sec');
+    const min = parseInt(minEl?.value) || 0;
+    const sec = parseInt(secEl?.value) || 0;
+    trainerFwRestRemain = min * 60 + sec;
+    if (trainerFwRestRemain <= 0) return;
+    const boxEl = document.getElementById('trainer-fw-rest-timer-box');
+    const countEl = document.getElementById('trainer-fw-rest-timer-count');
+    if (boxEl) boxEl.style.display = 'block';
+    function tick() {
+      if (trainerFwRestRemain <= 0) {
+        if (boxEl) boxEl.style.display = 'none';
+        if (navigator.vibrate) navigator.vibrate([400,200,400,200,600]);
+        return;
+      }
+      const m = Math.floor(trainerFwRestRemain/60);
+      const s = trainerFwRestRemain % 60;
+      if (countEl) countEl.textContent = m + ':' + String(s).padStart(2,'0');
+      trainerFwRestRemain--;
+      trainerFwRestTimer = setTimeout(tick, 1000);
+    }
+    tick();
+  }
+
+  function skipTrainerFwRestTimer() {
+    if (trainerFwRestTimer) { clearTimeout(trainerFwRestTimer); trainerFwRestTimer = null; }
+    const boxEl = document.getElementById('trainer-fw-rest-timer-box');
+    if (boxEl) boxEl.style.display = 'none';
+    trainerFwRestRemain = 0;
   }
