@@ -807,7 +807,7 @@
   // 담당 회원 탭 전환
   function switchTraineeTab(tab) {
     currentTraineeTab = tab;
-    ['record', 'memo', 'log'].forEach(t => {
+    ['record', 'sign', 'memo', 'log'].forEach(t => {
       const btn = document.getElementById('trainee-tab-' + t);
       if (btn) {
         btn.style.background = t === tab ? 'var(--blue)' : 'var(--card)';
@@ -821,6 +821,26 @@
     if (tab === 'record') {
       // 운동기록 달력 표시
       content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:14px;">운동기록 달력<br/>(준비 중)</div>';
+    } else if (tab === 'sign') {
+      // 서명 기록 조회
+      const trainerId = localStorage.getItem('current_user');
+      db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/signs').orderByChild('date').once('value', snap => {
+        const signs = [];
+        snap.forEach(child => signs.unshift({ key: child.key, ...child.val() }));
+        if (signs.length === 0) {
+          content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:14px;">아직 서명 기록이 없어요</div>';
+          return;
+        }
+        content.innerHTML = `<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">✍️ 서명 기록 (총 ${signs.length}회)</div>` +
+        signs.map((s, i) => `
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">${signs.length - i}회차 수업</div>
+              <div style="font-size:12px;color:var(--text-hint);">${s.date} ${s.savedAt || ''}</div>
+            </div>
+            <img src="${s.signURL}" style="width:100%;border-radius:8px;border:1px solid var(--border);background:#f8f9fa;" />
+          </div>`).join('');
+      });
     } else if (tab === 'memo') {
       // 메모 표시
       const trainerId = localStorage.getItem('current_user');
@@ -885,4 +905,148 @@
       alert('수업일지가 저장됐어요! 📋');
       switchTraineeTab('log');
     });
+  }
+
+  // ══════════════════════════════
+  // 사인 기능
+  // ══════════════════════════════
+
+  let signCanvas = null;
+  let signCtx = null;
+  let signDrawing = false;
+  let signHasData = false;
+  let signTargetMemberId = null;
+  let signTargetMemberName = null;
+
+  // 상세 화면에서 사인 모달 열기
+  function openSignModalFromDetail() {
+    const name = document.getElementById('trainee-detail-name').textContent;
+    openSignModal(currentTraineeId, name);
+  }
+
+  // 사인 모달 열기
+  function openSignModal(memberId, memberName) {
+    signTargetMemberId = memberId;
+    signTargetMemberName = memberName;
+    const modal = document.getElementById('sign-modal');
+    modal.style.display = 'flex';
+
+    const infoEl = document.getElementById('sign-modal-info');
+    const today = new Date();
+    const dateStr = today.getFullYear() + '년 ' + (today.getMonth()+1) + '월 ' + today.getDate() + '일';
+    infoEl.textContent = memberName + '님 · ' + dateStr + ' 수업 확인 서명';
+
+    // 캔버스 초기화
+    signCanvas = document.getElementById('sign-canvas');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = signCanvas.getBoundingClientRect();
+    signCanvas.width = rect.width * dpr;
+    signCanvas.height = 200 * dpr;
+    signCtx = signCanvas.getContext('2d');
+    signCtx.scale(dpr, dpr);
+    signCtx.strokeStyle = '#1a1a2e';
+    signCtx.lineWidth = 2.5;
+    signCtx.lineCap = 'round';
+    signCtx.lineJoin = 'round';
+    signHasData = false;
+
+    // 터치 이벤트
+    signCanvas.addEventListener('touchstart', onSignTouchStart, { passive: false });
+    signCanvas.addEventListener('touchmove', onSignTouchMove, { passive: false });
+    signCanvas.addEventListener('touchend', onSignTouchEnd);
+    // 마우스 이벤트
+    signCanvas.addEventListener('mousedown', onSignMouseDown);
+    signCanvas.addEventListener('mousemove', onSignMouseMove);
+    signCanvas.addEventListener('mouseup', onSignMouseUp);
+  }
+
+  function getSignPos(e) {
+    const rect = signCanvas.getBoundingClientRect();
+    if (e.touches) {
+      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+    }
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  function onSignTouchStart(e) { e.preventDefault(); signDrawing = true; const p = getSignPos(e); signCtx.beginPath(); signCtx.moveTo(p.x, p.y); document.getElementById('sign-placeholder').style.display = 'none'; }
+  function onSignTouchMove(e) { e.preventDefault(); if (!signDrawing) return; const p = getSignPos(e); signCtx.lineTo(p.x, p.y); signCtx.stroke(); signHasData = true; }
+  function onSignTouchEnd(e) { signDrawing = false; }
+  function onSignMouseDown(e) { signDrawing = true; const p = getSignPos(e); signCtx.beginPath(); signCtx.moveTo(p.x, p.y); document.getElementById('sign-placeholder').style.display = 'none'; }
+  function onSignMouseMove(e) { if (!signDrawing) return; const p = getSignPos(e); signCtx.lineTo(p.x, p.y); signCtx.stroke(); signHasData = true; }
+  function onSignMouseUp(e) { signDrawing = false; }
+
+  // 사인 지우기
+  function clearSign() {
+    if (!signCtx || !signCanvas) return;
+    signCtx.clearRect(0, 0, signCanvas.width, signCanvas.height);
+    signHasData = false;
+    document.getElementById('sign-placeholder').style.display = 'block';
+  }
+
+  // 사인 모달 닫기
+  function closeSignModal() {
+    document.getElementById('sign-modal').style.display = 'none';
+    if (signCanvas) {
+      signCanvas.removeEventListener('touchstart', onSignTouchStart);
+      signCanvas.removeEventListener('touchmove', onSignTouchMove);
+      signCanvas.removeEventListener('touchend', onSignTouchEnd);
+      signCanvas.removeEventListener('mousedown', onSignMouseDown);
+      signCanvas.removeEventListener('mousemove', onSignMouseMove);
+      signCanvas.removeEventListener('mouseup', onSignMouseUp);
+    }
+  }
+
+  // 사인 저장
+  function saveSign() {
+    if (!signHasData) { alert('서명을 해주세요!'); return; }
+    if (!signCanvas || !signTargetMemberId) return;
+
+    const trainerId = localStorage.getItem('current_user');
+    const today = new Date();
+    const dateStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+    const savedAt = today.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' });
+
+    // 캔버스를 이미지로 변환
+    signCanvas.toBlob(async blob => {
+      try {
+        const fileName = 'signs/' + trainerId + '/' + signTargetMemberId + '/' + dateStr + '_' + Date.now() + '.png';
+        const ref = storage.ref(fileName);
+        await ref.put(blob);
+        const signURL = await ref.getDownloadURL();
+
+        // Firebase에 사인 기록 저장
+        const signData = {
+          date: dateStr,
+          savedAt,
+          signURL,
+          memberName: signTargetMemberName
+        };
+        await db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId + '/signs/' + dateStr).set(signData);
+
+        // 출석 횟수 차감
+        const ref2 = db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId);
+        ref2.once('value', snap => {
+          const info = snap.val();
+          if (!info) return;
+          const remain = info.remain || 0;
+          if (remain > 0) {
+            ref2.update({ remain: remain - 1 });
+            document.getElementById('trainee-card-remain').textContent = remain - 1;
+          }
+          // 회원 달력에 수업일 저장
+          db.ref('users/' + signTargetMemberId + '/lessons/' + dateStr).set({
+            date: dateStr,
+            trainerId,
+            trainerName: localStorage.getItem('name_' + trainerId) || '강사',
+            savedAt
+          });
+        });
+
+        closeSignModal();
+        alert('✅ 서명 완료! 출석 체크됐어요.');
+      } catch(e) {
+        console.error('사인 저장 오류:', e);
+        alert('저장 중 오류가 발생했어요. 다시 시도해주세요.');
+      }
+    }, 'image/png');
   }
