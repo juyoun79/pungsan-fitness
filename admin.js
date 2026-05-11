@@ -743,6 +743,42 @@
     });
   }
 
+  // 담당 회원 수정
+  function editTraineeInfo() {
+    if (!currentTraineeId) return;
+    const trainerId = localStorage.getItem("current_user");
+    const ref = db.ref("trainers/" + trainerId + "/trainees/" + currentTraineeId);
+    ref.once("value", snap => {
+      const info = snap.val();
+      if (!info) return;
+      const type = prompt("수업 종류를 입력해주세요", info.type || "");
+      if (type === null) return;
+      const total = parseInt(prompt("총 수업 횟수를 입력해주세요", info.total || 0));
+      if (isNaN(total)) return;
+      const remain = parseInt(prompt("잔여 횟수를 입력해주세요", info.remain || 0));
+      if (isNaN(remain)) return;
+      ref.update({ type, total, remain }).then(() => {
+        document.getElementById("trainee-card-type").textContent = type;
+        document.getElementById("trainee-card-remain").textContent = remain;
+        document.getElementById("trainee-card-total").textContent = total;
+        alert("수정됐어요! ✅");
+      });
+    });
+  }
+
+  // 담당 회원 삭제
+  function deleteTraineeMember() {
+    if (!currentTraineeId) return;
+    const name = document.getElementById("trainee-detail-name").textContent;
+    if (!confirm(name + "님을 담당 회원에서 해제할까요?")) return;
+    const trainerId = localStorage.getItem("current_user");
+    db.ref("trainers/" + trainerId + "/trainees/" + currentTraineeId).remove().then(() => {
+      alert(name + "님이 담당 회원에서 해제됐어요.");
+      showScreen("screen-trainer");
+      loadTrainerTab();
+    });
+  }
+
   // 수업 출석 체크 (잔여 횟수 차감)
   function checkTraineeAttend() {
     if (!currentTraineeId) return;

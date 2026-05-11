@@ -1670,9 +1670,18 @@
       </div>
 
       <!-- 수업 출석 체크 버튼 -->
-      <button onclick="checkTraineeAttend()" style="width:100%;padding:14px;background:#22c55e;color:white;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;">
+      <button onclick="checkTraineeAttend()" style="width:100%;padding:14px;background:#22c55e;color:white;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;">
         ✅ 오늘 수업 출석 체크
       </button>
+      <!-- 수정/삭제 버튼 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <button onclick="editTraineeInfo()" style="padding:10px;background:var(--card);color:var(--blue);border:1.5px solid var(--blue);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+          ✏️ 정보 수정
+        </button>
+        <button onclick="deleteTraineeMember()" style="padding:10px;background:var(--card);color:#ef4444;border:1.5px solid #ef4444;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+          🗑️ 담당 해제
+        </button>
+      </div>
 
       <!-- 탭 -->
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:16px;">
