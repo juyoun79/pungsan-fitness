@@ -98,7 +98,11 @@
     clearEquipmentSearch();
     renderCalendar();
     document.getElementById('cal-day-detail').innerHTML = '';
-    syncWorkoutsFromFirebase(() => { renderCalendar(); });
+    syncWorkoutsFromFirebase(() => {
+      loadLessonDaysInMonth(calYear, calMonth, () => {
+        renderCalendar();
+      });
+    });
   }
 
   function closeWorkoutQr() { stopWorkoutQrCamera(); switchTab('home'); }
