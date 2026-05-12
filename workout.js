@@ -3,6 +3,11 @@
   let calMonth = new Date().getMonth();
   let calSelectedDate = null;
 
+  // ── 강사 모드 변수 ──
+  let isTrainerMode = false;
+  let trainerTargetId = null;
+  let trainerTargetDate = null;
+
   function toFirebaseKey(name) {
     return Array.from(name).map(c => {
       if (/[a-zA-Z0-9]/.test(c)) return c;
@@ -465,7 +470,7 @@
     showScreen('screen-workout-detail');
   }
 
-  function closeWorkoutDetail() { skipRestTimer(); showScreen('screen-workout-qr'); renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate); }
+  function closeWorkoutDetail() { skipRestTimer(); if (isTrainerMode) { isTrainerMode = false; showScreen('screen-trainee-detail'); switchTraineeTab('record'); } else { showScreen('screen-workout-qr'); renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate); } }
   function openChestPress() { const eq = EQUIPMENT_LIST.find(e => e.key === 'chest_press'); if (eq) openGenericWorkout(eq); }
   function closeChestPress() { closeWorkoutDetail(); }
 
@@ -483,10 +488,11 @@
 
   function removeSet(n) { const row = document.getElementById('set-row-' + n); if (row) row.remove(); }
 
-  function _saveDualWorkout(userId, innerSets, outerSets) {
+  function _saveDualWorkout(userId, innerSets, outerSets, saveDate) {
     const now = new Date();
-    const date = now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate();
-    const dateLabel = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일';
+    const date = saveDate || (now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate());
+    const dateParts = date.split('-');
+    const dateLabel = dateParts[0] + '년 ' + dateParts[1] + '월 ' + dateParts[2] + '일';
     const savedAt = now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' });
     const memo = document.getElementById('dual-workout-memo')?.value || '';
     const eqKey = currentEquipment.key;
@@ -495,12 +501,14 @@
       const vol = sets.reduce((a, s) => a + s.weight * s.reps, 0);
       const kcal = calcKcalByMET(5.0, sets.length * 3, vol);
       const record = { date, dateLabel, sets, memo, kcal, savedAt };
-      const key = 'workout_dual_front_' + eqKey + '_' + userId;
-      const existing = JSON.parse(localStorage.getItem(key) || '[]');
-      const idx = existing.findIndex(r => r.date === date);
-      if (idx !== -1) existing[idx] = record; else existing.unshift(record);
-      if (existing.length > 30) existing.pop();
-      localStorage.setItem(key, JSON.stringify(existing));
+      if (!isTrainerMode) {
+        const key = 'workout_dual_front_' + eqKey + '_' + userId;
+        const existing = JSON.parse(localStorage.getItem(key) || '[]');
+        const idx = existing.findIndex(r => r.date === date);
+        if (idx !== -1) existing[idx] = record; else existing.unshift(record);
+        if (existing.length > 30) existing.pop();
+        localStorage.setItem(key, JSON.stringify(existing));
+      }
       db.ref('users/' + userId + '/workouts/dual_front_' + eqKey + '/' + date).set(record);
     }
     if (outerSets.length > 0) {
@@ -508,12 +516,14 @@
       const vol = sets.reduce((a, s) => a + s.weight * s.reps, 0);
       const kcal = calcKcalByMET(5.0, sets.length * 3, vol);
       const record = { date, dateLabel, sets, memo, kcal, savedAt };
-      const key = 'workout_dual_back_' + eqKey + '_' + userId;
-      const existing = JSON.parse(localStorage.getItem(key) || '[]');
-      const idx = existing.findIndex(r => r.date === date);
-      if (idx !== -1) existing[idx] = record; else existing.unshift(record);
-      if (existing.length > 30) existing.pop();
-      localStorage.setItem(key, JSON.stringify(existing));
+      if (!isTrainerMode) {
+        const key = 'workout_dual_back_' + eqKey + '_' + userId;
+        const existing = JSON.parse(localStorage.getItem(key) || '[]');
+        const idx = existing.findIndex(r => r.date === date);
+        if (idx !== -1) existing[idx] = record; else existing.unshift(record);
+        if (existing.length > 30) existing.pop();
+        localStorage.setItem(key, JSON.stringify(existing));
+      }
       db.ref('users/' + userId + '/workouts/dual_back_' + eqKey + '/' + date).set(record);
     }
     const color = getMuscleColor(currentEquipment.muscles);
@@ -528,13 +538,14 @@
 
   function saveWorkout() {
     if (!currentEquipment) return;
-    const userId = localStorage.getItem('current_user');
+    const userId = isTrainerMode ? trainerTargetId : localStorage.getItem('current_user');
+    const saveDate = isTrainerMode && trainerTargetDate ? trainerTargetDate : null;
     if (isDualEquipment(currentEquipment.key)) {
       const innerSets = [], outerSets = [];
       document.querySelectorAll('[id^="inner-set-row-"]').forEach(row => { const n = row.id.replace('inner-set-row-', ''); const w = parseFloat(document.getElementById('inner-weight-' + n)?.value) || 0; const r = parseInt(document.getElementById('inner-reps-' + n)?.value) || 0; if (w > 0 || r > 0) innerSets.push({ set: innerSets.length + 1, weight: w, reps: r }); });
       document.querySelectorAll('[id^="outer-set-row-"]').forEach(row => { const n = row.id.replace('outer-set-row-', ''); const w = parseFloat(document.getElementById('outer-weight-' + n)?.value) || 0; const r = parseInt(document.getElementById('outer-reps-' + n)?.value) || 0; if (w > 0 || r > 0) outerSets.push({ set: outerSets.length + 1, weight: w, reps: r }); });
       if (innerSets.length === 0 && outerSets.length === 0) { alert('최소 1세트 이상 입력해주세요!'); return; }
-      _saveDualWorkout(userId, innerSets, outerSets); return;
+      _saveDualWorkout(userId, innerSets, outerSets, saveDate); return;
     }
     const sets = [];
     for (let i = 1; i <= setCount; i++) {
@@ -546,16 +557,21 @@
     if (sets.length === 0) { alert('최소 1세트 이상 입력해주세요!'); return; }
     const memo = document.getElementById('workout-memo').value;
     const now = new Date();
+    const date = saveDate || (now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate());
+    const dateParts = date.split('-');
+    const dateLabel = dateParts[0] + '년 ' + dateParts[1] + '월 ' + dateParts[2] + '일';
     const workoutVol = sets.reduce((s, r) => s + r.weight * r.reps, 0);
     const kcal = calcKcalByMET(5.0, sets.length * 3, workoutVol);
-    const record = { date: now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate(), dateLabel: now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일', sets, memo, kcal, savedAt: now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) };
-    const key = 'workout_' + currentEquipment.key + '_' + userId;
-    const existing = JSON.parse(localStorage.getItem(key) || '[]');
-    const todayIdx = existing.findIndex(r => r.date === record.date);
-    if (todayIdx !== -1) existing[todayIdx] = record; else existing.unshift(record);
-    if (existing.length > 30) existing.pop();
-    localStorage.setItem(key, JSON.stringify(existing));
-    db.ref('users/' + userId + '/workouts/' + currentEquipment.key + '/' + record.date).set(record);
+    const record = { date, dateLabel, sets, memo, kcal, savedAt: now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) };
+    if (!isTrainerMode) {
+      const key = 'workout_' + currentEquipment.key + '_' + userId;
+      const existing = JSON.parse(localStorage.getItem(key) || '[]');
+      const todayIdx = existing.findIndex(r => r.date === record.date);
+      if (todayIdx !== -1) existing[todayIdx] = record; else existing.unshift(record);
+      if (existing.length > 30) existing.pop();
+      localStorage.setItem(key, JSON.stringify(existing));
+    }
+    db.ref('users/' + userId + '/workouts/' + currentEquipment.key + '/' + date).set(record);
     const maxWeight = Math.max(...sets.map(s => s.weight));
     const totalVol = sets.reduce((sum, s) => sum + s.weight * s.reps, 0);
     const color = getMuscleColor(currentEquipment.muscles);
@@ -564,7 +580,7 @@
     document.getElementById('workout-complete-overlay').classList.add('active');
   }
 
-  function closeWorkoutComplete() { document.getElementById('workout-complete-overlay').classList.remove('active'); closeWorkoutDetail(); renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate); }
+  function closeWorkoutComplete() { document.getElementById('workout-complete-overlay').classList.remove('active'); if (isTrainerMode) { isTrainerMode = false; showScreen('screen-trainee-detail'); switchTraineeTab('record'); } else { closeWorkoutDetail(); renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate); } }
 
   function loadPrevRecords() {
     if (!currentEquipment) return;
@@ -871,7 +887,7 @@
     addFwSet(); showScreen('screen-freeweight');
   }
 
-  function closeFreeweightModal() { skipFwRestTimer(); showScreen('screen-workout-qr'); renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate); }
+  function closeFreeweightModal() { skipFwRestTimer(); if (isTrainerMode) { isTrainerMode = false; showScreen('screen-trainee-detail'); switchTraineeTab('record'); } else { showScreen('screen-workout-qr'); renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate); } }
 
   function setFwName(name) { document.getElementById('fw-name').value = name; document.querySelectorAll('.fw-tag').forEach(t => { t.classList.toggle('selected', t.textContent === name); }); }
 
@@ -899,31 +915,35 @@
       if (w > 0 || r > 0) sets.push({ set: sets.length + 1, weight: w, reps: r });
     }
     if (sets.length === 0) { alert('최소 1세트 이상 입력해주세요!'); return; }
-    const userId = localStorage.getItem('current_user');
+    const userId = isTrainerMode ? trainerTargetId : localStorage.getItem('current_user');
     const memo = document.getElementById('fw-memo').value.trim();
     const now = new Date();
+    const date = (isTrainerMode && trainerTargetDate) ? trainerTargetDate : (now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate());
+    const dateParts = date.split('-');
+    const dateLabel = dateParts[0] + '년 ' + dateParts[1] + '월 ' + dateParts[2] + '일';
     const totalVolFw = sets.reduce((s, r) => s + r.weight * r.reps, 0);
     const kcal = calcKcalByMET(5.0, sets.length * 3, totalVolFw);
-    const record = { date: now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate(), dateLabel: now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일', sets, memo, kcal, savedAt: now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) };
-    const safeKey = 'freeweight_' + name.replace(/\s+/g,'_') + '_' + userId;
-    const existing = JSON.parse(localStorage.getItem(safeKey) || '[]');
-    const todayIdx = existing.findIndex(r => r.date === record.date);
-    if (todayIdx !== -1) existing[todayIdx] = record; else existing.unshift(record);
-    if (existing.length > 30) existing.pop();
-    localStorage.setItem(safeKey, JSON.stringify(existing));
+    const record = { date, dateLabel, sets, memo, kcal, savedAt: now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) };
     const fwFirebaseKey = name.replace(/\s+/g, '_');
-    db.ref('users/' + userId + '/workouts/fw_' + fwFirebaseKey + '/' + record.date).set(record);
-    const fwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
-    if (!fwIndex.includes(name)) { fwIndex.push(name); localStorage.setItem('freeweight_index_' + userId, JSON.stringify(fwIndex)); }
-    // fwIndex를 운동이름 그대로 Firebase에 저장
-    db.ref('users/' + userId + '/fwIndex').set(fwIndex);
+    if (!isTrainerMode) {
+      const safeKey = 'freeweight_' + name.replace(/\s+/g,'_') + '_' + userId;
+      const existing = JSON.parse(localStorage.getItem(safeKey) || '[]');
+      const todayIdx = existing.findIndex(r => r.date === record.date);
+      if (todayIdx !== -1) existing[todayIdx] = record; else existing.unshift(record);
+      if (existing.length > 30) existing.pop();
+      localStorage.setItem(safeKey, JSON.stringify(existing));
+      const fwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
+      if (!fwIndex.includes(name)) { fwIndex.push(name); localStorage.setItem('freeweight_index_' + userId, JSON.stringify(fwIndex)); }
+      db.ref('users/' + userId + '/fwIndex').set(JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]'));
+    }
+    db.ref('users/' + userId + '/workouts/fw_' + fwFirebaseKey + '/' + date).set(record);
     closeFreeweightModal();
     const maxWeight = Math.max(...sets.map(s => s.weight));
     const totalVol = sets.reduce((sum, s) => sum + s.weight * s.reps, 0);
     document.getElementById('workout-complete-msg').textContent = name + ' ' + sets.length + '세트 완료!';
     document.getElementById('workout-summary').innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;"><div><div style="font-size:11px;color:#5a6478;margin-bottom:4px;">총 세트</div><div style="font-size:18px;font-weight:700;color:var(--blue);">${sets.length}</div></div><div><div style="font-size:11px;color:#5a6478;margin-bottom:4px;">최고 무게</div><div style="font-size:18px;font-weight:700;color:var(--blue);">${maxWeight > 0 ? maxWeight+'kg' : '-'}</div></div><div><div style="font-size:11px;color:#5a6478;margin-bottom:4px;">총 볼륨</div><div style="font-size:18px;font-weight:700;color:var(--blue);">${totalVol > 0 ? totalVol+'kg' : '-'}</div></div></div>`;
     document.getElementById('workout-complete-overlay').classList.add('active');
-    renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate);
+    if (!isTrainerMode) { renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate); }
   }
 
   let restTimerInterval = null;

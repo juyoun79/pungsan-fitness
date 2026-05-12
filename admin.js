@@ -1172,15 +1172,14 @@
       const parts = dateStr.split('-');
       const dateLabel = parts[0]+'년 '+parts[1]+'월 '+parts[2]+'일';
 
-      let html = `
-        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">📋 ${dateLabel} 운동기록</div>`;
+      let html = `<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">📋 ${dateLabel} 수업기록</div>`;
 
       if (records.length === 0) {
-        html += `<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">운동 기록이 없어요</div>`;
+        html += `<div style="text-align:center;padding:12px;color:var(--text-hint);font-size:13px;">운동 기록이 없어요</div>`;
       } else {
         records.forEach(r => {
           const eq = EQUIPMENT_LIST.find(e => e.key === r.eqKey || e.key === r.eqKey?.replace('dual_front_','')?.replace('dual_back_','')?.replace('fw_',''));
-          const name = eq ? eq.name : (r.name || r.eqKey);
+          const name = eq ? eq.name : (r.name || r.eqKey?.replace('fw_','')?.replace(/_/g,' ') || r.eqKey);
           html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;">
             <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">${name}</div>
             <div style="font-size:12px;color:var(--text-hint);">
@@ -1192,14 +1191,86 @@
         });
       }
 
+      // 기구 검색창 + 프리웨이트 버튼 (운동기록 탭과 동일한 UI)
       html += `
-        <div style="display:flex;gap:8px;margin-top:8px;">
-          <button onclick="openTrainerEqSelect()" style="flex:1;padding:12px;background:var(--blue);color:white;border:none;border-radius:var(--radius);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🏋️ 기구운동 추가</button>
-          <button onclick="openTrainerFwSelect()" style="flex:1;padding:12px;background:#8b5cf6;color:white;border:none;border-radius:var(--radius);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💪 프리웨이트 추가</button>
-        </div>`;
+        <div style="position:relative;margin-top:10px;margin-bottom:10px;">
+          <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" id="trainer-equipment-search"
+            placeholder="기구이름 또는 번호로 검색하세요"
+            style="width:100%;box-sizing:border-box;padding:12px 12px 12px 40px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
+            onfocus="this.style.borderColor='#1a6fd4';showTrainerEqSearchResult(this.value,'${dateStr}','${traineeId}')"
+            onblur="this.style.borderColor='var(--border)'"
+            oninput="showTrainerEqSearchResult(this.value,'${dateStr}','${traineeId}')" />
+          <button id="trainer-search-clear-btn" onclick="clearTrainerEqSearch()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:var(--text-hint);border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;color:white;font-size:13px;line-height:1;padding:0;">×</button>
+        </div>
+        <div id="trainer-equipment-search-result" style="display:none;background:var(--card);border:1.5px solid var(--blue);border-radius:var(--radius-sm);margin-bottom:10px;overflow:hidden;box-shadow:0 4px 16px rgba(26,111,212,0.12);max-height:220px;overflow-y:auto;"></div>
+        <button onclick="openTrainerFwWorkoutMode('${dateStr}','${traineeId}')"
+          style="width:100%;padding:12px 8px;background:var(--card);border:1.5px dashed #8b5cf6;border-radius:var(--radius-sm);color:#8b5cf6;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 4v16M18 4v16M6 12h12M3 8h3M18 8h3M3 16h3M18 16h3"/>
+          </svg>
+          프리웨이트 기록
+        </button>`;
 
       detailEl.innerHTML = html;
     });
+  }
+
+  // 강사용 기구 검색
+  function showTrainerEqSearchResult(query, dateStr, traineeId) {
+    const resultEl = document.getElementById('trainer-equipment-search-result');
+    const clearBtn = document.getElementById('trainer-search-clear-btn');
+    if (!resultEl) return;
+    const q = (query || '').trim();
+    if (!q) { resultEl.style.display = 'none'; if (clearBtn) clearBtn.style.display = 'none'; return; }
+    if (clearBtn) clearBtn.style.display = 'block';
+    const filtered = EQUIPMENT_LIST.filter(eq => eq.name.includes(q) || eq.muscles.includes(q) || String(eq.no) === q || eq.brand.includes(q));
+    if (filtered.length === 0) { resultEl.style.display = 'block'; resultEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-hint);font-size:14px;">검색 결과가 없어요</div>'; return; }
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = filtered.map((eq, idx) => {
+      const color = getMuscleColor(eq.muscles);
+      const border = idx < filtered.length - 1 ? 'border-bottom:1px solid var(--border);' : '';
+      return `<div onclick="openTrainerEqWorkoutMode('${eq.key}','${dateStr}','${traineeId}')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;${border}" ontouchstart="this.style.background='var(--blue-light)'" ontouchend="this.style.background='transparent'" onmouseenter="this.style.background='var(--blue-light)'" onmouseleave="this.style.background='transparent'">
+        <div style="width:36px;height:36px;border-radius:10px;background:${color}18;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${eq.emoji}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:11px;font-weight:700;color:white;background:${color};padding:2px 6px;border-radius:5px;flex-shrink:0;">${eq.no}번</span>
+            <span style="font-size:14px;font-weight:700;color:var(--text);">${eq.name}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${eq.muscles}</div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>`;
+    }).join('');
+  }
+
+  function clearTrainerEqSearch() {
+    const input = document.getElementById('trainer-equipment-search');
+    const resultEl = document.getElementById('trainer-equipment-search-result');
+    const clearBtn = document.getElementById('trainer-search-clear-btn');
+    if (input) input.value = '';
+    if (resultEl) resultEl.style.display = 'none';
+    if (clearBtn) clearBtn.style.display = 'none';
+  }
+
+  // 강사 모드로 기구운동 진입
+  function openTrainerEqWorkoutMode(eqKey, dateStr, traineeId) {
+    clearTrainerEqSearch();
+    isTrainerMode = true;
+    trainerTargetId = traineeId;
+    trainerTargetDate = dateStr;
+    const eq = EQUIPMENT_LIST.find(e => e.key === eqKey);
+    if (eq) openGenericWorkout(eq);
+  }
+
+  // 강사 모드로 프리웨이트 진입
+  function openTrainerFwWorkoutMode(dateStr, traineeId) {
+    isTrainerMode = true;
+    trainerTargetId = traineeId;
+    trainerTargetDate = dateStr;
+    openFreeweightModal();
   }
 
   // 기구운동 선택 모달 열기
