@@ -1169,11 +1169,15 @@
         });
       }
 
-      // 시간순 정렬 (savedAt 기준 오름차순)
+      // 시간순 정렬 (savedAt 기준 오름차순), 듀얼 기구는 앞면이 먼저
       records.sort((a, b) => {
         const ta = a.savedAt || '';
         const tb = b.savedAt || '';
-        return ta.localeCompare(tb);
+        if (ta !== tb) return ta.localeCompare(tb);
+        // 같은 시간이면 앞면(dual_front_)이 먼저
+        const aFront = (a.eqKey || '').startsWith('dual_front_') ? 0 : 1;
+        const bFront = (b.eqKey || '').startsWith('dual_front_') ? 0 : 1;
+        return aFront - bFront;
       });
 
       const parts = dateStr.split('-');
@@ -1189,12 +1193,23 @@
           const rawKey = r.eqKey || '';
           const baseKey = rawKey.replace('dual_front_','').replace('dual_back_','').replace('fw_','');
           const eq = EQUIPMENT_LIST.find(e => e.key === rawKey || e.key === baseKey);
-          let name = eq ? eq.name : (r.name || baseKey.replace(/_/g,' ') || rawKey);
 
-          // 듀얼 기구인 경우 앞면/뒷면 구분
-          let subLabel = '';
-          if (rawKey.startsWith('dual_front_')) subLabel = ' (앞면)';
-          if (rawKey.startsWith('dual_back_')) subLabel = ' (뒷면)';
+          // r.name이 있으면 우선 사용 (듀얼 기구 앞면/뒷면 이름)
+          let name, subLabel = '';
+          if (r.name) {
+            name = r.name;
+          } else if (eq) {
+            name = eq.name;
+            if (rawKey.startsWith('dual_front_')) {
+              const dNames = getDualNames(baseKey);
+              name = dNames ? dNames.front : eq.name;
+            } else if (rawKey.startsWith('dual_back_')) {
+              const dNames = getDualNames(baseKey);
+              name = dNames ? dNames.back : eq.name;
+            }
+          } else {
+            name = baseKey.replace(/_/g,' ') || rawKey;
+          }
 
           const setsHtml = r.sets ? r.sets.map(s =>
             `<div style="background:var(--blue-light);border-radius:6px;padding:6px 8px;text-align:center;">
@@ -1206,7 +1221,7 @@
 
           html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-              <div style="font-size:13px;font-weight:700;color:var(--text);">${name}${subLabel}</div>
+              <div style="font-size:13px;font-weight:700;color:var(--text);">${name}</div>
               <div style="display:flex;align-items:center;gap:6px;">
                 ${r.savedAt ? `<span style="font-size:11px;color:var(--text-hint);">${r.savedAt}</span>` : ''}
                 <button onclick="openTrainerWorkoutEditModal('${traineeId}','${rawKey}','${dateStr}')"
@@ -1272,9 +1287,16 @@
       const rawKey = eqKey || '';
       const baseKey = rawKey.replace('dual_front_','').replace('dual_back_','').replace('fw_','');
       const eq = EQUIPMENT_LIST.find(e => e.key === rawKey || e.key === baseKey);
-      let name = eq ? eq.name : (r.name || baseKey.replace(/_/g,' ') || rawKey);
-      if (rawKey.startsWith('dual_front_')) name += ' (앞면)';
-      if (rawKey.startsWith('dual_back_')) name += ' (뒷면)';
+      let name;
+      if (r.name) {
+        name = r.name;
+      } else if (eq) {
+        name = eq.name;
+        if (rawKey.startsWith('dual_front_')) { const d = getDualNames(baseKey); if (d) name = d.front; }
+        if (rawKey.startsWith('dual_back_'))  { const d = getDualNames(baseKey); if (d) name = d.back; }
+      } else {
+        name = baseKey.replace(/_/g,' ') || rawKey;
+      }
 
       document.getElementById('edit-workout-title').textContent = name + ' 수정';
       document.getElementById('edit-set-list').innerHTML = '';

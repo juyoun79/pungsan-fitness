@@ -496,11 +496,12 @@
     const savedAt = now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' });
     const memo = document.getElementById('dual-workout-memo')?.value || '';
     const eqKey = currentEquipment.key;
+    const dNames = getDualNames(eqKey);
     if (innerSets.length > 0) {
       const sets = innerSets.map((s, i) => ({ set: i+1, weight: parseFloat(s.weight)||0, reps: parseInt(s.reps)||0 }));
       const vol = sets.reduce((a, s) => a + s.weight * s.reps, 0);
       const kcal = calcKcalByMET(5.0, sets.length * 3, vol);
-      const record = { date, dateLabel, sets, memo, kcal, savedAt };
+      const record = { date, dateLabel, sets, memo, kcal, savedAt, name: dNames ? dNames.front : eqKey };
       if (!isTrainerMode) {
         const key = 'workout_dual_front_' + eqKey + '_' + userId;
         const existing = JSON.parse(localStorage.getItem(key) || '[]');
@@ -515,7 +516,7 @@
       const sets = outerSets.map((s, i) => ({ set: i+1, weight: parseFloat(s.weight)||0, reps: parseInt(s.reps)||0 }));
       const vol = sets.reduce((a, s) => a + s.weight * s.reps, 0);
       const kcal = calcKcalByMET(5.0, sets.length * 3, vol);
-      const record = { date, dateLabel, sets, memo, kcal, savedAt };
+      const record = { date, dateLabel, sets, memo, kcal, savedAt, name: dNames ? dNames.back : eqKey };
       if (!isTrainerMode) {
         const key = 'workout_dual_back_' + eqKey + '_' + userId;
         const existing = JSON.parse(localStorage.getItem(key) || '[]');
@@ -531,7 +532,9 @@
     const allSets = [...innerSets, ...outerSets];
     const maxWeight = allSets.length > 0 ? Math.max(...allSets.map(s => parseFloat(s.weight)||0)) : 0;
     const totalVol = allSets.reduce((sum, s) => sum + (parseFloat(s.weight)||0) * (parseInt(s.reps)||0), 0);
-    document.getElementById('workout-complete-msg').textContent = '듀얼 이너&아웃타이 기록 완료!';
+    const dNames = getDualNames(currentEquipment.key);
+    const completeName = dNames ? `${dNames.front} & ${dNames.back}` : currentEquipment.name;
+    document.getElementById('workout-complete-msg').textContent = completeName + ' 기록 완료!';
     document.getElementById('workout-summary').innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;"><div><div style="font-size:11px;color:#5a6478;margin-bottom:4px;">총 세트</div><div style="font-size:18px;font-weight:700;color:${color};">${totalSets}</div></div><div><div style="font-size:11px;color:#5a6478;margin-bottom:4px;">최고 무게</div><div style="font-size:18px;font-weight:700;color:${color};">${maxWeight}kg</div></div><div><div style="font-size:11px;color:#5a6478;margin-bottom:4px;">총 볼륨</div><div style="font-size:18px;font-weight:700;color:${color};">${totalVol}kg</div></div></div>`;
     document.getElementById('workout-complete-overlay').classList.add('active');
   }
