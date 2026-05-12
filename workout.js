@@ -1044,6 +1044,7 @@
 
   function deleteClassRecord() {
     if (!classEditDate) return;
+    if (!confirm('이 수업 기록을 삭제할까요?')) return;
     const type = document.getElementById('class-type').value;
     const userId = localStorage.getItem('current_user');
     const safeKey = 'class_' + type.replace(/\s+/g,'_') + '_' + userId;
@@ -1062,20 +1063,20 @@
     const record = records.find(r => r.date === dateStr);
     if (!record) { alert('기록을 찾을 수 없어요.'); return; }
     classEditDate = dateStr;
-    openClassModal();
-    setTimeout(() => {
-      document.getElementById('class-type').value = type;
-      document.getElementById('class-min').value = record.min || '';
-      document.getElementById('class-memo').value = record.memo || '';
-      calcClassKcal();
-      document.querySelectorAll('.class-type-btn').forEach(b => {
-        const sel = b.dataset.type === type;
-        b.style.border = sel ? '2px solid #0891b2' : '2px solid var(--border)';
-        b.style.background = sel ? '#e0f7fa' : 'var(--card)';
-        b.style.color = sel ? '#0891b2' : 'var(--text-sub)';
-      });
-      document.getElementById('class-delete-btn').style.display = 'block';
-    }, 100);
+    // 초기화 없이 바로 값 세팅 후 모달 열기
+    document.getElementById('class-type').value = type;
+    document.getElementById('class-min').value = record.min || '';
+    document.getElementById('class-memo').value = record.memo || '';
+    document.getElementById('class-kcal-display').textContent = '-';
+    document.getElementById('class-delete-btn').style.display = 'block';
+    document.querySelectorAll('.class-type-btn').forEach(b => {
+      const sel = b.dataset.type === type;
+      b.style.border = sel ? '2px solid #0891b2' : '2px solid var(--border)';
+      b.style.background = sel ? '#e0f7fa' : 'var(--card)';
+      b.style.color = sel ? '#0891b2' : 'var(--text-sub)';
+    });
+    calcClassKcal();
+    document.getElementById('class-modal').classList.add('active');
   }
   function formatTime(savedAt) { if (!savedAt) return ''; return savedAt.replace('오전 ', '').replace('오후 ', '').trim(); }
 
