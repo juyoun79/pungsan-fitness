@@ -1233,7 +1233,12 @@
 
           html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-              <div style="font-size:13px;font-weight:700;color:var(--text);">${name}</div>
+              <div style="display:flex;align-items:center;gap:5px;">
+                ${r.recordedBy === 'trainer'
+                  ? `<span style="font-size:10px;font-weight:700;color:white;background:#f59e0b;padding:2px 5px;border-radius:4px;flex-shrink:0;">수업</span>`
+                  : `<span style="font-size:10px;font-weight:700;color:white;background:#1a6fd4;padding:2px 5px;border-radius:4px;flex-shrink:0;">개인</span>`}
+                <div style="font-size:13px;font-weight:700;color:var(--text);">${name}</div>
+              </div>
               <div style="display:flex;align-items:center;gap:6px;">
                 ${r.savedAt ? `<span style="font-size:11px;color:var(--text-hint);">${r.savedAt}</span>` : ''}
                 <button onclick="openTrainerWorkoutEditModal('${traineeId}','${rawKey}','${dateStr}')"

@@ -539,6 +539,7 @@
       const vol = sets.reduce((a, s) => a + s.weight * s.reps, 0);
       const kcal = calcKcalByMET(5.0, sets.length * 3, vol);
       const record = { date, dateLabel, sets, memo, kcal, savedAt, name: dNames ? dNames.front : eqKey };
+      if (isTrainerMode) record.recordedBy = 'trainer';
       if (!isTrainerMode) {
         const key = 'workout_dual_front_' + eqKey + '_' + userId;
         const existing = JSON.parse(localStorage.getItem(key) || '[]');
@@ -554,6 +555,7 @@
       const vol = sets.reduce((a, s) => a + s.weight * s.reps, 0);
       const kcal = calcKcalByMET(5.0, sets.length * 3, vol);
       const record = { date, dateLabel, sets, memo, kcal, savedAt, name: dNames ? dNames.back : eqKey };
+      if (isTrainerMode) record.recordedBy = 'trainer';
       if (!isTrainerMode) {
         const key = 'workout_dual_back_' + eqKey + '_' + userId;
         const existing = JSON.parse(localStorage.getItem(key) || '[]');
@@ -603,6 +605,7 @@
     const workoutVol = sets.reduce((s, r) => s + r.weight * r.reps, 0);
     const kcal = calcKcalByMET(5.0, sets.length * 3, workoutVol);
     const record = { date, dateLabel, sets, memo, kcal, savedAt: now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) };
+    if (isTrainerMode) record.recordedBy = 'trainer';
     if (!isTrainerMode) {
       const key = 'workout_' + currentEquipment.key + '_' + userId;
       const existing = JSON.parse(localStorage.getItem(key) || '[]');
@@ -964,6 +967,7 @@
     const totalVolFw = sets.reduce((s, r) => s + r.weight * r.reps, 0);
     const kcal = calcKcalByMET(5.0, sets.length * 3, totalVolFw);
     const record = { date, dateLabel, sets, memo, kcal, savedAt: now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) };
+    if (isTrainerMode) record.recordedBy = 'trainer';
     const fwFirebaseKey = name.replace(/\s+/g, '_');
     if (!isTrainerMode) {
       const safeKey = 'freeweight_' + name.replace(/\s+/g,'_') + '_' + userId;
