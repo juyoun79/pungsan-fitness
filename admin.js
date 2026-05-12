@@ -1353,9 +1353,9 @@
           </svg>
           <input type="text" id="trainer-equipment-search"
             placeholder="기구이름 또는 번호로 검색하세요"
-            style="width:100%;box-sizing:border-box;padding:12px 12px 12px 40px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
-            onfocus="this.style.borderColor='#1a6fd4';showTrainerEqSearchResult(this.value,'${dateStr}','${traineeId}')"
-            onblur="this.style.borderColor='var(--border)'"
+            style="width:100%;box-sizing:border-box;padding:12px 12px 12px 40px;border:1.5px dashed #1a6fd4;border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
+            onfocus="this.style.borderColor='#0f4fa8';showTrainerEqSearchResult(this.value,'${dateStr}','${traineeId}')"
+            onblur="this.style.borderColor='#1a6fd4'"
             oninput="showTrainerEqSearchResult(this.value,'${dateStr}','${traineeId}')" />
           <button id="trainer-search-clear-btn" onclick="clearTrainerEqSearch()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:var(--text-hint);border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;color:white;font-size:13px;line-height:1;padding:0;">×</button>
         </div>
