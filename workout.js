@@ -311,7 +311,7 @@
     const cardsHtml = dayRecords.map(item => {
       const record = item.record;
       if (item.type === 'class') {
-        const classEmoji = {'기구필라테스':'🌀','에어로빅':'💃','방송댄스':'🕺','요가':'🧘','매트필라테스':'🤸','기능성운동':'💪'}[item.name] || '🧘';
+        const classEmoji = {'기구필라테스':'🌀','에어로빅':'🎶','방송댄스':'🕺','요가':'🌿','매트필라테스':'🧘‍♀️','기능성운동':'⚖️'}[item.name] || '🧘';
         const isClassRecord = record.recordedBy === 'trainer';
         const classBadge = isClassRecord
           ? `<span style="font-size:10px;font-weight:700;color:white;background:#f59e0b;padding:2px 5px;border-radius:4px;">수업</span>`
