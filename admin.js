@@ -905,13 +905,13 @@
   function saveTraineeLog() {
     if (!currentTraineeId) return;
     const trainerId = localStorage.getItem('current_user');
-    const content = document.getElementById('trainee-log-input').value.trim();
-    if (!content) { alert('수업 내용을 입력해주세요!'); return; }
+    const logText = document.getElementById('trainee-log-input').value.trim();
+    if (!logText) { alert('수업 내용을 입력해주세요!'); return; }
     const today = new Date();
     const dateStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
     const savedAt = String(today.getHours()).padStart(2,'0')+':'+String(today.getMinutes()).padStart(2,'0');
     const key = dateStr + '_' + Date.now();
-    const log = { date: dateStr, content, savedAt };
+    const log = { date: dateStr, content: logText, savedAt };
     db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/logs/' + key).set(log).then(() => {
       alert('수업일지가 저장됐어요! 📋');
       switchTraineeTab('log');
@@ -941,9 +941,9 @@
   function saveEditLog() {
     if (!editLogKey || !currentTraineeId) return;
     const trainerId = localStorage.getItem('current_user');
-    const content = document.getElementById('edit-log-content').value.trim();
-    if (!content) { alert('수업 내용을 입력해주세요!'); return; }
-    db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/logs/' + editLogKey + '/content').set(content).then(() => {
+    const logText = document.getElementById('edit-log-content').value.trim();
+    if (!logText) { alert('수업 내용을 입력해주세요!'); return; }
+    db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/logs/' + editLogKey + '/content').set(logText).then(() => {
       alert('수정됐어요! 📋');
       closeEditLogModal();
       switchTraineeTab('log');
