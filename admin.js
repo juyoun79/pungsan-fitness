@@ -808,7 +808,7 @@
         // 출석 기록 저장
         db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/attendLog/' + dateStr).set({
           date: dateStr,
-          savedAt: today.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' })
+          savedAt: String(today.getHours()).padStart(2,'0')+':'+String(today.getMinutes()).padStart(2,'0')
         });
         document.getElementById('trainee-card-remain').textContent = remain - 1;
         alert('✅ 출석 체크 완료! 잔여 ' + (remain - 1) + '회');
@@ -910,7 +910,7 @@
     const log = {
       date: dateStr,
       content: content,
-      savedAt: today.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' })
+      savedAt: String(today.getHours()).padStart(2,'0')+':'+String(today.getMinutes()).padStart(2,'0')
     };
     db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/logs/' + dateStr).set(log).then(() => {
       alert('수업일지가 저장됐어요! 📋');
@@ -1015,7 +1015,7 @@
     const trainerId = localStorage.getItem('current_user');
     const today = new Date();
     const dateStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
-    const savedAt = today.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' });
+    const savedAt = String(today.getHours()).padStart(2,'0')+':'+String(today.getMinutes()).padStart(2,'0');
 
     // 캔버스를 이미지로 변환
     signCanvas.toBlob(async blob => {
@@ -1600,7 +1600,7 @@
     const record = {
       date: dateStr, dateLabel,
       sets, memo,
-      savedAt: now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }),
+      savedAt: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'),
       recordedBy: 'trainer'
     };
     db.ref('users/' + currentTraineeId + '/workouts/' + trainerCurrentEquipment.key + '/' + dateStr).set(record)
@@ -1637,7 +1637,7 @@
     const record = {
       date: dateStr, dateLabel, name,
       sets, memo,
-      savedAt: now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }),
+      savedAt: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'),
       recordedBy: 'trainer'
     };
     db.ref('users/' + currentTraineeId + '/workouts/' + fwKey + '/' + dateStr).set(record)

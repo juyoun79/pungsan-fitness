@@ -295,8 +295,8 @@
     }
     // savedAt 기준 오름차순 정렬 (일찍 한 운동이 위로)
     dayRecords.sort((a, b) => {
-      const tA = (a.record.savedAt || '').replace('오전 ', '').replace('오후 ', '').trim();
-      const tB = (b.record.savedAt || '').replace('오전 ', '').replace('오후 ', '').trim();
+      const tA = a.record.savedAt || '';
+      const tB = b.record.savedAt || '';
       return tA > tB ? 1 : tA < tB ? -1 : 0;
     });
     if (dayRecords.length === 0) {
@@ -571,7 +571,7 @@
     const date = saveDate || (now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate());
     const dateParts = date.split('-');
     const dateLabel = dateParts[0] + '년 ' + dateParts[1] + '월 ' + dateParts[2] + '일';
-    const savedAt = now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' });
+    const savedAt = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
     const memo = document.getElementById('dual-workout-memo')?.value || '';
     const eqKey = currentEquipment.key;
     const dNames = getDualNames(eqKey);
@@ -645,7 +645,7 @@
     const dateLabel = dateParts[0] + '년 ' + dateParts[1] + '월 ' + dateParts[2] + '일';
     const workoutVol = sets.reduce((s, r) => s + r.weight * r.reps, 0);
     const kcal = calcKcalByMET(5.0, sets.length * 3, workoutVol);
-    const record = { date, dateLabel, sets, memo, kcal, savedAt: now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) };
+    const record = { date, dateLabel, sets, memo, kcal, savedAt: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0') };
     if (isTrainerMode) record.recordedBy = 'trainer';
     if (!isTrainerMode) {
       const key = 'workout_' + currentEquipment.key + '_' + userId;
@@ -932,7 +932,7 @@
     const isEdit = !!cardioEditDate;
     const recordDate = isEdit ? cardioEditDate : (now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate());
     const dateLabel = (() => { const parts = recordDate.split('-'); return parts[0] + '년 ' + parseInt(parts[1]) + '월 ' + parseInt(parts[2]) + '일'; })();
-    const record = { date: recordDate, dateLabel, type, min, sec: 0, dist, kcal, distUnit: cfg.distUnit, memo, savedAt: now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) };
+    const record = { date: recordDate, dateLabel, type, min, sec: 0, dist, kcal, distUnit: cfg.distUnit, memo, savedAt: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0') };
     const safeKey = 'cardio_' + type + '_' + userId;
     const existing = JSON.parse(localStorage.getItem(safeKey) || '[]');
     const todayIdx = existing.findIndex(r => r.date === record.date);
@@ -1028,7 +1028,7 @@
     const kcal = Math.round(met * weight * (min / 60) * bmrFactor);
     const record = {
       date, dateLabel, type, min, kcal, memo,
-      savedAt: now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' })
+      savedAt: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')
     };
     const safeKey = 'class_' + type.replace(/\s+/g,'_') + '_' + userId;
     const existing = JSON.parse(localStorage.getItem(safeKey) || '[]');
@@ -1087,7 +1087,7 @@
     calcClassKcal();
     document.getElementById('class-modal').classList.add('active');
   }
-  function formatTime(savedAt) { if (!savedAt) return ''; return savedAt.replace('오전 ', '').replace('오후 ', '').trim(); }
+  function formatTime(savedAt) { if (!savedAt) return ''; return savedAt; }
 
   function searchFwExercise(query) {
     const resultEl = document.getElementById('fw-search-results');
@@ -1142,7 +1142,7 @@
     const dateLabel = dateParts[0] + '년 ' + dateParts[1] + '월 ' + dateParts[2] + '일';
     const totalVolFw = sets.reduce((s, r) => s + r.weight * r.reps, 0);
     const kcal = calcKcalByMET(5.0, sets.length * 3, totalVolFw);
-    const record = { date, dateLabel, sets, memo, kcal, savedAt: now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) };
+    const record = { date, dateLabel, sets, memo, kcal, savedAt: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0') };
     if (isTrainerMode) record.recordedBy = 'trainer';
     const fwFirebaseKey = name.replace(/\s+/g, '_');
     if (!isTrainerMode) {
