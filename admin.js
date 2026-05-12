@@ -867,9 +867,10 @@
     } else if (tab === 'log') {
       // 수업일지 표시
       const trainerId = localStorage.getItem('current_user');
-      db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/logs').orderByChild('date').once('value', snap => {
+      db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/logs').once('value', snap => {
         const logs = [];
-        snap.forEach(child => logs.unshift({ key: child.key, ...child.val() }));
+        snap.forEach(child => logs.push({ key: child.key, ...child.val() }));
+        logs.sort((a, b) => (b.key > a.key ? 1 : -1));
         content.innerHTML = `
           <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;">
             <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">📋 수업일지 작성</div>
