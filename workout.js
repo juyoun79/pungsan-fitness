@@ -937,13 +937,21 @@
       db.ref('users/' + userId + '/fwIndex').set(JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]'));
     }
     db.ref('users/' + userId + '/workouts/fw_' + fwFirebaseKey + '/' + date).set(record);
+    const wasTrainerMode = isTrainerMode;
+    const savedTraineeId = trainerTargetId;
+    const savedDate = trainerTargetDate;
     closeFreeweightModal();
     const maxWeight = Math.max(...sets.map(s => s.weight));
     const totalVol = sets.reduce((sum, s) => sum + s.weight * s.reps, 0);
     document.getElementById('workout-complete-msg').textContent = name + ' ' + sets.length + '세트 완료!';
     document.getElementById('workout-summary').innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;"><div><div style="font-size:11px;color:#5a6478;margin-bottom:4px;">총 세트</div><div style="font-size:18px;font-weight:700;color:var(--blue);">${sets.length}</div></div><div><div style="font-size:11px;color:#5a6478;margin-bottom:4px;">최고 무게</div><div style="font-size:18px;font-weight:700;color:var(--blue);">${maxWeight > 0 ? maxWeight+'kg' : '-'}</div></div><div><div style="font-size:11px;color:#5a6478;margin-bottom:4px;">총 볼륨</div><div style="font-size:18px;font-weight:700;color:var(--blue);">${totalVol > 0 ? totalVol+'kg' : '-'}</div></div></div>`;
+    if (wasTrainerMode) {
+      isTrainerMode = true;
+      trainerTargetId = savedTraineeId;
+      trainerTargetDate = savedDate;
+    }
     document.getElementById('workout-complete-overlay').classList.add('active');
-    if (!isTrainerMode) { renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate); }
+    if (!wasTrainerMode) { renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate); }
   }
 
   let restTimerInterval = null;

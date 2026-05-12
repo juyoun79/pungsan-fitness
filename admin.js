@@ -940,7 +940,7 @@
     signTargetMemberId = memberId;
     signTargetMemberName = memberName;
     const modal = document.getElementById('sign-modal');
-    modal.classList.add('active');
+    modal.style.display = 'flex';
 
     const infoEl = document.getElementById('sign-modal-info');
     const today = new Date();
@@ -1169,6 +1169,13 @@
         });
       }
 
+      // 시간순 정렬 (savedAt 기준 오름차순)
+      records.sort((a, b) => {
+        const ta = a.savedAt || '';
+        const tb = b.savedAt || '';
+        return ta.localeCompare(tb);
+      });
+
       const parts = dateStr.split('-');
       const dateLabel = parts[0]+'년 '+parts[1]+'월 '+parts[2]+'일';
 
@@ -1180,18 +1187,27 @@
         records.forEach(r => {
           const eq = EQUIPMENT_LIST.find(e => e.key === r.eqKey || e.key === r.eqKey?.replace('dual_front_','')?.replace('dual_back_','')?.replace('fw_',''));
           const name = eq ? eq.name : (r.name || r.eqKey?.replace('fw_','')?.replace(/_/g,' ') || r.eqKey);
+          const setsText = r.sets ? r.sets.map(s=>`${s.set}세트 ${s.weight}kg × ${s.reps}회`).join(' | ') : '';
+          const eqKeyEncoded = encodeURIComponent(r.eqKey);
           html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;">
-            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">${name}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">${name}</div>
+              <div style="display:flex;gap:4px;">
+                <button onclick="openTrainerWorkoutEdit('${traineeId}','${r.eqKey}','${dateStr}')" style="background:var(--blue-light);color:var(--blue);border:none;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
+                <button onclick="deleteTrainerWorkout('${traineeId}','${r.eqKey}','${dateStr}')" style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
+              </div>
+            </div>
             <div style="font-size:12px;color:var(--text-hint);">
-              ${r.sets ? r.sets.map(s=>`${s.set}세트 ${s.weight}kg × ${s.reps}회`).join(' | ') : ''}
+              ${setsText}
               ${r.innerSets ? '앞면: '+r.innerSets.map(s=>`${s.weight}kg×${s.reps}회`).join(' | ') : ''}
               ${r.outerSets ? ' / 뒷면: '+r.outerSets.map(s=>`${s.weight}kg×${s.reps}회`).join(' | ') : ''}
             </div>
+            ${r.savedAt ? `<div style="font-size:11px;color:var(--text-hint);margin-top:3px;">${r.savedAt}</div>` : ''}
           </div>`;
         });
       }
 
-      // 기구 검색창 + 프리웨이트 버튼 (운동기록 탭과 동일한 UI)
+      // 기구 검색창 + 프리웨이트 버튼
       html += `
         <div style="position:relative;margin-top:10px;margin-bottom:10px;">
           <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1215,6 +1231,74 @@
         </button>`;
 
       detailEl.innerHTML = html;
+    });
+  }
+
+  // 수업기록 삭제
+  function deleteTrainerWorkout(traineeId, eqKey, dateStr) {
+    if (!confirm('이 운동 기록을 삭제할까요?')) return;
+    db.ref('users/' + traineeId + '/workouts/' + eqKey + '/' + dateStr).remove()
+      .then(() => {
+        renderTrainerDayDetail(dateStr);
+        renderTrainerCal();
+      })
+      .catch(e => { console.error(e); alert('삭제 중 오류가 발생했어요.'); });
+  }
+
+  // 수업기록 수정 (세트 데이터 불러와서 수정 모달 열기)
+  function openTrainerWorkoutEdit(traineeId, eqKey, dateStr) {
+    db.ref('users/' + traineeId + '/workouts/' + eqKey + '/' + dateStr).once('value', snap => {
+      const r = snap.val();
+      if (!r) { alert('기록을 찾을 수 없어요.'); return; }
+
+      // 강사 모드로 기구운동 화면 열기
+      isTrainerMode = true;
+      trainerTargetId = traineeId;
+      trainerTargetDate = dateStr;
+
+      const isFw = eqKey.startsWith('fw_');
+      if (isFw) {
+        // 프리웨이트 수정
+        openFreeweightModal();
+        setTimeout(() => {
+          const nameEl = document.getElementById('fw-name');
+          if (nameEl) nameEl.value = r.name || eqKey.replace('fw_','').replace(/_/g,' ');
+          // 기존 세트 제거 후 데이터로 채우기
+          document.getElementById('fw-set-list').innerHTML = '';
+          fwSetCount = 0;
+          if (r.sets && r.sets.length > 0) {
+            r.sets.forEach(s => {
+              addFwSet();
+              const wEl = document.getElementById('fw-weight-' + fwSetCount);
+              const rEl = document.getElementById('fw-reps-' + fwSetCount);
+              if (wEl) wEl.value = s.weight;
+              if (rEl) rEl.value = s.reps;
+            });
+          }
+          const memoEl = document.getElementById('fw-memo');
+          if (memoEl) memoEl.value = r.memo || '';
+        }, 100);
+      } else {
+        // 기구운동 수정
+        const eq = EQUIPMENT_LIST.find(e => e.key === eqKey);
+        if (!eq) { alert('기구를 찾을 수 없어요.'); return; }
+        openGenericWorkout(eq);
+        setTimeout(() => {
+          document.getElementById('set-list').innerHTML = '';
+          setCount = 0;
+          if (r.sets && r.sets.length > 0) {
+            r.sets.forEach(s => {
+              addSet();
+              const wEl = document.getElementById('weight-' + setCount);
+              const rEl = document.getElementById('reps-' + setCount);
+              if (wEl) wEl.value = s.weight;
+              if (rEl) rEl.value = s.reps;
+            });
+          }
+          const memoEl = document.getElementById('workout-memo');
+          if (memoEl) memoEl.value = r.memo || '';
+        }, 100);
+      }
     });
   }
 
