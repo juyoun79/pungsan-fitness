@@ -1185,24 +1185,36 @@
         html += `<div style="text-align:center;padding:12px;color:var(--text-hint);font-size:13px;">운동 기록이 없어요</div>`;
       } else {
         records.forEach(r => {
-          const eq = EQUIPMENT_LIST.find(e => e.key === r.eqKey || e.key === r.eqKey?.replace('dual_front_','')?.replace('dual_back_','')?.replace('fw_',''));
-          const name = eq ? eq.name : (r.name || r.eqKey?.replace('fw_','')?.replace(/_/g,' ') || r.eqKey);
-          const setsText = r.sets ? r.sets.map(s=>`${s.set}세트 ${s.weight}kg × ${s.reps}회`).join(' | ') : '';
-          const eqKeyEncoded = encodeURIComponent(r.eqKey);
+          // 기구명 처리 (듀얼 기구 포함)
+          const rawKey = r.eqKey || '';
+          const baseKey = rawKey.replace('dual_front_','').replace('dual_back_','').replace('fw_','');
+          const eq = EQUIPMENT_LIST.find(e => e.key === rawKey || e.key === baseKey);
+          let name = eq ? eq.name : (r.name || baseKey.replace(/_/g,' ') || rawKey);
+
+          // 듀얼 기구인 경우 앞면/뒷면 구분
+          let subLabel = '';
+          if (rawKey.startsWith('dual_front_')) subLabel = ' (앞면)';
+          if (rawKey.startsWith('dual_back_')) subLabel = ' (뒷면)';
+
+          const setsHtml = r.sets ? r.sets.map(s =>
+            `<div style="background:var(--blue-light);border-radius:6px;padding:6px 8px;text-align:center;">
+              <div style="font-size:10px;color:var(--blue);margin-bottom:1px;font-weight:600;">${s.set}세트</div>
+              <div style="font-size:12px;font-weight:700;color:var(--text);">${s.weight > 0 ? s.weight+'kg' : '-'}</div>
+              <div style="font-size:11px;color:var(--text-sub);">${s.reps}회</div>
+            </div>`
+          ).join('') : '';
+
           html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-              <div style="font-size:13px;font-weight:700;color:var(--text);">${name}</div>
-              <div style="display:flex;gap:4px;">
-                <button onclick="openTrainerWorkoutEdit('${traineeId}','${r.eqKey}','${dateStr}')" style="background:var(--blue-light);color:var(--blue);border:none;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
-                <button onclick="deleteTrainerWorkout('${traineeId}','${r.eqKey}','${dateStr}')" style="background:#fee2e2;color:#ef4444;border:none;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">${name}${subLabel}</div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                ${r.savedAt ? `<span style="font-size:11px;color:var(--text-hint);">${r.savedAt}</span>` : ''}
+                <button onclick="openTrainerWorkoutEditModal('${traineeId}','${rawKey}','${dateStr}')"
+                  style="background:var(--blue-light);color:var(--blue);border:none;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
               </div>
             </div>
-            <div style="font-size:12px;color:var(--text-hint);">
-              ${setsText}
-              ${r.innerSets ? '앞면: '+r.innerSets.map(s=>`${s.weight}kg×${s.reps}회`).join(' | ') : ''}
-              ${r.outerSets ? ' / 뒷면: '+r.outerSets.map(s=>`${s.weight}kg×${s.reps}회`).join(' | ') : ''}
-            </div>
-            ${r.savedAt ? `<div style="font-size:11px;color:var(--text-hint);margin-top:3px;">${r.savedAt}</div>` : ''}
+            ${setsHtml ? `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:${r.memo ? '6px' : '0'};">${setsHtml}</div>` : ''}
+            ${r.memo ? `<div style="background:var(--bg);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--text-sub);">📝 ${r.memo}</div>` : ''}
           </div>`;
         });
       }
@@ -1245,61 +1257,91 @@
       .catch(e => { console.error(e); alert('삭제 중 오류가 발생했어요.'); });
   }
 
-  // 수업기록 수정 (세트 데이터 불러와서 수정 모달 열기)
-  function openTrainerWorkoutEdit(traineeId, eqKey, dateStr) {
+  // 수업기록 수정 모달 열기 (edit-workout-modal 재활용)
+  let trainerEditTraineeId = null, trainerEditEqKey = null, trainerEditDateStr = null;
+
+  function openTrainerWorkoutEditModal(traineeId, eqKey, dateStr) {
+    trainerEditTraineeId = traineeId;
+    trainerEditEqKey = eqKey;
+    trainerEditDateStr = dateStr;
+
     db.ref('users/' + traineeId + '/workouts/' + eqKey + '/' + dateStr).once('value', snap => {
       const r = snap.val();
       if (!r) { alert('기록을 찾을 수 없어요.'); return; }
 
-      // 강사 모드로 기구운동 화면 열기
-      isTrainerMode = true;
-      trainerTargetId = traineeId;
-      trainerTargetDate = dateStr;
+      const rawKey = eqKey || '';
+      const baseKey = rawKey.replace('dual_front_','').replace('dual_back_','').replace('fw_','');
+      const eq = EQUIPMENT_LIST.find(e => e.key === rawKey || e.key === baseKey);
+      let name = eq ? eq.name : (r.name || baseKey.replace(/_/g,' ') || rawKey);
+      if (rawKey.startsWith('dual_front_')) name += ' (앞면)';
+      if (rawKey.startsWith('dual_back_')) name += ' (뒷면)';
 
-      const isFw = eqKey.startsWith('fw_');
-      if (isFw) {
-        // 프리웨이트 수정
-        openFreeweightModal();
-        setTimeout(() => {
-          const nameEl = document.getElementById('fw-name');
-          if (nameEl) nameEl.value = r.name || eqKey.replace('fw_','').replace(/_/g,' ');
-          // 기존 세트 제거 후 데이터로 채우기
-          document.getElementById('fw-set-list').innerHTML = '';
-          fwSetCount = 0;
-          if (r.sets && r.sets.length > 0) {
-            r.sets.forEach(s => {
-              addFwSet();
-              const wEl = document.getElementById('fw-weight-' + fwSetCount);
-              const rEl = document.getElementById('fw-reps-' + fwSetCount);
-              if (wEl) wEl.value = s.weight;
-              if (rEl) rEl.value = s.reps;
-            });
-          }
-          const memoEl = document.getElementById('fw-memo');
-          if (memoEl) memoEl.value = r.memo || '';
-        }, 100);
-      } else {
-        // 기구운동 수정
-        const eq = EQUIPMENT_LIST.find(e => e.key === eqKey);
-        if (!eq) { alert('기구를 찾을 수 없어요.'); return; }
-        openGenericWorkout(eq);
-        setTimeout(() => {
-          document.getElementById('set-list').innerHTML = '';
-          setCount = 0;
-          if (r.sets && r.sets.length > 0) {
-            r.sets.forEach(s => {
-              addSet();
-              const wEl = document.getElementById('weight-' + setCount);
-              const rEl = document.getElementById('reps-' + setCount);
-              if (wEl) wEl.value = s.weight;
-              if (rEl) rEl.value = s.reps;
-            });
-          }
-          const memoEl = document.getElementById('workout-memo');
-          if (memoEl) memoEl.value = r.memo || '';
-        }, 100);
+      document.getElementById('edit-workout-title').textContent = name + ' 수정';
+      document.getElementById('edit-set-list').innerHTML = '';
+      editSetCount = 0;
+      if (r.sets && r.sets.length > 0) {
+        r.sets.forEach(s => addEditSetWithValue(s.weight, s.reps));
       }
+      document.getElementById('edit-workout-memo').value = r.memo || '';
+
+      // 삭제 버튼을 강사 삭제 함수로 교체
+      const deleteBtn = document.querySelector('#edit-workout-modal button[onclick="deleteWorkoutRecord()"]');
+      if (deleteBtn) deleteBtn.setAttribute('onclick', 'deleteTrainerWorkoutFromEdit()');
+      const saveBtn = document.querySelector('#edit-workout-modal button[onclick="saveEditedWorkout()"]');
+      if (saveBtn) saveBtn.setAttribute('onclick', 'saveTrainerEditedWorkout()');
+
+      document.getElementById('edit-workout-modal').classList.add('active');
     });
+  }
+
+  // 수업기록 수정 저장
+  function saveTrainerEditedWorkout() {
+    const sets = [];
+    for (let i = 1; i <= editSetCount; i++) {
+      const wEl = document.getElementById('edit-weight-' + i);
+      const rEl = document.getElementById('edit-reps-' + i);
+      if (!wEl || !rEl) continue;
+      const w = parseFloat(wEl.value) || 0;
+      const r = parseInt(rEl.value) || 0;
+      if (w > 0 || r > 0) sets.push({ set: sets.length + 1, weight: w, reps: r });
+    }
+    if (sets.length === 0) { alert('최소 1세트 이상 입력해주세요!'); return; }
+    const memo = document.getElementById('edit-workout-memo').value.trim();
+
+    db.ref('users/' + trainerEditTraineeId + '/workouts/' + trainerEditEqKey + '/' + trainerEditDateStr).once('value', snap => {
+      const existing = snap.val() || {};
+      const updated = { ...existing, sets, memo };
+      db.ref('users/' + trainerEditTraineeId + '/workouts/' + trainerEditEqKey + '/' + trainerEditDateStr).set(updated)
+        .then(() => {
+          closeTrainerEditModal();
+          renderTrainerDayDetail(trainerEditDateStr);
+          alert('수정됐어요! ✅');
+        })
+        .catch(e => { console.error(e); alert('수정 중 오류가 발생했어요.'); });
+    });
+  }
+
+  // 수업기록 삭제 (수정 모달에서)
+  function deleteTrainerWorkoutFromEdit() {
+    if (!confirm('이 운동 기록을 삭제할까요?')) return;
+    db.ref('users/' + trainerEditTraineeId + '/workouts/' + trainerEditEqKey + '/' + trainerEditDateStr).remove()
+      .then(() => {
+        closeTrainerEditModal();
+        renderTrainerDayDetail(trainerEditDateStr);
+        renderTrainerCal();
+      })
+      .catch(e => { console.error(e); alert('삭제 중 오류가 발생했어요.'); });
+  }
+
+  // 수업기록 수정 모달 닫기
+  function closeTrainerEditModal() {
+    // 버튼 원래대로 복원
+    const deleteBtn = document.querySelector('#edit-workout-modal button[onclick="deleteTrainerWorkoutFromEdit()"]');
+    if (deleteBtn) deleteBtn.setAttribute('onclick', 'deleteWorkoutRecord()');
+    const saveBtn = document.querySelector('#edit-workout-modal button[onclick="saveTrainerEditedWorkout()"]');
+    if (saveBtn) saveBtn.setAttribute('onclick', 'saveEditedWorkout()');
+    document.getElementById('edit-workout-modal').classList.remove('active');
+    trainerEditTraineeId = null; trainerEditEqKey = null; trainerEditDateStr = null;
   }
 
   // 강사용 기구 검색
