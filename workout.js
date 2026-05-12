@@ -139,26 +139,34 @@
 
   function getWorkoutDaysInMonth(year, month) {
     const userId = localStorage.getItem('current_user');
-    const days = new Set();
+    const personalDays = new Set(); // 개인 기록
+    const classDays = new Set();    // 수업 기록 (recordedBy: 'trainer')
     const prefix = year + '-' + (month + 1) + '-';
+
+    function classify(records) {
+      for (const r of records) {
+        if (!r.date || !r.date.startsWith(prefix)) continue;
+        const d = parseInt(r.date.split('-')[2]);
+        if (isNaN(d)) continue;
+        if (r.recordedBy === 'trainer') classDays.add(d);
+        else personalDays.add(d);
+      }
+    }
+
     for (const eq of EQUIPMENT_LIST) {
-      const key = 'workout_' + eq.key + '_' + userId;
-      const records = JSON.parse(localStorage.getItem(key) || '[]');
-      for (const r of records) { if (r.date && r.date.startsWith(prefix)) { const d = parseInt(r.date.split('-')[2]); if (!isNaN(d)) days.add(d); } }
+      classify(JSON.parse(localStorage.getItem('workout_' + eq.key + '_' + userId) || '[]'));
+      classify(JSON.parse(localStorage.getItem('workout_dual_front_' + eq.key + '_' + userId) || '[]'));
+      classify(JSON.parse(localStorage.getItem('workout_dual_back_' + eq.key + '_' + userId) || '[]'));
     }
     const fwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
     for (const name of fwIndex) {
-      const safeKey = 'freeweight_' + name.replace(/\s+/g,'_') + '_' + userId;
-      const records = JSON.parse(localStorage.getItem(safeKey) || '[]');
-      for (const r of records) { if (r.date && r.date.startsWith(prefix)) { const d = parseInt(r.date.split('-')[2]); if (!isNaN(d)) days.add(d); } }
+      classify(JSON.parse(localStorage.getItem('freeweight_' + name.replace(/\s+/g,'_') + '_' + userId) || '[]'));
     }
     const cardioIndex = JSON.parse(localStorage.getItem('cardio_index_' + userId) || '[]');
     for (const type of cardioIndex) {
-      const safeKey = 'cardio_' + type + '_' + userId;
-      const records = JSON.parse(localStorage.getItem(safeKey) || '[]');
-      for (const r of records) { if (r.date && r.date.startsWith(prefix)) { const d = parseInt(r.date.split('-')[2]); if (!isNaN(d)) days.add(d); } }
+      classify(JSON.parse(localStorage.getItem('cardio_' + type + '_' + userId) || '[]'));
     }
-    return days;
+    return { personalDays, classDays };
   }
 
   // 수업일 Set 반환 (Firebase에서)
@@ -185,13 +193,15 @@
     document.getElementById('cal-title').textContent = calYear + '년 ' + monthNames[calMonth];
     const firstDay = new Date(calYear, calMonth, 1).getDay();
     const lastDate = new Date(calYear, calMonth + 1, 0).getDate();
-    const workoutDays = getWorkoutDaysInMonth(calYear, calMonth);
+    const { personalDays, classDays } = getWorkoutDaysInMonth(calYear, calMonth);
     const todayY = now.getFullYear(), todayM = now.getMonth(), todayD = now.getDate();
     let html = '';
     for (let i = 0; i < firstDay; i++) html += '<div></div>';
     for (let d = 1; d <= lastDate; d++) {
       const isToday = (calYear===todayY && calMonth===todayM && d===todayD);
-      const hasWork = workoutDays.has(d);
+      const hasPersonal = personalDays.has(d);
+      const hasClass = classDays.has(d);
+      const hasWork = hasPersonal || hasClass;
       const isSel   = (calSelectedDate === d);
       const isSun   = (new Date(calYear, calMonth, d).getDay() === 0);
       const isSat   = (new Date(calYear, calMonth, d).getDay() === 6);
@@ -202,7 +212,12 @@
       if (hasWork && !isToday) { bg = 'var(--blue)'; textColor = 'white'; fontW = '700'; }
       if (hasLesson) { bg = '#f59e0b'; textColor = 'white'; fontW = '700'; }
       if (isSel)    { border = '2px solid #1a1a2e'; }
-      html += `<div onclick="selectCalDay(${d})" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${bg};color:${textColor};font-size:13px;font-weight:${fontW};cursor:pointer;border:${border};transition:opacity 0.1s;position:relative;" ontouchstart="this.style.opacity='0.7'" ontouchend="this.style.opacity='1'">${d}${hasWork && !isToday ? '<div style="position:absolute;bottom:1px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,0.8);"></div>' : ''}</div>`;
+      // 점 표시: 파란점(개인), 주황점(수업)
+      const dotHtml = (hasWork && !isToday) ? `<div style="position:absolute;bottom:1px;left:50%;transform:translateX(-50%);display:flex;gap:2px;align-items:center;">
+        ${hasPersonal ? '<div style="width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,0.9);"></div>' : ''}
+        ${hasClass ? '<div style="width:4px;height:4px;border-radius:50%;background:#f59e0b;"></div>' : ''}
+      </div>` : '';
+      html += `<div onclick="selectCalDay(${d})" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${bg};color:${textColor};font-size:13px;font-weight:${fontW};cursor:pointer;border:${border};transition:opacity 0.1s;position:relative;" ontouchstart="this.style.opacity='0.7'" ontouchend="this.style.opacity='1'">${d}${dotHtml}</div>`;
     }
     document.getElementById('cal-grid').innerHTML = html;
   }
@@ -279,12 +294,20 @@
               ? 'workout_dual_front_' + eq.key + '_'
               : 'workout_dual_back_' + eq.key + '_') + localStorage.getItem('current_user')
           : 'workout_' + eq.key + '_' + localStorage.getItem('current_user');
-        return `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div style="width:36px;height:36px;border-radius:10px;background:${color}18;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${eq.emoji}</div><div style="flex:1;"><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:11px;font-weight:700;color:white;background:${color};padding:2px 6px;border-radius:5px;white-space:nowrap;">${eq.no}번</span><span style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.subName ? item.subName : eq.name}</span></div><div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${eq.muscles}${maxW > 0 ? ' · 최고 '+maxW+'kg' : ''}</div></div></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;">${record.sets.map(s=>`<div style="background:${color}12;border-radius:8px;padding:8px;text-align:center;"><div style="font-size:11px;color:${color};margin-bottom:2px;font-weight:600;">${s.set}세트</div><div style="font-size:13px;font-weight:700;color:var(--text);">${s.weight > 0 ? s.weight+'kg' : '-'}</div><div style="font-size:11px;color:var(--text-sub);">${s.reps}회</div></div>`).join('')}</div>${record.memo ? `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;gap:8px;"><span style="font-size:14px;">📝</span><div style="font-size:13px;color:var(--text-sub);line-height:1.6;">${record.memo}</div></div>` : ''}<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;"><span style="font-size:12px;color:var(--text-hint);">${formatTime(record.savedAt)}</span><button onclick="openEditWorkoutModal('${editKey}','${dateStr}')" style="background:${color}18;color:${color};border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button></div></div>`;
+        const isClassRecord = record.recordedBy === 'trainer';
+        const badgeHtml = isClassRecord
+          ? `<span style="font-size:10px;font-weight:700;color:white;background:#f59e0b;padding:2px 5px;border-radius:4px;">수업</span>`
+          : `<span style="font-size:10px;font-weight:700;color:white;background:#1a6fd4;padding:2px 5px;border-radius:4px;">개인</span>`;
+        return `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div style="width:36px;height:36px;border-radius:10px;background:${color}18;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${eq.emoji}</div><div style="flex:1;"><div style="display:flex;align-items:center;gap:6px;">${badgeHtml}<span style="font-size:11px;font-weight:700;color:white;background:${color};padding:2px 6px;border-radius:5px;white-space:nowrap;">${eq.no}번</span><span style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.subName ? item.subName : eq.name}</span></div><div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${eq.muscles}${maxW > 0 ? ' · 최고 '+maxW+'kg' : ''}</div></div></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;">${record.sets.map(s=>`<div style="background:${color}12;border-radius:8px;padding:8px;text-align:center;"><div style="font-size:11px;color:${color};margin-bottom:2px;font-weight:600;">${s.set}세트</div><div style="font-size:13px;font-weight:700;color:var(--text);">${s.weight > 0 ? s.weight+'kg' : '-'}</div><div style="font-size:11px;color:var(--text-sub);">${s.reps}회</div></div>`).join('')}</div>${record.memo ? `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;gap:8px;"><span style="font-size:14px;">📝</span><div style="font-size:13px;color:var(--text-sub);line-height:1.6;">${record.memo}</div></div>` : ''}<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;"><span style="font-size:12px;color:var(--text-hint);">${formatTime(record.savedAt)}</span><button onclick="openEditWorkoutModal('${editKey}','${dateStr}')" style="background:${color}18;color:${color};border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button></div></div>`;
       } else {
         const fwInfo = FW_EXERCISE_LIST.find(e => e.name === item.name);
         const fwCategory = fwInfo ? fwInfo.category : '프리웨이트';
         const fwMuscles = fwInfo ? fwInfo.muscles : '';
-        return `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div style="width:36px;height:36px;border-radius:10px;background:#f59e0b18;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏋️</div><div style="flex:1;"><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:11px;font-weight:700;color:white;background:#d97706;padding:2px 6px;border-radius:5px;white-space:nowrap;">${fwCategory}</span><span style="font-size:14px;font-weight:700;color:var(--text);">${item.name}</span></div><div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${fwMuscles ? fwMuscles + (maxW > 0 ? ' · 최고 '+maxW+'kg' : '') : (maxW > 0 ? '최고 '+maxW+'kg' : '맨몸 운동')}</div></div></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;">${record.sets.map(s=>`<div style="background:#f59e0b12;border-radius:8px;padding:8px;text-align:center;"><div style="font-size:11px;color:#d97706;margin-bottom:2px;font-weight:600;">${s.set}세트</div><div style="font-size:13px;font-weight:700;color:var(--text);">${s.weight > 0 ? s.weight+'kg' : '-'}</div><div style="font-size:11px;color:var(--text-sub);">${s.reps}회</div></div>`).join('')}</div>${record.memo ? `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;gap:8px;"><span style="font-size:14px;">📝</span><div style="font-size:13px;color:var(--text-sub);line-height:1.6;">${record.memo}</div></div>` : ''}<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;"><span style="font-size:12px;color:var(--text-hint);">${formatTime(record.savedAt)}</span><button onclick="openEditWorkoutModal('freeweight_${item.name.replace(/\s+/g,'_')}_${localStorage.getItem('current_user')}','${dateStr}')" style="background:#f59e0b18;color:#d97706;border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button></div></div>`;
+        const isFwClassRecord = record.recordedBy === 'trainer';
+        const fwBadgeHtml = isFwClassRecord
+          ? `<span style="font-size:10px;font-weight:700;color:white;background:#f59e0b;padding:2px 5px;border-radius:4px;">수업</span>`
+          : `<span style="font-size:10px;font-weight:700;color:white;background:#1a6fd4;padding:2px 5px;border-radius:4px;">개인</span>`;
+        return `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div style="width:36px;height:36px;border-radius:10px;background:#f59e0b18;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏋️</div><div style="flex:1;"><div style="display:flex;align-items:center;gap:6px;">${fwBadgeHtml}<span style="font-size:11px;font-weight:700;color:white;background:#d97706;padding:2px 6px;border-radius:5px;white-space:nowrap;">${fwCategory}</span><span style="font-size:14px;font-weight:700;color:var(--text);">${item.name}</span></div><div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${fwMuscles ? fwMuscles + (maxW > 0 ? ' · 최고 '+maxW+'kg' : '') : (maxW > 0 ? '최고 '+maxW+'kg' : '맨몸 운동')}</div></div></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;">${record.sets.map(s=>`<div style="background:#f59e0b12;border-radius:8px;padding:8px;text-align:center;"><div style="font-size:11px;color:#d97706;margin-bottom:2px;font-weight:600;">${s.set}세트</div><div style="font-size:13px;font-weight:700;color:var(--text);">${s.weight > 0 ? s.weight+'kg' : '-'}</div><div style="font-size:11px;color:var(--text-sub);">${s.reps}회</div></div>`).join('')}</div>${record.memo ? `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;gap:8px;"><span style="font-size:14px;">📝</span><div style="font-size:13px;color:var(--text-sub);line-height:1.6;">${record.memo}</div></div>` : ''}<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;"><span style="font-size:12px;color:var(--text-hint);">${formatTime(record.savedAt)}</span><button onclick="openEditWorkoutModal('freeweight_${item.name.replace(/\s+/g,'_')}_${localStorage.getItem('current_user')}','${dateStr}')" style="background:#f59e0b18;color:#d97706;border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button></div></div>`;
       }
     }).join('');
     detail.innerHTML = `<div style="background:var(--blue);border-radius:var(--radius);padding:16px 18px;margin-bottom:12px;color:white;"><div style="font-size:15px;font-weight:700;margin-bottom:10px;">📅 ${dateLabel} 운동 요약</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;text-align:center;"><div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:8px;"><div style="font-size:16px;font-weight:700;">${dayRecords.length}</div><div style="font-size:10px;opacity:0.8;margin-top:2px;">운동 종류</div></div><div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:8px;"><div style="font-size:16px;font-weight:700;">${totalSets}</div><div style="font-size:10px;opacity:0.8;margin-top:2px;">총 세트</div></div><div style="background:rgba(255,255,255,0.15);border-radius:8px;padding:8px;"><div style="font-size:16px;font-weight:700;">${totalVol}</div><div style="font-size:10px;opacity:0.8;margin-top:2px;">볼륨(kg)</div></div><div style="background:rgba(255,255,255,0.2);border-radius:8px;padding:8px;"><div style="font-size:16px;font-weight:700;">${totalCardioKcal > 0 ? '~'+totalCardioKcal : '-'}</div><div style="font-size:10px;opacity:0.8;margin-top:2px;">유산소Kcal</div></div></div></div>${cardsHtml}`;
