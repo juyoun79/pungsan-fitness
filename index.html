@@ -3158,5 +3158,18 @@
     // userId 없으면 로그인 화면 (기본값 = screen-login이 active)
   });
 </script>
+
+<div id="edit-log-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:2000;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
+  <div style="background:var(--card);border-radius:var(--radius);padding:20px;width:100%;max-width:400px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div style="font-size:15px;font-weight:700;color:var(--text);">📋 수업일지 수정</div>
+      <button onclick="closeEditLogModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-hint);">×</button>
+    </div>
+    <div id="edit-log-date" style="font-size:12px;color:var(--text-hint);margin-bottom:8px;"></div>
+    <textarea id="edit-log-content" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;min-height:120px;background:var(--bg);color:var(--text);margin-bottom:10px;"></textarea>
+    <button onclick="saveEditLog()" style="width:100%;padding:12px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;">💾 수정 저장</button>
+    <button onclick="deleteTraineeLog()" style="width:100%;padding:12px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑 이 수업일지 삭제</button>
+  </div>
+</div>
 </body>
 </html>
