@@ -1055,6 +1055,7 @@
 
         closeSignModal();
         alert('✅ 서명 완료! 출석 체크됐어요.');
+        if (currentTraineeTab === 'sign') switchTraineeTab('sign');
       } catch(e) {
         console.error('사인 저장 오류:', e);
         alert('저장 중 오류가 발생했어요. 다시 시도해주세요.');
