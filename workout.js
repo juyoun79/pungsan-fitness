@@ -1000,8 +1000,12 @@
     const display = document.getElementById('class-kcal-display');
     if (min <= 0) { display.textContent = '-'; return; }
     const met = CLASS_MET[type] || 3.5;
-    const weight = 60; // 기본 체중
-    const kcal = Math.round(met * weight * (min / 60));
+    const { weight, gender, age, height } = getBodyInfo();
+    let bmr;
+    if (gender === 'female') bmr = 447.6 + (9.2 * weight) + (3.1 * height) - (4.3 * age);
+    else bmr = 88.4 + (13.4 * weight) + (4.8 * height) - (5.7 * age);
+    const bmrFactor = bmr / (gender === 'female' ? 1500 : 1800);
+    const kcal = Math.round(met * weight * (min / 60) * bmrFactor);
     display.textContent = '약 ' + kcal + 'kcal';
   }
 
@@ -1015,8 +1019,12 @@
     const date = classEditDate || (now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate());
     const dateLabel = date.split('-').join('년 ').replace('-', '월 ') + '일';
     const met = CLASS_MET[type] || 3.5;
-    const weight = 60;
-    const kcal = Math.round(met * weight * (min / 60));
+    const { weight, gender, age, height } = getBodyInfo();
+    let bmr;
+    if (gender === 'female') bmr = 447.6 + (9.2 * weight) + (3.1 * height) - (4.3 * age);
+    else bmr = 88.4 + (13.4 * weight) + (4.8 * height) - (5.7 * age);
+    const bmrFactor = bmr / (gender === 'female' ? 1500 : 1800);
+    const kcal = Math.round(met * weight * (min / 60) * bmrFactor);
     const record = {
       date, dateLabel, type, min, kcal, memo,
       savedAt: now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' })
