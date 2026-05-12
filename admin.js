@@ -865,30 +865,44 @@
           </div>`;
       });
     } else if (tab === 'log') {
-      // 수업일지 표시
-      const trainerId = localStorage.getItem('current_user');
-      db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/logs').once('value', snap => {
-        const logs = [];
-        snap.forEach(child => logs.push({ key: child.key, ...child.val() }));
-        logs.sort((a, b) => (b.key > a.key ? 1 : -1));
-        content.innerHTML = `
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;">
-            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">📋 수업일지 작성</div>
-            <textarea id="trainee-log-input" placeholder="오늘 수업 내용을 기록해주세요" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;min-height:100px;background:var(--bg);color:var(--text);"></textarea>
-            <button onclick="saveTraineeLog()" style="width:100%;margin-top:8px;padding:12px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 수업일지 저장</button>
-          </div>
-          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">📚 수업일지 목록</div>
-          ${logs.length === 0 ? '<div style="text-align:center;padding:16px;color:var(--text-hint);">아직 수업일지가 없어요</div>' :
-            logs.map(log => `
-              <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                  <div style="font-size:12px;color:var(--text-hint);">${log.date} ${log.savedAt || ''}</div>
-                  <button onclick="openEditLogModal('${log.key}')" style="background:var(--blue-light);color:var(--blue);border:none;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
-                </div>
-                <div style="font-size:13px;color:var(--text);line-height:1.6;">${log.content}</div>
-              </div>`).join('')}`;
-      });
+      renderLogTab();
     }
+  }
+
+  function renderLogTab() {
+    var tabContent = document.getElementById('trainee-tab-content');
+    if (!tabContent || !currentTraineeId) return;
+    var trainerId = localStorage.getItem('current_user');
+    db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/logs').once('value', function(snap) {
+      var logs = [];
+      snap.forEach(function(child) {
+        var v = child.val();
+        logs.push({ key: child.key, date: v.date || '', savedAt: v.savedAt || '', content: v.content || '' });
+      });
+      logs.sort(function(a, b) { return b.key > a.key ? 1 : -1; });
+      var listHtml = '';
+      if (logs.length === 0) {
+        listHtml = '<div style="text-align:center;padding:16px;color:var(--text-hint);">아직 수업일지가 없어요</div>';
+      } else {
+        for (var i = 0; i < logs.length; i++) {
+          var log = logs[i];
+          listHtml += '<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px;">';
+          listHtml += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
+          listHtml += '<div style="font-size:12px;color:var(--text-hint);">' + log.date + ' ' + log.savedAt + '</div>';
+          listHtml += '<button onclick="openEditLogModal(this.dataset.key)" data-key="' + log.key + '" style="background:var(--blue-light);color:var(--blue);border:none;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;">수정</button>';
+          listHtml += '</div>';
+          listHtml += '<div style="font-size:13px;color:var(--text);line-height:1.6;">' + log.content + '</div>';
+          listHtml += '</div>';
+        }
+      }
+      var formHtml = '<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px;">';
+      formHtml += '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">📋 수업일지 작성</div>';
+      formHtml += '<textarea id="trainee-log-input" placeholder="오늘 수업 내용을 기록해주세요" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;resize:none;min-height:100px;background:var(--bg);color:var(--text);"></textarea>';
+      formHtml += '<button onclick="saveTraineeLog()" style="width:100%;margin-top:8px;padding:12px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">💾 수업일지 저장</button>';
+      formHtml += '</div>';
+      formHtml += '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">📚 수업일지 목록</div>';
+      tabContent.innerHTML = formHtml + listHtml;
+    });
   }
 
   // 메모 저장
@@ -914,7 +928,7 @@
     const log = { date: dateStr, content: logText, savedAt };
     db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/logs/' + key).set(log).then(() => {
       alert('수업일지가 저장됐어요! 📋');
-      switchTraineeTab('log');
+      renderLogTab();
     });
   }
 
@@ -946,7 +960,7 @@
     db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/logs/' + editLogKey + '/content').set(logText).then(() => {
       alert('수정됐어요! 📋');
       closeEditLogModal();
-      switchTraineeTab('log');
+      renderLogTab();
     });
   }
 
@@ -957,7 +971,7 @@
     db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/logs/' + editLogKey).remove().then(() => {
       alert('삭제됐어요! 🗑');
       closeEditLogModal();
-      switchTraineeTab('log');
+      renderLogTab();
     });
   }
 
