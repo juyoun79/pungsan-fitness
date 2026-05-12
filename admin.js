@@ -1330,13 +1330,16 @@
     if (sets.length === 0) { alert('최소 1세트 이상 입력해주세요!'); return; }
     const memo = document.getElementById('edit-workout-memo').value.trim();
 
+    // 닫기 전에 날짜 미리 저장
+    const savedDateStr = trainerEditDateStr;
+
     db.ref('users/' + trainerEditTraineeId + '/workouts/' + trainerEditEqKey + '/' + trainerEditDateStr).once('value', snap => {
       const existing = snap.val() || {};
       const updated = { ...existing, sets, memo };
       db.ref('users/' + trainerEditTraineeId + '/workouts/' + trainerEditEqKey + '/' + trainerEditDateStr).set(updated)
         .then(() => {
           closeTrainerEditModal();
-          renderTrainerDayDetail(trainerEditDateStr);
+          renderTrainerDayDetail(savedDateStr);
           alert('수정됐어요! ✅');
         })
         .catch(e => { console.error(e); alert('수정 중 오류가 발생했어요.'); });

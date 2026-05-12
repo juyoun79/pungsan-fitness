@@ -57,6 +57,10 @@
         db.ref('users/' + userId + '/workouts').once('value', snap => {
           const data = snap.val();
           if (!data) { if (callback) callback(); return; }
+
+          // Firebase에 있는 모든 localKey 수집
+          const fbLocalKeys = new Set();
+
           Object.entries(data).forEach(([fbKey, dateMap]) => {
             if (!dateMap) return;
             let localKey = '';
@@ -80,8 +84,17 @@
             } else {
               localKey = 'workout_' + fbKey + '_' + userId;
             }
+
+            // Firebase에 있는 날짜 목록
+            const fbDates = new Set(Object.keys(dateMap));
+            fbLocalKeys.add(localKey);
+
             const records = Object.values(dateMap).sort((a, b) => b.date > a.date ? 1 : -1);
-            const existing = JSON.parse(localStorage.getItem(localKey) || '[]');
+            let existing = JSON.parse(localStorage.getItem(localKey) || '[]');
+
+            // Firebase에 없는 날짜는 로컬에서 삭제
+            existing = existing.filter(r => fbDates.has(r.date));
+
             records.forEach(fbRecord => {
               const idx = existing.findIndex(r => r.date === fbRecord.date);
               if (idx !== -1) existing[idx] = fbRecord; else existing.unshift(fbRecord);
@@ -89,6 +102,7 @@
             existing.sort((a, b) => b.date > a.date ? 1 : -1);
             localStorage.setItem(localKey, JSON.stringify(existing));
           });
+
           if (callback) callback();
         });
       });
