@@ -974,6 +974,7 @@
     });
     document.getElementById('class-type').value = '기구필라테스';
     document.getElementById('class-modal').classList.add('active');
+    calcClassKcal();
   }
 
   function closeClassModal() {
