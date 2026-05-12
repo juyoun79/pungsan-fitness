@@ -1081,15 +1081,19 @@
 
     // Firebase에서 해당 월 운동기록 날짜 가져오기
     db.ref('users/' + traineeId + '/workouts').once('value', snap => {
-      const workoutDays = new Set();
+      const personalDays = new Set();
+      const classDays = new Set();
       if (snap.exists()) {
         snap.forEach(eqSnap => {
           eqSnap.forEach(daySnap => {
-            const d = daySnap.val().date;
+            const r = daySnap.val();
+            const d = r.date;
             if (d) {
               const parts = d.split('-');
               if (parseInt(parts[0]) === year && parseInt(parts[1]) === month) {
-                workoutDays.add(parseInt(parts[2]));
+                const day = parseInt(parts[2]);
+                if (r.recordedBy === 'trainer') classDays.add(day);
+                else personalDays.add(day);
               }
             }
           });
@@ -1117,13 +1121,21 @@
             const dateStr = year+'-'+month+'-'+day;
             const isToday = dateStr === todayStr;
             const isSelected = dateStr === trainerCalSelectedDate;
-            const hasWorkout = workoutDays.has(day);
+            const hasPersonal = personalDays.has(day);
+            const hasClass = classDays.has(day);
+            const hasWorkout = hasPersonal || hasClass;
+            const dotHtml = hasWorkout
+              ? `<div style="display:flex;gap:2px;justify-content:center;margin:1px auto 0;">
+                  ${hasClass ? `<div style="width:5px;height:5px;border-radius:50%;background:${isSelected?'white':'#f59e0b'};"></div>` : ''}
+                  ${hasPersonal ? `<div style="width:5px;height:5px;border-radius:50%;background:${isSelected?'rgba(255,255,255,0.7)':'var(--blue)'};"></div>` : ''}
+                </div>`
+              : '<div style="width:5px;height:5px;margin:1px auto 0;"></div>';
             const dow = (firstDay + i) % 7;
             let bg = isSelected ? 'var(--blue)' : isToday ? '#e8f0fe' : 'transparent';
             let color = isSelected ? 'white' : dow===0 ? '#ef4444' : dow===6 ? '#3b82f6' : 'var(--text)';
             return `<div onclick="selectTrainerCalDay('${dateStr}')" style="text-align:center;padding:6px 2px;border-radius:8px;cursor:pointer;background:${bg};position:relative;">
               <div style="font-size:13px;font-weight:${isToday||isSelected?'700':'400'};color:${color};">${day}</div>
-              ${hasWorkout ? `<div style="width:5px;height:5px;border-radius:50%;background:${isSelected?'white':'var(--blue)'};margin:1px auto 0;"></div>` : '<div style="width:5px;height:5px;margin:1px auto 0;"></div>'}
+              ${dotHtml}
             </div>`;
           }).join('')}
         </div>`;
