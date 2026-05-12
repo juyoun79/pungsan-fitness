@@ -105,6 +105,27 @@
 
           if (callback) callback();
         });
+
+        // 수업 기록 동기화
+        db.ref('users/' + userId + '/classes').once('value', classSnap => {
+          if (!classSnap.exists()) return;
+          classSnap.forEach(typeSnap => {
+            const typeKey = typeSnap.key;
+            const typeName = typeKey.replace(/_/g, ' ');
+            const localKey = 'class_' + typeKey + '_' + userId;
+            const classIndex = JSON.parse(localStorage.getItem('class_index_' + userId) || '[]');
+            if (!classIndex.includes(typeName)) { classIndex.push(typeName); localStorage.setItem('class_index_' + userId, JSON.stringify(classIndex)); }
+            const fbDates = new Set(Object.keys(typeSnap.val() || {}));
+            let existing = JSON.parse(localStorage.getItem(localKey) || '[]');
+            existing = existing.filter(r => fbDates.has(r.date));
+            Object.values(typeSnap.val() || {}).forEach(fbRecord => {
+              const idx = existing.findIndex(r => r.date === fbRecord.date);
+              if (idx !== -1) existing[idx] = fbRecord; else existing.unshift(fbRecord);
+            });
+            existing.sort((a, b) => b.date > a.date ? 1 : -1);
+            localStorage.setItem(localKey, JSON.stringify(existing));
+          });
+        });
       });
     });
   }
@@ -165,6 +186,10 @@
     const cardioIndex = JSON.parse(localStorage.getItem('cardio_index_' + userId) || '[]');
     for (const type of cardioIndex) {
       classify(JSON.parse(localStorage.getItem('cardio_' + type + '_' + userId) || '[]'));
+    }
+    const classIndex = JSON.parse(localStorage.getItem('class_index_' + userId) || '[]');
+    for (const name of classIndex) {
+      classify(JSON.parse(localStorage.getItem('class_' + name.replace(/\s+/g,'_') + '_' + userId) || '[]'));
     }
     return { personalDays, classDays };
   }
@@ -260,6 +285,14 @@
       const found = records.find(r => r.date === dateStr);
       if (found) dayRecords.push({ type:'cardio', name: ctype, record: found });
     }
+    // 수업 기록 추가
+    const classIndex = JSON.parse(localStorage.getItem('class_index_' + userId) || '[]');
+    for (const ctype of classIndex) {
+      const safeKey = 'class_' + ctype.replace(/\s+/g,'_') + '_' + userId;
+      const records = JSON.parse(localStorage.getItem(safeKey) || '[]');
+      const found = records.find(r => r.date === dateStr);
+      if (found) dayRecords.push({ type:'class', name: ctype, record: found });
+    }
     // savedAt 기준 오름차순 정렬 (일찍 한 운동이 위로)
     dayRecords.sort((a, b) => {
       const tA = (a.record.savedAt || '').replace('오전 ', '').replace('오후 ', '').trim();
@@ -272,11 +305,19 @@
     }
     let totalVol = 0, totalSets = 0, totalCardioKcal = 0;
     for (const item of dayRecords) {
-      if (item.type === 'cardio') { totalCardioKcal += item.record.kcal || 0; continue; }
+      if (item.type === 'cardio' || item.type === 'class') { totalCardioKcal += item.record.kcal || 0; continue; }
       if (item.record.sets) { totalSets += item.record.sets.length; totalVol += item.record.sets.reduce((s, r) => s + (r.weight * r.reps), 0); }
     }
     const cardsHtml = dayRecords.map(item => {
       const record = item.record;
+      if (item.type === 'class') {
+        const classEmoji = {'기구필라테스':'🏋️','에어로빅':'💃','방송댄스':'🕺','요가':'🧘','매트필라테스':'🤸','기능성운동':'💪'}[item.name] || '🧘';
+        const isClassRecord = record.recordedBy === 'trainer';
+        const classBadge = isClassRecord
+          ? `<span style="font-size:10px;font-weight:700;color:white;background:#f59e0b;padding:2px 5px;border-radius:4px;">수업</span>`
+          : `<span style="font-size:10px;font-weight:700;color:white;background:#1a6fd4;padding:2px 5px;border-radius:4px;">개인</span>`;
+        return `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div style="width:36px;height:36px;border-radius:10px;background:#e0f7fa;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${classEmoji}</div><div style="flex:1;"><div style="display:flex;align-items:center;gap:6px;">${classBadge}<span style="font-size:11px;font-weight:700;color:white;background:#0891b2;padding:2px 6px;border-radius:5px;white-space:nowrap;">GX수업</span><span style="font-size:14px;font-weight:700;color:var(--text);">${item.name}</span></div><div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${record.min}분 · 약 ${record.kcal}kcal</div></div></div>${record.memo ? `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;gap:8px;"><span style="font-size:14px;">📝</span><div style="font-size:13px;color:var(--text-sub);line-height:1.6;">${record.memo}</div></div>` : ''}<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;"><span style="font-size:12px;color:var(--text-hint);">${formatTime(record.savedAt)}</span><button onclick="openEditClassModal('${item.name}','${dateStr}')" style="background:#e0f7fa;color:#0891b2;border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button></div></div>`;
+      }
       if (item.type === 'cardio') {
         const timeStr = (record.min||0) + '분';
         const cardioEmoji = {'런닝머신':'🏃','스텝밀':'🪜','사이클':'🚴','마이마운틴':'⛰️'}[item.name] || '🔥';
@@ -911,6 +952,131 @@
   }
 
   let fwSetCount = 0;
+  let classEditDate = null;
+
+  // 수업 칼로리 계산 (MET 기반)
+  const CLASS_MET = {
+    '기구필라테스': 3.5, '에어로빅': 6.5, '방송댄스': 5.5,
+    '요가': 2.5, '매트필라테스': 3.0, '기능성운동': 4.0
+  };
+
+  function openClassModal() {
+    classEditDate = null;
+    document.getElementById('class-min').value = '';
+    document.getElementById('class-memo').value = '';
+    document.getElementById('class-kcal-display').textContent = '-';
+    document.getElementById('class-delete-btn').style.display = 'none';
+    document.querySelectorAll('.class-type-btn').forEach((b, i) => {
+      const isFirst = i === 0;
+      b.style.border = isFirst ? '2px solid #0891b2' : '2px solid var(--border)';
+      b.style.background = isFirst ? '#e0f7fa' : 'var(--card)';
+      b.style.color = isFirst ? '#0891b2' : 'var(--text-sub)';
+    });
+    document.getElementById('class-type').value = '기구필라테스';
+    document.getElementById('class-modal').classList.add('active');
+  }
+
+  function closeClassModal() {
+    document.getElementById('class-modal').classList.remove('active');
+    classEditDate = null;
+  }
+
+  function selectClassType(btn, type) {
+    document.querySelectorAll('.class-type-btn').forEach(b => {
+      b.style.border = '2px solid var(--border)';
+      b.style.background = 'var(--card)';
+      b.style.color = 'var(--text-sub)';
+    });
+    btn.style.border = '2px solid #0891b2';
+    btn.style.background = '#e0f7fa';
+    btn.style.color = '#0891b2';
+    document.getElementById('class-type').value = type;
+    calcClassKcal();
+  }
+
+  function calcClassKcal() {
+    const type = document.getElementById('class-type').value;
+    const min = parseInt(document.getElementById('class-min').value) || 0;
+    const display = document.getElementById('class-kcal-display');
+    if (min <= 0) { display.textContent = '-'; return; }
+    const met = CLASS_MET[type] || 3.5;
+    const weight = 60; // 기본 체중
+    const kcal = Math.round(met * weight * (min / 60));
+    display.textContent = '약 ' + kcal + 'kcal';
+  }
+
+  function saveClassWorkout() {
+    const type = document.getElementById('class-type').value;
+    const min = parseInt(document.getElementById('class-min').value) || 0;
+    if (min <= 0) { alert('수업 시간을 입력해주세요!'); return; }
+    const memo = document.getElementById('class-memo').value.trim();
+    const userId = localStorage.getItem('current_user');
+    const now = new Date();
+    const date = classEditDate || (now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate());
+    const dateLabel = date.split('-').join('년 ').replace('-', '월 ') + '일';
+    const met = CLASS_MET[type] || 3.5;
+    const weight = 60;
+    const kcal = Math.round(met * weight * (min / 60));
+    const record = {
+      date, dateLabel, type, min, kcal, memo,
+      savedAt: now.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' })
+    };
+    const safeKey = 'class_' + type.replace(/\s+/g,'_') + '_' + userId;
+    const existing = JSON.parse(localStorage.getItem(safeKey) || '[]');
+    const idx = existing.findIndex(r => r.date === date);
+    if (idx !== -1) existing[idx] = record; else existing.unshift(record);
+    if (existing.length > 30) existing.pop();
+    localStorage.setItem(safeKey, JSON.stringify(existing));
+
+    // classIndex 관리
+    const classIndex = JSON.parse(localStorage.getItem('class_index_' + userId) || '[]');
+    if (!classIndex.includes(type)) { classIndex.push(type); localStorage.setItem('class_index_' + userId, JSON.stringify(classIndex)); }
+
+    // Firebase 저장
+    db.ref('users/' + userId + '/classes/' + type.replace(/\s+/g,'_') + '/' + date).set(record);
+
+    closeClassModal();
+    document.getElementById('workout-complete-msg').textContent = type + ' 수업 완료!';
+    document.getElementById('workout-summary').innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center;"><div><div style="font-size:11px;color:#5a6478;margin-bottom:4px;">수업 시간</div><div style="font-size:18px;font-weight:700;color:#0891b2;">${min}분</div></div><div><div style="font-size:11px;color:#5a6478;margin-bottom:4px;">칼로리</div><div style="font-size:18px;font-weight:700;color:#0891b2;">약 ${kcal} kcal</div></div></div>`;
+    document.getElementById('workout-complete-overlay').classList.add('active');
+    renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate);
+  }
+
+  function deleteClassRecord() {
+    if (!classEditDate) return;
+    const type = document.getElementById('class-type').value;
+    const userId = localStorage.getItem('current_user');
+    const safeKey = 'class_' + type.replace(/\s+/g,'_') + '_' + userId;
+    const existing = JSON.parse(localStorage.getItem(safeKey) || '[]');
+    const filtered = existing.filter(r => r.date !== classEditDate);
+    localStorage.setItem(safeKey, JSON.stringify(filtered));
+    db.ref('users/' + userId + '/classes/' + type.replace(/\s+/g,'_') + '/' + classEditDate).remove();
+    closeClassModal();
+    renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate);
+  }
+
+  function openEditClassModal(type, dateStr) {
+    const userId = localStorage.getItem('current_user');
+    const safeKey = 'class_' + type.replace(/\s+/g,'_') + '_' + userId;
+    const records = JSON.parse(localStorage.getItem(safeKey) || '[]');
+    const record = records.find(r => r.date === dateStr);
+    if (!record) { alert('기록을 찾을 수 없어요.'); return; }
+    classEditDate = dateStr;
+    openClassModal();
+    setTimeout(() => {
+      document.getElementById('class-type').value = type;
+      document.getElementById('class-min').value = record.min || '';
+      document.getElementById('class-memo').value = record.memo || '';
+      calcClassKcal();
+      document.querySelectorAll('.class-type-btn').forEach(b => {
+        const sel = b.dataset.type === type;
+        b.style.border = sel ? '2px solid #0891b2' : '2px solid var(--border)';
+        b.style.background = sel ? '#e0f7fa' : 'var(--card)';
+        b.style.color = sel ? '#0891b2' : 'var(--text-sub)';
+      });
+      document.getElementById('class-delete-btn').style.display = 'block';
+    }, 100);
+  }
   function formatTime(savedAt) { if (!savedAt) return ''; return savedAt.replace('오전 ', '').replace('오후 ', '').trim(); }
 
   function searchFwExercise(query) {

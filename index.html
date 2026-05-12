@@ -1005,8 +1005,8 @@
       <!-- 검색 결과 드롭다운 -->
       <div id="equipment-search-result" style="display:none;background:var(--card);border:1.5px solid var(--blue);border-radius:var(--radius-sm);margin-bottom:14px;overflow:hidden;box-shadow:0 4px 16px rgba(26,111,212,0.12);max-height:280px;overflow-y:auto;"></div>
 
-      <!-- 운동 기록 추가 버튼 2개 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
+      <!-- 운동 기록 추가 버튼 3개 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
         <button onclick="openFreeweightModal()"
           style="padding:12px 8px;background:var(--card);border:1.5px dashed #8b5cf6;border-radius:var(--radius-sm);color:#8b5cf6;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background 0.15s;"
           ontouchstart="this.style.background='#f3e8ff'" ontouchend="this.style.background='var(--card)'"
@@ -1026,6 +1026,16 @@
           유산소 기록
         </button>
       </div>
+      <button onclick="openClassModal()"
+        style="width:100%;padding:12px 8px;background:var(--card);border:1.5px dashed #0891b2;border-radius:var(--radius-sm);color:#0891b2;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:16px;transition:background 0.15s;"
+        ontouchstart="this.style.background='#e0f7fa'" ontouchend="this.style.background='var(--card)'"
+        onmouseenter="this.style.background='#e0f7fa'" onmouseleave="this.style.background='var(--card)'">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+          <path d="M12 8v4l3 3"/>
+        </svg>
+        기구필라테스 / GX수업
+      </button>
 
       <!-- 달력 카드 -->
       <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;">
@@ -1704,6 +1714,78 @@
       <div style="padding:12px 20px;border-top:1px solid var(--border);">
         <button onclick="saveTrainerFwWorkout()" style="width:100%;padding:14px;background:#8b5cf6;color:white;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✅ 저장</button>
       </div>
+    </div>
+  </div>
+
+  <!-- 기구필라테스/GX수업 모달 -->
+  <div class="modal-overlay" id="class-modal">
+    <div class="modal-sheet" style="overflow-y:auto;">
+      <div class="modal-title">
+        <span>🧘 기구필라테스 / GX수업 기록</span>
+        <button class="modal-close" onclick="closeClassModal()">×</button>
+      </div>
+
+      <!-- 수업 종류 선택 -->
+      <div style="margin-bottom:16px;">
+        <label class="field-label">수업 종류</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+          <button onclick="selectClassType(this,'기구필라테스')" class="class-type-btn active" data-type="기구필라테스"
+            style="padding:14px 8px;border-radius:var(--radius-sm);border:2px solid #0891b2;background:#e0f7fa;color:#0891b2;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <span style="font-size:22px;">🏋️</span>기구필라테스
+          </button>
+          <button onclick="selectClassType(this,'에어로빅')" class="class-type-btn" data-type="에어로빅"
+            style="padding:14px 8px;border-radius:var(--radius-sm);border:2px solid var(--border);background:var(--card);color:var(--text-sub);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <span style="font-size:22px;">💃</span>에어로빅
+          </button>
+          <button onclick="selectClassType(this,'방송댄스')" class="class-type-btn" data-type="방송댄스"
+            style="padding:14px 8px;border-radius:var(--radius-sm);border:2px solid var(--border);background:var(--card);color:var(--text-sub);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <span style="font-size:22px;">🕺</span>방송댄스
+          </button>
+          <button onclick="selectClassType(this,'요가')" class="class-type-btn" data-type="요가"
+            style="padding:14px 8px;border-radius:var(--radius-sm);border:2px solid var(--border);background:var(--card);color:var(--text-sub);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <span style="font-size:22px;">🧘</span>요가
+          </button>
+          <button onclick="selectClassType(this,'매트필라테스')" class="class-type-btn" data-type="매트필라테스"
+            style="padding:14px 8px;border-radius:var(--radius-sm);border:2px solid var(--border);background:var(--card);color:var(--text-sub);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <span style="font-size:22px;">🤸</span>매트필라테스
+          </button>
+          <button onclick="selectClassType(this,'기능성운동')" class="class-type-btn" data-type="기능성운동"
+            style="padding:14px 8px;border-radius:var(--radius-sm);border:2px solid var(--border);background:var(--card);color:var(--text-sub);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <span style="font-size:22px;">💪</span>기능성운동
+          </button>
+        </div>
+        <input type="hidden" id="class-type" value="기구필라테스" />
+      </div>
+
+      <!-- 시간 입력 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <div style="text-align:center;">
+          <label class="field-label" style="display:block;">⏱ 수업 시간</label>
+          <input type="number" id="class-min" placeholder="0" min="0" max="300"
+            style="width:100%;padding:10px 4px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;box-sizing:border-box;margin-top:6px;"
+            onfocus="this.style.borderColor='#0891b2'" onblur="this.style.borderColor='var(--border)'" />
+          <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">분</div>
+        </div>
+        <div style="text-align:center;">
+          <label class="field-label" style="display:block;">🔥 칼로리</label>
+          <div id="class-kcal-display"
+            style="width:100%;padding:10px 4px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-weight:700;text-align:center;color:#0891b2;background:var(--bg);margin-top:6px;box-sizing:border-box;min-height:42px;display:flex;align-items:center;justify-content:center;">
+            -
+          </div>
+          <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">kcal (추정)</div>
+        </div>
+      </div>
+
+      <!-- 메모 -->
+      <div style="margin-bottom:16px;">
+        <label class="field-label">메모 (선택)</label>
+        <textarea id="class-memo" placeholder="오늘 수업 느낌, 컨디션 등..."
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:70px;margin-top:6px;"
+          onfocus="this.style.borderColor='#0891b2'" onblur="this.style.borderColor='var(--border)'"></textarea>
+      </div>
+
+      <button class="btn-primary" onclick="saveClassWorkout()" style="background:#0891b2;border-color:#0891b2;">💾 수업 기록 저장</button>
+      <button id="class-delete-btn" onclick="deleteClassRecord()" style="display:none;width:100%;padding:14px;background:#e0f7fa;color:#0891b2;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:10px;">🗑 이 기록 삭제</button>
     </div>
   </div>
 
