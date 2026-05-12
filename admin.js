@@ -1080,7 +1080,10 @@
     const year = trainerCalYear, month = trainerCalMonth;
 
     // Firebase에서 해당 월 운동기록 날짜 가져오기
-    db.ref('users/' + traineeId + '/workouts').once('value', snap => {
+    Promise.all([
+      db.ref('users/' + traineeId + '/workouts').once('value'),
+      db.ref('users/' + traineeId + '/classes').once('value')
+    ]).then(([snap, classSnap]) => {
       const personalDays = new Set();
       const classDays = new Set();
       if (snap.exists()) {
@@ -1094,6 +1097,21 @@
                 const day = parseInt(parts[2]);
                 if (r.recordedBy === 'trainer') classDays.add(day);
                 else personalDays.add(day);
+              }
+            }
+          });
+        });
+      }
+      // GX수업/기구필라테스 날짜도 personalDays에 추가
+      if (classSnap.exists()) {
+        classSnap.forEach(typeSnap => {
+          typeSnap.forEach(daySnap => {
+            const r = daySnap.val();
+            const d = r.date;
+            if (d) {
+              const parts = d.split('-');
+              if (parseInt(parts[0]) === year && parseInt(parts[1]) === month) {
+                personalDays.add(parseInt(parts[2]));
               }
             }
           });
@@ -1169,24 +1187,39 @@
     if (!detailEl || !currentTraineeId) return;
     const traineeId = currentTraineeId;
 
-    db.ref('users/' + traineeId + '/workouts').once('value', snap => {
+    // workouts + classes 동시에 읽기
+    Promise.all([
+      db.ref('users/' + traineeId + '/workouts').once('value'),
+      db.ref('users/' + traineeId + '/classes').once('value')
+    ]).then(([workoutSnap, classSnap]) => {
       let records = [];
-      if (snap.exists()) {
-        snap.forEach(eqSnap => {
+
+      // 기구운동/유산소 기록
+      if (workoutSnap.exists()) {
+        workoutSnap.forEach(eqSnap => {
           const eqKey = eqSnap.key;
           eqSnap.forEach(daySnap => {
             const r = daySnap.val();
-            if (r.date === dateStr) records.push({ eqKey, ...r });
+            if (r.date === dateStr) records.push({ eqKey, recordType: eqKey.startsWith('cardio_') ? 'cardio' : 'workout', ...r });
           });
         });
       }
 
-      // 시간순 정렬 (savedAt 기준 오름차순), 듀얼 기구는 앞면이 먼저
+      // GX수업/기구필라테스 기록
+      if (classSnap.exists()) {
+        classSnap.forEach(typeSnap => {
+          typeSnap.forEach(daySnap => {
+            const r = daySnap.val();
+            if (r.date === dateStr) records.push({ eqKey: 'class_' + typeSnap.key, recordType: 'class', ...r });
+          });
+        });
+      }
+
+      // 시간순 정렬
       records.sort((a, b) => {
         const ta = a.savedAt || '';
         const tb = b.savedAt || '';
         if (ta !== tb) return ta.localeCompare(tb);
-        // 같은 시간이면 앞면(dual_front_)이 먼저
         const aFront = (a.eqKey || '').startsWith('dual_front_') ? 0 : 1;
         const bFront = (b.eqKey || '').startsWith('dual_front_') ? 0 : 1;
         return aFront - bFront;
@@ -1201,12 +1234,72 @@
         html += `<div style="text-align:center;padding:12px;color:var(--text-hint);font-size:13px;">운동 기록이 없어요</div>`;
       } else {
         records.forEach(r => {
-          // 기구명 처리 (듀얼 기구 포함)
+
+          // GX수업/기구필라테스 카드
+          if (r.recordType === 'class') {
+            const classEmojis = { '기구필라테스':'🌀', '에어로빅':'🎶', '방송댄스':'🕺', '요가':'🧘‍♀️', '매트필라테스':'🌿', '기능성운동':'⚖️' };
+            const emoji = classEmojis[r.type] || '🌀';
+            html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;gap:5px;">
+                  <span style="font-size:10px;font-weight:700;color:white;background:#0891b2;padding:2px 5px;border-radius:4px;flex-shrink:0;">GX수업</span>
+                  <span style="font-size:14px;">${emoji}</span>
+                  <div style="font-size:13px;font-weight:700;color:var(--text);">${r.type}</div>
+                </div>
+                ${r.savedAt ? `<span style="font-size:11px;color:var(--text-hint);">${r.savedAt}</span>` : ''}
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:${r.memo ? '6px' : '0'};">
+                <div style="background:#e0f7fa;border-radius:6px;padding:6px 8px;text-align:center;">
+                  <div style="font-size:10px;color:#0891b2;margin-bottom:1px;font-weight:600;">시간</div>
+                  <div style="font-size:12px;font-weight:700;color:var(--text);">${r.min}분</div>
+                </div>
+                <div style="background:#e0f7fa;border-radius:6px;padding:6px 8px;text-align:center;">
+                  <div style="font-size:10px;color:#0891b2;margin-bottom:1px;font-weight:600;">칼로리</div>
+                  <div style="font-size:12px;font-weight:700;color:var(--text);">약 ${r.kcal}kcal</div>
+                </div>
+              </div>
+              ${r.memo ? `<div style="background:var(--bg);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--text-sub);">📝 ${r.memo}</div>` : ''}
+            </div>`;
+            return;
+          }
+
+          // 유산소 카드
+          if (r.recordType === 'cardio') {
+            const cardioIcons = { '런닝머신':'🏃', '스텝밀':'🧗', '사이클':'🚴', '마이마운틴':'⛰️' };
+            const icon = cardioIcons[r.type] || '🏃';
+            const timeStr = r.min > 0 ? (r.min >= 60 ? Math.floor(r.min/60)+'시간 '+(r.min%60 ? r.min%60+'분' : '') : r.min+'분') : '-';
+            html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;gap:5px;">
+                  <span style="font-size:10px;font-weight:700;color:white;background:#ef4444;padding:2px 5px;border-radius:4px;flex-shrink:0;">유산소</span>
+                  <span style="font-size:14px;">${icon}</span>
+                  <div style="font-size:13px;font-weight:700;color:var(--text);">${r.type}</div>
+                </div>
+                ${r.savedAt ? `<span style="font-size:11px;color:var(--text-hint);">${r.savedAt}</span>` : ''}
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:${r.memo ? '6px' : '0'};">
+                <div style="background:#fee2e2;border-radius:6px;padding:6px 8px;text-align:center;">
+                  <div style="font-size:10px;color:#ef4444;margin-bottom:1px;font-weight:600;">시간</div>
+                  <div style="font-size:12px;font-weight:700;color:var(--text);">${timeStr}</div>
+                </div>
+                <div style="background:#fee2e2;border-radius:6px;padding:6px 8px;text-align:center;">
+                  <div style="font-size:10px;color:#ef4444;margin-bottom:1px;font-weight:600;">거리</div>
+                  <div style="font-size:12px;font-weight:700;color:var(--text);">${r.dist > 0 ? r.dist+(r.distUnit||'km') : '-'}</div>
+                </div>
+                <div style="background:#fee2e2;border-radius:6px;padding:6px 8px;text-align:center;">
+                  <div style="font-size:10px;color:#ef4444;margin-bottom:1px;font-weight:600;">칼로리</div>
+                  <div style="font-size:12px;font-weight:700;color:var(--text);">${r.kcal > 0 ? '약 '+r.kcal+'kcal' : '-'}</div>
+                </div>
+              </div>
+              ${r.memo ? `<div style="background:var(--bg);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--text-sub);">📝 ${r.memo}</div>` : ''}
+            </div>`;
+            return;
+          }
+
+          // 기구운동/프리웨이트 카드 (기존 코드)
           const rawKey = r.eqKey || '';
           const baseKey = rawKey.replace('dual_front_','').replace('dual_back_','').replace('fw_','');
           const eq = EQUIPMENT_LIST.find(e => e.key === rawKey || e.key === baseKey);
-
-          // r.name이 있으면 우선 사용 (듀얼 기구 앞면/뒷면 이름)
           let name, subLabel = '';
           if (r.name) {
             name = r.name;
