@@ -1129,12 +1129,12 @@
         const unitEntries = uniqueEntries;
         unitBtns = unitEntries.map(([unit, gram]) => {
           const kcal = Math.round(food.k * gram / 100);
-          return `<button onmousedown="selectFood('${meal}','${food.n}','${unit}',${kcal},${gram})"
+          return `<button onclick="selectFood('${meal}','${food.n}','${unit}',${kcal},${gram})"
             style="padding:3px 8px;background:#e8f4ff;border:1px solid #185FA5;border-radius:12px;font-size:11px;color:#185FA5;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">${unit} (${kcal}kcal)</button>`;
         }).join('');
       } else {
         const kcal = food.k;
-        unitBtns = `<button onmousedown="selectFood('${meal}','${food.n}','100g',${kcal})"
+        unitBtns = `<button onclick="selectFood('${meal}','${food.n}','100g',${kcal})"
           style="padding:3px 8px;background:#e8f4ff;border:1px solid #185FA5;border-radius:12px;font-size:11px;color:#185FA5;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">100g (${kcal}kcal)</button>`;
       }
 
