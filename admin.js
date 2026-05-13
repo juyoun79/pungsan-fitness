@@ -361,6 +361,13 @@
     membersEl.innerHTML = '';
 
     const monthStr = reportYear + '-' + String(reportMonth).padStart(2,'0');
+    const monthStrShort = reportYear + '-' + reportMonth + '-';
+    const monthStrLong = reportYear + '-' + String(reportMonth).padStart(2,'0') + '-';
+
+    function isInMonth(dateStr) {
+      if (!dateStr) return false;
+      return dateStr.startsWith(monthStrLong) || dateStr.startsWith(monthStrShort);
+    }
 
     db.ref('trainers/' + trainerId + '/trainees').once('value', snap => {
       if (!snap.exists()) {
@@ -388,7 +395,7 @@
           if (signsSnap.exists()) {
             signsSnap.forEach(s => {
               const v = s.val();
-              if (v.date && v.date.startsWith(monthStr)) signs.push({ key: s.key, ...v });
+              if (isInMonth(v.date)) signs.push({ key: s.key, ...v });
             });
           }
           const signCount = signs.filter(s => !s.noShow).length;
@@ -399,7 +406,7 @@
           if (logsSnap.exists()) {
             logsSnap.forEach(l => {
               const v = l.val();
-              if (v.date && v.date.startsWith(monthStr)) logs.push({ key: l.key, ...v });
+              if (isInMonth(v.date)) logs.push({ key: l.key, ...v });
             });
           }
 
