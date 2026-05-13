@@ -518,8 +518,9 @@
   function saveReregister() {
     if (!currentTraineeId) return;
     const trainerId = localStorage.getItem('current_user');
-    const type = document.getElementById('reregister-type').value;
+    const type = document.getElementById('reregister-type').value.trim();
     const count = parseInt(document.getElementById('reregister-count').value) || 0;
+    if (!type) { alert('수업 종류를 입력해주세요.'); return; }
     if (!count || count < 1) { alert('횟수를 입력해주세요.'); return; }
     const today = new Date();
     const dateStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
@@ -530,24 +531,20 @@
       const prevType = info.type || '';
       const prevRemain = info.remain || 0;
 
-      // registrations에 이전 등록 이력 저장
       const regKey = 'reg_' + Date.now();
-      const prevReg = {
-        type: prevType,
-        total: prevTotal,
-        remain: prevRemain,
-        date: dateStr,
-        completed: true
-      };
+      const prevReg = { type: prevType, total: prevTotal, remain: prevRemain, date: dateStr, completed: true };
 
-      // 새 등록으로 업데이트
       Promise.all([
         db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/registrations/' + regKey).set(prevReg),
         db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId).update({ type, total: count, remain: count })
       ]).then(() => {
+        // 카드 바로 갱신
+        document.getElementById('trainee-card-type').textContent = type;
+        document.getElementById('trainee-card-remain').textContent = count;
+        document.getElementById('trainee-card-total').textContent = count;
+        loadTraineeHistory(currentTraineeId);
         alert('✅ ' + count + '회 재등록 완료!');
         closeReregisterModal();
-        openMemberModal(currentTraineeId);
       });
     });
   }

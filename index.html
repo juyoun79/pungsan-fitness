@@ -3332,12 +3332,9 @@
       <div id="reregister-info" style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--text-hint);"></div>
       <div style="margin-bottom:12px;">
         <label style="font-size:13px;font-weight:700;color:var(--text);display:block;margin-bottom:6px;">수업 종류</label>
-        <select id="reregister-type" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
-          <option value="PT">PT</option>
-          <option value="필라테스">필라테스</option>
-          <option value="GX">GX</option>
-          <option value="기구필라테스">기구필라테스</option>
-        </select>
+        <input type="text" id="reregister-type" placeholder="PT, 필라테스, GX 등"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
+          onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"/>
       </div>
       <div style="margin-bottom:16px;">
         <label style="font-size:13px;font-weight:700;color:var(--text);display:block;margin-bottom:6px;">횟수</label>
