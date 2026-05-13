@@ -531,19 +531,21 @@
       const prevType = info.type || '';
       const prevRemain = info.remain || 0;
 
+      // 잔여횟수 합산
+      const newRemain = prevRemain + count;
+
       const regKey = 'reg_' + Date.now();
-      const prevReg = { type: prevType, total: prevTotal, remain: prevRemain, date: dateStr, completed: true };
+      const prevReg = { type: prevType, total: prevTotal, remain: prevRemain, date: dateStr, completed: prevRemain === 0 };
 
       Promise.all([
         db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/registrations/' + regKey).set(prevReg),
-        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId).update({ type, total: count, remain: count })
+        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId).update({ type, total: count, remain: newRemain })
       ]).then(() => {
-        // 카드 바로 갱신
         document.getElementById('trainee-card-type').textContent = type;
-        document.getElementById('trainee-card-remain').textContent = count;
+        document.getElementById('trainee-card-remain').textContent = newRemain;
         document.getElementById('trainee-card-total').textContent = count;
         loadTraineeHistory(currentTraineeId);
-        alert('✅ ' + count + '회 재등록 완료!');
+        alert('✅ ' + count + '회 재등록 완료!\n총 잔여 횟수: ' + newRemain + '회');
         closeReregisterModal();
       });
     });
