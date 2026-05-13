@@ -884,10 +884,27 @@
         signs.map((s, i) => `
           <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-              <div style="font-size:13px;font-weight:700;color:var(--text);">${signs.length - i}회차 수업</div>
-              <div style="font-size:12px;color:var(--text-hint);">${s.date} ${s.savedAt || ''}</div>
+              <div style="font-size:13px;font-weight:700;color:var(--text);">${s.noShow ? '당일취소' : signs.length - i + '회차 수업'}</div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="font-size:12px;color:var(--text-hint);">${s.date} ${s.savedAt || ''}</div>
+                <div style="position:relative;">
+                  <button onclick="toggleSignMenu('smenu_${s.key}')" style="background:none;border:none;cursor:pointer;padding:4px;display:flex;flex-direction:column;gap:3px;align-items:center;">
+                    <span style="width:3px;height:3px;border-radius:50%;background:var(--text-hint);display:block;"></span>
+                    <span style="width:3px;height:3px;border-radius:50%;background:var(--text-hint);display:block;"></span>
+                    <span style="width:3px;height:3px;border-radius:50%;background:var(--text-hint);display:block;"></span>
+                  </button>
+                  <div id="smenu_${s.key}" style="display:none;position:absolute;right:0;top:24px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px;min-width:100px;z-index:10;">
+                    <button onclick="openEditSignModal('${s.key}')" style="width:100%;padding:8px 12px;background:none;border:none;text-align:left;font-size:13px;color:var(--text);cursor:pointer;border-radius:6px;font-family:'Noto Sans KR',sans-serif;">수정하기</button>
+                  </div>
+                </div>
+              </div>
             </div>
-            <img src="${s.signURL}" style="width:100%;border-radius:8px;border:1px solid var(--border);background:#f8f9fa;" />
+            ${s.noShow ? `
+              <div style="background:#fff8f8;border:1px solid #fca5a5;border-radius:8px;padding:10px 12px;text-align:center;">
+                <div style="font-size:20px;font-weight:700;color:#dc2626;margin-bottom:4px;">당일취소</div>
+                <div style="font-size:11px;color:#ef4444;line-height:1.5;">${s.memberName} 회원님은 수업이 진행된 걸로<br>처리됨에 동의합니다</div>
+              </div>` :
+              `<img src="${s.signURL}" style="width:100%;border-radius:8px;border:1px solid var(--border);background:#f8f9fa;" />`}
           </div>`).join('');
       });
     } else if (tab === 'memo') {
@@ -1100,6 +1117,71 @@
       signCanvas.removeEventListener('mousemove', onSignMouseMove);
       signCanvas.removeEventListener('mouseup', onSignMouseUp);
     }
+  }
+
+  // 서명 메뉴 토글
+  function toggleSignMenu(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const isOpen = el.style.display === 'block';
+    document.querySelectorAll('[id^="smenu_"]').forEach(m => m.style.display = 'none');
+    el.style.display = isOpen ? 'none' : 'block';
+  }
+
+  let editSignKey = null;
+
+  function openEditSignModal(key) {
+    editSignKey = key;
+    document.getElementById('edit-sign-modal').style.display = 'flex';
+  }
+
+  function closeEditSignModal() {
+    document.getElementById('edit-sign-modal').style.display = 'none';
+    editSignKey = null;
+  }
+
+  function deleteSign() {
+    if (!editSignKey || !currentTraineeId) return;
+    if (!confirm('이 서명 기록을 삭제할까요?')) return;
+    const trainerId = localStorage.getItem('current_user');
+    db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/signs/' + editSignKey).remove().then(() => {
+      alert('삭제됐어요! 🗑');
+      closeEditSignModal();
+      switchTraineeTab('sign');
+    });
+  }
+
+  // 당일취소 저장
+  function saveNoShow() {
+    if (!signTargetMemberId || !signTargetMemberName) return;
+    if (!confirm(signTargetMemberName + ' 회원님을 당일취소 처리할까요?')) return;
+    const trainerId = localStorage.getItem('current_user');
+    const today = new Date();
+    const dateStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+    const savedAt = String(today.getHours()).padStart(2,'0')+':'+String(today.getMinutes()).padStart(2,'0');
+    const signData = {
+      date: dateStr,
+      savedAt,
+      noShow: true,
+      memberName: signTargetMemberName
+    };
+    db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId + '/signs/' + dateStr + '_' + Date.now()).set(signData).then(() => {
+      // 출석 횟수 차감
+      const ref2 = db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId);
+      ref2.once('value', snap => {
+        const info = snap.val();
+        if (!info) return;
+        const remain = info.remain || 0;
+        if (remain > 0) {
+          ref2.update({ remain: remain - 1 });
+          const remainEl = document.getElementById('trainee-card-remain');
+          if (remainEl) remainEl.textContent = remain - 1;
+        }
+      });
+      alert('당일취소 처리됐어요!');
+      closeSignModal();
+      if (currentTraineeTab === 'sign') switchTraineeTab('sign');
+    });
   }
 
   // 사인 저장
