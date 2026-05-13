@@ -774,7 +774,7 @@
   let editingPostId = null;
 
   function openEditPostModal(postId) {
-    const post = allCommunityPosts.find(p => p.id === postId);
+    const post = allCommunityPosts.find(p => p.id === postId) || adminAllPosts.find(p => p.id === postId);
     if (!post) return;
     editingPostId = postId;
 
@@ -807,7 +807,7 @@
   function deletePostFromEdit() {
     if (!editingPostId) return;
     const postId = editingPostId;
-    const post = allCommunityPosts.find(p => p.id === postId);
+    const post = allCommunityPosts.find(p => p.id === postId) || adminAllPosts.find(p => p.id === postId);
     if (!confirm('게시글을 삭제할까요?')) return;
     closeEditPostModal();
     deletePost(postId, post?.photoURL || '');

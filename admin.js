@@ -570,6 +570,44 @@
     }).catch(err => { alert('삭제 실패: ' + err.message); });
   }
 
+  let editNoticeKey = null;
+
+  function openEditNoticeModal(key, title, content) {
+    editNoticeKey = key;
+    document.getElementById('edit-notice-title').value = title;
+    document.getElementById('edit-notice-content').value = content.replace(/\\n/g, '\n');
+    document.getElementById('edit-notice-modal').style.display = 'flex';
+  }
+
+  function closeEditNoticeModal() {
+    document.getElementById('edit-notice-modal').style.display = 'none';
+    editNoticeKey = null;
+  }
+
+  function saveEditNotice() {
+    if (!editNoticeKey) return;
+    const title = document.getElementById('edit-notice-title').value.trim();
+    const content = document.getElementById('edit-notice-content').value.trim();
+    if (!title) { alert('제목을 입력해주세요.'); return; }
+    if (!content) { alert('내용을 입력해주세요.'); return; }
+    db.ref('notices/' + editNoticeKey).update({ title, content }).then(() => {
+      alert('✅ 수정됐어요!');
+      closeEditNoticeModal();
+      loadNoticeListAdmin();
+      loadHomeNotices();
+    }).catch(err => { alert('수정 실패: ' + err.message); });
+  }
+
+  function deleteNoticeFromEdit() {
+    if (!editNoticeKey) return;
+    if (!confirm('이 공지를 삭제할까요?')) return;
+    db.ref('notices/' + editNoticeKey).remove().then(() => {
+      closeEditNoticeModal();
+      loadNoticeListAdmin();
+      loadHomeNotices();
+    }).catch(err => { alert('삭제 실패: ' + err.message); });
+  }
+
   function loadNoticeListAdmin() {
     db.ref('notices').once('value', snap => {
       const el = document.getElementById('notice-list-admin');
@@ -592,7 +630,7 @@
               <div style="font-size:13px;color:var(--text-sub);line-height:1.5;">${n.content}</div>
               <div style="font-size:12px;color:var(--text-hint);margin-top:4px;">${n.dateLabel||n.date||''}</div>
             </div>
-            <button onclick="deleteNotice('${n.firebaseKey}')" class="btn-sm btn-red-sm" style="flex-shrink:0;">삭제</button>
+            <button onclick="openEditNoticeModal('${n.firebaseKey}','${n.title.replace(/'/g,"\\'")}','${n.content.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')" class="btn-sm" style="flex-shrink:0;background:var(--blue-light);color:var(--blue);border:none;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;">수정</button>
           </div>
         </div>`).join('');
     });
