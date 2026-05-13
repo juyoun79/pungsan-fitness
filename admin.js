@@ -1644,10 +1644,18 @@
         var reg = group.reg;
         var groupSigns = group.signs;
         var isCurrent = reg.isCurrent;
-        var isCompleted = !isCurrent && reg.completed;
-        var borderStyle = isCurrent ? 'border:1.5px solid #378ADD;' : 'border:0.5px solid var(--border);';
-        var headerBg = isCurrent ? 'background:#E6F1FB;' : 'background:var(--bg);';
-        var badge = isCurrent ?
+        // 서명 완료 횟수 (당일취소도 횟수 차감)
+        var signedCount = groupSigns.length;
+        // 서명이 총횟수 이상이면 완료
+        var isFull = signedCount >= reg.total;
+        // 진행중이어도 다 차면 완료로 표시
+        var showCompleted = !isCurrent || isFull;
+        // 잔여횟수 = 총횟수 - 서명횟수
+        var calcRemain = Math.max(0, reg.total - signedCount);
+
+        var borderStyle = (!showCompleted) ? 'border:1.5px solid #378ADD;' : 'border:0.5px solid var(--border);';
+        var headerBg = (!showCompleted) ? 'background:#E6F1FB;' : 'background:var(--bg);';
+        var badge = (!showCompleted) ?
           '<span style="background:#378ADD;color:white;font-size:10px;padding:2px 7px;border-radius:20px;">진행중</span>' :
           '<span style="background:#EAF3DE;color:#3B6D11;font-size:10px;padding:2px 7px;border-radius:20px;">완료</span>';
 
@@ -1693,9 +1701,9 @@
           });
           html += '</div>';
         }
-        if (isCurrent && reg.remain > 0) {
+        if (!showCompleted && calcRemain > 0) {
           html += '<div style="padding:6px 14px;text-align:center;border-top:0.5px solid var(--border);">';
-          html += '<span style="font-size:11px;color:#185FA5;">잔여 ' + reg.remain + '회</span>';
+          html += '<span style="font-size:11px;color:#185FA5;">잔여 ' + calcRemain + '회</span>';
           html += '</div>';
         }
         html += '</div>';
