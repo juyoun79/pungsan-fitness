@@ -418,7 +418,7 @@
           if (memo) totalMemos++;
           totalLogs += logs.length;
 
-          memberCards.push({ traineeName, signCount, noShowCount, memo, logs, traineeId });
+          memberCards.push({ traineeName, signCount, noShowCount, memo, logs, traineeId, type: traineeInfo.type || '', remain: traineeInfo.remain || 0, total: traineeInfo.total || 0 });
         });
         promises.push(p);
       });
@@ -453,7 +453,10 @@
           return `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
               <div style="width:34px;height:34px;border-radius:50%;background:#E6F1FB;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#0C447C;flex-shrink:0;">${m.traineeName[0]}</div>
-              <div style="font-size:14px;font-weight:700;color:var(--text);">${m.traineeName}</div>
+              <div>
+                <div style="font-size:14px;font-weight:700;color:var(--text);">${m.traineeName}</div>
+                <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${m.type ? m.type + ' · ' : ''}잔여 ${m.remain}회 / 총 ${m.total}회</div>
+              </div>
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
               <button onclick="toggleRptDetail('${signBtnId}')" style="font-size:11px;padding:4px 8px;background:#E6F1FB;color:#0C447C;border:1px solid #B5D4F4;border-radius:6px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✍️ 서명 ${m.signCount + m.noShowCount}회</button>
