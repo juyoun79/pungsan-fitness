@@ -3275,10 +3275,8 @@
         if (snap.exists()) {
           const memberName = snap.val().name || localStorage.getItem('name_' + userId) || userId;
           localStorage.setItem('name_' + userId, memberName);
-          // role 갱신 (자동로그인 시에도 Firebase에서 role 불러오기)
           const role = snap.val().role || 'member';
           localStorage.setItem('role_' + userId, role);
-          // 신체정보 미입력 시 반드시 입력 화면으로
           const hasBodyInfo = localStorage.getItem('body_weight_' + userId);
           if (!hasBodyInfo) {
             showScreen('screen-nickname');
@@ -3286,9 +3284,26 @@
             goHome(memberName);
           }
         } else {
-          localStorage.removeItem('current_user');
-          localStorage.removeItem('auto_login_user');
-          showScreen('screen-login');
+          // members에 없으면 users에서 확인 (강사/매니저 계정)
+          db.ref('users/' + userId).once('value').then(userSnap => {
+            if (userSnap.exists()) {
+              const user = userSnap.val();
+              const memberName = user.name || localStorage.getItem('name_' + userId) || userId;
+              localStorage.setItem('name_' + userId, memberName);
+              const role = user.role || 'member';
+              localStorage.setItem('role_' + userId, role);
+              const hasBodyInfo = localStorage.getItem('body_weight_' + userId);
+              if (!hasBodyInfo) {
+                showScreen('screen-nickname');
+              } else {
+                goHome(memberName);
+              }
+            } else {
+              localStorage.removeItem('current_user');
+              localStorage.removeItem('auto_login_user');
+              showScreen('screen-login');
+            }
+          });
         }
       }).catch(() => {
         const savedName = localStorage.getItem('name_' + userId) || userId;
