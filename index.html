@@ -2614,8 +2614,9 @@
     if (!val || val < 20) { alert('올바른 체중을 입력해주세요.'); return; }
     const userId = localStorage.getItem('current_user');
     localStorage.setItem('body_weight_' + userId, val);
-    saveWeightHistory(userId, val);
-    loadHomeWeightCard();
+    saveWeightHistory(userId, val, () => {
+      loadHomeWeightCard();
+    });
     // 내 정보도 업데이트
     const wEl = document.getElementById('myinfo-weight');
     if (wEl) wEl.textContent = val + 'kg';
@@ -2934,7 +2935,7 @@
   }
 
   // ── 체중 히스토리 저장 및 그래프 ──
-  function saveWeightHistory(userId, weight) {
+  function saveWeightHistory(userId, weight, callback) {
     const key = 'weight_history_' + userId;
     const history = JSON.parse(localStorage.getItem(key) || '[]');
     const today = new Date();
@@ -2947,8 +2948,10 @@
     // 최근 30개 유지
     if (history.length > 30) history.shift();
     localStorage.setItem(key, JSON.stringify(history));
-    // Firebase 체중 기록 저장
-    db.ref('users/' + userId + '/weightHistory/' + dateStr).set(weight);
+    // Firebase 체중 기록 저장 완료 후 콜백
+    db.ref('users/' + userId + '/weightHistory/' + dateStr).set(weight).then(() => {
+      if (callback) callback();
+    });
   }
 
   function renderWeightGraph() {
