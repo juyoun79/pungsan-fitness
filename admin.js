@@ -30,19 +30,48 @@
   let editTrainerId = null;
 
   function loadAdminTrainerList() {
-    db.ref('trainers').once('value', snap => {
-      adminTrainerList = [];
-      const listEl = document.getElementById('admin-trainer-list');
-      if (!listEl) return;
-      if (!snap.exists()) {
+    const listEl = document.getElementById('admin-trainer-list');
+    if (!listEl) return;
+    adminTrainerList = [];
+
+    // users에서 role:trainer + trainers 경로 둘 다 합쳐서 불러오기
+    Promise.all([
+      db.ref('users').once('value'),
+      db.ref('trainers').once('value')
+    ]).then(([usersSnap, trainersSnap]) => {
+      const trainerIds = new Set();
+
+      // trainers 경로에 있는 강사
+      if (trainersSnap.exists()) {
+        trainersSnap.forEach(child => {
+          const info = child.val();
+          const name = info.name || child.key;
+          if (!trainerIds.has(child.key)) {
+            trainerIds.add(child.key);
+            adminTrainerList.push({ id: child.key, name });
+          }
+        });
+      }
+
+      // users 경로에서 role:trainer인 계정 추가
+      if (usersSnap.exists()) {
+        usersSnap.forEach(child => {
+          const info = child.val();
+          if ((info.role === 'trainer' || info.role === 'manager') && !trainerIds.has(child.key)) {
+            trainerIds.add(child.key);
+            const name = info.name || child.key;
+            adminTrainerList.push({ id: child.key, name });
+            // trainers 경로에도 없으면 동기화
+            db.ref('trainers/' + child.key).set({ name });
+          }
+        });
+      }
+
+      if (adminTrainerList.length === 0) {
         listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:14px;">등록된 강사가 없어요</div>';
         return;
       }
-      snap.forEach(child => {
-        const info = child.val();
-        const name = info.name || child.key;
-        adminTrainerList.push({ id: child.key, name });
-      });
+
       listEl.innerHTML = adminTrainerList.map(t => `
         <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
           <div style="width:40px;height:40px;border-radius:50%;background:var(--blue);color:white;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;">${t.name[0]}</div>
@@ -58,7 +87,7 @@
         '<button onclick="selectAdminTrainer(\'' + t.id + '\',\'' + t.name + '\',this)" style="padding:7px 14px;background:' + (i===0?'var(--blue)':'var(--card)') + ';color:' + (i===0?'white':'var(--text)') + ';border:' + (i===0?'none':'1px solid var(--border)') + ';border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">' + t.name + '</button>'
       ).join('');
       const btnEl = document.getElementById('admin-trainer-btns');
-      if (btnEl) btnEl.innerHTML = btnsHtml || '<div style="color:var(--text-hint);font-size:13px;">등록된 강사가 없어요</div>';
+      if (btnEl) btnEl.innerHTML = btnsHtml;
       if (adminTrainerList.length > 0 && !adminSelectedTrainer) {
         adminSelectedTrainer = adminTrainerList[0];
       }
