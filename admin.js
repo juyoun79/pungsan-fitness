@@ -1470,7 +1470,7 @@
       if (histEl) { histEl.style.display = 'none'; }
       const arrow = document.getElementById('trainee-history-arrow');
       if (arrow) arrow.textContent = '▾';
-      loadTraineeHistory(phone);
+      loadTraineeHistory(memberId);
       showScreen('screen-trainee-detail');
       switchTraineeTab('record');
     });
