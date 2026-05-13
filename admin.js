@@ -144,14 +144,18 @@
         if (snap.exists()) {
           // 기존 계정이 있으면 role만 trainer로 업데이트
           if (!confirm(snap.val().name + ' 님이 이미 등록된 번호예요.\n강사로 전환할까요?')) return;
-          Promise.all([
-            db.ref('users/' + phone).update({ name, role: 'trainer' }),
-            db.ref('trainers/' + phone).set({ name }),
-            db.ref('members/' + phone).remove()
-          ]).then(() => {
-            alert('✅ ' + name + ' 강사로 전환됐어요!');
-            closeTrainerModal();
-            loadAdminTrainerList();
+          // 기존 members pw 가져오기
+          db.ref('members/' + phone).once('value', mSnap => {
+            const existingPw = snap.val().pw || (mSnap.exists() ? mSnap.val().pw : null) || phone.slice(-4);
+            Promise.all([
+              db.ref('users/' + phone).update({ name, role: 'trainer', pw: existingPw }),
+              db.ref('trainers/' + phone).set({ name }),
+              db.ref('members/' + phone).remove()
+            ]).then(() => {
+              alert('✅ ' + name + ' 강사로 전환됐어요!\n비밀번호: ' + existingPw);
+              closeTrainerModal();
+              loadAdminTrainerList();
+            });
           });
         } else {
           Promise.all([
