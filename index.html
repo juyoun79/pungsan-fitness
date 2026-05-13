@@ -2424,7 +2424,30 @@
       if (btn) { btn.textContent = '로그인'; btn.disabled = false; }
 
       if (!snap.exists()) {
-        alert('등록되지 않은 회원이에요.\n관리자에게 문의해주세요.');
+        // members에 없으면 users에서 확인 (강사/매니저 계정)
+        db.ref('users/' + id).once('value').then(userSnap => {
+          if (!userSnap.exists()) {
+            alert('등록되지 않은 회원이에요.\n관리자에게 문의해주세요.');
+            return;
+          }
+          const user = userSnap.val();
+          const savedPw = localStorage.getItem('pw_' + id) || user.pw;
+          if (pw !== savedPw) {
+            alert('비밀번호가 틀렸어요.\n초기 비밀번호는 휴대폰 뒤 4자리예요.');
+            return;
+          }
+          localStorage.setItem('current_user', id);
+          const memberName = user.name || id;
+          localStorage.setItem('name_' + id, memberName);
+          const role = user.role || 'member';
+          localStorage.setItem('role_' + id, role);
+          const hasBodyInfo = localStorage.getItem('body_weight_' + id);
+          if (!hasBodyInfo) {
+            showScreen('screen-nickname');
+          } else {
+            goHome(memberName, true);
+          }
+        });
         return;
       }
 
