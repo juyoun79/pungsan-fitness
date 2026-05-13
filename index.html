@@ -1820,6 +1820,11 @@
     </div>
     <div style="padding:16px 16px var(--safe-pad);">
 
+      <!-- 스케줄 관리 버튼 -->
+      <button onclick="showSchedule()" style="width:100%;padding:14px;background:var(--blue);color:white;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px;">
+        📅 수업 스케줄 관리
+      </button>
+
       <!-- 담당 회원 섹션 -->
       <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;">
         <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
@@ -1845,6 +1850,44 @@
         oninput="searchTraineeMember(this.value)"
         style="width:100%;box-sizing:border-box;padding:12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-bottom:12px;">
       <div id="trainee-search-result" style="max-height:300px;overflow-y:auto;"></div>
+    </div>
+  </div>
+
+  <!-- 수업 스케줄 화면 -->
+  <div class="screen" id="screen-schedule">
+    <div class="sub-header">
+      <button class="back-btn" onclick="showScreen('screen-trainer');loadTrainerTab();">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="sub-header-title">📅 수업 스케줄</div>
+    </div>
+    <div style="padding:12px 16px var(--safe-pad);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <button onclick="changeScheduleWeek(-1)" style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">← 이전</button>
+        <div id="schedule-week-label" style="font-size:14px;font-weight:700;color:var(--text);"></div>
+        <button onclick="changeScheduleWeek(1)" style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">다음 →</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="schedule-table" style="border-collapse:collapse;min-width:100%;width:100%;table-layout:fixed;">
+          <thead id="schedule-head"></thead>
+          <tbody id="schedule-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 스케줄 입력/수정 모달 -->
+  <div id="schedule-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:2000;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
+    <div style="background:var(--card);border-radius:var(--radius);padding:20px;width:100%;max-width:360px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div id="schedule-modal-title" style="font-size:15px;font-weight:700;color:var(--text);"></div>
+        <button onclick="closeScheduleModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-hint);">×</button>
+      </div>
+      <input type="text" id="schedule-modal-input" placeholder="회원 이름 입력"
+        style="width:100%;box-sizing:border-box;padding:12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);margin-bottom:12px;"
+        onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"/>
+      <button onclick="saveScheduleCell()" style="width:100%;padding:12px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;">💾 저장</button>
+      <button id="schedule-delete-btn" onclick="deleteScheduleCell()" style="display:none;width:100%;padding:12px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑 삭제</button>
     </div>
   </div>
 

@@ -684,6 +684,147 @@
   let trainerFwRestRemain = 0;
 
   // 강사 관리 탭 로드
+  // ── 수업 스케줄 ──
+  const SCHEDULE_HOURS = Array.from({length: 18}, (_, i) => i + 6);
+  const SCHEDULE_DAYS = ['일', '월', '화', '수', '목', '금', '토'];
+  let scheduleBaseDate = new Date();
+  let scheduleData = {};
+  let scheduleActiveKey = null;
+
+  function fmtDate(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function getScheduleWeekDates(base) {
+    const d = new Date(base);
+    const day = d.getDay();
+    const sunday = new Date(d);
+    sunday.setDate(d.getDate() - day);
+    return Array.from({length: 7}, (_, i) => {
+      const dd = new Date(sunday);
+      dd.setDate(sunday.getDate() + i);
+      return dd;
+    });
+  }
+
+  function isScheduleToday(d) {
+    const t = new Date();
+    return d.getFullYear()===t.getFullYear() && d.getMonth()===t.getMonth() && d.getDate()===t.getDate();
+  }
+
+  function showSchedule() {
+    scheduleBaseDate = new Date();
+    showScreen('screen-schedule');
+    loadScheduleData();
+  }
+
+  function loadScheduleData() {
+    const trainerId = localStorage.getItem('current_user');
+    const dates = getScheduleWeekDates(scheduleBaseDate);
+    const startDate = fmtDate(dates[0]);
+    const endDate = fmtDate(dates[6]);
+    db.ref('trainers/' + trainerId + '/schedule').once('value', snap => {
+      scheduleData = snap.val() || {};
+      renderSchedule();
+    });
+  }
+
+  function renderSchedule() {
+    const dates = getScheduleWeekDates(scheduleBaseDate);
+    const first = dates[0], last = dates[6];
+    document.getElementById('schedule-week-label').textContent =
+      (first.getMonth()+1) + '/' + first.getDate() + ' ~ ' + (last.getMonth()+1) + '/' + last.getDate();
+
+    // 헤더
+    var headHtml = '<tr>';
+    headHtml += '<th style="background:var(--bg);color:var(--text-hint);font-size:11px;padding:6px 2px;border:0.5px solid var(--border);width:36px;">시간</th>';
+    dates.forEach(d => {
+      var todayCls = isScheduleToday(d) ? 'background:#E6F1FB;color:#0C447C;' : 'background:var(--bg);color:var(--text-sub);';
+      headHtml += '<th style="' + todayCls + 'font-size:11px;font-weight:700;padding:6px 2px;border:0.5px solid var(--border);text-align:center;">' +
+        SCHEDULE_DAYS[d.getDay()] + '<br><span style="font-size:10px;font-weight:400;">' + d.getDate() + '</span></th>';
+    });
+    headHtml += '</tr>';
+    document.getElementById('schedule-head').innerHTML = headHtml;
+
+    // 바디
+    var bodyHtml = '';
+    SCHEDULE_HOURS.forEach(h => {
+      bodyHtml += '<tr>';
+      bodyHtml += '<td style="background:var(--bg);color:var(--text-hint);font-size:10px;padding:4px 2px;border:0.5px solid var(--border);text-align:center;white-space:nowrap;">' + String(h).padStart(2,'0') + ':00</td>';
+      dates.forEach(d => {
+        var key = fmtDate(d) + '_' + h;
+        var name = scheduleData[key] || '';
+        var todayBg = isScheduleToday(d) ? 'background:#f0f8ff;' : '';
+        var cellContent = name ? '<span style="font-size:11px;color:#0C447C;background:#E6F1FB;border-radius:4px;padding:2px 3px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + name + '</span>' : '';
+        bodyHtml += '<td onclick="openScheduleModal(\'' + key + '\',\'' + name.replace(/'/g,"\\'") + '\')" style="' + todayBg + 'height:34px;cursor:pointer;border:0.5px solid var(--border);padding:2px 3px;vertical-align:middle;min-width:44px;"></td>';
+      });
+      bodyHtml += '</tr>';
+    });
+    document.getElementById('schedule-body').innerHTML = bodyHtml;
+
+    // 이름 셀 다시 채우기
+    SCHEDULE_HOURS.forEach(h => {
+      dates.forEach(d => {
+        var key = fmtDate(d) + '_' + h;
+        var name = scheduleData[key] || '';
+        if (name) {
+          var cells = document.querySelectorAll('#schedule-body tr');
+          var rowIdx = SCHEDULE_HOURS.indexOf(h);
+          var colIdx = dates.indexOf(d) + 1;
+          if (cells[rowIdx] && cells[rowIdx].cells[colIdx]) {
+            cells[rowIdx].cells[colIdx].innerHTML = '<span style="font-size:11px;color:#0C447C;background:#E6F1FB;border-radius:4px;padding:2px 3px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + name + '</span>';
+          }
+        }
+      });
+    });
+  }
+
+  function openScheduleModal(key, name) {
+    scheduleActiveKey = key;
+    var parts = key.split('_');
+    document.getElementById('schedule-modal-title').textContent = parts[0] + ' ' + parts[1] + ':00';
+    document.getElementById('schedule-modal-input').value = name;
+    document.getElementById('schedule-delete-btn').style.display = name ? 'block' : 'none';
+    document.getElementById('schedule-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('schedule-modal-input').focus(), 100);
+  }
+
+  function closeScheduleModal() {
+    document.getElementById('schedule-modal').style.display = 'none';
+    scheduleActiveKey = null;
+  }
+
+  function saveScheduleCell() {
+    if (!scheduleActiveKey) return;
+    const name = document.getElementById('schedule-modal-input').value.trim();
+    const trainerId = localStorage.getItem('current_user');
+    if (name) {
+      scheduleData[scheduleActiveKey] = name;
+      db.ref('trainers/' + trainerId + '/schedule/' + scheduleActiveKey).set(name).then(() => {
+        closeScheduleModal();
+        renderSchedule();
+      });
+    } else {
+      deleteScheduleCell();
+    }
+  }
+
+  function deleteScheduleCell() {
+    if (!scheduleActiveKey) return;
+    if (!confirm('이 일정을 삭제할까요?')) return;
+    const trainerId = localStorage.getItem('current_user');
+    delete scheduleData[scheduleActiveKey];
+    db.ref('trainers/' + trainerId + '/schedule/' + scheduleActiveKey).remove().then(() => {
+      closeScheduleModal();
+      renderSchedule();
+    });
+  }
+
+  function changeScheduleWeek(dir) {
+    scheduleBaseDate.setDate(scheduleBaseDate.getDate() + dir * 7);
+    loadScheduleData();
+  }
+
   function loadTrainerTab() {
     const userId = localStorage.getItem('current_user');
     db.ref('trainers/' + userId + '/trainees').once('value', snap => {
