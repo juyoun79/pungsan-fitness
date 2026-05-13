@@ -1043,8 +1043,19 @@
 
   // 상세 화면에서 사인 모달 열기
   function openSignModalFromDetail() {
-    const name = document.getElementById('trainee-detail-name').textContent;
-    openSignModal(currentTraineeId, name);
+    if (!currentTraineeId) return;
+    const trainerId = localStorage.getItem('current_user');
+    db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId).once('value', snap => {
+      const info = snap.val();
+      if (!info) return;
+      const remain = info.remain || 0;
+      if (remain <= 0) {
+        alert('잔여 횟수가 없어요! 재등록 후 이용해주세요.');
+        return;
+      }
+      const name = document.getElementById('trainee-detail-name').textContent;
+      openSignModal(currentTraineeId, name);
+    });
   }
 
   // 사인 모달 열기
@@ -1142,12 +1153,27 @@
 
   function deleteSign() {
     if (!editSignKey || !currentTraineeId) return;
-    if (!confirm('이 서명 기록을 삭제할까요?')) return;
+    if (!confirm('이 서명 기록을 삭제할까요?\n잔여 횟수가 1회 복구돼요.')) return;
     const trainerId = localStorage.getItem('current_user');
-    db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/signs/' + editSignKey).remove().then(() => {
-      alert('삭제됐어요! 🗑');
-      closeEditSignModal();
-      switchTraineeTab('sign');
+    const ref = db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId);
+    ref.once('value', snap => {
+      const info = snap.val();
+      if (!info) return;
+      const remain = info.remain || 0;
+      const total = info.total || 0;
+      const newRemain = Math.min(remain + 1, total);
+      // 서명기록 삭제 + 잔여횟수 복구 동시 처리
+      Promise.all([
+        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/signs/' + editSignKey).remove(),
+        ref.update({ remain: newRemain })
+      ]).then(() => {
+        // 화면 잔여횟수 업데이트
+        const remainEl = document.getElementById('trainee-card-remain');
+        if (remainEl) remainEl.textContent = newRemain;
+        alert('삭제됐어요! 잔여 횟수가 ' + newRemain + '회로 복구됐어요. 🗑');
+        closeEditSignModal();
+        switchTraineeTab('sign');
+      });
     });
   }
 
