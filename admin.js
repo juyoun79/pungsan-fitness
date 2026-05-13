@@ -91,6 +91,7 @@
       if (adminTrainerList.length > 0 && !adminSelectedTrainer) {
         adminSelectedTrainer = adminTrainerList[0];
       }
+      updateReportTrainerSelect();
     });
   }
 
@@ -193,6 +194,7 @@
 
   function loadAdminTrainerSchedule() {
     loadAdminTrainerList();
+    initReportMonth();
     switchAdminScheduleTab('today');
   }
 
@@ -320,6 +322,153 @@
       });
       document.getElementById('admin-trainer-body').innerHTML = bodyHtml;
     });
+  }
+
+  // ── 월별 리포트 ──
+  let reportYear = new Date().getFullYear();
+  let reportMonth = new Date().getMonth() + 1;
+
+  function initReportMonth() {
+    document.getElementById('report-month-label').textContent = reportYear + '년 ' + reportMonth + '월';
+  }
+
+  function changeReportMonth(dir) {
+    reportMonth += dir;
+    if (reportMonth > 12) { reportMonth = 1; reportYear++; }
+    if (reportMonth < 1) { reportMonth = 12; reportYear--; }
+    document.getElementById('report-month-label').textContent = reportYear + '년 ' + reportMonth + '월';
+    loadMonthlyReport();
+  }
+
+  function updateReportTrainerSelect() {
+    const sel = document.getElementById('report-trainer-select');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">강사 선택</option>' +
+      adminTrainerList.map(t => '<option value="' + t.id + '">' + t.name + '</option>').join('');
+  }
+
+  function loadMonthlyReport() {
+    const sel = document.getElementById('report-trainer-select');
+    const trainerId = sel ? sel.value : '';
+    const summaryEl = document.getElementById('report-summary');
+    const membersEl = document.getElementById('report-members');
+    if (!trainerId) {
+      summaryEl.innerHTML = '';
+      membersEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">강사를 선택해주세요</div>';
+      return;
+    }
+    summaryEl.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text-hint);font-size:13px;grid-column:span 3;">불러오는 중...</div>';
+    membersEl.innerHTML = '';
+
+    const monthStr = reportYear + '-' + String(reportMonth).padStart(2,'0');
+
+    db.ref('trainers/' + trainerId + '/trainees').once('value', snap => {
+      if (!snap.exists()) {
+        summaryEl.innerHTML = '';
+        membersEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">담당 회원이 없어요</div>';
+        return;
+      }
+
+      let totalSigns = 0, totalNoShow = 0, totalMemos = 0, totalLogs = 0;
+      const memberCards = [];
+      const promises = [];
+
+      snap.forEach(traineeSnap => {
+        const traineeId = traineeSnap.key;
+        const traineeInfo = traineeSnap.val();
+        const traineeName = traineeInfo.name || traineeId;
+
+        const p = Promise.all([
+          db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/signs').once('value'),
+          db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/memo').once('value'),
+          db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/logs').once('value')
+        ]).then(([signsSnap, memoSnap, logsSnap]) => {
+          // 이번달 서명 필터
+          const signs = [];
+          if (signsSnap.exists()) {
+            signsSnap.forEach(s => {
+              const v = s.val();
+              if (v.date && v.date.startsWith(monthStr)) signs.push({ key: s.key, ...v });
+            });
+          }
+          const signCount = signs.filter(s => !s.noShow).length;
+          const noShowCount = signs.filter(s => s.noShow).length;
+
+          // 이번달 수업일지 필터
+          const logs = [];
+          if (logsSnap.exists()) {
+            logsSnap.forEach(l => {
+              const v = l.val();
+              if (v.date && v.date.startsWith(monthStr)) logs.push({ key: l.key, ...v });
+            });
+          }
+
+          // 메모
+          const memo = memoSnap.exists() ? memoSnap.val() : '';
+
+          totalSigns += signCount;
+          totalNoShow += noShowCount;
+          if (memo) totalMemos++;
+          totalLogs += logs.length;
+
+          memberCards.push({ traineeName, signCount, noShowCount, memo, logs, traineeId });
+        });
+        promises.push(p);
+      });
+
+      Promise.all(promises).then(() => {
+        // 요약
+        summaryEl.innerHTML = [
+          { label: '서명', value: totalSigns + '회', sub: '당일취소 ' + totalNoShow + '회' },
+          { label: '메모', value: totalMemos + '건', sub: '' },
+          { label: '수업일지', value: totalLogs + '건', sub: '' }
+        ].map(s => `
+          <div style="background:var(--bg);border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">${s.label}</div>
+            <div style="font-size:20px;font-weight:700;color:var(--text);">${s.value}</div>
+            ${s.sub ? '<div style="font-size:10px;color:var(--text-hint);">' + s.sub + '</div>' : ''}
+          </div>`).join('');
+
+        // 회원별 카드
+        if (memberCards.length === 0) {
+          membersEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">이번 달 기록이 없어요</div>';
+          return;
+        }
+
+        membersEl.innerHTML = memberCards.map((m, idx) => {
+          const signBtnId = 'rpt-sign-' + idx;
+          const memoBtnId = 'rpt-memo-' + idx;
+          const logBtnId = 'rpt-log-' + idx;
+
+          const signDetail = m.signCount + m.noShowCount > 0 ?
+            m.signs ? '' : '' : '';
+
+          return `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <div style="width:34px;height:34px;border-radius:50%;background:#E6F1FB;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#0C447C;flex-shrink:0;">${m.traineeName[0]}</div>
+              <div style="font-size:14px;font-weight:700;color:var(--text);">${m.traineeName}</div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button onclick="toggleRptDetail('${signBtnId}')" style="font-size:11px;padding:4px 8px;background:#E6F1FB;color:#0C447C;border:1px solid #B5D4F4;border-radius:6px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✍️ 서명 ${m.signCount + m.noShowCount}회</button>
+              ${m.memo ? '<button onclick="toggleRptDetail(\'' + memoBtnId + '\')" style="font-size:11px;padding:4px 8px;background:#EAF3DE;color:#3B6D11;border:1px solid #C0DD97;border-radius:6px;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">📝 메모</button>' : ''}
+              ${m.logs.length > 0 ? '<button onclick="toggleRptDetail(\'' + logBtnId + '\')" style="font-size:11px;padding:4px 8px;background:#FAEEDA;color:#854F0B;border:1px solid #FAC775;border-radius:6px;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">📋 수업일지 ' + m.logs.length + '건</button>' : ''}
+            </div>
+            <div id="${signBtnId}" style="display:none;margin-top:8px;background:var(--bg);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.8;">
+              <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;font-weight:700;">서명 기록</div>
+              ${m.signCount + m.noShowCount === 0 ? '이번 달 서명 없음' :
+                m.traineeSigns ? m.traineeSigns.map(s => s.date + ' ' + (s.noShow ? '🔴 당일취소' : '✅ 서명완료')).join('<br>') : '서명 ' + m.signCount + '회 / 당일취소 ' + m.noShowCount + '회'}
+            </div>
+            ${m.memo ? '<div id="' + memoBtnId + '" style="display:none;margin-top:8px;background:var(--bg);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.8;"><div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;font-weight:700;">메모</div>' + m.memo + '</div>' : ''}
+            ${m.logs.length > 0 ? '<div id="' + logBtnId + '" style="display:none;margin-top:8px;background:var(--bg);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.8;"><div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;font-weight:700;">수업일지</div>' + m.logs.map(l => '<div style="margin-bottom:4px;">' + l.date + ' ' + (l.savedAt||'') + '<br>' + l.content + '</div>').join('') + '</div>' : ''}
+          </div>`;
+        }).join('');
+      });
+    });
+  }
+
+  function toggleRptDetail(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
   }
 
   function openNoticeDetail(id) {

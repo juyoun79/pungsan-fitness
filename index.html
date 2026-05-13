@@ -1454,6 +1454,27 @@
           </div>
         </div>
 
+        <!-- 월별 리포트 -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;">
+          <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:15px;font-weight:700;color:var(--text);">📋 월별 리포트</div>
+          </div>
+          <div style="padding:12px 16px;">
+            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
+              <select id="report-trainer-select" onchange="loadMonthlyReport()" style="flex:1;min-width:120px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
+                <option value="">강사 선택</option>
+              </select>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <button onclick="changeReportMonth(-1)" style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">◀</button>
+                <span id="report-month-label" style="font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;"></span>
+                <button onclick="changeReportMonth(1)" style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">▶</button>
+              </div>
+            </div>
+            <div id="report-summary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;"></div>
+            <div id="report-members"></div>
+          </div>
+        </div>
+
         <!-- 오늘/강사별 전환 버튼 -->
         <div style="display:flex;gap:8px;margin-bottom:12px;">
           <button id="admin-sch-btn-today" onclick="switchAdminScheduleTab('today')" style="flex:1;padding:10px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">오늘 전체 스케줄</button>
