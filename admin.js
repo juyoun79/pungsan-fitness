@@ -246,26 +246,7 @@
     });
   }
 
-  function loadAdminTrainerList() {
-    db.ref('trainers').once('value', snap => {
-      adminTrainerList = [];
-      if (snap.exists()) {
-        snap.forEach(child => {
-          const name = localStorage.getItem('name_' + child.key) || child.key;
-          adminTrainerList.push({ id: child.key, name });
-        });
-      }
-      var btnsHtml = adminTrainerList.map((t, i) =>
-        '<button onclick="selectAdminTrainer(\'' + t.id + '\',\'' + t.name + '\',this)" style="padding:7px 14px;background:' + (i===0?'var(--blue)':'var(--card)') + ';color:' + (i===0?'white':'var(--text)') + ';border:' + (i===0?'none':'1px solid var(--border)') + ';border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">' + t.name + '</button>'
-      ).join('');
-      document.getElementById('admin-trainer-btns').innerHTML = btnsHtml || '<div style="color:var(--text-hint);font-size:13px;">등록된 강사가 없어요</div>';
-      if (adminTrainerList.length > 0) {
-        adminSelectedTrainer = adminTrainerList[0];
-        adminTrainerBaseDate = new Date();
-        renderAdminTrainerSchedule();
-      }
-    });
-  }
+
 
   function selectAdminTrainer(id, name, btn) {
     adminSelectedTrainer = { id, name };
