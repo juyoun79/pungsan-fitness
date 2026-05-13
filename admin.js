@@ -1553,42 +1553,7 @@
     if (tab === 'record') {
       renderTrainerCal();
     } else if (tab === 'sign') {
-      // 서명 기록 조회
-      const trainerId = localStorage.getItem('current_user');
-      db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/signs').orderByChild('date').once('value', snap => {
-        const signs = [];
-        snap.forEach(child => { signs.unshift({ key: child.key, ...child.val() }); });
-        if (signs.length === 0) {
-          content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:14px;">아직 서명 기록이 없어요</div>';
-          return;
-        }
-        content.innerHTML = `<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">✍️ 서명 기록 (총 ${signs.length}회)</div>` +
-        signs.map((s, i) => `
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:8px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-              <div style="font-size:13px;font-weight:700;color:var(--text);">${s.noShow ? '당일취소' : signs.length - i + '회차 수업'}</div>
-              <div style="display:flex;align-items:center;gap:8px;">
-                <div style="font-size:12px;color:var(--text-hint);">${s.date} ${s.savedAt || ''}</div>
-                <div style="position:relative;">
-                  <button onclick="toggleSignMenu('smenu_${s.key}')" style="background:none;border:none;cursor:pointer;padding:4px;display:flex;flex-direction:column;gap:3px;align-items:center;">
-                    <span style="width:3px;height:3px;border-radius:50%;background:var(--text-hint);display:block;"></span>
-                    <span style="width:3px;height:3px;border-radius:50%;background:var(--text-hint);display:block;"></span>
-                    <span style="width:3px;height:3px;border-radius:50%;background:var(--text-hint);display:block;"></span>
-                  </button>
-                  <div id="smenu_${s.key}" style="display:none;position:absolute;right:0;top:24px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px;min-width:100px;z-index:10;">
-                    <button onclick="openEditSignModal('${s.key}')" style="width:100%;padding:8px 12px;background:none;border:none;text-align:left;font-size:13px;color:var(--text);cursor:pointer;border-radius:6px;font-family:'Noto Sans KR',sans-serif;">수정하기</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            ${s.noShow ? `
-              <div style="background:#fff8f8;border:1px solid #fca5a5;border-radius:8px;padding:10px 12px;text-align:center;">
-                <div style="font-size:20px;font-weight:700;color:#dc2626;margin-bottom:4px;">당일취소</div>
-                <div style="font-size:11px;color:#ef4444;line-height:1.5;">${s.memberName} 회원님은 수업이 진행된 걸로<br>처리됨에 동의합니다</div>
-              </div>` :
-              `<img src="${s.signURL}" style="width:100%;border-radius:8px;border:1px solid var(--border);background:#f8f9fa;" />`}
-          </div>`).join('');
-      });
+      renderSignTab(content);
     } else if (tab === 'memo') {
       // 메모 표시
       const trainerId = localStorage.getItem('current_user');
@@ -1604,6 +1569,140 @@
     } else if (tab === 'log') {
       renderLogTab();
     }
+  }
+
+  function renderSignTab(content) {
+    if (!content || !currentTraineeId) return;
+    const trainerId = localStorage.getItem('current_user');
+
+    Promise.all([
+      db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/signs').once('value'),
+      db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/registrations').once('value'),
+      db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId).once('value')
+    ]).then(([signsSnap, regsSnap, infoSnap]) => {
+      // 서명 목록 (날짜순 정렬)
+      var signs = [];
+      if (signsSnap.exists()) {
+        signsSnap.forEach(function(child) { signs.push({ key: child.key, ...child.val() }); });
+        signs.sort(function(a, b) { return a.key < b.key ? -1 : 1; });
+      }
+
+      if (signs.length === 0) {
+        content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:14px;">아직 서명 기록이 없어요</div>';
+        return;
+      }
+
+      // 등록 이력 (날짜순 정렬 - 오래된 것부터)
+      var regs = [];
+      if (regsSnap.exists()) {
+        regsSnap.forEach(function(child) { regs.push({ key: child.key, ...child.val() }); });
+        regs.sort(function(a, b) { return a.key < b.key ? -1 : 1; });
+      }
+
+      // 현재 등록 정보
+      var info = infoSnap.val() || {};
+      var currentType = info.type || 'PT';
+      var currentTotal = info.total || 0;
+      var currentRemain = info.remain || 0;
+
+      // 등록 회차 구성 (이전 이력 + 현재 등록)
+      var regList = regs.map(function(r, i) {
+        return { idx: i + 1, type: r.type, total: r.total, date: r.date, completed: r.completed, key: r.key };
+      });
+      // 현재 등록을 마지막 회차로 추가
+      regList.push({ idx: regList.length + 1, type: currentType, total: currentTotal, remain: currentRemain, date: null, completed: false, isCurrent: true });
+
+      // 서명을 회차별로 배분
+      // 각 회차의 총횟수만큼 서명을 순서대로 배분
+      var signGroups = [];
+      var signIdx = 0;
+      for (var r = 0; r < regList.length; r++) {
+        var reg = regList[r];
+        var groupSigns = [];
+        var groupTotal = reg.total;
+        var taken = 0;
+        while (signIdx < signs.length && taken < groupTotal) {
+          groupSigns.push(signs[signIdx]);
+          signIdx++;
+          taken++;
+        }
+        signGroups.push({ reg: reg, signs: groupSigns });
+      }
+      // 남은 서명은 현재 회차에 추가
+      while (signIdx < signs.length) {
+        signGroups[signGroups.length - 1].signs.push(signs[signIdx]);
+        signIdx++;
+      }
+
+      // 최근순으로 뒤집기
+      signGroups.reverse();
+
+      // HTML 생성
+      var html = '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">✍️ 서명 기록 (총 ' + signs.length + '회)</div>';
+
+      signGroups.forEach(function(group) {
+        var reg = group.reg;
+        var groupSigns = group.signs;
+        var isCurrent = reg.isCurrent;
+        var isCompleted = !isCurrent && reg.completed;
+        var borderStyle = isCurrent ? 'border:1.5px solid #378ADD;' : 'border:0.5px solid var(--border);';
+        var headerBg = isCurrent ? 'background:#E6F1FB;' : 'background:var(--bg);';
+        var badge = isCurrent ?
+          '<span style="background:#378ADD;color:white;font-size:10px;padding:2px 7px;border-radius:20px;">진행중</span>' :
+          '<span style="background:#EAF3DE;color:#3B6D11;font-size:10px;padding:2px 7px;border-radius:20px;">완료</span>';
+
+        html += '<div style="' + borderStyle + 'border-radius:var(--radius);overflow:hidden;margin-bottom:8px;">';
+        html += '<div style="' + headerBg + 'padding:10px 14px;border-bottom:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:center;">';
+        html += '<div style="display:flex;align-items:center;gap:8px;">';
+        html += '<span style="font-size:12px;font-weight:700;color:var(--text);">' + reg.idx + '차 등록</span>';
+        html += badge;
+        html += '<span style="font-size:11px;color:var(--text-hint);">' + reg.type + ' · ' + reg.total + '회</span>';
+        html += '</div>';
+        if (reg.date) html += '<span style="font-size:11px;color:var(--text-hint);">~' + reg.date + '</span>';
+        html += '</div>';
+
+        if (groupSigns.length === 0) {
+          html += '<div style="padding:12px 14px;text-align:center;color:var(--text-hint);font-size:12px;">아직 서명 기록이 없어요</div>';
+        } else {
+          html += '<div style="padding:10px 14px;">';
+          groupSigns.slice().reverse().forEach(function(s, revIdx) {
+            var realIdx = groupSigns.length - revIdx;
+            html += '<div style="margin-bottom:' + (revIdx < groupSigns.length - 1 ? '10px' : '0') + ';padding-bottom:' + (revIdx < groupSigns.length - 1 ? '10px' : '0') + ';border-bottom:' + (revIdx < groupSigns.length - 1 ? '0.5px solid var(--border)' : 'none') + ';">';
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
+            html += '<span style="font-size:12px;font-weight:700;color:' + (s.noShow ? '#dc2626' : 'var(--text)') + ';">' + (s.noShow ? '🔴 당일취소' : '✅ ' + realIdx + '회차') + '</span>';
+            html += '<div style="display:flex;align-items:center;gap:8px;">';
+            html += '<span style="font-size:11px;color:var(--text-hint);">' + s.date + ' ' + (s.savedAt || '') + '</span>';
+            html += '<div style="position:relative;">';
+            html += '<button onclick="toggleSignMenu(\'smenu_' + s.key + '\')" style="background:none;border:none;cursor:pointer;padding:4px;display:flex;flex-direction:column;gap:3px;align-items:center;">';
+            html += '<span style="width:3px;height:3px;border-radius:50%;background:var(--text-hint);display:block;"></span>';
+            html += '<span style="width:3px;height:3px;border-radius:50%;background:var(--text-hint);display:block;"></span>';
+            html += '<span style="width:3px;height:3px;border-radius:50%;background:var(--text-hint);display:block;"></span>';
+            html += '</button>';
+            html += '<div id="smenu_' + s.key + '" style="display:none;position:absolute;right:0;top:24px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px;min-width:100px;z-index:10;">';
+            html += '<button onclick="openEditSignModal(\'' + s.key + '\')" style="width:100%;padding:8px 12px;background:none;border:none;text-align:left;font-size:13px;color:var(--text);cursor:pointer;border-radius:6px;font-family:\'Noto Sans KR\',sans-serif;">수정하기</button>';
+            html += '</div></div></div></div>';
+            if (s.noShow) {
+              html += '<div style="background:#fff8f8;border:0.5px solid #fca5a5;border-radius:8px;padding:8px 12px;text-align:center;">';
+              html += '<div style="font-size:16px;font-weight:700;color:#dc2626;">당일취소</div>';
+              html += '<div style="font-size:11px;color:#ef4444;margin-top:2px;">' + (s.memberName || '') + ' 회원님은 수업이 진행된 걸로 처리됨에 동의합니다</div>';
+              html += '</div>';
+            } else {
+              html += '<img src="' + s.signURL + '" style="width:100%;border-radius:8px;border:1px solid var(--border);background:#f8f9fa;" />';
+            }
+            html += '</div>';
+          });
+          html += '</div>';
+        }
+        if (isCurrent && reg.remain > 0) {
+          html += '<div style="padding:6px 14px;text-align:center;border-top:0.5px solid var(--border);">';
+          html += '<span style="font-size:11px;color:#185FA5;">잔여 ' + reg.remain + '회</span>';
+          html += '</div>';
+        }
+        html += '</div>';
+      });
+
+      content.innerHTML = html;
+    });
   }
 
   function renderLogTab() {
