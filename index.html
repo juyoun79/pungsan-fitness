@@ -2614,8 +2614,11 @@
     if (!val || val < 20) { alert('올바른 체중을 입력해주세요.'); return; }
     const userId = localStorage.getItem('current_user');
     localStorage.setItem('body_weight_' + userId, val);
-    saveWeightHistory(userId, val, () => {
-      loadHomeWeightCard();
+    // Firebase body/weight도 같이 업데이트
+    db.ref('users/' + userId + '/body/weight').set(val).then(() => {
+      saveWeightHistory(userId, val, () => {
+        loadHomeWeightCard();
+      });
     });
     // 내 정보도 업데이트
     const wEl = document.getElementById('myinfo-weight');
