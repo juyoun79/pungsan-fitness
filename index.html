@@ -1443,6 +1443,17 @@
 
       <!-- ── 강사관리 탭 ── -->
       <div id="tab-trainer-admin" class="admin-section">
+        <!-- 강사 목록 -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;">
+          <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:15px;font-weight:700;color:var(--text);">👨‍🏫 강사 목록</div>
+            <button onclick="openAddTrainerModal()" style="background:var(--blue);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 강사 추가</button>
+          </div>
+          <div id="admin-trainer-list" style="padding:12px 16px;">
+            <div style="text-align:center;padding:20px;color:var(--text-hint);font-size:14px;">불러오는 중...</div>
+          </div>
+        </div>
+
         <!-- 오늘/강사별 전환 버튼 -->
         <div style="display:flex;gap:8px;margin-bottom:12px;">
           <button id="admin-sch-btn-today" onclick="switchAdminScheduleTab('today')" style="flex:1;padding:10px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">오늘 전체 스케줄</button>
@@ -3245,6 +3256,36 @@
     // userId 없으면 로그인 화면 (기본값 = screen-login이 active)
   });
 </script>
+
+  <!-- 강사 추가/수정 모달 -->
+  <div id="trainer-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:2000;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
+    <div style="background:var(--card);border-radius:var(--radius);padding:20px;width:100%;max-width:400px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div id="trainer-modal-title" style="font-size:15px;font-weight:700;color:var(--text);">👨‍🏫 강사 추가</div>
+        <button onclick="closeTrainerModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-hint);">×</button>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:13px;font-weight:700;color:var(--text);display:block;margin-bottom:6px;">이름</label>
+        <input type="text" id="trainer-modal-name" placeholder="강사 이름"
+          style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
+          onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"/>
+      </div>
+      <div style="margin-bottom:12px;" id="trainer-modal-phone-wrap">
+        <label style="font-size:13px;font-weight:700;color:var(--text);display:block;margin-bottom:6px;">전화번호 (아이디)</label>
+        <input type="tel" id="trainer-modal-phone" placeholder="01012345678" maxlength="11"
+          style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
+          onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"/>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:13px;font-weight:700;color:var(--text);display:block;margin-bottom:6px;">비밀번호 <span style="font-size:11px;color:var(--text-hint);">(미입력 시 전화번호 뒤 4자리)</span></label>
+        <input type="text" id="trainer-modal-pw" placeholder="비밀번호"
+          style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
+          onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"/>
+      </div>
+      <button onclick="saveTrainer()" style="width:100%;padding:13px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;">💾 저장</button>
+      <button id="trainer-modal-delete-btn" onclick="deleteTrainer()" style="display:none;width:100%;padding:13px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑 강사 삭제</button>
+    </div>
+  </div>
 
 <div id="edit-sign-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:2000;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
   <div style="background:var(--card);border-radius:var(--radius);padding:20px;width:100%;max-width:400px;">

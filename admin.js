@@ -26,6 +26,118 @@
     if (tabId === 'tab-trainer-admin') loadAdminTrainerSchedule();
   }
 
+  // ── 관리자 강사 목록 관리 ──
+  let editTrainerId = null;
+
+  function loadAdminTrainerList() {
+    db.ref('trainers').once('value', snap => {
+      adminTrainerList = [];
+      const listEl = document.getElementById('admin-trainer-list');
+      if (!listEl) return;
+      if (!snap.exists()) {
+        listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:14px;">등록된 강사가 없어요</div>';
+        return;
+      }
+      snap.forEach(child => {
+        const info = child.val();
+        const name = info.name || child.key;
+        adminTrainerList.push({ id: child.key, name });
+      });
+      listEl.innerHTML = adminTrainerList.map(t => `
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--blue);color:white;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;">${t.name[0]}</div>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:700;color:var(--text);">${t.name}</div>
+            <div style="font-size:12px;color:var(--text-hint);">아이디: ${t.id}</div>
+          </div>
+          <button onclick="openEditTrainerModal('${t.id}','${t.name}')" style="background:var(--blue-light);color:var(--blue);border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
+        </div>`).join('');
+
+      // 강사별 스케줄 버튼도 업데이트
+      var btnsHtml = adminTrainerList.map((t, i) =>
+        '<button onclick="selectAdminTrainer(\'' + t.id + '\',\'' + t.name + '\',this)" style="padding:7px 14px;background:' + (i===0?'var(--blue)':'var(--card)') + ';color:' + (i===0?'white':'var(--text)') + ';border:' + (i===0?'none':'1px solid var(--border)') + ';border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">' + t.name + '</button>'
+      ).join('');
+      const btnEl = document.getElementById('admin-trainer-btns');
+      if (btnEl) btnEl.innerHTML = btnsHtml || '<div style="color:var(--text-hint);font-size:13px;">등록된 강사가 없어요</div>';
+      if (adminTrainerList.length > 0 && !adminSelectedTrainer) {
+        adminSelectedTrainer = adminTrainerList[0];
+      }
+    });
+  }
+
+  function openAddTrainerModal() {
+    editTrainerId = null;
+    document.getElementById('trainer-modal-title').textContent = '👨‍🏫 강사 추가';
+    document.getElementById('trainer-modal-name').value = '';
+    document.getElementById('trainer-modal-phone').value = '';
+    document.getElementById('trainer-modal-pw').value = '';
+    document.getElementById('trainer-modal-phone-wrap').style.display = 'block';
+    document.getElementById('trainer-modal-delete-btn').style.display = 'none';
+    document.getElementById('trainer-modal').style.display = 'flex';
+  }
+
+  function openEditTrainerModal(id, name) {
+    editTrainerId = id;
+    document.getElementById('trainer-modal-title').textContent = '👨‍🏫 강사 수정';
+    document.getElementById('trainer-modal-name').value = name;
+    document.getElementById('trainer-modal-phone').value = id;
+    document.getElementById('trainer-modal-pw').value = '';
+    document.getElementById('trainer-modal-phone-wrap').style.display = 'none';
+    document.getElementById('trainer-modal-delete-btn').style.display = 'block';
+    document.getElementById('trainer-modal').style.display = 'flex';
+  }
+
+  function closeTrainerModal() {
+    document.getElementById('trainer-modal').style.display = 'none';
+    editTrainerId = null;
+  }
+
+  function saveTrainer() {
+    const name = document.getElementById('trainer-modal-name').value.trim();
+    if (!name) { alert('이름을 입력해주세요.'); return; }
+
+    if (editTrainerId) {
+      // 수정
+      const pw = document.getElementById('trainer-modal-pw').value.trim();
+      const updates = { name };
+      db.ref('trainers/' + editTrainerId).update({ name });
+      db.ref('users/' + editTrainerId).update(pw ? { name, pw } : { name }).then(() => {
+        alert('✅ 수정됐어요!');
+        closeTrainerModal();
+        loadAdminTrainerList();
+      });
+    } else {
+      // 추가
+      const phone = document.getElementById('trainer-modal-phone').value.trim().replace(/-/g,'');
+      const pw = document.getElementById('trainer-modal-pw').value.trim() || phone.slice(-4);
+      if (!phone || phone.length < 10) { alert('전화번호를 정확히 입력해주세요.'); return; }
+      db.ref('users/' + phone).once('value', snap => {
+        if (snap.exists()) { alert('이미 등록된 전화번호예요.'); return; }
+        Promise.all([
+          db.ref('users/' + phone).set({ name, pw, role: 'trainer' }),
+          db.ref('trainers/' + phone).set({ name })
+        ]).then(() => {
+          alert('✅ ' + name + ' 강사가 등록됐어요!\n아이디: ' + phone + '\n비밀번호: ' + pw);
+          closeTrainerModal();
+          loadAdminTrainerList();
+        });
+      });
+    }
+  }
+
+  function deleteTrainer() {
+    if (!editTrainerId) return;
+    if (!confirm('이 강사를 삭제할까요?\n스케줄 및 담당 회원 정보도 모두 삭제돼요.')) return;
+    Promise.all([
+      db.ref('users/' + editTrainerId).remove(),
+      db.ref('trainers/' + editTrainerId).remove()
+    ]).then(() => {
+      alert('삭제됐어요! 🗑');
+      closeTrainerModal();
+      loadAdminTrainerList();
+    });
+  }
+
   // ── 관리자 강사관리 탭 ──
   const ADMIN_SCH_HOURS = Array.from({length: 18}, (_, i) => i + 6);
   const ADMIN_SCH_DAYS = ['일','월','화','수','목','금','토'];
@@ -34,6 +146,7 @@
   let adminTrainerBaseDate = new Date();
 
   function loadAdminTrainerSchedule() {
+    loadAdminTrainerList();
     switchAdminScheduleTab('today');
   }
 
