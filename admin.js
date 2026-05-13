@@ -753,7 +753,7 @@
         var key = fmtDate(d) + '_' + h;
         var name = scheduleData[key] || '';
         var todayBg = isScheduleToday(d) ? 'background:#f0f8ff;' : '';
-        var cellContent = name ? '<span style="font-size:10px;color:#0C447C;background:#E6F1FB;border-radius:3px;padding:1px 3px;display:block;overflow:hidden;word-break:keep-all;white-space:normal;line-height:1.3;">' + name + '</span>' : '';
+        var cellContent = name ? '<span style="font-size:10px;color:#0C447C;background:#E6F1FB;border-radius:3px;padding:1px 3px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + name + '</span>' : '';
         bodyHtml += '<td onclick="openScheduleModal(\'' + key + '\',\'' + name.replace(/'/g, "\\'") + '\')" style="' + todayBg + 'height:32px;cursor:pointer;border:0.5px solid var(--border);padding:2px 2px;vertical-align:middle;">' + cellContent + '</td>';
       });
       bodyHtml += '</tr>';
