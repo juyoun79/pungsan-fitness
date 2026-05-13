@@ -481,6 +481,103 @@
     if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
   }
 
+  // ── 이전 등록 이력 토글 ──
+  function toggleTraineeHistory() {
+    const list = document.getElementById('trainee-history-list');
+    const arrow = document.getElementById('trainee-history-arrow');
+    if (!list) return;
+    if (list.style.display === 'none') {
+      list.style.display = 'block';
+      arrow.textContent = '▴';
+    } else {
+      list.style.display = 'none';
+      arrow.textContent = '▾';
+    }
+  }
+
+  // ── 재등록 ──
+  function openReregisterModal() {
+    if (!currentTraineeId) return;
+    const trainerId = localStorage.getItem('current_user');
+    db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId).once('value', snap => {
+      const info = snap.val() || {};
+      const name = info.name || currentTraineeId;
+      const type = info.type || 'PT';
+      const total = info.total || 0;
+      document.getElementById('reregister-info').textContent = name + ' · ' + type + ' · 기존 ' + total + '회 완료';
+      document.getElementById('reregister-type').value = type;
+      document.getElementById('reregister-count').value = '';
+      document.getElementById('reregister-modal').style.display = 'flex';
+    });
+  }
+
+  function closeReregisterModal() {
+    document.getElementById('reregister-modal').style.display = 'none';
+  }
+
+  function saveReregister() {
+    if (!currentTraineeId) return;
+    const trainerId = localStorage.getItem('current_user');
+    const type = document.getElementById('reregister-type').value;
+    const count = parseInt(document.getElementById('reregister-count').value) || 0;
+    if (!count || count < 1) { alert('횟수를 입력해주세요.'); return; }
+    const today = new Date();
+    const dateStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+
+    db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId).once('value', snap => {
+      const info = snap.val() || {};
+      const prevTotal = info.total || 0;
+      const prevType = info.type || '';
+      const prevRemain = info.remain || 0;
+
+      // registrations에 이전 등록 이력 저장
+      const regKey = 'reg_' + Date.now();
+      const prevReg = {
+        type: prevType,
+        total: prevTotal,
+        remain: prevRemain,
+        date: dateStr,
+        completed: true
+      };
+
+      // 새 등록으로 업데이트
+      Promise.all([
+        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/registrations/' + regKey).set(prevReg),
+        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId).update({ type, total: count, remain: count })
+      ]).then(() => {
+        alert('✅ ' + count + '회 재등록 완료!');
+        closeReregisterModal();
+        openMemberModal(currentTraineeId);
+      });
+    });
+  }
+
+  function loadTraineeHistory(traineeId) {
+    const trainerId = localStorage.getItem('current_user');
+    db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/registrations').once('value', snap => {
+      const historyEl = document.getElementById('trainee-history-list');
+      const btn = document.getElementById('trainee-history-btn');
+      if (!historyEl) return;
+      if (!snap.exists()) {
+        btn.style.display = 'none';
+        return;
+      }
+      btn.style.display = 'flex';
+      const regs = [];
+      snap.forEach(child => regs.push({ key: child.key, ...child.val() }));
+      regs.sort((a, b) => b.key > a.key ? 1 : -1);
+      historyEl.innerHTML = regs.map((r, i) =>
+        '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5px solid rgba(255,255,255,0.15);">' +
+          '<div style="display:flex;align-items:center;gap:6px;">' +
+            '<span style="background:rgba(255,255,255,0.15);border-radius:20px;padding:1px 7px;font-size:10px;color:white;">' + (regs.length - i) + '차</span>' +
+            '<span style="font-size:11px;color:white;">' + r.type + ' ' + r.total + '회 완료</span>' +
+          '</div>' +
+          '<span style="font-size:10px;color:#B5D4F4;">' + r.date + '</span>' +
+        '</div>'
+      ).join('');
+    });
+  }
+
   function openNoticeDetail(id) {
     db.ref('notices/' + id).once('value').then(snap => {
       if (!snap.exists()) return;
@@ -1368,6 +1465,12 @@
       document.getElementById('trainee-card-type').textContent = info.type || '수업 종류 미설정';
       document.getElementById('trainee-card-remain').textContent = info.remain || 0;
       document.getElementById('trainee-card-total').textContent = info.total || 0;
+      // 이전 등록 이력 숨기고 불러오기
+      const histEl = document.getElementById('trainee-history-list');
+      if (histEl) { histEl.style.display = 'none'; }
+      const arrow = document.getElementById('trainee-history-arrow');
+      if (arrow) arrow.textContent = '▾';
+      loadTraineeHistory(phone);
       showScreen('screen-trainee-detail');
       switchTraineeTab('record');
     });

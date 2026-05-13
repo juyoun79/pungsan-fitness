@@ -1972,34 +1972,39 @@
     <div style="padding:16px 16px var(--safe-pad);">
 
       <!-- 회원 정보 카드 -->
-      <div id="trainee-info-card" style="background:var(--blue);border-radius:var(--radius);padding:16px;color:white;margin-bottom:16px;">
-        <div style="font-size:18px;font-weight:700;margin-bottom:4px;" id="trainee-card-name"></div>
-        <div style="font-size:13px;opacity:0.85;" id="trainee-card-type"></div>
-        <div style="display:flex;gap:12px;margin-top:10px;">
-          <div style="background:rgba(255,255,255,0.2);border-radius:8px;padding:8px 14px;text-align:center;">
-            <div style="font-size:18px;font-weight:700;" id="trainee-card-remain">-</div>
-            <div style="font-size:11px;opacity:0.85;">잔여 횟수</div>
+      <div id="trainee-info-card" style="background:var(--blue);border-radius:var(--radius);padding:12px 14px;color:white;margin-bottom:12px;">
+        <div style="font-size:15px;font-weight:700;margin-bottom:2px;" id="trainee-card-name"></div>
+        <div style="font-size:11px;opacity:0.85;margin-bottom:8px;" id="trainee-card-type"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <!-- 왼쪽: 잔여/총횟수 + 이전이력 버튼 -->
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <div style="display:flex;gap:6px;">
+              <div style="background:rgba(255,255,255,0.2);border-radius:6px;padding:10px 8px;text-align:center;flex:1;">
+                <div style="font-size:22px;font-weight:700;line-height:1;" id="trainee-card-remain">-</div>
+                <div style="font-size:10px;opacity:0.85;margin-top:3px;">잔여 횟수</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.2);border-radius:6px;padding:10px 8px;text-align:center;flex:1;">
+                <div style="font-size:22px;font-weight:700;line-height:1;" id="trainee-card-total">-</div>
+                <div style="font-size:10px;opacity:0.85;margin-top:3px;">총 횟수</div>
+              </div>
+            </div>
+            <button onclick="toggleTraineeHistory()" id="trainee-history-btn" style="background:rgba(255,255,255,0.15);border:none;border-radius:6px;padding:5px 8px;font-size:10px;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;justify-content:center;gap:3px;">이전 등록 이력 <span id="trainee-history-arrow">▾</span></button>
           </div>
-          <div style="background:rgba(255,255,255,0.2);border-radius:8px;padding:8px 14px;text-align:center;">
-            <div style="font-size:18px;font-weight:700;" id="trainee-card-total">-</div>
-            <div style="font-size:11px;opacity:0.85;">총 횟수</div>
+          <!-- 오른쪽: 버튼 3개 -->
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <button onclick="openReregisterModal()" style="flex:1;background:rgba(255,255,255,0.2);border:none;border-radius:6px;padding:5px;font-size:11px;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔄 재등록</button>
+            <button onclick="editTraineeInfo()" style="flex:1;background:rgba(255,255,255,0.2);border:none;border-radius:6px;padding:5px;font-size:11px;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 정보수정</button>
+            <button onclick="deleteTraineeMember()" style="flex:1;background:rgba(255,255,255,0.15);border:none;border-radius:6px;padding:5px;font-size:11px;color:#fca5a5;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑 담당해제</button>
           </div>
         </div>
+        <!-- 이전 등록 이력 -->
+        <div id="trainee-history-list" style="display:none;margin-top:8px;border-top:0.5px solid rgba(255,255,255,0.2);padding-top:6px;"></div>
       </div>
 
       <!-- 수업 출석 체크 버튼 -->
       <button onclick="openSignModalFromDetail()" style="width:100%;padding:14px;background:#22c55e;color:white;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;">
         ✍️ 수업 확인 서명 받기
       </button>
-      <!-- 수정/삭제 버튼 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-        <button onclick="editTraineeInfo()" style="padding:10px;background:var(--card);color:var(--blue);border:1.5px solid var(--blue);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-          ✏️ 정보 수정
-        </button>
-        <button onclick="deleteTraineeMember()" style="padding:10px;background:var(--card);color:#ef4444;border:1.5px solid #ef4444;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-          🗑️ 담당 해제
-        </button>
-      </div>
 
       <!-- 탭 -->
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:16px;">
@@ -3317,6 +3322,33 @@
 </script>
 
   <!-- 강사 추가/수정 모달 -->
+  <!-- 재등록 모달 -->
+  <div id="reregister-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:2000;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
+    <div style="background:var(--card);border-radius:var(--radius);padding:20px;width:100%;max-width:400px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="font-size:15px;font-weight:700;color:var(--text);">🔄 재등록</div>
+        <button onclick="closeReregisterModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-hint);">×</button>
+      </div>
+      <div id="reregister-info" style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--text-hint);"></div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:13px;font-weight:700;color:var(--text);display:block;margin-bottom:6px;">수업 종류</label>
+        <select id="reregister-type" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
+          <option value="PT">PT</option>
+          <option value="필라테스">필라테스</option>
+          <option value="GX">GX</option>
+          <option value="기구필라테스">기구필라테스</option>
+        </select>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:13px;font-weight:700;color:var(--text);display:block;margin-bottom:6px;">횟수</label>
+        <input type="number" id="reregister-count" placeholder="10" min="1"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
+          onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"/>
+      </div>
+      <button onclick="saveReregister()" style="width:100%;padding:13px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 재등록 저장</button>
+    </div>
+  </div>
+
   <div id="trainer-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:2000;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
     <div style="background:var(--card);border-radius:var(--radius);padding:20px;width:100%;max-width:400px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
