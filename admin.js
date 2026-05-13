@@ -141,15 +141,28 @@
       const pw = document.getElementById('trainer-modal-pw').value.trim() || phone.slice(-4);
       if (!phone || phone.length < 10) { alert('전화번호를 정확히 입력해주세요.'); return; }
       db.ref('users/' + phone).once('value', snap => {
-        if (snap.exists()) { alert('이미 등록된 전화번호예요.'); return; }
-        Promise.all([
-          db.ref('users/' + phone).set({ name, pw, role: 'trainer' }),
-          db.ref('trainers/' + phone).set({ name })
-        ]).then(() => {
-          alert('✅ ' + name + ' 강사가 등록됐어요!\n아이디: ' + phone + '\n비밀번호: ' + pw);
-          closeTrainerModal();
-          loadAdminTrainerList();
-        });
+        if (snap.exists()) {
+          // 기존 계정이 있으면 role만 trainer로 업데이트
+          if (!confirm(snap.val().name + ' 님이 이미 등록된 번호예요.\n강사로 전환할까요?')) return;
+          Promise.all([
+            db.ref('users/' + phone).update({ name, role: 'trainer' }),
+            db.ref('trainers/' + phone).set({ name }),
+            db.ref('members/' + phone).remove()
+          ]).then(() => {
+            alert('✅ ' + name + ' 강사로 전환됐어요!');
+            closeTrainerModal();
+            loadAdminTrainerList();
+          });
+        } else {
+          Promise.all([
+            db.ref('users/' + phone).set({ name, pw, role: 'trainer' }),
+            db.ref('trainers/' + phone).set({ name })
+          ]).then(() => {
+            alert('✅ ' + name + ' 강사가 등록됐어요!\n아이디: ' + phone + '\n비밀번호: ' + pw);
+            closeTrainerModal();
+            loadAdminTrainerList();
+          });
+        }
       });
     }
   }
