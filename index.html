@@ -1333,6 +1333,7 @@
         <button class="admin-tab active" onclick="switchAdminTab('tab-dashboard')">📊 현황</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-members')">👥 회원</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-register')">➕ 등록</button>
+        <button class="admin-tab" onclick="switchAdminTab('tab-trainer-admin')">👨‍🏫 강사관리</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-community-admin')">💬 커뮤니티</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-notice')">📢 공지</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-settings')">⚙️ 설정</button>
@@ -1437,6 +1438,40 @@
         <div class="admin-card">
           <div class="admin-card-title">📋 등록된 공지사항</div>
           <div id="notice-list-admin"></div>
+        </div>
+      </div>
+
+      <!-- ── 강사관리 탭 ── -->
+      <div id="tab-trainer-admin" class="admin-section">
+        <!-- 오늘/강사별 전환 버튼 -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <button id="admin-sch-btn-today" onclick="switchAdminScheduleTab('today')" style="flex:1;padding:10px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">오늘 전체 스케줄</button>
+          <button id="admin-sch-btn-trainer" onclick="switchAdminScheduleTab('trainer')" style="flex:1;padding:10px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">강사별 스케줄</button>
+        </div>
+        <!-- 오늘 전체 스케줄 -->
+        <div id="admin-sch-today">
+          <div id="admin-today-label" style="font-size:12px;color:var(--text-hint);margin-bottom:8px;"></div>
+          <div style="overflow-x:auto;">
+            <table id="admin-today-table" style="border-collapse:collapse;width:100%;table-layout:fixed;">
+              <thead id="admin-today-head"></thead>
+              <tbody id="admin-today-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <!-- 강사별 스케줄 -->
+        <div id="admin-sch-trainer" style="display:none;">
+          <div id="admin-trainer-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;"></div>
+          <div id="admin-trainer-week-label" style="font-size:12px;color:var(--text-hint);margin-bottom:8px;"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <button onclick="changeAdminTrainerWeek(-1)" style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">← 이전</button>
+            <button onclick="changeAdminTrainerWeek(1)" style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">다음 →</button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table id="admin-trainer-table" style="border-collapse:collapse;width:100%;table-layout:fixed;">
+              <thead id="admin-trainer-head"></thead>
+              <tbody id="admin-trainer-body"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 

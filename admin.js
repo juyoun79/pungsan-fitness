@@ -23,6 +23,163 @@
     if (tabId === 'tab-members') loadMemberList();
     if (tabId === 'tab-notice') loadNoticeListAdmin();
     if (tabId === 'tab-community-admin') loadAdminCommunityFeed('전체');
+    if (tabId === 'tab-trainer-admin') loadAdminTrainerSchedule();
+  }
+
+  // ── 관리자 강사관리 탭 ──
+  const ADMIN_SCH_HOURS = Array.from({length: 18}, (_, i) => i + 6);
+  const ADMIN_SCH_DAYS = ['일','월','화','수','목','금','토'];
+  let adminTrainerList = [];
+  let adminSelectedTrainer = null;
+  let adminTrainerBaseDate = new Date();
+
+  function loadAdminTrainerSchedule() {
+    switchAdminScheduleTab('today');
+  }
+
+  function switchAdminScheduleTab(tab) {
+    const todayEl = document.getElementById('admin-sch-today');
+    const trainerEl = document.getElementById('admin-sch-trainer');
+    const btnToday = document.getElementById('admin-sch-btn-today');
+    const btnTrainer = document.getElementById('admin-sch-btn-trainer');
+    if (tab === 'today') {
+      todayEl.style.display = 'block';
+      trainerEl.style.display = 'none';
+      btnToday.style.background = 'var(--blue)'; btnToday.style.color = 'white'; btnToday.style.border = 'none';
+      btnTrainer.style.background = 'var(--card)'; btnTrainer.style.color = 'var(--text)'; btnTrainer.style.border = '1px solid var(--border)';
+      renderAdminTodaySchedule();
+    } else {
+      todayEl.style.display = 'none';
+      trainerEl.style.display = 'block';
+      btnTrainer.style.background = 'var(--blue)'; btnTrainer.style.color = 'white'; btnTrainer.style.border = 'none';
+      btnToday.style.background = 'var(--card)'; btnToday.style.color = 'var(--text)'; btnToday.style.border = '1px solid var(--border)';
+      loadAdminTrainerList();
+    }
+  }
+
+  function renderAdminTodaySchedule() {
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+    const days = ['일','월','화','수','목','금','토'];
+    document.getElementById('admin-today-label').textContent =
+      today.getFullYear() + '년 ' + (today.getMonth()+1) + '월 ' + today.getDate() + '일 (' + days[today.getDay()] + ') 전체 스케줄';
+
+    db.ref('trainers').once('value', snap => {
+      if (!snap.exists()) {
+        document.getElementById('admin-today-head').innerHTML = '';
+        document.getElementById('admin-today-body').innerHTML = '<tr><td style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">등록된 강사가 없어요</td></tr>';
+        return;
+      }
+      const trainers = [];
+      const schedules = {};
+      snap.forEach(child => {
+        const info = child.val();
+        const name = localStorage.getItem('name_' + child.key) || child.key;
+        trainers.push({ id: child.key, name });
+        schedules[child.key] = info.schedule || {};
+      });
+
+      // 헤더
+      var headHtml = '<tr><th style="background:var(--bg);border:0.5px solid var(--border);font-size:10px;color:var(--text-hint);padding:4px 1px;width:24px;">시</th>';
+      trainers.forEach(t => {
+        headHtml += '<th style="background:var(--bg);border:0.5px solid var(--border);font-size:11px;font-weight:700;color:var(--text);padding:5px 3px;text-align:center;">' + t.name + '</th>';
+      });
+      headHtml += '</tr>';
+      document.getElementById('admin-today-head').innerHTML = headHtml;
+
+      // 바디
+      var bodyHtml = '';
+      ADMIN_SCH_HOURS.forEach(h => {
+        var hasData = trainers.some(t => schedules[t.id][todayStr + '_' + h]);
+        bodyHtml += '<tr>';
+        bodyHtml += '<td style="background:var(--bg);border:0.5px solid var(--border);font-size:10px;color:var(--text-hint);text-align:center;padding:3px 1px;">' + String(h).padStart(2,'0') + '</td>';
+        trainers.forEach(t => {
+          var name = schedules[t.id][todayStr + '_' + h] || '';
+          var cell = name ? '<span style="font-size:10px;color:#0C447C;background:#E6F1FB;border-radius:3px;padding:1px 3px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + name + '</span>' : '';
+          bodyHtml += '<td style="border:0.5px solid var(--border);padding:2px 2px;height:30px;vertical-align:middle;">' + cell + '</td>';
+        });
+        bodyHtml += '</tr>';
+      });
+      document.getElementById('admin-today-body').innerHTML = bodyHtml;
+    });
+  }
+
+  function loadAdminTrainerList() {
+    db.ref('trainers').once('value', snap => {
+      adminTrainerList = [];
+      if (snap.exists()) {
+        snap.forEach(child => {
+          const name = localStorage.getItem('name_' + child.key) || child.key;
+          adminTrainerList.push({ id: child.key, name });
+        });
+      }
+      var btnsHtml = adminTrainerList.map((t, i) =>
+        '<button onclick="selectAdminTrainer(\'' + t.id + '\',\'' + t.name + '\',this)" style="padding:7px 14px;background:' + (i===0?'var(--blue)':'var(--card)') + ';color:' + (i===0?'white':'var(--text)') + ';border:' + (i===0?'none':'1px solid var(--border)') + ';border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">' + t.name + '</button>'
+      ).join('');
+      document.getElementById('admin-trainer-btns').innerHTML = btnsHtml || '<div style="color:var(--text-hint);font-size:13px;">등록된 강사가 없어요</div>';
+      if (adminTrainerList.length > 0) {
+        adminSelectedTrainer = adminTrainerList[0];
+        adminTrainerBaseDate = new Date();
+        renderAdminTrainerSchedule();
+      }
+    });
+  }
+
+  function selectAdminTrainer(id, name, btn) {
+    adminSelectedTrainer = { id, name };
+    document.querySelectorAll('#admin-trainer-btns button').forEach(b => {
+      b.style.background = 'var(--card)'; b.style.color = 'var(--text)'; b.style.border = '1px solid var(--border)';
+    });
+    btn.style.background = 'var(--blue)'; btn.style.color = 'white'; btn.style.border = 'none';
+    adminTrainerBaseDate = new Date();
+    renderAdminTrainerSchedule();
+  }
+
+  function changeAdminTrainerWeek(dir) {
+    adminTrainerBaseDate.setDate(adminTrainerBaseDate.getDate() + dir * 7);
+    renderAdminTrainerSchedule();
+  }
+
+  function renderAdminTrainerSchedule() {
+    if (!adminSelectedTrainer) return;
+    db.ref('trainers/' + adminSelectedTrainer.id + '/schedule').once('value', snap => {
+      const data = snap.val() || {};
+      const d = adminTrainerBaseDate;
+      const day = d.getDay();
+      const sunday = new Date(d); sunday.setDate(d.getDate() - day);
+      const dates = Array.from({length:7}, (_,i) => { const dd = new Date(sunday); dd.setDate(sunday.getDate()+i); return dd; });
+      const first = dates[0], last = dates[6];
+      const today = new Date();
+
+      document.getElementById('admin-trainer-week-label').textContent =
+        adminSelectedTrainer.name + ' 강사 · ' + (first.getMonth()+1) + '/' + first.getDate() + ' ~ ' + (last.getMonth()+1) + '/' + last.getDate();
+
+      var headHtml = '<tr><th style="background:var(--bg);border:0.5px solid var(--border);font-size:10px;color:var(--text-hint);padding:4px 1px;width:24px;">시</th>';
+      dates.forEach(dd => {
+        var isToday = dd.getFullYear()===today.getFullYear() && dd.getMonth()===today.getMonth() && dd.getDate()===today.getDate();
+        var bg = isToday ? 'background:#E6F1FB;color:#0C447C;' : 'background:var(--bg);color:var(--text-sub);';
+        headHtml += '<th style="' + bg + 'border:0.5px solid var(--border);font-size:11px;font-weight:700;padding:5px 1px;text-align:center;">' +
+          ADMIN_SCH_DAYS[dd.getDay()] + '<br><span style="font-size:10px;font-weight:400;">' + dd.getDate() + '</span></th>';
+      });
+      headHtml += '</tr>';
+      document.getElementById('admin-trainer-head').innerHTML = headHtml;
+
+      var bodyHtml = '';
+      ADMIN_SCH_HOURS.forEach(h => {
+        bodyHtml += '<tr>';
+        bodyHtml += '<td style="background:var(--bg);border:0.5px solid var(--border);font-size:10px;color:var(--text-hint);text-align:center;padding:3px 1px;">' + String(h).padStart(2,'0') + '</td>';
+        dates.forEach(dd => {
+          var isToday = dd.getFullYear()===today.getFullYear() && dd.getMonth()===today.getMonth() && dd.getDate()===today.getDate();
+          var dateStr = dd.getFullYear() + '-' + String(dd.getMonth()+1).padStart(2,'0') + '-' + String(dd.getDate()).padStart(2,'0');
+          var name = data[dateStr + '_' + h] || '';
+          var todayBg = isToday ? 'background:#f0f8ff;' : '';
+          var cell = name ? '<span style="font-size:10px;color:#0C447C;background:#E6F1FB;border-radius:3px;padding:1px 3px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + name + '</span>' : '';
+          bodyHtml += '<td style="' + todayBg + 'border:0.5px solid var(--border);padding:2px 2px;height:30px;vertical-align:middle;">' + cell + '</td>';
+        });
+        bodyHtml += '</tr>';
+      });
+      document.getElementById('admin-trainer-body').innerHTML = bodyHtml;
+    });
   }
 
   function openNoticeDetail(id) {
