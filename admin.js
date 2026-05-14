@@ -555,7 +555,8 @@
 
   function loadTraineeHistory(traineeId) {
     const trainerId = localStorage.getItem('current_user');
-    // registrations(이전 이력) + 루트 현재 등록 동시에 읽기
+    const progressEl = document.getElementById('trainee-card-progress');
+
     Promise.all([
       db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/registrations').once('value'),
       db.ref('trainers/' + trainerId + '/trainees/' + traineeId).once('value')
@@ -564,65 +565,50 @@
       const btn = document.getElementById('trainee-history-btn');
       if (!historyEl) return;
 
+      // 루트에서 필요한 필드만 추출 (registrations 등 하위노드 제외)
       const rootVal = rootSnap.val() || {};
-      // registrations, signs 등 하위 객체 제외하고 루트 필드만 추출
-      const rootInfo = {
-        type: rootVal.type || '',
-        total: rootVal.total || 0,
-        remain: rootVal.remain || 0,
-        regDate: rootVal.regDate || ''
-      };
+      const rootType = rootVal.type || '';
+      const rootTotal = rootVal.total || 0;
+      const rootRemain = rootVal.remain || 0;
+      const rootRegDate = rootVal.regDate || '';
 
+      // registrations 배열로 변환 후 키 기준 오름차순 정렬
       const regs = [];
-
-      // 이전 등록 이력 (registrations) - completed:true인 것만 이전이력, false는 현재진행
-      // registrations에 있는 모든 항목을 이력으로 추가
       if (regSnap.exists()) {
         regSnap.forEach(child => regs.push({ key: child.key, ...child.val() }));
+        regs.sort((a, b) => a.key.localeCompare(b.key));
       }
 
-      // registrations가 없으면 버튼 숨김
-      if (!regSnap.exists() || regSnap.numChildren() === 0) {
+      // registrations가 없으면 → 1차 진행중 상태
+      if (regs.length === 0) {
+        if (progressEl) progressEl.textContent = '1차 ' + rootType + ' 진행중';
         btn.style.display = 'none';
-        // 차수 표시: 1차만 있는 경우
-        const progressEl = document.getElementById('trainee-card-progress');
-        if (progressEl) progressEl.textContent = '1차 ' + rootInfo.type + ' 진행중';
         return;
       }
 
-      // 현재 진행중인 등록 (루트의 remain/total/type) → 항상 마지막에 추가
-      // registrations의 마지막 항목이 completed:false면 현재진행중이므로 루트를 추가하지 않음
-      const regArr = [];
-      regSnap.forEach(child => regArr.push({ key: child.key, ...child.val() }));
-      regArr.sort((a, b) => a.key.localeCompare(b.key));
-      const lastReg = regArr[regArr.length - 1];
-
-      // 마지막 registrations 항목이 completed:false이면 → 아직 진행중인 이전 등록
-      // 루트에 별도 현재 등록이 있으면 추가
-      const lastIsActive = lastReg && lastReg.completed === false;
-
-      if (!lastIsActive && (rootInfo.total || rootInfo.type)) {
-        // 루트가 현재 진행중 (새 재등록 후 상태)
+      // 마지막 registration이 completed:true면 → 루트가 현재 진행중인 새 등록 (재등록 완료)
+      // 마지막 registration이 completed:false면 → 루트와 동일한 등록이므로 루트 추가 안 함
+      const lastReg = regs[regs.length - 1];
+      if (lastReg.completed === true) {
+        // 루트의 현재 등록을 마지막 차수로 추가
         regs.push({
           key: 'zzz_current',
-          type: rootInfo.type,
-          total: rootInfo.total,
-          remain: rootInfo.remain,
-          date: rootInfo.regDate,
+          type: rootType,
+          total: rootTotal,
+          remain: rootRemain,
+          date: rootRegDate,
           completed: false
         });
       }
 
-      btn.style.display = 'flex';
-      regs.sort((a, b) => a.key.localeCompare(b.key));
-
-      // 현재 차수 = 전체 이력 개수
+      // 차수 표시
       const currentOrder = regs.length;
       const currentReg = regs[regs.length - 1];
-      const progressEl = document.getElementById('trainee-card-progress');
-      if (progressEl && currentReg) {
+      if (progressEl) {
         progressEl.textContent = currentOrder + '차 ' + currentReg.type + ' 진행중';
       }
+
+      btn.style.display = 'flex';
 
       historyEl.innerHTML = regs.map((r, i) =>
         '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5px solid rgba(255,255,255,0.15);">' +
