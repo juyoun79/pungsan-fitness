@@ -541,7 +541,7 @@
 
       Promise.all([
         db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/registrations/' + regKey).set(prevReg),
-        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId).update({ type, total: count, remain: newRemain })
+        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId).update({ type, total: count, remain: newRemain, regDate: dateStr })
       ]).then(() => {
         document.getElementById('trainee-card-type').textContent = type;
         document.getElementById('trainee-card-remain').textContent = newRemain;
@@ -600,6 +600,14 @@
       btn.style.display = 'flex';
       // key 기준 오름차순 정렬 (오래된 것 → 최신 순, zzz_current가 맨 뒤)
       regs.sort((a, b) => a.key.localeCompare(b.key));
+
+      // 현재 차수 = 전체 이력 개수 (마지막이 현재 진행중)
+      const currentOrder = regs.length;
+      const currentReg = regs[regs.length - 1];
+      const progressEl = document.getElementById('trainee-card-progress');
+      if (progressEl && currentReg) {
+        progressEl.textContent = currentOrder + '차 ' + currentReg.type + ' 진행중';
+      }
 
       historyEl.innerHTML = regs.map((r, i) =>
         '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5px solid rgba(255,255,255,0.15);">' +
@@ -1500,6 +1508,8 @@
       document.getElementById('trainee-card-type').textContent = info.type || '수업 종류 미설정';
       document.getElementById('trainee-card-remain').textContent = info.remain || 0;
       document.getElementById('trainee-card-total').textContent = info.total || 0;
+      const progressEl = document.getElementById('trainee-card-progress');
+      if (progressEl) progressEl.textContent = '';
       // 이전 등록 이력 숨기고 불러오기
       const histEl = document.getElementById('trainee-history-list');
       if (histEl) { histEl.style.display = 'none'; }
