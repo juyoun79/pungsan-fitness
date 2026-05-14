@@ -6,7 +6,27 @@
     "enabled": true
   },
   "assets": {
-    "directory": "."
+    "directory": ".",
+    "headers": [
+      {
+        "pattern": "*.js",
+        "headers": {
+          "Cache-Control": "no-cache, no-store, must-revalidate"
+        }
+      },
+      {
+        "pattern": "*.html",
+        "headers": {
+          "Cache-Control": "no-cache, no-store, must-revalidate"
+        }
+      },
+      {
+        "pattern": "*.css",
+        "headers": {
+          "Cache-Control": "no-cache, no-store, must-revalidate"
+        }
+      }
+    ]
   },
   "compatibility_flags": [
     "nodejs_compat"

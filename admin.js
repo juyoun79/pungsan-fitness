@@ -566,7 +566,7 @@
       btn.style.display = 'flex';
       const regs = [];
       snap.forEach(child => regs.push({ key: child.key, ...child.val() }));
-      regs.sort((a, b) => b.key > a.key ? 1 : -1);
+      regs.sort((a, b) => a.key.localeCompare(b.key));
       historyEl.innerHTML = regs.map((r, i) =>
         '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5px solid rgba(255,255,255,0.15);">' +
           '<div style="display:flex;align-items:center;gap:6px;">' +
