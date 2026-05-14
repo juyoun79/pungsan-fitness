@@ -569,7 +569,7 @@
         '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5px solid rgba(255,255,255,0.15);">' +
           '<div style="display:flex;align-items:center;gap:6px;">' +
             '<span style="background:rgba(255,255,255,0.15);border-radius:20px;padding:1px 7px;font-size:10px;color:white;">' + (regs.length - i) + '차</span>' +
-            '<span style="font-size:11px;color:white;">' + r.type + ' ' + r.total + '회 완료</span>' +
+            '<span style="font-size:11px;color:white;">' + r.type + ' ' + r.total + '회 ' + (r.completed ? '완료' : '잔여 ' + r.remain + '회') + '</span>' +
           '</div>' +
           '<span style="font-size:10px;color:#B5D4F4;">' + r.date + '</span>' +
         '</div>'
