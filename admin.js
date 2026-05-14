@@ -564,44 +564,59 @@
       const btn = document.getElementById('trainee-history-btn');
       if (!historyEl) return;
 
-      const rootInfo = rootSnap.val() || {};
+      const rootVal = rootSnap.val() || {};
+      // registrations, signs 등 하위 객체 제외하고 루트 필드만 추출
+      const rootInfo = {
+        type: rootVal.type || '',
+        total: rootVal.total || 0,
+        remain: rootVal.remain || 0,
+        regDate: rootVal.regDate || ''
+      };
+
       const regs = [];
 
-      // 이전 등록 이력 (registrations)
+      // 이전 등록 이력 (registrations) - completed:true인 것만 이전이력, false는 현재진행
+      // registrations에 있는 모든 항목을 이력으로 추가
       if (regSnap.exists()) {
         regSnap.forEach(child => regs.push({ key: child.key, ...child.val() }));
       }
 
+      // registrations가 없으면 버튼 숨김
+      if (!regSnap.exists() || regSnap.numChildren() === 0) {
+        btn.style.display = 'none';
+        // 차수 표시: 1차만 있는 경우
+        const progressEl = document.getElementById('trainee-card-progress');
+        if (progressEl) progressEl.textContent = '1차 ' + rootInfo.type + ' 진행중';
+        return;
+      }
+
       // 현재 진행중인 등록 (루트의 remain/total/type) → 항상 마지막에 추가
-      if (rootInfo.total || rootInfo.type) {
+      // registrations의 마지막 항목이 completed:false면 현재진행중이므로 루트를 추가하지 않음
+      const regArr = [];
+      regSnap.forEach(child => regArr.push({ key: child.key, ...child.val() }));
+      regArr.sort((a, b) => a.key.localeCompare(b.key));
+      const lastReg = regArr[regArr.length - 1];
+
+      // 마지막 registrations 항목이 completed:false이면 → 아직 진행중인 이전 등록
+      // 루트에 별도 현재 등록이 있으면 추가
+      const lastIsActive = lastReg && lastReg.completed === false;
+
+      if (!lastIsActive && (rootInfo.total || rootInfo.type)) {
+        // 루트가 현재 진행중 (새 재등록 후 상태)
         regs.push({
-          key: 'zzz_current', // 정렬 시 항상 맨 뒤
-          type: rootInfo.type || '',
-          total: rootInfo.total || 0,
-          remain: rootInfo.remain || 0,
-          date: rootInfo.regDate || '',
+          key: 'zzz_current',
+          type: rootInfo.type,
+          total: rootInfo.total,
+          remain: rootInfo.remain,
+          date: rootInfo.regDate,
           completed: false
         });
       }
 
-      // registrations만 있고 현재 등록 없으면 버튼 숨김
-      if (regs.length === 0) {
-        btn.style.display = 'none';
-        return;
-      }
-
-      // registrations가 1개 이상이어야 버튼 표시 (현재 등록만 있으면 숨김)
-      const hasHistory = regSnap.exists() && regSnap.numChildren() > 0;
-      if (!hasHistory) {
-        btn.style.display = 'none';
-        return;
-      }
-
       btn.style.display = 'flex';
-      // key 기준 오름차순 정렬 (오래된 것 → 최신 순, zzz_current가 맨 뒤)
       regs.sort((a, b) => a.key.localeCompare(b.key));
 
-      // 현재 차수 = 전체 이력 개수 (마지막이 현재 진행중)
+      // 현재 차수 = 전체 이력 개수
       const currentOrder = regs.length;
       const currentReg = regs[regs.length - 1];
       const progressEl = document.getElementById('trainee-card-progress');
