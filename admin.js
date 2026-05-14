@@ -489,6 +489,8 @@
     if (list.style.display === 'none') {
       list.style.display = 'block';
       arrow.textContent = '▴';
+      // 열 때마다 Firebase에서 최신 이력 불러오기
+      loadTraineeHistory(currentTraineeId);
     } else {
       list.style.display = 'none';
       arrow.textContent = '▾';
