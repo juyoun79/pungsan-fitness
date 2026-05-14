@@ -537,7 +537,7 @@
       const newRemain = prevRemain + count;
 
       const regKey = 'reg_' + Date.now();
-      const prevReg = { type: prevType, total: prevTotal, remain: prevRemain, date: dateStr, completed: prevRemain === 0 };
+      const prevReg = { type: prevType, total: prevTotal, remain: prevRemain, date: dateStr, completed: true };
 
       Promise.all([
         db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/registrations/' + regKey).set(prevReg),
@@ -586,20 +586,15 @@
         return;
       }
 
-      // 마지막 registration이 completed:true면 → 루트가 현재 진행중인 새 등록 (재등록 완료)
-      // 마지막 registration이 completed:false면 → 루트와 동일한 등록이므로 루트 추가 안 함
-      const lastReg = regs[regs.length - 1];
-      if (lastReg.completed === true) {
-        // 루트의 현재 등록을 마지막 차수로 추가
-        regs.push({
-          key: 'zzz_current',
-          type: rootType,
-          total: rootTotal,
-          remain: rootRemain,
-          date: rootRegDate,
-          completed: false
-        });
-      }
+      // registrations에 있는 건 모두 이전 이력, 루트는 항상 현재 진행중
+      regs.push({
+        key: 'zzz_current',
+        type: rootType,
+        total: rootTotal,
+        remain: rootRemain,
+        date: rootRegDate,
+        completed: false
+      });
 
       // 차수 표시
       const currentOrder = regs.length;
