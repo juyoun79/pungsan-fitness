@@ -537,7 +537,8 @@
       const newRemain = prevRemain + count;
 
       const regKey = 'reg_' + Date.now();
-      const prevReg = { type: prevType, total: prevTotal, remain: prevRemain, date: dateStr, completed: prevRemain === 0 };
+      // 이전 등록 내용만 저장 (remain 제외, 등록 사실만 기록)
+      const prevReg = { type: prevType, total: prevTotal, date: dateStr };
 
       Promise.all([
         db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/registrations/' + regKey).set(prevReg),
@@ -559,59 +560,69 @@
 
     Promise.all([
       db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/registrations').once('value'),
-      db.ref('trainers/' + trainerId + '/trainees/' + traineeId).once('value')
-    ]).then(([regSnap, rootSnap]) => {
+      db.ref('trainers/' + trainerId + '/trainees/' + traineeId).once('value'),
+      db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/signs').once('value')
+    ]).then(([regSnap, rootSnap, signsSnap]) => {
       const historyEl = document.getElementById('trainee-history-list');
       const btn = document.getElementById('trainee-history-btn');
       if (!historyEl) return;
 
-      // 루트에서 필요한 필드만 추출 (registrations 등 하위노드 제외)
+      // 루트 정보 추출
       const rootVal = rootSnap.val() || {};
       const rootType = rootVal.type || '';
       const rootTotal = rootVal.total || 0;
-      const rootRemain = rootVal.remain || 0;
       const rootRegDate = rootVal.regDate || '';
 
-      // registrations 배열로 변환 후 키 기준 오름차순 정렬
-      const regs = [];
+      // 등록이력 배열 구성 (registrations + 현재 등록)
+      // registrations: 재등록할 때마다 저장된 이전 등록들
+      // 현재 등록: 루트의 type, total
+      const allRegs = [];
       if (regSnap.exists()) {
-        regSnap.forEach(child => regs.push({ key: child.key, ...child.val() }));
-        regs.sort((a, b) => a.key.localeCompare(b.key));
+        regSnap.forEach(child => allRegs.push({ key: child.key, ...child.val() }));
+        allRegs.sort((a, b) => a.key.localeCompare(b.key));
+      }
+      // 현재 등록을 마지막에 추가
+      allRegs.push({ key: 'zzz_current', type: rootType, total: rootTotal, date: rootRegDate });
+
+      // 총 서명 횟수 계산 (노쇼 포함)
+      let totalSigns = 0;
+      if (signsSnap.exists()) {
+        signsSnap.forEach(() => totalSigns++);
       }
 
-      // registrations가 없으면 → 1차 진행중 상태
-      if (regs.length === 0) {
-        if (progressEl) progressEl.textContent = '1차 ' + rootType + ' 진행중';
+      // 현재 몇 차 진행중인지 계산 (서명 횟수 기준)
+      let cumulative = 0;
+      let currentOrder = 1;
+      for (let i = 0; i < allRegs.length; i++) {
+        cumulative += allRegs[i].total;
+        if (totalSigns < cumulative) {
+          currentOrder = i + 1;
+          break;
+        }
+        currentOrder = i + 1;
+      }
+
+      // 카드 상단 차수 표시
+      if (progressEl) {
+        progressEl.textContent = currentOrder + '차 ' + rootType + ' 진행중';
+      }
+
+      // 등록이력 버튼: 등록이 2개 이상일 때만 표시
+      if (allRegs.length <= 1) {
         btn.style.display = 'none';
         return;
       }
 
-      // registrations에 있는 건 모두 이전 이력, 루트는 항상 현재 진행중
-      regs.push({
-        key: 'zzz_current',
-        type: rootType,
-        total: rootTotal,
-        remain: rootRemain,
-        date: rootRegDate,
-        completed: false
-      });
-
-      // 차수 표시
-      const currentOrder = regs.length;
-      const currentReg = regs[regs.length - 1];
-      if (progressEl) {
-        progressEl.textContent = currentOrder + '차 ' + currentReg.type + ' 진행중';
-      }
-
       btn.style.display = 'flex';
 
-      historyEl.innerHTML = regs.map((r, i) =>
+      // 등록이력 목록: N차 PT 3회 등록 형식
+      historyEl.innerHTML = allRegs.map((r, i) =>
         '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5px solid rgba(255,255,255,0.15);">' +
           '<div style="display:flex;align-items:center;gap:6px;">' +
             '<span style="background:rgba(255,255,255,0.15);border-radius:20px;padding:1px 7px;font-size:10px;color:white;">' + (i + 1) + '차</span>' +
-            '<span style="font-size:11px;color:white;">' + r.type + ' ' + r.total + '회 ' + (r.remain === 0 ? '완료' : '잔여 ' + r.remain + '회') + '</span>' +
+            '<span style="font-size:11px;color:white;">' + r.type + ' ' + r.total + '회 등록</span>' +
           '</div>' +
-          '<span style="font-size:10px;color:#B5D4F4;">' + r.date + '</span>' +
+          '<span style="font-size:10px;color:#B5D4F4;">' + (r.date || '') + '</span>' +
         '</div>'
       ).join('');
     });
