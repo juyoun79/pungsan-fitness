@@ -555,22 +555,56 @@
 
   function loadTraineeHistory(traineeId) {
     const trainerId = localStorage.getItem('current_user');
-    db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/registrations').once('value', snap => {
+    // registrations(이전 이력) + 루트 현재 등록 동시에 읽기
+    Promise.all([
+      db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/registrations').once('value'),
+      db.ref('trainers/' + trainerId + '/trainees/' + traineeId).once('value')
+    ]).then(([regSnap, rootSnap]) => {
       const historyEl = document.getElementById('trainee-history-list');
       const btn = document.getElementById('trainee-history-btn');
       if (!historyEl) return;
-      if (!snap.exists()) {
+
+      const rootInfo = rootSnap.val() || {};
+      const regs = [];
+
+      // 이전 등록 이력 (registrations)
+      if (regSnap.exists()) {
+        regSnap.forEach(child => regs.push({ key: child.key, ...child.val() }));
+      }
+
+      // 현재 진행중인 등록 (루트의 remain/total/type) → 항상 마지막에 추가
+      if (rootInfo.total || rootInfo.type) {
+        regs.push({
+          key: 'zzz_current', // 정렬 시 항상 맨 뒤
+          type: rootInfo.type || '',
+          total: rootInfo.total || 0,
+          remain: rootInfo.remain || 0,
+          date: rootInfo.regDate || '',
+          completed: false
+        });
+      }
+
+      // registrations만 있고 현재 등록 없으면 버튼 숨김
+      if (regs.length === 0) {
         btn.style.display = 'none';
         return;
       }
+
+      // registrations가 1개 이상이어야 버튼 표시 (현재 등록만 있으면 숨김)
+      const hasHistory = regSnap.exists() && regSnap.numChildren() > 0;
+      if (!hasHistory) {
+        btn.style.display = 'none';
+        return;
+      }
+
       btn.style.display = 'flex';
-      const regs = [];
-      snap.forEach(child => regs.push({ key: child.key, ...child.val() }));
+      // key 기준 오름차순 정렬 (오래된 것 → 최신 순, zzz_current가 맨 뒤)
       regs.sort((a, b) => a.key.localeCompare(b.key));
+
       historyEl.innerHTML = regs.map((r, i) =>
         '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5px solid rgba(255,255,255,0.15);">' +
           '<div style="display:flex;align-items:center;gap:6px;">' +
-            '<span style="background:rgba(255,255,255,0.15);border-radius:20px;padding:1px 7px;font-size:10px;color:white;">' + (regs.length - i) + '차</span>' +
+            '<span style="background:rgba(255,255,255,0.15);border-radius:20px;padding:1px 7px;font-size:10px;color:white;">' + (i + 1) + '차</span>' +
             '<span style="font-size:11px;color:white;">' + r.type + ' ' + r.total + '회 ' + (r.completed ? '완료' : '잔여 ' + r.remain + '회') + '</span>' +
           '</div>' +
           '<span style="font-size:10px;color:#B5D4F4;">' + r.date + '</span>' +
