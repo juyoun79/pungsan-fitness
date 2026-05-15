@@ -705,6 +705,7 @@
       if (histBtn) {
         if (allRegs.length <= 1) {
           histBtn.style.display = 'none';
+          if (historyEl) { historyEl.style.display = 'none'; historyEl.innerHTML = ''; }
         } else {
           histBtn.style.display = 'flex';
           if (historyEl && historyEl.style.display !== 'none') {
