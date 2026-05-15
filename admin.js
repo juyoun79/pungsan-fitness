@@ -1594,7 +1594,40 @@
         return;
       }
       const entries = Object.entries(data);
-      container.innerHTML = entries.map(([memberId, info]) => `
+
+      // signs 기준으로 현재 차수 + 잔여 계산 헬퍼
+      function calcTraineeStatus(info) {
+        const allRegs = [];
+        if (info.registrations && typeof info.registrations === 'object') {
+          Object.entries(info.registrations).forEach(([key, val]) => {
+            if (val && typeof val === 'object') allRegs.push({ key, ...val });
+          });
+          allRegs.sort((a, b) => a.key.localeCompare(b.key));
+        }
+        allRegs.push({ total: info.total || 0, type: info.type || '' });
+
+        let totalSigns = 0;
+        if (info.signs && typeof info.signs === 'object') {
+          Object.values(info.signs).forEach(v => { if (v && typeof v === 'object') totalSigns++; });
+        }
+
+        let cumulative = 0, idx = allRegs.length - 1;
+        for (let i = 0; i < allRegs.length; i++) {
+          cumulative += allRegs[i].total;
+          if (totalSigns < cumulative) { idx = i; break; }
+        }
+        let prev = 0;
+        for (let i = 0; i < idx; i++) prev += allRegs[i].total;
+        const remain = Math.max(0, allRegs[idx].total - (totalSigns - prev));
+        return { order: idx + 1, remain, type: info.type || '' };
+      }
+
+      container.innerHTML = entries.map(([memberId, info]) => {
+        const status = calcTraineeStatus(info);
+        const subText = status.type
+          ? `${status.type} · ${status.order}차 진행중 · 잔여 ${status.remain}회`
+          : '수업 종류 미설정';
+        return `
         <div onclick="openTraineeDetail('${memberId}')"
           style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer;"
           ontouchstart="this.style.background='var(--blue-light)'" ontouchend="this.style.background='transparent'">
@@ -1603,11 +1636,11 @@
           </div>
           <div style="flex:1;">
             <div style="font-size:14px;font-weight:700;color:var(--text);">${info.name || memberId}</div>
-            <div style="font-size:12px;color:var(--text-sub);">${info.type || '수업 종류 미설정'} · 잔여 ${info.remain || 0}회</div>
+            <div style="font-size:12px;color:var(--text-sub);">${subText}</div>
           </div>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
-      `).join('');
+      `}).join('');
     });
   }
 
