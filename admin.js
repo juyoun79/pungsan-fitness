@@ -626,7 +626,9 @@
         if (totalEl) totalEl.textContent = currentTotal;
       }
 
-      // 등록이력 버튼: 등록이 2개 이상일 때만 표시
+      // 등록이력 버튼 및 목록: btn/historyEl 없으면 스킵
+      if (!btn || !historyEl) return;
+
       if (allRegs.length <= 1) {
         btn.style.display = 'none';
         return;
