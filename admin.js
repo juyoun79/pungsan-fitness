@@ -540,15 +540,20 @@
       // 이전 등록 내용만 저장 (remain 제외, 등록 사실만 기록)
       const prevReg = { type: prevType, total: prevTotal, date: dateStr };
 
+      // 재등록 시 카드 표시는 현재 진행중인 차수(기존) 기준 유지
+      // 루트에는 새 등록 정보 + 합산 잔여횟수 저장 (내부 계산용)
+      // 카드에는 기존 remain/total 그대로 유지
       Promise.all([
         db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/registrations/' + regKey).set(prevReg),
         db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId).update({ type, total: count, remain: newRemain, regDate: dateStr })
       ]).then(() => {
-        document.getElementById('trainee-card-type').textContent = type;
-        document.getElementById('trainee-card-remain').textContent = newRemain;
-        document.getElementById('trainee-card-total').textContent = count;
+        // 카드 표시는 현재 진행중인 차수 기준 유지 (loadTraineeHistory가 처리)
         loadTraineeHistory(currentTraineeId);
-        alert('✅ ' + count + '회 재등록 완료!\n총 잔여 횟수: ' + newRemain + '회');
+        // 몇 차 등록인지 계산 (registrations 개수 + 1)
+        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/registrations').once('value').then(snap => {
+          const order = snap.numChildren();
+          alert('✅ ' + order + '차 ' + type + ' ' + count + '회 등록 완료!');
+        });
         closeReregisterModal();
       });
     });
@@ -605,6 +610,22 @@
       // 카드 상단 차수 표시
       if (progressEl) {
         progressEl.textContent = currentOrder + '차 ' + rootType + ' 진행중';
+      }
+
+      // 카드 잔여/총횟수를 현재 진행중인 차수 기준으로 업데이트
+      const currentReg2 = allRegs[currentOrder - 1];
+      if (currentReg2) {
+        // 현재 차수의 총횟수
+        const currentTotal = currentReg2.total;
+        // 현재 차수에서 소진된 서명 수
+        let prevSigns = 0;
+        for (let i = 0; i < currentOrder - 1; i++) prevSigns += allRegs[i].total;
+        const usedInCurrent = Math.min(totalSigns - prevSigns, currentTotal);
+        const remainInCurrent = Math.max(0, currentTotal - usedInCurrent);
+        const remainEl = document.getElementById('trainee-card-remain');
+        const totalEl = document.getElementById('trainee-card-total');
+        if (remainEl) remainEl.textContent = remainInCurrent;
+        if (totalEl) totalEl.textContent = currentTotal;
       }
 
       // 등록이력 버튼: 등록이 2개 이상일 때만 표시
