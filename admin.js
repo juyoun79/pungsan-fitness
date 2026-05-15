@@ -564,7 +564,7 @@
       const rootTotal = rootVal.total || 0;
       const rootRegDate = rootVal.regDate || '';
 
-      // 전체 등록 목록 (registrations + 현재 등록)
+      // 전체 등록 목록 구성 (registrations + 현재 등록)
       const allRegs = [];
       if (regSnap.exists()) {
         regSnap.forEach(child => allRegs.push({ key: child.key, ...child.val() }));
@@ -576,7 +576,7 @@
       let totalSigns = 0;
       if (signsSnap.exists()) signsSnap.forEach(() => totalSigns++);
 
-      // 현재 차수 계산 (서명 횟수 기준)
+      // 현재 차수 계산: 서명 횟수가 누적 총횟수 미만인 첫 번째 차수
       let cumulative = 0;
       let currentOrderIdx = allRegs.length - 1;
       for (let i = 0; i < allRegs.length; i++) {
@@ -587,12 +587,12 @@
       const currentReg = allRegs[currentOrderIdx];
 
       // 현재 차수 잔여 계산
-      let prevTotal = 0;
-      for (let i = 0; i < currentOrderIdx; i++) prevTotal += allRegs[i].total;
-      const usedInCurrent = totalSigns - prevTotal;
+      let prevCumulative = 0;
+      for (let i = 0; i < currentOrderIdx; i++) prevCumulative += allRegs[i].total;
+      const usedInCurrent = totalSigns - prevCumulative;
       const remainInCurrent = Math.max(0, currentReg.total - usedInCurrent);
 
-      // 카드 업데이트
+      // 카드 업데이트 (이 함수만 카드를 업데이트함)
       const progressEl = document.getElementById('trainee-card-progress');
       const remainEl = document.getElementById('trainee-card-remain');
       const totalEl = document.getElementById('trainee-card-total');
@@ -604,10 +604,8 @@
       const historyEl = document.getElementById('trainee-history-list');
       const btn = document.getElementById('trainee-history-btn');
       if (!btn || !historyEl) return;
-
       if (allRegs.length <= 1) { btn.style.display = 'none'; return; }
       btn.style.display = 'flex';
-
       historyEl.innerHTML = allRegs.map((r, i) =>
         '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5px solid rgba(255,255,255,0.15);">' +
           '<div style="display:flex;align-items:center;gap:6px;">' +
@@ -2017,34 +2015,22 @@
     const today = new Date();
     const dateStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
     const savedAt = String(today.getHours()).padStart(2,'0')+':'+String(today.getMinutes()).padStart(2,'0');
-    const signData = {
-      date: dateStr,
-      savedAt,
-      noShow: true,
-      memberName: signTargetMemberName
-    };
-    db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId + '/signs/' + dateStr + '_' + Date.now()).set(signData).then(() => {
-      // 출석 횟수 차감
-      const ref2 = db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId);
-      ref2.once('value', snap => {
-        const info = snap.val();
-        if (!info) return;
-        const remain = info.remain || 0;
-        if (remain > 0) {
-          ref2.update({ remain: remain - 1 });
-          const remainEl = document.getElementById('trainee-card-remain');
-          if (remainEl) remainEl.textContent = remain - 1;
-        }
-      });
-      closeSignModal();
-      loadTraineeHistory(signTargetMemberId).then(() => {
+    const signData = { date: dateStr, savedAt, noShow: true, memberName: signTargetMemberName };
+
+    // 1. signs에 저장
+    db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId + '/signs/' + dateStr + '_' + Date.now()).set(signData)
+      .then(() => {
+        closeSignModal();
+        // 2. signs 저장 완료 후 카드/서명탭 업데이트
+        return loadTraineeHistory(signTargetMemberId);
+      })
+      .then(() => {
         if (currentTraineeTab === 'sign') {
           const tabContent = document.getElementById('trainee-tab-content');
           renderSignTab(tabContent);
         }
         alert('당일취소 처리됐어요!');
       });
-    });
   }
 
   // 사인 저장
@@ -2074,28 +2060,17 @@
         };
         await db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId + '/signs/' + dateStr + '_' + Date.now()).set(signData);
 
-        // 출석 횟수 차감
-        const ref2 = db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId);
-        ref2.once('value', snap => {
-          const info = snap.val();
-          if (!info) return;
-          const remain = info.remain || 0;
-          if (remain > 0) {
-            ref2.update({ remain: remain - 1 });
-            loadTraineeHistory(currentTraineeId);
-          }
-          // 회원 달력에 수업일 저장
-          db.ref('users/' + signTargetMemberId + '/lessons/' + dateStr).set({
-            date: dateStr,
-            trainerId,
-            trainerName: localStorage.getItem('name_' + trainerId) || '강사',
-            savedAt
-          });
+        // 회원 달력에 수업일 저장
+        db.ref('users/' + signTargetMemberId + '/lessons/' + dateStr).set({
+          date: dateStr,
+          trainerId,
+          trainerName: localStorage.getItem('name_' + trainerId) || '강사',
+          savedAt
         });
 
         closeSignModal();
+        // signs 저장 완료 후 카드/서명탭 업데이트
         loadTraineeHistory(signTargetMemberId).then(() => {
-          // 카드 업데이트 완료 후 서명기록 탭 갱신
           if (currentTraineeTab === 'sign') {
             const tabContent = document.getElementById('trainee-tab-content');
             renderSignTab(tabContent);
