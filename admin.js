@@ -567,7 +567,7 @@
     ]).then(([regSnap, rootSnap, signsSnap]) => {
       const historyEl = document.getElementById('trainee-history-list');
       const btn = document.getElementById('trainee-history-btn');
-      if (!historyEl) return;
+      // historyEl 없어도 카드는 업데이트해야 하므로 return 제거
 
       // 루트 정보 추출
       const rootVal = rootSnap.val() || {};
@@ -1719,7 +1719,7 @@
       }
 
       // 최근순으로 뒤집기
-      signGroups.reverse();
+      // 1차부터 순서대로 표시 (reverse 제거)
 
       // HTML 생성
       var html = '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">✍️ 서명 기록 (총 ' + signs.length + '회)</div>';
