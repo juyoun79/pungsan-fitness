@@ -540,21 +540,18 @@
       // 이전 등록 내용만 저장 (remain 제외, 등록 사실만 기록)
       const prevReg = { type: prevType, total: prevTotal, date: dateStr };
 
-      // 재등록 시 카드 표시는 현재 진행중인 차수(기존) 기준 유지
-      // 루트에는 새 등록 정보 + 합산 잔여횟수 저장 (내부 계산용)
-      // 카드에는 기존 remain/total 그대로 유지
-      Promise.all([
-        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/registrations/' + regKey).set(prevReg),
-        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId).update({ type, total: count, remain: newRemain, regDate: dateStr })
-      ]).then(() => {
-        // 카드 표시는 현재 진행중인 차수 기준 유지 (loadTraineeHistory가 처리)
-        loadTraineeHistory(currentTraineeId);
-        // 몇 차 등록인지 계산 (registrations 개수 + 1)
-        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/registrations').once('value').then(snap => {
-          const order = snap.numChildren();
-          alert('✅ ' + order + '차 ' + type + ' ' + count + '회 등록 완료!');
+      // 저장 전 registrations 개수 확인 → 새 등록 차수 = 기존 개수 + 2
+      db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/registrations').once('value').then(regCountSnap => {
+        const newOrder = regCountSnap.numChildren() + 2;
+
+        Promise.all([
+          db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/registrations/' + regKey).set(prevReg),
+          db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId).update({ type, total: count, remain: newRemain, regDate: dateStr })
+        ]).then(() => {
+          loadTraineeHistory(currentTraineeId);
+          alert('✅ ' + newOrder + '차 ' + type + ' ' + count + '회 등록 완료!');
+          closeReregisterModal();
         });
-        closeReregisterModal();
       });
     });
   }
