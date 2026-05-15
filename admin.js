@@ -544,10 +544,8 @@
         db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId).update({ type, total: count, remain: newRemain, regDate: dateStr })
       ]).then(() => {
         document.getElementById('trainee-card-type').textContent = type;
-        document.getElementById('trainee-card-remain').textContent = newRemain;
-        document.getElementById('trainee-card-total').textContent = count;
         loadTraineeHistory(currentTraineeId);
-        alert('✅ ' + count + '회 재등록 완료!\n총 잔여 횟수: ' + newRemain + '회');
+        alert('✅ ' + count + '회 재등록 완료!');
         closeReregisterModal();
       });
     });
@@ -1507,8 +1505,7 @@
       document.getElementById('trainee-detail-name').textContent = info.name;
       document.getElementById('trainee-card-name').textContent = info.name;
       document.getElementById('trainee-card-type').textContent = info.type || '수업 종류 미설정';
-      document.getElementById('trainee-card-remain').textContent = info.remain || 0;
-      document.getElementById('trainee-card-total').textContent = info.total || 0;
+      // 잔여/총횟수/차수는 loadTraineeHistory가 signs 기준으로 계산해서 표시
       const progressEl = document.getElementById('trainee-card-progress');
       if (progressEl) progressEl.textContent = '';
       // 이전 등록 이력 숨기고 불러오기
@@ -1538,8 +1535,7 @@
       if (isNaN(remain)) return;
       ref.update({ type, total, remain }).then(() => {
         document.getElementById("trainee-card-type").textContent = type;
-        document.getElementById("trainee-card-remain").textContent = remain;
-        document.getElementById("trainee-card-total").textContent = total;
+        loadTraineeHistory(currentTraineeId);
         alert("수정됐어요! ✅");
       });
     });
@@ -1577,7 +1573,7 @@
           date: dateStr,
           savedAt: String(today.getHours()).padStart(2,'0')+':'+String(today.getMinutes()).padStart(2,'0')
         });
-        document.getElementById('trainee-card-remain').textContent = remain - 1;
+        loadTraineeHistory(currentTraineeId);
         alert('✅ 출석 체크 완료! 잔여 ' + (remain - 1) + '회');
       });
     });
@@ -2041,8 +2037,11 @@
         }
       });
       closeSignModal();
-      if (currentTraineeTab === 'sign') switchTraineeTab('sign');
       loadTraineeHistory(signTargetMemberId).then(() => {
+        if (currentTraineeTab === 'sign') {
+          const tabContent = document.getElementById('trainee-tab-content');
+          renderSignTab(tabContent);
+        }
         alert('당일취소 처리됐어요!');
       });
     });
@@ -2083,7 +2082,7 @@
           const remain = info.remain || 0;
           if (remain > 0) {
             ref2.update({ remain: remain - 1 });
-            document.getElementById('trainee-card-remain').textContent = remain - 1;
+            loadTraineeHistory(currentTraineeId);
           }
           // 회원 달력에 수업일 저장
           db.ref('users/' + signTargetMemberId + '/lessons/' + dateStr).set({
@@ -2095,8 +2094,12 @@
         });
 
         closeSignModal();
-        if (currentTraineeTab === 'sign') switchTraineeTab('sign');
         loadTraineeHistory(signTargetMemberId).then(() => {
+          // 카드 업데이트 완료 후 서명기록 탭 갱신
+          if (currentTraineeTab === 'sign') {
+            const tabContent = document.getElementById('trainee-tab-content');
+            renderSignTab(tabContent);
+          }
           alert('✅ 서명 완료! 출석 체크됐어요.');
         });
       } catch(e) {
