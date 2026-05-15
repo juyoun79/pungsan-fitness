@@ -558,85 +558,50 @@
 
   function loadTraineeHistory(traineeId) {
     const trainerId = localStorage.getItem('current_user');
-    const progressEl = document.getElementById('trainee-card-progress');
 
     return Promise.all([
       db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/registrations').once('value'),
-      db.ref('trainers/' + trainerId + '/trainees/' + traineeId).once('value'),
-      db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/signs').once('value')
-    ]).then(([regSnap, rootSnap, signsSnap]) => {
-      const historyEl = document.getElementById('trainee-history-list');
-      const btn = document.getElementById('trainee-history-btn');
-      // historyEl 없어도 카드는 업데이트해야 하므로 return 제거
-
-      // 루트 정보 추출
+      db.ref('trainers/' + trainerId + '/trainees/' + traineeId).once('value')
+    ]).then(([regSnap, rootSnap]) => {
       const rootVal = rootSnap.val() || {};
       const rootType = rootVal.type || '';
       const rootTotal = rootVal.total || 0;
+      const rootRemain = rootVal.remain || 0;
       const rootRegDate = rootVal.regDate || '';
 
-      // 등록이력 배열 구성 (registrations + 현재 등록)
-      // registrations: 재등록할 때마다 저장된 이전 등록들
-      // 현재 등록: 루트의 type, total
-      const allRegs = [];
-      if (regSnap.exists()) {
-        regSnap.forEach(child => allRegs.push({ key: child.key, ...child.val() }));
-        allRegs.sort((a, b) => a.key.localeCompare(b.key));
-      }
-      // 현재 등록을 마지막에 추가
-      allRegs.push({ key: 'zzz_current', type: rootType, total: rootTotal, date: rootRegDate });
-
-      // 총 서명 횟수 계산 (노쇼 포함)
-      let totalSigns = 0;
-      if (signsSnap.exists()) {
-        signsSnap.forEach(() => totalSigns++);
-      }
-
-      // 현재 몇 차 진행중인지 계산 (서명 횟수 기준)
-      // totalSigns가 누적 총횟수보다 작으면 해당 차수 진행중
-      // totalSigns가 누적 총횟수와 같거나 크면 다음 차수로 넘어감
-      let cumulative = 0;
-      let currentOrder = allRegs.length; // 기본값: 마지막 차수
-      for (let i = 0; i < allRegs.length; i++) {
-        cumulative += allRegs[i].total;
-        if (totalSigns < cumulative) {
-          currentOrder = i + 1;
-          break;
-        }
-      }
+      // 차수 = registrations 개수 + 1
+      const regCount = regSnap.exists() ? regSnap.numChildren() : 0;
+      const currentOrder = regCount + 1;
 
       // 카드 상단 차수 표시
-      if (progressEl) {
-        progressEl.textContent = currentOrder + '차 ' + rootType + ' 진행중';
-      }
+      const progressEl = document.getElementById('trainee-card-progress');
+      if (progressEl) progressEl.textContent = currentOrder + '차 ' + rootType + ' 진행중';
 
-      // 카드 잔여/총횟수를 현재 진행중인 차수 기준으로 업데이트
-      const currentReg2 = allRegs[currentOrder - 1];
-      if (currentReg2) {
-        // 현재 차수의 총횟수
-        const currentTotal = currentReg2.total;
-        // 현재 차수에서 소진된 서명 수
-        let prevSigns = 0;
-        for (let i = 0; i < currentOrder - 1; i++) prevSigns += allRegs[i].total;
-        const usedInCurrent = Math.min(totalSigns - prevSigns, currentTotal);
-        const remainInCurrent = Math.max(0, currentTotal - usedInCurrent);
-        const remainEl = document.getElementById('trainee-card-remain');
-        const totalEl = document.getElementById('trainee-card-total');
-        if (remainEl) remainEl.textContent = remainInCurrent;
-        if (totalEl) totalEl.textContent = currentTotal;
-      }
+      // 카드 잔여/총횟수: Firebase 루트값 그대로 표시
+      const remainEl = document.getElementById('trainee-card-remain');
+      const totalEl = document.getElementById('trainee-card-total');
+      if (remainEl) remainEl.textContent = rootRemain;
+      if (totalEl) totalEl.textContent = rootTotal;
 
-      // 등록이력 버튼 및 목록: btn/historyEl 없으면 스킵
+      // 등록이력 버튼 및 목록
+      const historyEl = document.getElementById('trainee-history-list');
+      const btn = document.getElementById('trainee-history-btn');
       if (!btn || !historyEl) return;
 
-      if (allRegs.length <= 1) {
+      if (regCount === 0) {
         btn.style.display = 'none';
         return;
       }
 
       btn.style.display = 'flex';
 
-      // 등록이력 목록: N차 PT 3회 등록 형식
+      // 등록이력 배열 구성
+      const allRegs = [];
+      regSnap.forEach(child => allRegs.push({ key: child.key, ...child.val() }));
+      allRegs.sort((a, b) => a.key.localeCompare(b.key));
+      // 현재 등록 추가
+      allRegs.push({ key: 'zzz_current', type: rootType, total: rootTotal, date: rootRegDate });
+
       historyEl.innerHTML = allRegs.map((r, i) =>
         '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5px solid rgba(255,255,255,0.15);">' +
           '<div style="display:flex;align-items:center;gap:6px;">' +
