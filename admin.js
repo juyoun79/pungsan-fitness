@@ -560,7 +560,7 @@
     const trainerId = localStorage.getItem('current_user');
     const progressEl = document.getElementById('trainee-card-progress');
 
-    Promise.all([
+    return Promise.all([
       db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/registrations').once('value'),
       db.ref('trainers/' + trainerId + '/trainees/' + traineeId).once('value'),
       db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/signs').once('value')
@@ -2080,10 +2080,11 @@
           ref2.update({ remain: remain - 1 });
         }
       });
-      alert('당일취소 처리됐어요!');
       closeSignModal();
       if (currentTraineeTab === 'sign') switchTraineeTab('sign');
-      loadTraineeHistory(signTargetMemberId);
+      loadTraineeHistory(signTargetMemberId).then(() => {
+        alert('당일취소 처리됐어요!');
+      });
     });
   }
 
@@ -2133,10 +2134,10 @@
         });
 
         closeSignModal();
-        alert('✅ 서명 완료! 출석 체크됐어요.');
-        // alert 확인 후 탭 새로고침 + 카드 업데이트 (한 번만 실행)
         if (currentTraineeTab === 'sign') switchTraineeTab('sign');
-        loadTraineeHistory(signTargetMemberId);
+        loadTraineeHistory(signTargetMemberId).then(() => {
+          alert('✅ 서명 완료! 출석 체크됐어요.');
+        });
       } catch(e) {
         console.error('사인 저장 오류:', e);
         alert('저장 중 오류가 발생했어요. 다시 시도해주세요.');
