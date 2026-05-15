@@ -625,7 +625,7 @@
           while (signIdx2 < signsArr.length) signGroups[idx].signs.push(signsArr[signIdx2++]);
 
           let html = '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">✍️ 서명 기록 (총 ' + totalSigns + '회)</div>';
-          signGroups.forEach(function(group) {
+          signGroups.slice().reverse().forEach(function(group) {
             const reg = group.reg;
             const groupSigns = group.signs;
             const status = group.status;
@@ -2204,6 +2204,12 @@
 
     db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId + '/signs/' + dateStr + '_' + Date.now()).set(signData)
       .then(() => {
+        // remain 차감 (강사 목록 카드 표시용)
+        const ref2 = db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId);
+        ref2.once('value', snap => {
+          const info = snap.val();
+          if (info && (info.remain || 0) > 0) ref2.update({ remain: (info.remain || 0) - 1 });
+        });
         closeSignModal();
         alert('당일취소 처리됐어요!');
         // 카드 + 서명탭 동시 업데이트
@@ -2244,6 +2250,13 @@
           trainerId,
           trainerName: localStorage.getItem('name_' + trainerId) || '강사',
           savedAt
+        });
+
+        // remain 차감 (강사 목록 카드 표시용)
+        const ref2 = db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId);
+        ref2.once('value', snap => {
+          const info = snap.val();
+          if (info && (info.remain || 0) > 0) ref2.update({ remain: (info.remain || 0) - 1 });
         });
 
         closeSignModal();
