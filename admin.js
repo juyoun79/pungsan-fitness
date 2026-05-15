@@ -1649,6 +1649,8 @@
   function renderSignTab(content) {
     if (!content || !currentTraineeId) return;
     const trainerId = localStorage.getItem('current_user');
+    // 서명 탭 렌더링 시 카드 상단/잔여횟수도 최신 데이터로 업데이트
+    loadTraineeHistory(currentTraineeId);
 
     Promise.all([
       db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/signs').once('value'),
