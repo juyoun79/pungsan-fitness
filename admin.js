@@ -489,8 +489,8 @@
     if (list.style.display === 'none') {
       list.style.display = 'block';
       arrow.textContent = '▴';
-      // 열 때마다 Firebase에서 최신 이력 불러오기
-      loadTraineeHistory(currentTraineeId);
+      // 열 때마다 Firebase에서 최신 이력 불러오기 (카드도 동시 업데이트)
+      refreshTraineeView(currentTraineeId);
     } else {
       list.style.display = 'none';
       arrow.textContent = '▾';
@@ -544,7 +544,7 @@
         db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId).update({ type, total: count, remain: newRemain, regDate: dateStr })
       ]).then(() => {
         document.getElementById('trainee-card-type').textContent = type;
-        loadTraineeHistory(currentTraineeId);
+        refreshTraineeView(currentTraineeId);
         alert('✅ ' + count + '회 재등록 완료!');
         closeReregisterModal();
       });
@@ -740,8 +740,6 @@
   // 등록이력 버튼/목록 업데이트 함수
   function loadTraineeHistory(traineeId) {
     const trainerId = localStorage.getItem('current_user');
-    // 카드 먼저 업데이트
-    updateTraineeCard(traineeId);
 
     return Promise.all([
       db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/registrations').once('value'),
@@ -1672,7 +1670,7 @@
       if (histEl) { histEl.style.display = 'none'; }
       const arrow = document.getElementById('trainee-history-arrow');
       if (arrow) arrow.textContent = '▾';
-      loadTraineeHistory(memberId);
+      refreshTraineeView(memberId);
       showScreen('screen-trainee-detail');
       switchTraineeTab('record');
     });
@@ -1694,7 +1692,7 @@
       if (isNaN(remain)) return;
       ref.update({ type, total, remain }).then(() => {
         document.getElementById("trainee-card-type").textContent = type;
-        loadTraineeHistory(currentTraineeId);
+        refreshTraineeView(currentTraineeId);
         alert("수정됐어요! ✅");
       });
     });
@@ -1732,7 +1730,7 @@
           date: dateStr,
           savedAt: String(today.getHours()).padStart(2,'0')+':'+String(today.getMinutes()).padStart(2,'0')
         });
-        loadTraineeHistory(currentTraineeId);
+        refreshTraineeView(currentTraineeId);
         alert('✅ 출석 체크 완료! 잔여 ' + (remain - 1) + '회');
       });
     });
