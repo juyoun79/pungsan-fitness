@@ -554,29 +554,30 @@
   // 카드 + 서명탭을 Firebase 한 번 읽어서 동시 업데이트
   function refreshTraineeView(traineeId) {
     const trainerId = localStorage.getItem('current_user');
-    Promise.all([
-      db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/registrations').once('value'),
-      db.ref('trainers/' + trainerId + '/trainees/' + traineeId).once('value'),
-      db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/signs').once('value')
-    ]).then(([regSnap, rootSnap, signsSnap]) => {
+    // Firebase 1번만 읽어서 registrations + signs 동시에 가져옴 (일관성 보장)
+    db.ref('trainers/' + trainerId + '/trainees/' + traineeId).once('value').then(rootSnap => {
       const rootVal = rootSnap.val() || {};
       const rootType = rootVal.type || '';
       const rootTotal = rootVal.total || 0;
       const rootRegDate = rootVal.regDate || '';
 
-      // 전체 등록 목록
+      // 전체 등록 목록 (rootVal.registrations에서 직접 추출 - 별도 쿼리 불필요)
       const allRegs = [];
-      if (regSnap.exists()) {
-        regSnap.forEach(child => allRegs.push({ key: child.key, ...child.val() }));
+      if (rootVal.registrations && typeof rootVal.registrations === 'object') {
+        Object.entries(rootVal.registrations).forEach(([key, val]) => {
+          if (val && typeof val === 'object') allRegs.push({ key, ...val });
+        });
         allRegs.sort((a, b) => a.key.localeCompare(b.key));
       }
       allRegs.push({ total: rootTotal, type: rootType, date: rootRegDate });
 
-      // 총 서명 횟수
+      // 총 서명 횟수 (rootVal.signs에서 직접 추출)
       let totalSigns = 0;
       const signsArr = [];
-      if (signsSnap.exists()) {
-        signsSnap.forEach(child => { signsArr.push({ key: child.key, ...child.val() }); totalSigns++; });
+      if (rootVal.signs && typeof rootVal.signs === 'object') {
+        Object.entries(rootVal.signs).forEach(([key, val]) => {
+          if (val && typeof val === 'object') { signsArr.push({ key, ...val }); totalSigns++; }
+        });
         signsArr.sort((a, b) => a.key < b.key ? -1 : 1);
       }
 
