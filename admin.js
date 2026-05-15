@@ -1605,7 +1605,7 @@
           date: dateStr,
           savedAt: String(today.getHours()).padStart(2,'0')+':'+String(today.getMinutes()).padStart(2,'0')
         });
-        document.getElementById('trainee-card-remain').textContent = remain - 1;
+        loadTraineeHistory(currentTraineeId);
         alert('✅ 출석 체크 완료! 잔여 ' + (remain - 1) + '회');
       });
     });
