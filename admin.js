@@ -593,15 +593,16 @@
       }
 
       // 현재 몇 차 진행중인지 계산 (서명 횟수 기준)
+      // totalSigns가 누적 총횟수보다 작으면 해당 차수 진행중
+      // totalSigns가 누적 총횟수와 같거나 크면 다음 차수로 넘어감
       let cumulative = 0;
-      let currentOrder = 1;
+      let currentOrder = allRegs.length; // 기본값: 마지막 차수
       for (let i = 0; i < allRegs.length; i++) {
         cumulative += allRegs[i].total;
         if (totalSigns < cumulative) {
           currentOrder = i + 1;
           break;
         }
-        currentOrder = i + 1;
       }
 
       // 카드 상단 차수 표시
@@ -1691,7 +1692,7 @@
       var currentOrderIdx = regList.length - 1; // 기본값: 마지막 차수
       for (var ci = 0; ci < regList.length; ci++) {
         cumulative += regList[ci].total;
-        if (signs.length <= cumulative) {
+        if (signs.length < cumulative) {
           currentOrderIdx = ci;
           break;
         }
