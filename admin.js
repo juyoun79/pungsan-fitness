@@ -1649,8 +1649,6 @@
   function renderSignTab(content) {
     if (!content || !currentTraineeId) return;
     const trainerId = localStorage.getItem('current_user');
-    // 서명 탭 렌더링 시 카드 상단/잔여횟수도 최신 데이터로 업데이트
-    loadTraineeHistory(currentTraineeId);
 
     Promise.all([
       db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/signs').once('value'),
@@ -2079,15 +2077,13 @@
         if (!info) return;
         const remain = info.remain || 0;
         if (remain > 0) {
-          ref2.update({ remain: remain - 1 }).then(() => {
-            // 카드 잔여횟수는 현재 차수 기준으로 loadTraineeHistory가 다시 계산
-            loadTraineeHistory(signTargetMemberId);
-          });
+          ref2.update({ remain: remain - 1 });
         }
       });
       alert('당일취소 처리됐어요!');
       closeSignModal();
       if (currentTraineeTab === 'sign') switchTraineeTab('sign');
+      loadTraineeHistory(signTargetMemberId);
     });
   }
 
@@ -2118,17 +2114,14 @@
         };
         await db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId + '/signs/' + dateStr + '_' + Date.now()).set(signData);
 
-        // 출석 횟수 차감 (Firebase remain은 합산값이므로 그대로 차감, 카드 표시는 loadTraineeHistory가 처리)
+        // 출석 횟수 차감
         const ref2 = db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId);
         ref2.once('value', snap => {
           const info = snap.val();
           if (!info) return;
           const remain = info.remain || 0;
           if (remain > 0) {
-            ref2.update({ remain: remain - 1 }).then(() => {
-              // remain 업데이트 완료 후 카드 잔여횟수 재계산
-              loadTraineeHistory(signTargetMemberId);
-            });
+            ref2.update({ remain: remain - 1 });
           }
           // 회원 달력에 수업일 저장
           db.ref('users/' + signTargetMemberId + '/lessons/' + dateStr).set({
@@ -2141,7 +2134,9 @@
 
         closeSignModal();
         alert('✅ 서명 완료! 출석 체크됐어요.');
+        // alert 확인 후 탭 새로고침 + 카드 업데이트 (한 번만 실행)
         if (currentTraineeTab === 'sign') switchTraineeTab('sign');
+        loadTraineeHistory(signTargetMemberId);
       } catch(e) {
         console.error('사인 저장 오류:', e);
         alert('저장 중 오류가 발생했어요. 다시 시도해주세요.');
