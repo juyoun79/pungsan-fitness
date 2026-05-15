@@ -703,7 +703,7 @@
       const historyEl = document.getElementById('trainee-history-list');
       const histBtn = document.getElementById('trainee-history-btn');
       if (histBtn) {
-        if (allRegs.length <= 1) {
+        if (allRegs.length <= 0) {
           histBtn.style.display = 'none';
           if (historyEl) { historyEl.style.display = 'none'; historyEl.innerHTML = ''; }
         } else {
