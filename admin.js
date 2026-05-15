@@ -1531,8 +1531,9 @@
       document.getElementById('trainee-detail-name').textContent = info.name;
       document.getElementById('trainee-card-name').textContent = info.name;
       document.getElementById('trainee-card-type').textContent = info.type || '수업 종류 미설정';
-      document.getElementById('trainee-card-remain').textContent = info.remain || 0;
-      document.getElementById('trainee-card-total').textContent = info.total || 0;
+      // 잔여/총횟수는 loadTraineeHistory에서 차수 기준으로 계산해서 세팅
+      document.getElementById('trainee-card-remain').textContent = '';
+      document.getElementById('trainee-card-total').textContent = '';
       const progressEl = document.getElementById('trainee-card-progress');
       if (progressEl) progressEl.textContent = '';
       // 이전 등록 이력 숨기고 불러오기
@@ -1677,31 +1678,42 @@
       var currentRemain = info.remain || 0;
 
       // 등록 회차 구성 (이전 이력 + 현재 등록)
+      // registrations: 재등록할 때마다 저장된 이전 등록들 (type, total, date)
+      // 현재 등록: 루트의 type, total
       var regList = regs.map(function(r, i) {
-        return { idx: i + 1, type: r.type, total: r.total, date: r.date, completed: r.completed, key: r.key };
+        return { idx: i + 1, type: r.type, total: r.total, date: r.date, isCurrent: false };
       });
       // 현재 등록을 마지막 회차로 추가
-      regList.push({ idx: regList.length + 1, type: currentType, total: currentTotal, remain: currentRemain, date: null, completed: false, isCurrent: true });
+      regList.push({ idx: regList.length + 1, type: currentType, total: currentTotal, date: null, isCurrent: true });
 
-      // 서명을 회차별로 배분
-      // 각 회차의 총횟수만큼 서명을 순서대로 배분
+      // 총 서명 수 기준으로 현재 몇 차 진행중인지 계산
+      var cumulative = 0;
+      var currentOrderIdx = regList.length - 1; // 기본값: 마지막 차수
+      for (var ci = 0; ci < regList.length; ci++) {
+        cumulative += regList[ci].total;
+        if (signs.length <= cumulative) {
+          currentOrderIdx = ci;
+          break;
+        }
+      }
+
+      // 서명을 회차별로 배분 (각 회차의 총횟수만큼 순서대로)
       var signGroups = [];
       var signIdx = 0;
       for (var r = 0; r < regList.length; r++) {
         var reg = regList[r];
         var groupSigns = [];
-        var groupTotal = reg.total;
         var taken = 0;
-        while (signIdx < signs.length && taken < groupTotal) {
+        while (signIdx < signs.length && taken < reg.total) {
           groupSigns.push(signs[signIdx]);
           signIdx++;
           taken++;
         }
-        signGroups.push({ reg: reg, signs: groupSigns });
+        signGroups.push({ reg: reg, signs: groupSigns, isCurrentOrder: r === currentOrderIdx });
       }
-      // 남은 서명은 현재 회차에 추가
+      // 남은 서명은 현재 진행중인 회차에 추가
       while (signIdx < signs.length) {
-        signGroups[signGroups.length - 1].signs.push(signs[signIdx]);
+        signGroups[currentOrderIdx].signs.push(signs[signIdx]);
         signIdx++;
       }
 
@@ -1714,21 +1726,24 @@
       signGroups.forEach(function(group) {
         var reg = group.reg;
         var groupSigns = group.signs;
-        var isCurrent = reg.isCurrent;
-        // 서명 완료 횟수 (당일취소도 횟수 차감)
+        var isCurrentOrder = group.isCurrentOrder;
+        // 서명 횟수
         var signedCount = groupSigns.length;
-        // 서명이 총횟수 이상이면 완료
+        // 총횟수 채웠으면 완료
         var isFull = signedCount >= reg.total;
-        // 진행중이어도 다 차면 완료로 표시
-        var showCompleted = !isCurrent || isFull;
+        // 상태 결정: 진행중(현재차수 + 미완료) / 완료(총횟수 채움) / 대기(아직 시작 안 함)
+        var status = isCurrentOrder ? (isFull ? 'done' : 'active') : (signedCount > 0 ? 'done' : 'waiting');
         // 잔여횟수 = 총횟수 - 서명횟수
         var calcRemain = Math.max(0, reg.total - signedCount);
 
-        var borderStyle = (!showCompleted) ? 'border:1.5px solid #378ADD;' : 'border:0.5px solid var(--border);';
-        var headerBg = (!showCompleted) ? 'background:#E6F1FB;' : 'background:var(--bg);';
-        var badge = (!showCompleted) ?
+        var borderStyle = status === 'active' ? 'border:1.5px solid #378ADD;' : 'border:0.5px solid var(--border);';
+        var headerBg = status === 'active' ? 'background:#E6F1FB;' : 'background:var(--bg);';
+        var badge = status === 'active' ?
           '<span style="background:#378ADD;color:white;font-size:10px;padding:2px 7px;border-radius:20px;">진행중</span>' :
-          '<span style="background:#EAF3DE;color:#3B6D11;font-size:10px;padding:2px 7px;border-radius:20px;">완료</span>';
+          status === 'done' ?
+          '<span style="background:#EAF3DE;color:#3B6D11;font-size:10px;padding:2px 7px;border-radius:20px;">완료</span>' :
+          '<span style="background:#F3F4F6;color:#9CA3AF;font-size:10px;padding:2px 7px;border-radius:20px;">대기</span>';
+        var showCompleted = status !== 'active';
 
         html += '<div style="' + borderStyle + 'border-radius:var(--radius);overflow:hidden;margin-bottom:8px;">';
         html += '<div style="' + headerBg + 'padding:10px 14px;border-bottom:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:center;">';
