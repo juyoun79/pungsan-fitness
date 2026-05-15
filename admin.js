@@ -2120,9 +2120,10 @@
           if (!info) return;
           const remain = info.remain || 0;
           if (remain > 0) {
-            ref2.update({ remain: remain - 1 });
-            // 카드 잔여횟수는 현재 차수 기준으로 loadTraineeHistory가 다시 계산
-            loadTraineeHistory(signTargetMemberId);
+            ref2.update({ remain: remain - 1 }).then(() => {
+              // remain 업데이트 완료 후 카드 잔여횟수 재계산
+              loadTraineeHistory(signTargetMemberId);
+            });
           }
           // 회원 달력에 수업일 저장
           db.ref('users/' + signTargetMemberId + '/lessons/' + dateStr).set({
