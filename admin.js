@@ -551,9 +551,9 @@
     });
   }
 
-  function loadTraineeHistory(traineeId) {
+  // 카드 업데이트 전담 함수 - signs 기준으로 차수/잔여/총횟수 계산
+  function updateTraineeCard(traineeId) {
     const trainerId = localStorage.getItem('current_user');
-
     return Promise.all([
       db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/registrations').once('value'),
       db.ref('trainers/' + trainerId + '/trainees/' + traineeId).once('value'),
@@ -562,49 +562,73 @@
       const rootVal = rootSnap.val() || {};
       const rootType = rootVal.type || '';
       const rootTotal = rootVal.total || 0;
-      const rootRegDate = rootVal.regDate || '';
 
-      // 전체 등록 목록 구성 (registrations + 현재 등록)
+      // 전체 등록 목록 (registrations + 현재 등록)
       const allRegs = [];
       if (regSnap.exists()) {
         regSnap.forEach(child => allRegs.push({ key: child.key, ...child.val() }));
         allRegs.sort((a, b) => a.key.localeCompare(b.key));
       }
-      allRegs.push({ key: 'zzz_current', type: rootType, total: rootTotal, date: rootRegDate });
+      allRegs.push({ total: rootTotal, type: rootType });
 
       // 총 서명 횟수
       let totalSigns = 0;
       if (signsSnap.exists()) signsSnap.forEach(() => totalSigns++);
 
-      // 현재 차수 계산: 서명 횟수가 누적 총횟수 미만인 첫 번째 차수
+      // 현재 차수 계산
       let cumulative = 0;
-      let currentOrderIdx = allRegs.length - 1;
+      let idx = allRegs.length - 1;
       for (let i = 0; i < allRegs.length; i++) {
         cumulative += allRegs[i].total;
-        if (totalSigns < cumulative) { currentOrderIdx = i; break; }
+        if (totalSigns < cumulative) { idx = i; break; }
       }
-      const currentOrder = currentOrderIdx + 1;
-      const currentReg = allRegs[currentOrderIdx];
+      const currentOrder = idx + 1;
+      const currentReg = allRegs[idx];
 
       // 현재 차수 잔여 계산
-      let prevCumulative = 0;
-      for (let i = 0; i < currentOrderIdx; i++) prevCumulative += allRegs[i].total;
-      const usedInCurrent = totalSigns - prevCumulative;
-      const remainInCurrent = Math.max(0, currentReg.total - usedInCurrent);
+      let prev = 0;
+      for (let i = 0; i < idx; i++) prev += allRegs[i].total;
+      const remain = Math.max(0, currentReg.total - (totalSigns - prev));
 
-      // 카드 업데이트 (이 함수만 카드를 업데이트함)
+      // 카드 업데이트
       const progressEl = document.getElementById('trainee-card-progress');
       const remainEl = document.getElementById('trainee-card-remain');
       const totalEl = document.getElementById('trainee-card-total');
       if (progressEl) progressEl.textContent = currentOrder + '차 ' + rootType + ' 진행중';
-      if (remainEl) remainEl.textContent = remainInCurrent;
+      if (remainEl) remainEl.textContent = remain;
       if (totalEl) totalEl.textContent = currentReg.total;
+    });
+  }
 
-      // 등록이력 버튼/목록
+  // 등록이력 버튼/목록 업데이트 함수
+  function loadTraineeHistory(traineeId) {
+    const trainerId = localStorage.getItem('current_user');
+    // 카드 먼저 업데이트
+    updateTraineeCard(traineeId);
+
+    return Promise.all([
+      db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/registrations').once('value'),
+      db.ref('trainers/' + trainerId + '/trainees/' + traineeId).once('value')
+    ]).then(([regSnap, rootSnap]) => {
+      const rootVal = rootSnap.val() || {};
+      const rootType = rootVal.type || '';
+      const rootTotal = rootVal.total || 0;
+      const rootRegDate = rootVal.regDate || '';
+
       const historyEl = document.getElementById('trainee-history-list');
       const btn = document.getElementById('trainee-history-btn');
       if (!btn || !historyEl) return;
-      if (allRegs.length <= 1) { btn.style.display = 'none'; return; }
+
+      if (!regSnap.exists() || regSnap.numChildren() === 0) {
+        btn.style.display = 'none';
+        return;
+      }
+
+      const allRegs = [];
+      regSnap.forEach(child => allRegs.push({ key: child.key, ...child.val() }));
+      allRegs.sort((a, b) => a.key.localeCompare(b.key));
+      allRegs.push({ key: 'zzz_current', type: rootType, total: rootTotal, date: rootRegDate });
+
       btn.style.display = 'flex';
       historyEl.innerHTML = allRegs.map((r, i) =>
         '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:0.5px solid rgba(255,255,255,0.15);">' +
@@ -1648,35 +1672,39 @@
 
       // 등록 회차 구성 (이전 이력 + 현재 등록)
       var regList = regs.map(function(r, i) {
-        return { idx: i + 1, type: r.type, total: r.total, date: r.date, completed: r.completed, key: r.key };
+        return { idx: i + 1, type: r.type, total: r.total, date: r.date };
       });
-      // 현재 등록을 마지막 회차로 추가
-      regList.push({ idx: regList.length + 1, type: currentType, total: currentTotal, remain: currentRemain, date: null, completed: false, isCurrent: true });
+      regList.push({ idx: regList.length + 1, type: currentType, total: currentTotal, date: null });
+
+      // 현재 차수 계산 (updateTraineeCard와 동일한 로직)
+      var cumulative = 0;
+      var currentOrderIdx = regList.length - 1;
+      for (var ci = 0; ci < regList.length; ci++) {
+        cumulative += regList[ci].total;
+        if (signs.length < cumulative) { currentOrderIdx = ci; break; }
+      }
 
       // 서명을 회차별로 배분
-      // 각 회차의 총횟수만큼 서명을 순서대로 배분
       var signGroups = [];
       var signIdx = 0;
       for (var r = 0; r < regList.length; r++) {
         var reg = regList[r];
         var groupSigns = [];
-        var groupTotal = reg.total;
         var taken = 0;
-        while (signIdx < signs.length && taken < groupTotal) {
+        while (signIdx < signs.length && taken < reg.total) {
           groupSigns.push(signs[signIdx]);
           signIdx++;
           taken++;
         }
-        signGroups.push({ reg: reg, signs: groupSigns });
+        signGroups.push({ reg: reg, signs: groupSigns, isCurrentOrder: r === currentOrderIdx });
       }
-      // 남은 서명은 현재 회차에 추가
+      // 남은 서명은 현재 차수에 추가
       while (signIdx < signs.length) {
-        signGroups[signGroups.length - 1].signs.push(signs[signIdx]);
+        signGroups[currentOrderIdx].signs.push(signs[signIdx]);
         signIdx++;
       }
 
-      // 최근순으로 뒤집기
-      signGroups.reverse();
+      // 1차부터 순서대로 표시 (오름차순)
 
       // HTML 생성
       var html = '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">✍️ 서명 기록 (총 ' + signs.length + '회)</div>';
@@ -1684,21 +1712,23 @@
       signGroups.forEach(function(group) {
         var reg = group.reg;
         var groupSigns = group.signs;
-        var isCurrent = reg.isCurrent;
-        // 서명 완료 횟수 (당일취소도 횟수 차감)
+        var isCurrentOrder = group.isCurrentOrder;
+        // 서명 횟수
         var signedCount = groupSigns.length;
-        // 서명이 총횟수 이상이면 완료
+        // 현재 차수면 진행중, 아니면 완료/대기
         var isFull = signedCount >= reg.total;
-        // 진행중이어도 다 차면 완료로 표시
-        var showCompleted = !isCurrent || isFull;
+        var status = isCurrentOrder ? (isFull ? 'done' : 'active') : (signedCount > 0 ? 'done' : 'waiting');
+        var showCompleted = status !== 'active';
         // 잔여횟수 = 총횟수 - 서명횟수
         var calcRemain = Math.max(0, reg.total - signedCount);
 
-        var borderStyle = (!showCompleted) ? 'border:1.5px solid #378ADD;' : 'border:0.5px solid var(--border);';
-        var headerBg = (!showCompleted) ? 'background:#E6F1FB;' : 'background:var(--bg);';
-        var badge = (!showCompleted) ?
+        var borderStyle = status === 'active' ? 'border:1.5px solid #378ADD;' : 'border:0.5px solid var(--border);';
+        var headerBg = status === 'active' ? 'background:#E6F1FB;' : 'background:var(--bg);';
+        var badge = status === 'active' ?
           '<span style="background:#378ADD;color:white;font-size:10px;padding:2px 7px;border-radius:20px;">진행중</span>' :
-          '<span style="background:#EAF3DE;color:#3B6D11;font-size:10px;padding:2px 7px;border-radius:20px;">완료</span>';
+          status === 'done' ?
+          '<span style="background:#EAF3DE;color:#3B6D11;font-size:10px;padding:2px 7px;border-radius:20px;">완료</span>' :
+          '<span style="background:#F3F4F6;color:#9CA3AF;font-size:10px;padding:2px 7px;border-radius:20px;">대기</span>';
 
         html += '<div style="' + borderStyle + 'border-radius:var(--radius);overflow:hidden;margin-bottom:8px;">';
         html += '<div style="' + headerBg + 'padding:10px 14px;border-bottom:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:center;">';
@@ -1997,12 +2027,15 @@
         db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/signs/' + editSignKey).remove(),
         ref.update({ remain: newRemain })
       ]).then(() => {
-        // 화면 잔여횟수 업데이트
-        const remainEl = document.getElementById('trainee-card-remain');
-        if (remainEl) remainEl.textContent = newRemain;
-        alert('삭제됐어요! 잔여 횟수가 ' + newRemain + '회로 복구됐어요. 🗑');
+        alert('삭제됐어요! 🗑');
         closeEditSignModal();
-        switchTraineeTab('sign');
+        // 카드 업데이트 (signs 삭제 완료 후)
+        updateTraineeCard(currentTraineeId);
+        // 서명탭 새로고침
+        if (currentTraineeTab === 'sign') {
+          const tabContent = document.getElementById('trainee-tab-content');
+          renderSignTab(tabContent);
+        }
       });
     });
   }
@@ -2017,19 +2050,17 @@
     const savedAt = String(today.getHours()).padStart(2,'0')+':'+String(today.getMinutes()).padStart(2,'0');
     const signData = { date: dateStr, savedAt, noShow: true, memberName: signTargetMemberName };
 
-    // 1. signs에 저장
     db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId + '/signs/' + dateStr + '_' + Date.now()).set(signData)
       .then(() => {
         closeSignModal();
-        // 2. signs 저장 완료 후 카드/서명탭 업데이트
-        return loadTraineeHistory(signTargetMemberId);
-      })
-      .then(() => {
+        alert('당일취소 처리됐어요!');
+        // 카드 업데이트
+        updateTraineeCard(signTargetMemberId);
+        // 서명탭 새로고침
         if (currentTraineeTab === 'sign') {
           const tabContent = document.getElementById('trainee-tab-content');
           renderSignTab(tabContent);
         }
-        alert('당일취소 처리됐어요!');
       });
   }
 
@@ -2069,14 +2100,14 @@
         });
 
         closeSignModal();
-        // signs 저장 완료 후 카드/서명탭 업데이트
-        loadTraineeHistory(signTargetMemberId).then(() => {
-          if (currentTraineeTab === 'sign') {
-            const tabContent = document.getElementById('trainee-tab-content');
-            renderSignTab(tabContent);
-          }
-          alert('✅ 서명 완료! 출석 체크됐어요.');
-        });
+        alert('✅ 서명 완료! 출석 체크됐어요.');
+        // 카드 업데이트 (signs 저장 완료 후)
+        updateTraineeCard(signTargetMemberId);
+        // 서명탭 새로고침
+        if (currentTraineeTab === 'sign') {
+          const tabContent = document.getElementById('trainee-tab-content');
+          renderSignTab(tabContent);
+        }
       } catch(e) {
         console.error('사인 저장 오류:', e);
         alert('저장 중 오류가 발생했어요. 다시 시도해주세요.');
