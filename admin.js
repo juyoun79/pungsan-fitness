@@ -1775,7 +1775,8 @@
     if (tab === 'record') {
       renderTrainerCal();
     } else if (tab === 'sign') {
-      renderSignTab(content);
+      // refreshTraineeView가 카드+서명탭 동시 업데이트
+      refreshTraineeView(currentTraineeId);
     } else if (tab === 'memo') {
       // 메모 표시
       const trainerId = localStorage.getItem('current_user');
