@@ -2074,9 +2074,10 @@
         if (!info) return;
         const remain = info.remain || 0;
         if (remain > 0) {
-          ref2.update({ remain: remain - 1 });
-          const remainEl = document.getElementById('trainee-card-remain');
-          if (remainEl) remainEl.textContent = remain - 1;
+          ref2.update({ remain: remain - 1 }).then(() => {
+            // 카드 잔여횟수는 현재 차수 기준으로 loadTraineeHistory가 다시 계산
+            loadTraineeHistory(signTargetMemberId);
+          });
         }
       });
       alert('당일취소 처리됐어요!');
@@ -2112,7 +2113,7 @@
         };
         await db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId + '/signs/' + dateStr + '_' + Date.now()).set(signData);
 
-        // 출석 횟수 차감
+        // 출석 횟수 차감 (Firebase remain은 합산값이므로 그대로 차감, 카드 표시는 loadTraineeHistory가 처리)
         const ref2 = db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId);
         ref2.once('value', snap => {
           const info = snap.val();
@@ -2120,7 +2121,8 @@
           const remain = info.remain || 0;
           if (remain > 0) {
             ref2.update({ remain: remain - 1 });
-            document.getElementById('trainee-card-remain').textContent = remain - 1;
+            // 카드 잔여횟수는 현재 차수 기준으로 loadTraineeHistory가 다시 계산
+            loadTraineeHistory(signTargetMemberId);
           }
           // 회원 달력에 수업일 저장
           db.ref('users/' + signTargetMemberId + '/lessons/' + dateStr).set({
