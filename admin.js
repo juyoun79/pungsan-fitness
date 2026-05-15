@@ -2401,8 +2401,9 @@
     // Firebase에서 해당 월 운동기록 날짜 가져오기
     Promise.all([
       db.ref('users/' + traineeId + '/workouts').once('value'),
-      db.ref('users/' + traineeId + '/classes').once('value')
-    ]).then(([snap, classSnap]) => {
+      db.ref('users/' + traineeId + '/classes').once('value'),
+      db.ref('users/' + traineeId + '/lessons').once('value')
+    ]).then(([snap, classSnap, lessonSnap]) => {
       const personalDays = new Set();
       const classDays = new Set();
       if (snap.exists()) {
@@ -2436,17 +2437,34 @@
           });
         });
       }
+      // lessons(서명받은 날)도 classDays에 추가
+      if (lessonSnap.exists()) {
+        lessonSnap.forEach(daySnap => {
+          const d = daySnap.key;
+          if (d) {
+            const parts = d.split('-');
+            if (parseInt(parts[0]) === year && parseInt(parts[1]) === month) {
+              classDays.add(parseInt(parts[2]));
+            }
+          }
+        });
+      }
 
+      const totalLessons = classDays.size;
       const firstDay = new Date(year, month - 1, 1).getDay();
       const lastDate = new Date(year, month, 0).getDate();
       const today = new Date();
       const todayStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
 
       let calHtml = `
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
           <button onclick="trainerChangeCalMonth(-1)" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text);padding:4px 8px;">‹</button>
           <div style="font-size:15px;font-weight:700;color:var(--text);">${year}년 ${month}월</div>
           <button onclick="trainerChangeCalMonth(1)" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text);padding:4px 8px;">›</button>
+        </div>
+        <div style="background:rgba(245,158,11,0.1);border-radius:8px;padding:6px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:12px;color:var(--text-hint);">${month}월 총 수업</span>
+          <span style="font-size:14px;font-weight:700;color:#f59e0b;">${totalLessons}회</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
           ${['일','월','화','수','목','금','토'].map((d,i) => `<div style="text-align:center;font-size:11px;font-weight:700;color:${i===0?'#ef4444':i===6?'#3b82f6':'var(--text-hint)'};padding:4px 0;">${d}</div>`).join('')}
@@ -2475,6 +2493,16 @@
               ${dotHtml}
             </div>`;
           }).join('')}
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:10px;padding-top:8px;border-top:0.5px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:4px;">
+            <div style="width:7px;height:7px;border-radius:50%;background:#f59e0b;"></div>
+            <span style="font-size:11px;color:var(--text-hint);">수업</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <div style="width:7px;height:7px;border-radius:50%;background:var(--blue);"></div>
+            <span style="font-size:11px;color:var(--text-hint);">개인운동</span>
+          </div>
         </div>`;
 
       // 날짜 선택된 경우 하단에 운동기록 + 기구추가 버튼
