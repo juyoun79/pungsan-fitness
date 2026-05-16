@@ -1836,7 +1836,11 @@
     const name = document.getElementById("trainee-detail-name").textContent;
     if (!confirm(name + "님을 담당 회원에서 해제할까요?")) return;
     const trainerId = localStorage.getItem("current_user");
-    db.ref("trainers/" + trainerId + "/trainees/" + currentTraineeId).remove().then(() => {
+    const traineeId = currentTraineeId;
+    Promise.all([
+      db.ref("trainers/" + trainerId + "/trainees/" + traineeId).remove(),
+      db.ref("users/" + traineeId + "/lessons").remove()
+    ]).then(() => {
       alert(name + "님이 담당 회원에서 해제됐어요.");
       showScreen("screen-trainer");
       loadTrainerTab();
