@@ -2405,7 +2405,8 @@
       db.ref('users/' + traineeId + '/lessons').once('value')
     ]).then(([snap, classSnap, lessonSnap]) => {
       const personalDays = new Set();
-      const classDays = new Set();
+      const trainerDays = new Set();
+      const lessonDays = new Set();
       if (snap.exists()) {
         snap.forEach(eqSnap => {
           eqSnap.forEach(daySnap => {
@@ -2415,7 +2416,7 @@
               const parts = d.split('-');
               if (parseInt(parts[0]) === year && parseInt(parts[1]) === month) {
                 const day = parseInt(parts[2]);
-                if (r.recordedBy === 'trainer') classDays.add(day);
+                if (r.recordedBy === 'trainer') trainerDays.add(day);
                 else personalDays.add(day);
               }
             }
@@ -2437,20 +2438,20 @@
           });
         });
       }
-      // lessons(서명받은 날)도 classDays에 추가
+      // lessons(서명받은 날) → lessonDays
       if (lessonSnap.exists()) {
         lessonSnap.forEach(daySnap => {
           const d = daySnap.key;
           if (d) {
             const parts = d.split('-');
             if (parseInt(parts[0]) === year && parseInt(parts[1]) === month) {
-              classDays.add(parseInt(parts[2]));
+              lessonDays.add(parseInt(parts[2]));
             }
           }
         });
       }
 
-      const totalLessons = classDays.size;
+      const totalLessons = lessonDays.size;
       const firstDay = new Date(year, month - 1, 1).getDay();
       const lastDate = new Date(year, month, 0).getDate();
       const today = new Date();
@@ -2462,9 +2463,9 @@
           <div style="font-size:15px;font-weight:700;color:var(--text);">${year}년 ${month}월</div>
           <button onclick="trainerChangeCalMonth(1)" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text);padding:4px 8px;">›</button>
         </div>
-        <div style="background:rgba(245,158,11,0.1);border-radius:8px;padding:6px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="background:rgba(22,163,74,0.08);border-radius:8px;padding:6px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
           <span style="font-size:12px;color:var(--text-hint);">${month}월 총 수업</span>
-          <span style="font-size:14px;font-weight:700;color:#f59e0b;">${totalLessons}회</span>
+          <span style="font-size:14px;font-weight:700;color:#16a34a;">${totalLessons}회</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
           ${['일','월','화','수','목','금','토'].map((d,i) => `<div style="text-align:center;font-size:11px;font-weight:700;color:${i===0?'#ef4444':i===6?'#3b82f6':'var(--text-hint)'};padding:4px 0;">${d}</div>`).join('')}
@@ -2476,32 +2477,38 @@
             const dateStr = year+'-'+month+'-'+day;
             const isToday = dateStr === todayStr;
             const isSelected = dateStr === trainerCalSelectedDate;
+            const hasLesson = lessonDays.has(day);
+            const hasTrainer = trainerDays.has(day);
             const hasPersonal = personalDays.has(day);
-            const hasClass = classDays.has(day);
-            const hasWorkout = hasPersonal || hasClass;
-            const dotHtml = hasWorkout
+            const hasDot = hasTrainer || hasPersonal;
+            const dotHtml = hasDot
               ? `<div style="display:flex;gap:2px;justify-content:center;margin:1px auto 0;">
-                  ${hasClass ? `<div style="width:5px;height:5px;border-radius:50%;background:${isSelected?'white':'#f59e0b'};"></div>` : ''}
-                  ${hasPersonal ? `<div style="width:5px;height:5px;border-radius:50%;background:${isSelected?'rgba(255,255,255,0.7)':'var(--blue)'};"></div>` : ''}
+                  ${hasTrainer ? `<div style="width:5px;height:5px;border-radius:50%;background:${hasLesson?'rgba(255,255,255,0.9)':'#f59e0b'};"></div>` : ''}
+                  ${hasPersonal ? `<div style="width:5px;height:5px;border-radius:50%;background:${hasLesson?'rgba(255,255,255,0.7)':'var(--blue)'};"></div>` : ''}
                 </div>`
               : '<div style="width:5px;height:5px;margin:1px auto 0;"></div>';
             const dow = (firstDay + i) % 7;
-            let bg = isSelected ? 'var(--blue)' : isToday ? '#e8f0fe' : 'transparent';
-            let color = isSelected ? 'white' : dow===0 ? '#ef4444' : dow===6 ? '#3b82f6' : 'var(--text)';
-            return `<div onclick="selectTrainerCalDay('${dateStr}')" style="text-align:center;padding:6px 2px;border-radius:8px;cursor:pointer;background:${bg};position:relative;">
-              <div style="font-size:13px;font-weight:${isToday||isSelected?'700':'400'};color:${color};">${day}</div>
+            let bg = hasLesson ? '#16a34a' : isSelected ? 'var(--blue)' : isToday ? 'rgba(124,58,237,0.15)' : 'transparent';
+            let color = hasLesson ? 'white' : isSelected ? 'white' : isToday ? '#7c3aed' : dow===0 ? '#ef4444' : dow===6 ? '#3b82f6' : 'var(--text)';
+            let fontW = (hasLesson || isToday || isSelected) ? '700' : '400';
+            return `<div onclick="selectTrainerCalDay('${dateStr}')" style="text-align:center;padding:6px 2px;border-radius:50%;cursor:pointer;background:${bg};position:relative;">
+              <div style="font-size:13px;font-weight:${fontW};color:${color};">${day}</div>
               ${dotHtml}
             </div>`;
           }).join('')}
         </div>
-        <div style="display:flex;align-items:center;gap:12px;margin-top:10px;padding-top:8px;border-top:0.5px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:8px;border-top:0.5px solid var(--border);flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:4px;">
+            <div style="width:10px;height:10px;border-radius:50%;background:#16a34a;"></div>
+            <span style="font-size:11px;color:var(--text-hint);">서명받은 날</span>
+          </div>
           <div style="display:flex;align-items:center;gap:4px;">
             <div style="width:7px;height:7px;border-radius:50%;background:#f59e0b;"></div>
-            <span style="font-size:11px;color:var(--text-hint);">수업</span>
+            <span style="font-size:11px;color:var(--text-hint);">강사 기록</span>
           </div>
           <div style="display:flex;align-items:center;gap:4px;">
             <div style="width:7px;height:7px;border-radius:50%;background:var(--blue);"></div>
-            <span style="font-size:11px;color:var(--text-hint);">개인운동</span>
+            <span style="font-size:11px;color:var(--text-hint);">개인 운동</span>
           </div>
         </div>`;
 
@@ -2675,7 +2682,7 @@
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
               <div style="display:flex;align-items:center;gap:5px;">
                 ${r.recordedBy === 'trainer'
-                  ? `<span style="font-size:10px;font-weight:700;color:white;background:#f59e0b;padding:2px 5px;border-radius:4px;flex-shrink:0;">수업</span>`
+                  ? `<span style="font-size:10px;font-weight:700;color:white;background:#f59e0b;padding:2px 5px;border-radius:4px;flex-shrink:0;">강사</span>`
                   : `<span style="font-size:10px;font-weight:700;color:white;background:#1a6fd4;padding:2px 5px;border-radius:4px;flex-shrink:0;">개인</span>`}
                 <div style="font-size:13px;font-weight:700;color:var(--text);">${name}</div>
               </div>
