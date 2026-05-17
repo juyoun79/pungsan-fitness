@@ -116,4 +116,10 @@
     { name: '싱글 레그 힙힌지',          category: '맨몸', muscles: '햄스트링·엉덩이·코어' },
     // 덤벨 추가
     { name: '싱글 레그 데드리프트',      category: '덤벨', muscles: '햄스트링·엉덩이·코어' },
+    // 추가 운동
+    { name: '덤벨 인클라인 벤치프레스',   category: '덤벨', muscles: '윗가슴·어깨·삼두' },
+    { name: '덤벨 인클라인 플라이',       category: '덤벨', muscles: '윗가슴' },
+    { name: '원암 덤벨 로우',             category: '덤벨', muscles: '등·이두' },
+    { name: '아놀드 프레스',              category: '덤벨', muscles: '어깨' },
+    { name: '행잉 레그레이즈',            category: '맨몸', muscles: '복부·하복부' },
   ];

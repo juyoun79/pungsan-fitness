@@ -2508,7 +2508,7 @@
           </div>
           <div style="display:flex;align-items:center;gap:4px;">
             <div style="width:7px;height:7px;border-radius:50%;background:#f59e0b;"></div>
-            <span style="font-size:11px;color:var(--text-hint);">강사 기록</span>
+            <span style="font-size:11px;color:var(--text-hint);">PT 기록</span>
           </div>
           <div style="display:flex;align-items:center;gap:4px;">
             <div style="width:7px;height:7px;border-radius:50%;background:var(--blue);"></div>
@@ -2686,7 +2686,7 @@
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
               <div style="display:flex;align-items:center;gap:5px;">
                 ${r.recordedBy === 'trainer'
-                  ? `<span style="font-size:10px;font-weight:700;color:white;background:#f59e0b;padding:2px 5px;border-radius:4px;flex-shrink:0;">강사</span>`
+                  ? `<span style="font-size:10px;font-weight:700;color:white;background:#f59e0b;padding:2px 5px;border-radius:4px;flex-shrink:0;">PT</span>`
                   : `<span style="font-size:10px;font-weight:700;color:white;background:#1a6fd4;padding:2px 5px;border-radius:4px;flex-shrink:0;">개인</span>`}
                 <div style="font-size:13px;font-weight:700;color:var(--text);">${name}</div>
               </div>
