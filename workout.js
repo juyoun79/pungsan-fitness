@@ -103,6 +103,14 @@
             localStorage.setItem(localKey, JSON.stringify(existing));
           });
 
+          // Firebase에 없는 로컬 운동 키 삭제 (강사가 삭제한 기록 반영)
+          const allLocalKeys = Object.keys(localStorage).filter(k =>
+            (k.startsWith('workout_') || k.startsWith('freeweight_') || k.startsWith('cardio_')) && k.endsWith('_' + userId)
+          );
+          allLocalKeys.forEach(k => {
+            if (!fbLocalKeys.has(k)) localStorage.removeItem(k);
+          });
+
           if (callback) callback();
         });
 
