@@ -857,7 +857,7 @@
       await ref.put(compressed);
       const photoURL = await ref.getDownloadURL();
       const now = new Date();
-      const postData = { authorId: userId, nickname, category: '오운완', content: '오늘도 출석 완료! 💪\n' + now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 운동 인증', photoURL, createdAt: Date.now(), commentCount: 0 };
+      const postData = { authorId: userId, nickname, category: '오운완', content: '오늘도 출석 완료! 💪\n' + now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 운동 인증', photoURL, createdAt: Date.now(), commentCount: 0, attendDate: getToday() };
       await db.ref('posts').push(postData);
     } catch(e) { console.error('오운완 업로드 실패:', e); }
   }

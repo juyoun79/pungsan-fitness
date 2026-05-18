@@ -815,6 +815,12 @@
 
   function deletePost(postId, photoURL) {
     if (!confirm('게시글을 삭제할까요?')) return;
+    // 오운완 게시물이면 출석 기록 + 포인트 회수
+    const post = allCommunityPosts.find(p => p.id === postId) || adminAllPosts.find(p => p.id === postId);
+    if (post && post.category === '오운완' && post.attendDate && post.authorId) {
+      db.ref('users/' + post.authorId + '/attendance/' + post.attendDate).remove();
+      db.ref('users/' + post.authorId + '/points').transaction(cur => Math.max(0, (cur || 0) - 10));
+    }
     db.ref('posts/' + postId).remove().then(() => {
       if (photoURL) storage.refFromURL(photoURL).delete().catch(() => {});
       // 댓글 데이터 삭제
