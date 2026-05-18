@@ -1172,19 +1172,25 @@
 
   const CARDIO_CONFIG = { '런닝머신': { distLabel:'📍 거리', distUnit:'km' }, '스텝밀': { distLabel:'📍 거리', distUnit:'km' }, '사이클': { distLabel:'📍 거리', distUnit:'km' }, '마이마운틴': { distLabel:'📍 거리', distUnit:'km' } };
 
-  function calcCardioKcalValue(type, min, dist, weight) {
+  function calcCardioKcalValue(type, min, dist, weight, incline) {
     if (min <= 0) return 0;
     const h = min / 60;
+    incline = incline || 0;
     if (type === '런닝머신') {
-      return dist > 0 ? dist * weight * 1.036 : 8.0 * weight * h;
+      // 기본 칼로리 (거리 기반 or 시간 기반)
+      const base = dist > 0 ? dist * weight * 1.036 : 8.0 * weight * h;
+      // 경사도 보정: 1%당 3% 칼로리 증가
+      return base * (1 + incline * 0.03);
     } else if (type === '스텝밀') {
       if (dist > 0) { const speed = dist / h; const met = Math.max(5.0, Math.min(12.0, 8.8 * speed / 6.0)); return met * weight * h; }
       return 8.8 * weight * h;
     } else if (type === '사이클') {
       return dist > 0 ? dist * weight * 0.45 : 7.0 * weight * h;
     } else if (type === '마이마운틴') {
-      if (dist > 0) { const speed = dist / h; const met = Math.max(4.0, Math.min(10.0, 6.0 * speed / 6.0)); return met * weight * h; }
-      return 6.0 * weight * h;
+      // 런닝머신과 동일한 공식 (발판 길이만 다른 동일 기구)
+      const base = dist > 0 ? dist * weight * 1.036 : 8.0 * weight * h;
+      // 경사도 보정: 1%당 3% 칼로리 증가
+      return base * (1 + incline * 0.03);
     }
     return 7.0 * weight * h;
   }
@@ -1193,8 +1199,9 @@
     const type = document.getElementById('cardio-type').value;
     const min  = parseFloat(document.getElementById('cardio-min').value)  || 0;
     const dist = parseFloat(document.getElementById('cardio-dist').value) || 0;
+    const incline = parseFloat(document.getElementById('cardio-incline')?.value) || 0;
     const { weight } = getBodyInfo();
-    const kcal = calcCardioKcalValue(type, min, dist, weight);
+    const kcal = calcCardioKcalValue(type, min, dist, weight, incline);
     const el = document.getElementById('cardio-kcal-display');
     if (el) el.textContent = (min === 0) ? '-' : '약 ' + Math.round(kcal) + ' kcal';
   }
@@ -1213,6 +1220,8 @@
       document.getElementById('cardio-type').value = type;
       document.getElementById('cardio-min').value = record.min || '';
       document.getElementById('cardio-dist').value = record.dist || '';
+      const inclineEl = document.getElementById('cardio-incline');
+      if (inclineEl) inclineEl.value = record.incline || '';
       document.getElementById('cardio-memo').value = record.memo || '';
       document.querySelectorAll('.cardio-type-btn').forEach(b => { const isSelected = b.dataset.type === type; b.style.border = isSelected ? '2px solid #ef4444' : '2px solid var(--border)'; b.style.background = isSelected ? '#fee2e2' : 'var(--card)'; b.style.color = isSelected ? '#ef4444' : 'var(--text-sub)'; });
       updateCardioLabels(type); calcCardioKcal();
@@ -1223,7 +1232,9 @@
 
   function openCardioModal() {
     document.getElementById('cardio-type').value = '런닝머신';
-    document.getElementById('cardio-min').value = ''; document.getElementById('cardio-dist').value = ''; document.getElementById('cardio-memo').value = '';
+    document.getElementById('cardio-min').value = ''; document.getElementById('cardio-dist').value = '';
+    const inclineEl = document.getElementById('cardio-incline'); if (inclineEl) inclineEl.value = '';
+    document.getElementById('cardio-memo').value = '';
     const kcalEl = document.getElementById('cardio-kcal-display'); if (kcalEl) kcalEl.textContent = '-';
     document.querySelectorAll('.cardio-type-btn').forEach(b => { b.style.border = '2px solid var(--border)'; b.style.background = 'var(--card)'; b.style.color = 'var(--text-sub)'; });
     const first = document.querySelector('.cardio-type-btn'); if (first) { first.style.border = '2px solid #ef4444'; first.style.background = '#fee2e2'; first.style.color = '#ef4444'; }
@@ -1244,6 +1255,20 @@
     const cfg = CARDIO_CONFIG[type] || CARDIO_CONFIG['런닝머신'];
     document.getElementById('cardio-dist-label').textContent = cfg.distLabel;
     document.getElementById('cardio-dist-unit').textContent = cfg.distUnit;
+    // 경사도: 런닝머신/마이마운틴만 표시
+    const inclineWrap = document.getElementById('cardio-incline-wrap');
+    if (inclineWrap) {
+      const show = (type === '런닝머신' || type === '마이마운틴');
+      inclineWrap.style.display = show ? 'block' : 'none';
+      const inclineEl = document.getElementById('cardio-incline');
+      if (inclineEl) {
+        if (!show) inclineEl.value = '';
+        // 런닝머신 최대 15%, 마이마운틴 최대 40%
+        inclineEl.max = type === '마이마운틴' ? '40' : '15';
+        const hint = inclineWrap.querySelector('div');
+        if (hint) hint.textContent = type === '마이마운틴' ? '% (최대 40)' : '% (최대 15)';
+      }
+    }
     calcCardioKcal();
   }
 
@@ -1263,6 +1288,7 @@
     const type = document.getElementById('cardio-type').value;
     const min  = parseInt(document.getElementById('cardio-min').value) || 0;
     const dist = parseFloat(document.getElementById('cardio-dist').value) || 0;
+    const incline = parseFloat(document.getElementById('cardio-incline')?.value) || 0;
     const memo = document.getElementById('cardio-memo').value.trim();
     if (min === 0) { alert('운동 시간을 입력해주세요!'); return; }
     const kcalEl = document.getElementById('cardio-kcal-display');
@@ -1273,7 +1299,7 @@
     const isEdit = !!cardioEditDate;
     const recordDate = isEdit ? cardioEditDate : (now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate());
     const dateLabel = (() => { const parts = recordDate.split('-'); return parts[0] + '년 ' + parseInt(parts[1]) + '월 ' + parseInt(parts[2]) + '일'; })();
-    const record = { date: recordDate, dateLabel, type, min, sec: 0, dist, kcal, distUnit: cfg.distUnit, memo, savedAt: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0') };
+    const record = { date: recordDate, dateLabel, type, min, sec: 0, dist, incline, kcal, distUnit: cfg.distUnit, memo, savedAt: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0') };
     const safeKey = 'cardio_' + type + '_' + userId;
     const existing = JSON.parse(localStorage.getItem(safeKey) || '[]');
     const todayIdx = existing.findIndex(r => r.date === record.date);
