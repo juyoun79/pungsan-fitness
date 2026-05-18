@@ -1068,16 +1068,13 @@
         <!-- 범례 -->
         <div style="display:flex;gap:14px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap;">
           <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-sub);">
-            <div style="width:14px;height:14px;border-radius:50%;background:#16a34a;"></div> 서명받은 날
+            <div style="width:20px;height:20px;border-radius:50%;background:var(--blue);"></div> 운동한 날
           </div>
           <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-sub);">
-            <div style="width:8px;height:8px;border-radius:50%;background:#f59e0b;"></div> PT 기록
+            <div style="width:20px;height:20px;border-radius:50%;background:#f59e0b;"></div> 수업한 날
           </div>
           <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-sub);">
-            <div style="width:8px;height:8px;border-radius:50%;background:var(--blue);"></div> 개인 운동
-          </div>
-          <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-sub);">
-            <div style="width:14px;height:14px;border-radius:50%;background:rgba(124,58,237,0.15);border:1.5px solid #7c3aed;"></div> 오늘
+            <div style="width:20px;height:20px;border-radius:50%;background:#22c55e;"></div> 오늘
           </div>
         </div>
       </div>
@@ -2168,15 +2165,16 @@
     </div>
   </div>
 
-  <!-- 동기부여 팝업 -->
-  <div class="motivate-overlay" id="motivate-overlay">
+  <!-- 공지사항 팝업 -->
+  <div class="motivate-overlay" id="notice-popup-overlay">
     <div class="motivate-popup">
-      <span class="popup-emoji" id="popup-emoji">💪</span>
-      <div class="popup-label">오늘의 한마디</div>
-      <div class="popup-msg" id="popup-msg">불러오는 중...</div>
-      <div class="popup-nickname" id="popup-nickname"></div>
-      <button class="popup-close" onclick="closeMotivatePopup()">오늘도 열심히 해볼게요!</button>
-      <button class="popup-refresh" onclick="refreshPopupMsg()">다른 메시지 보기 ↺</button>
+      <span style="font-size:28px;">📢</span>
+      <div class="popup-label">공지사항</div>
+      <div id="notice-popup-title" style="font-weight:700;font-size:15px;margin-bottom:8px;color:var(--text);"></div>
+      <div id="notice-popup-content" style="font-size:13px;line-height:1.7;color:var(--text-sub);white-space:pre-wrap;max-height:200px;overflow-y:auto;"></div>
+      <div id="notice-popup-date" style="font-size:11px;color:var(--text-hint);margin-top:8px;"></div>
+      <div id="notice-popup-counter" style="font-size:12px;color:var(--text-hint);margin-top:4px;"></div>
+      <button class="popup-close" onclick="nextNoticePopup()">확인</button>
     </div>
   </div>
 
@@ -2265,16 +2263,51 @@
     if (el) el.textContent = m.emoji + ' ' + m.text;
   }
 
-  function refreshPopupMsg() { renderPopupMsg(); }
+  // ── 공지사항 팝업 ──
+  let _unreadNotices = [];
+  let _noticeIdx = 0;
+  let _noticeUserId = null;
 
-  function showMotivatePopup(nickname) {
-    currentNickname = nickname;
-    renderPopupMsg();
-    document.getElementById('motivate-overlay').classList.add('active');
+  function showNoticePopup(userId) {
+    _noticeUserId = userId;
+    db.ref('notices').once('value', snap => {
+      if (!snap.exists()) return;
+      const readList = JSON.parse(localStorage.getItem('read_notices_' + userId) || '[]');
+      _unreadNotices = [];
+      snap.forEach(child => {
+        if (!readList.includes(child.key)) {
+          _unreadNotices.push({ id: child.key, ...child.val() });
+        }
+      });
+      _unreadNotices.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      if (_unreadNotices.length === 0) return;
+      _noticeIdx = 0;
+      renderNoticePopup();
+      document.getElementById('notice-popup-overlay').classList.add('active');
+    });
   }
 
-  function closeMotivatePopup() {
-    document.getElementById('motivate-overlay').classList.remove('active');
+  function renderNoticePopup() {
+    const n = _unreadNotices[_noticeIdx];
+    document.getElementById('notice-popup-title').textContent = n.title || '';
+    document.getElementById('notice-popup-content').textContent = (n.content || '').replace(/\\n/g, '\n');
+    const d = n.createdAt ? new Date(n.createdAt) : null;
+    document.getElementById('notice-popup-date').textContent = d ? d.getFullYear() + '.' + (d.getMonth()+1) + '.' + d.getDate() : '';
+    document.getElementById('notice-popup-counter').textContent = _unreadNotices.length > 1 ? (_noticeIdx + 1) + ' / ' + _unreadNotices.length : '';
+  }
+
+  function nextNoticePopup() {
+    const readList = JSON.parse(localStorage.getItem('read_notices_' + _noticeUserId) || '[]');
+    if (!readList.includes(_unreadNotices[_noticeIdx].id)) {
+      readList.push(_unreadNotices[_noticeIdx].id);
+      localStorage.setItem('read_notices_' + _noticeUserId, JSON.stringify(readList));
+    }
+    _noticeIdx++;
+    if (_noticeIdx < _unreadNotices.length) {
+      renderNoticePopup();
+    } else {
+      document.getElementById('notice-popup-overlay').classList.remove('active');
+    }
   }
 
   // 홈 카드 새로고침 버튼 (별도 랜덤)
@@ -3235,11 +3268,7 @@
     } else {
       switchTab(lastTab);
     }
-    const todayKey = 'popup_shown_' + userId + '_' + new Date().toDateString();
-    if (!localStorage.getItem(todayKey)) {
-      localStorage.setItem(todayKey, '1');
-      setTimeout(() => showMotivatePopup(nickname), 300);
-    }
+    setTimeout(() => showNoticePopup(userId), 300);
   }
 
   // ── 화면 전환 ──
