@@ -920,12 +920,14 @@
       const listEl = document.getElementById('owunwan-record-list');
       summaryWrap.style.display = 'block';
       listEl.innerHTML = todayRecords.map(r => {
-        const badge = r.type === 'cardio' ? '<span style="background:#fef2f2;color:#b91c1c;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;margin-right:6px;">유산소</span>'
-          : r.type === 'class' ? '<span style="background:#e0f7fa;color:#0891b2;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;margin-right:6px;">GX수업</span>'
-          : '<span style="background:#ede9fe;color:#7c3aed;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;margin-right:6px;">웨이트</span>';
-        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:0.5px solid var(--border);">
-          <div style="display:flex;align-items:center;">${badge}<span style="font-size:13px;color:var(--text);">${r.name}</span></div>
-          <span style="font-size:12px;color:var(--text-hint);">${r.summary}</span>
+        const badge = r.type === 'cardio'
+          ? '<span style="background:#fef2f2;color:#b91c1c;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;margin-right:6px;white-space:nowrap;flex-shrink:0;">유산소</span>'
+          : r.type === 'class'
+          ? '<span style="background:#e0f7fa;color:#0891b2;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;margin-right:6px;white-space:nowrap;flex-shrink:0;">GX수업</span>'
+          : '<span style="background:#ede9fe;color:#7c3aed;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;margin-right:6px;white-space:nowrap;flex-shrink:0;">웨이트</span>';
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:0.5px solid var(--border);gap:6px;">
+          <div style="display:flex;align-items:center;min-width:0;flex:1;">${badge}<span style="font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.name}</span></div>
+          <span style="font-size:12px;color:var(--text-hint);white-space:nowrap;flex-shrink:0;">${r.summary}</span>
         </div>`;
       }).join('');
 
@@ -973,13 +975,13 @@
     const cardioIndex = JSON.parse(localStorage.getItem('cardio_index_' + userId) || '[]');
     for (const ctype of cardioIndex) {
       const r = JSON.parse(localStorage.getItem('cardio_' + ctype + '_' + userId) || '[]').find(r => r.date === today);
-      if (r) records.push({ type:'cardio', name: ctype, summary: (r.duration||0) + '분 · ' + (r.distance||0) + 'km' });
+      if (r) records.push({ type:'cardio', name: ctype, summary: (r.min||0) + '분' + (r.dist > 0 ? ' · ' + r.dist + 'km' : '') + ' · 약 ' + (r.kcal||0) + 'kcal' });
     }
     // 수업
     const classIndex = JSON.parse(localStorage.getItem('class_index_' + userId) || '[]');
     for (const ctype of classIndex) {
       const r = JSON.parse(localStorage.getItem('class_' + ctype.replace(/\s+/g,'_') + '_' + userId) || '[]').find(r => r.date === today);
-      if (r) records.push({ type:'class', name: ctype, summary: (r.duration||0) + '분 · 약 ' + (r.kcal||0) + 'kcal' });
+      if (r) records.push({ type:'class', name: ctype, summary: (r.min||0) + '분 · 약 ' + (r.kcal||0) + 'kcal' });
     }
     return records;
   }
