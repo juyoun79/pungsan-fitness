@@ -947,7 +947,7 @@
             const n = r.sets?.length || 0;
             const maxW = r.sets ? Math.max(...r.sets.map(s => s.weight||0)) : 0;
             const rep = r.sets?.[0]?.reps || 0;
-            records.push({ type:'equipment', name: eq.name + ' ' + subName, summary: n + '세트 · ' + (maxW>0?maxW+'kg':'자체중량') + ' · ' + rep + '회' });
+            records.push({ type:'equipment', name: subName, summary: n + '세트 · ' + (maxW>0?maxW+'kg':'자체중량') + ' · ' + rep + '회' });
           }
         });
       } else {
