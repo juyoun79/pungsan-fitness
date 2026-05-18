@@ -104,8 +104,12 @@
           });
 
           // Firebase에 없는 로컬 운동 키 삭제 (강사가 삭제한 기록 반영)
+          // ※ freeweight_index / cardio_index 는 제외해야 함 (운동기록 아님)
           const allLocalKeys = Object.keys(localStorage).filter(k =>
-            (k.startsWith('workout_') || k.startsWith('freeweight_') || k.startsWith('cardio_')) && k.endsWith('_' + userId)
+            (k.startsWith('workout_') || k.startsWith('freeweight_') || k.startsWith('cardio_')) &&
+            k.endsWith('_' + userId) &&
+            k !== 'freeweight_index_' + userId &&
+            k !== 'cardio_index_' + userId
           );
           allLocalKeys.forEach(k => {
             if (!fbLocalKeys.has(k)) localStorage.removeItem(k);
@@ -1515,6 +1519,15 @@
       const fwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
       if (!fwIndex.includes(name)) { fwIndex.push(name); localStorage.setItem('freeweight_index_' + userId, JSON.stringify(fwIndex)); }
       db.ref('users/' + userId + '/fwIndex').set(JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]'));
+    } else {
+      // 강사 모드: 회원의 Firebase fwIndex도 업데이트
+      db.ref('users/' + userId + '/fwIndex').once('value', snap => {
+        const fbFwIndex = snap.val() || [];
+        if (!fbFwIndex.includes(name)) {
+          fbFwIndex.push(name);
+          db.ref('users/' + userId + '/fwIndex').set(fbFwIndex);
+        }
+      });
     }
     db.ref('users/' + userId + '/workouts/fw_' + fwFirebaseKey + '/' + date).set(record);
     const wasTrainerMode = isTrainerMode;
