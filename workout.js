@@ -787,7 +787,47 @@
     } else { requestAnimationFrame(() => scanQrFrame(video)); }
   }
 
+  // 헬스장 GPS 좌표 및 허용 반경
+  const GYM_LAT = 37.674526;
+  const GYM_LNG = 126.786023;
+  const GYM_RADIUS = 50; // 미터
+
+  function getDistanceMeters(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
   function completeAttendance() {
+    if (!navigator.geolocation) {
+      alert('이 기기는 위치 확인을 지원하지 않아요.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const dist = getDistanceMeters(pos.coords.latitude, pos.coords.longitude, GYM_LAT, GYM_LNG);
+        if (dist > GYM_RADIUS) {
+          alert('헬스장 근처에서만 출석 가능해요! 🏋️\n(현재 위치: 헬스장에서 약 ' + Math.round(dist) + 'm)');
+          return;
+        }
+        doCompleteAttendance();
+      },
+      err => {
+        if (err.code === 1) {
+          alert('위치 권한을 허용해주세요! 출석 확인에 필요해요.');
+        } else {
+          alert('위치를 확인할 수 없어요. 잠시 후 다시 시도해주세요.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }
+
+  function doCompleteAttendance() {
     const userId = localStorage.getItem('current_user');
     const today = getToday();
     db.ref('users/' + userId + '/attendance/' + today).set(true);
