@@ -1172,16 +1172,29 @@
 
   const CARDIO_CONFIG = { '런닝머신': { distLabel:'📍 거리', distUnit:'km' }, '스텝밀': { distLabel:'📍 거리', distUnit:'km' }, '사이클': { distLabel:'📍 거리', distUnit:'km' }, '마이마운틴': { distLabel:'📍 거리', distUnit:'km' } };
 
-  // MET 기준 유산소 칼로리: kcal = MET × 체중(kg) × 시간(h)
-  const CARDIO_MET = { '런닝머신': 8.0, '스텝밀': 8.8, '사이클': 7.0, '마이마운틴': 6.0 };
+  function calcCardioKcalValue(type, min, dist, weight) {
+    if (min <= 0) return 0;
+    const h = min / 60;
+    if (type === '런닝머신') {
+      return dist > 0 ? dist * weight * 1.036 : 8.0 * weight * h;
+    } else if (type === '스텝밀') {
+      if (dist > 0) { const speed = dist / h; const met = Math.max(5.0, Math.min(12.0, 8.8 * speed / 6.0)); return met * weight * h; }
+      return 8.8 * weight * h;
+    } else if (type === '사이클') {
+      return dist > 0 ? dist * weight * 0.45 : 7.0 * weight * h;
+    } else if (type === '마이마운틴') {
+      if (dist > 0) { const speed = dist / h; const met = Math.max(4.0, Math.min(10.0, 6.0 * speed / 6.0)); return met * weight * h; }
+      return 6.0 * weight * h;
+    }
+    return 7.0 * weight * h;
+  }
 
   function calcCardioKcal() {
     const type = document.getElementById('cardio-type').value;
     const min  = parseFloat(document.getElementById('cardio-min').value)  || 0;
     const dist = parseFloat(document.getElementById('cardio-dist').value) || 0;
     const { weight } = getBodyInfo();
-    const met = CARDIO_MET[type] || 7.0;
-    const kcal = met * weight * (min / 60);
+    const kcal = calcCardioKcalValue(type, min, dist, weight);
     const el = document.getElementById('cardio-kcal-display');
     if (el) el.textContent = (min === 0) ? '-' : '약 ' + Math.round(kcal) + ' kcal';
   }
