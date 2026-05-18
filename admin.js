@@ -2462,6 +2462,28 @@
       const todayStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
 
       let calHtml = `
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;">
+          <div style="flex:1;position:relative;">
+            <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="trainer-equipment-search"
+              placeholder="기구 검색"
+              style="width:100%;box-sizing:border-box;padding:10px 10px 10px 34px;border:1.5px dashed #1a6fd4;border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
+              onfocus="this.style.borderColor='#0f4fa8';showTrainerEqSearchResult(this.value,'${trainerCalSelectedDate||''}','${traineeId}')"
+              onblur="this.style.borderColor='#1a6fd4'"
+              oninput="showTrainerEqSearchResult(this.value,'${trainerCalSelectedDate||''}','${traineeId}')" />
+            <button id="trainer-search-clear-btn" onclick="clearTrainerEqSearch()" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);background:var(--text-hint);border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;color:white;font-size:12px;line-height:1;padding:0;">×</button>
+          </div>
+          <button onclick="openTrainerFwWorkoutMode('${trainerCalSelectedDate||''}','${traineeId}')"
+            style="flex-shrink:0;padding:10px 12px;background:var(--card);border:1.5px dashed #8b5cf6;border-radius:var(--radius-sm);color:#8b5cf6;font-size:12px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 4v16M18 4v16M6 12h12M3 8h3M18 8h3M3 16h3M18 16h3"/>
+            </svg>
+            프리웨이트
+          </button>
+        </div>
+        <div id="trainer-equipment-search-result" style="display:none;background:var(--card);border:1.5px solid var(--blue);border-radius:var(--radius-sm);margin-bottom:10px;overflow:hidden;box-shadow:0 4px 16px rgba(26,111,212,0.12);max-height:220px;overflow-y:auto;"></div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
           <button onclick="trainerChangeCalMonth(-1)" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text);padding:4px 8px;">‹</button>
           <div style="font-size:15px;font-weight:700;color:var(--text);">${year}년 ${month}월</div>
@@ -2702,28 +2724,7 @@
         });
       }
 
-      // 기구 검색창 + 프리웨이트 버튼
-      html += `
-        <div style="position:relative;margin-top:10px;margin-bottom:10px;">
-          <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input type="text" id="trainer-equipment-search"
-            placeholder="기구이름 또는 번호로 검색하세요"
-            style="width:100%;box-sizing:border-box;padding:12px 12px 12px 40px;border:1.5px dashed #1a6fd4;border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
-            onfocus="this.style.borderColor='#0f4fa8';showTrainerEqSearchResult(this.value,'${dateStr}','${traineeId}')"
-            onblur="this.style.borderColor='#1a6fd4'"
-            oninput="showTrainerEqSearchResult(this.value,'${dateStr}','${traineeId}')" />
-          <button id="trainer-search-clear-btn" onclick="clearTrainerEqSearch()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:var(--text-hint);border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;color:white;font-size:13px;line-height:1;padding:0;">×</button>
-        </div>
-        <div id="trainer-equipment-search-result" style="display:none;background:var(--card);border:1.5px solid var(--blue);border-radius:var(--radius-sm);margin-bottom:10px;overflow:hidden;box-shadow:0 4px 16px rgba(26,111,212,0.12);max-height:220px;overflow-y:auto;"></div>
-        <button onclick="openTrainerFwWorkoutMode('${dateStr}','${traineeId}')"
-          style="width:100%;padding:12px 8px;background:var(--card);border:1.5px dashed #8b5cf6;border-radius:var(--radius-sm);color:#8b5cf6;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M6 4v16M18 4v16M6 12h12M3 8h3M18 8h3M3 16h3M18 16h3"/>
-          </svg>
-          프리웨이트 기록
-        </button>`;
+      // 기구 검색창 + 프리웨이트 버튼은 달력 위로 이동됨
 
       detailEl.innerHTML = html;
     });
@@ -2887,8 +2888,8 @@
   // 강사 모드로 프리웨이트 진입
   function openTrainerFwWorkoutMode(dateStr, traineeId) {
     isTrainerMode = true;
-    trainerTargetId = traineeId;
-    trainerTargetDate = dateStr;
+    trainerTargetId = traineeId || currentTraineeId;
+    trainerTargetDate = dateStr || trainerCalSelectedDate || null;
     openFreeweightModal();
   }
 
