@@ -1172,22 +1172,18 @@
 
   const CARDIO_CONFIG = { '런닝머신': { distLabel:'📍 거리', distUnit:'km' }, '스텝밀': { distLabel:'📍 거리', distUnit:'km' }, '사이클': { distLabel:'📍 거리', distUnit:'km' }, '마이마운틴': { distLabel:'📍 거리', distUnit:'km' } };
 
+  // MET 기준 유산소 칼로리: kcal = MET × 체중(kg) × 시간(h)
+  const CARDIO_MET = { '런닝머신': 8.0, '스텝밀': 8.8, '사이클': 7.0, '마이마운틴': 6.0 };
+
   function calcCardioKcal() {
     const type = document.getElementById('cardio-type').value;
     const min  = parseFloat(document.getElementById('cardio-min').value)  || 0;
     const dist = parseFloat(document.getElementById('cardio-dist').value) || 0;
-    const { gender, age, height, weight } = getBodyInfo();
-    let bmr;
-    if (gender === 'female') bmr = 447.6 + (9.2 * weight) + (3.1 * height) - (4.3 * age);
-    else bmr = 88.4 + (13.4 * weight) + (4.8 * height) - (5.7 * age);
-    const bmrFactor = bmr / (gender === 'female' ? 1500 : 1800);
-    let kcal = 0;
-    if (type === '런닝머신') { const effectiveDist = dist > 0 ? dist : (min / 60) * 8; kcal = effectiveDist * weight * 1.036 * bmrFactor; }
-    else if (type === '스텝밀') { const timeKcal = min * weight * 0.12 * bmrFactor; const distKcal = dist > 0 ? dist * weight * 0.5 * bmrFactor : 0; kcal = dist > 0 ? (timeKcal + distKcal) / 2 : timeKcal; }
-    else if (type === '사이클') { const effectiveDist = dist > 0 ? dist : (min / 60) * 20; kcal = effectiveDist * weight * 0.6 * bmrFactor; }
-    else if (type === '마이마운틴') { const timeKcal = min * weight * 0.11 * bmrFactor; const distKcal = dist > 0 ? dist * weight * 0.4 * bmrFactor : 0; kcal = dist > 0 ? (timeKcal + distKcal) / 2 : timeKcal; }
+    const { weight } = getBodyInfo();
+    const met = CARDIO_MET[type] || 7.0;
+    const kcal = met * weight * (min / 60);
     const el = document.getElementById('cardio-kcal-display');
-    if (el) el.textContent = (min === 0 && dist === 0) ? '-' : '약 ' + Math.round(kcal) + ' kcal';
+    if (el) el.textContent = (min === 0) ? '-' : '약 ' + Math.round(kcal) + ' kcal';
   }
 
   let cardioEditDate = null;
@@ -1287,9 +1283,10 @@
   let classEditDate = null;
 
   // 수업 칼로리 계산 (MET 기반)
+  // MET 기준 GX/수업 칼로리 (국제 표준값)
   const CLASS_MET = {
     '기구필라테스': 3.5, '에어로빅': 6.5, '방송댄스': 5.5,
-    '요가': 2.5, '매트필라테스': 3.0, '기능성운동': 4.0
+    '요가': 2.5, '매트필라테스': 3.0, '기능성운동': 4.5
   };
 
   function openClassModal() {
@@ -1333,12 +1330,8 @@
     const display = document.getElementById('class-kcal-display');
     if (min <= 0) { display.textContent = '-'; return; }
     const met = CLASS_MET[type] || 3.5;
-    const { weight, gender, age, height } = getBodyInfo();
-    let bmr;
-    if (gender === 'female') bmr = 447.6 + (9.2 * weight) + (3.1 * height) - (4.3 * age);
-    else bmr = 88.4 + (13.4 * weight) + (4.8 * height) - (5.7 * age);
-    const bmrFactor = bmr / (gender === 'female' ? 1500 : 1800);
-    const kcal = Math.round(met * weight * (min / 60) * bmrFactor);
+    const { weight } = getBodyInfo();
+    const kcal = Math.round(met * weight * (min / 60));
     display.textContent = '약 ' + kcal + 'kcal';
   }
 
@@ -1352,12 +1345,8 @@
     const date = classEditDate || (now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate());
     const dateLabel = date.split('-').join('년 ').replace('-', '월 ') + '일';
     const met = CLASS_MET[type] || 3.5;
-    const { weight, gender, age, height } = getBodyInfo();
-    let bmr;
-    if (gender === 'female') bmr = 447.6 + (9.2 * weight) + (3.1 * height) - (4.3 * age);
-    else bmr = 88.4 + (13.4 * weight) + (4.8 * height) - (5.7 * age);
-    const bmrFactor = bmr / (gender === 'female' ? 1500 : 1800);
-    const kcal = Math.round(met * weight * (min / 60) * bmrFactor);
+    const { weight } = getBodyInfo();
+    const kcal = Math.round(met * weight * (min / 60));
     const record = {
       date, dateLabel, type, min, kcal, memo,
       savedAt: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')
