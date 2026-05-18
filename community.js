@@ -416,15 +416,19 @@
 
   function adminDeletePost(postId, photoURL) {
     if (!confirm('이 게시글을 삭제할까요?\n댓글도 함께 삭제돼요.')) return;
+    // 오운완이면 포인트 환수 + owunwan 기록 삭제
+    const post = adminAllPosts.find(p => p.id === postId);
+    if (post && post.category === '오운완' && post.authorId) {
+      db.ref('users/' + post.authorId + '/points').transaction(cur => Math.max(0, (cur || 0) - 100));
+      if (post.owunwanDate) db.ref('users/' + post.authorId + '/owunwan/' + post.owunwanDate).remove();
+    }
     db.ref('posts/' + postId).remove();
     db.ref('comments/' + postId).remove();
     if (photoURL) {
       try { storage.refFromURL(photoURL).delete(); } catch(e) {}
     }
-    // 관리자 피드에서 즉시 제거
     adminAllPosts = adminAllPosts.filter(p => p.id !== postId);
     renderAdminCommunityFeed();
-    // 일반 커뮤니티 피드도 갱신
     allCommunityPosts = allCommunityPosts.filter(p => p.id !== postId);
     renderCommunityFeed();
     alert('✅ 게시글이 삭제됐어요.');
@@ -815,11 +819,11 @@
 
   function deletePost(postId, photoURL) {
     if (!confirm('게시글을 삭제할까요?')) return;
-    // 오운완 게시물이면 출석 기록 + 포인트 회수
+    // 오운완 게시물이면 포인트 100P 환수 + owunwan 기록 삭제
     const post = allCommunityPosts.find(p => p.id === postId) || adminAllPosts.find(p => p.id === postId);
-    if (post && post.category === '오운완' && post.attendDate && post.authorId) {
-      db.ref('users/' + post.authorId + '/attendance/' + post.attendDate).remove();
-      db.ref('users/' + post.authorId + '/points').transaction(cur => Math.max(0, (cur || 0) - 10));
+    if (post && post.category === '오운완' && post.authorId) {
+      db.ref('users/' + post.authorId + '/points').transaction(cur => Math.max(0, (cur || 0) - 100));
+      if (post.owunwanDate) db.ref('users/' + post.authorId + '/owunwan/' + post.owunwanDate).remove();
     }
     db.ref('posts/' + postId).remove().then(() => {
       if (photoURL) storage.refFromURL(photoURL).delete().catch(() => {});

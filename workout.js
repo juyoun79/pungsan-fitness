@@ -1126,13 +1126,13 @@
 
       // 오운완 기록 저장 + 포인트 지급
       await db.ref('users/' + userId + '/owunwan/' + today).set(true);
-      await db.ref('users/' + userId + '/points').transaction(cur => (cur || 0) + 30);
+      await db.ref('users/' + userId + '/points').transaction(cur => (cur || 0) + 100);
       const pointKey = 'points_' + userId;
-      localStorage.setItem(pointKey, (parseInt(localStorage.getItem(pointKey)||'0') + 30));
+      localStorage.setItem(pointKey, (parseInt(localStorage.getItem(pointKey)||'0') + 100));
       updateStats();
 
       closeOwunwanModal();
-      alert('오운완 게시물이 올라갔어요! 🔥\n+30P 포인트가 적립됐어요!');
+      alert('오운완 게시물이 올라갔어요! 🔥\n+100P 포인트가 적립됐어요!');
       switchTab('community');
 
     } catch(e) {
