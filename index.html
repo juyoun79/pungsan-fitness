@@ -862,104 +862,70 @@
       <div style="width:38px;"></div>
     </div>
 
-    <div style="padding:20px 20px var(--safe-pad);">
+    <div style="padding:16px 20px var(--safe-pad);">
 
-      <!-- 스텝 표시 -->
-      <div class="step-bar">
-        <div class="step-item" id="step1-indicator">
-          <div class="step-circle active" id="step1-circle">1</div>
-          <div class="step-label">오운완 인증</div>
+      <!-- 통계 3개 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 8px;text-align:center;">
+          <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">누적 출석</div>
+          <div style="font-size:18px;font-weight:700;color:var(--blue);" id="att-total">-</div>
+          <div style="font-size:10px;color:var(--text-hint);">회</div>
         </div>
-        <div class="step-line" id="step-line"></div>
-        <div class="step-item" id="step2-indicator">
-          <div class="step-circle" id="step2-circle">2</div>
-          <div class="step-label">QR 스캔</div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 8px;text-align:center;">
+          <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">이번달</div>
+          <div style="font-size:18px;font-weight:700;color:var(--blue);" id="att-month">-</div>
+          <div style="font-size:10px;color:var(--text-hint);">회</div>
         </div>
-      </div>
-
-      <!-- STEP 1: 오운완 사진 -->
-      <div id="attend-step1">
-        <div class="attend-card">
-          <div class="attend-icon">📸</div>
-          <div class="attend-title">STEP 1 — 오운완 사진 인증</div>
-          <div class="attend-desc">헬스장에서 운동 중인 사진을 촬영해주세요<br/>📷 카메라 직접 촬영만 가능해요</div>
-
-          <!-- 사진 촬영 전 버튼 -->
-          <div id="photo-btn-wrap" style="margin-top:16px;">
-            <button class="btn-primary" onclick="takePhoto('camera')">
-              📷 카메라로 촬영
-            </button>
-          </div>
-
-          <!-- 사진 촬영 후 미리보기 -->
-          <div id="photo-preview-wrap" style="display:none;margin-top:16px;">
-            <div style="position:relative;">
-              <img id="photo-preview" style="width:100%;border-radius:12px;max-height:240px;object-fit:cover;" />
-              <div style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:white;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;">✅ 사진 완료</div>
-            </div>
-
-            <!-- 다시찍기 -->
-            <button class="btn-outline" onclick="retakePhoto()" style="width:100%;margin-top:10px;">
-              🔄 다시 찍기
-            </button>
-
-            <!-- 구분선 -->
-            <div style="display:flex;align-items:center;gap:10px;margin:16px 0;">
-              <div style="flex:1;height:1px;background:var(--border);"></div>
-              <div style="font-size:12px;color:var(--text-hint);font-weight:600;">오운완 완료! 다음 단계로 이동하세요</div>
-              <div style="flex:1;height:1px;background:var(--border);"></div>
-            </div>
-
-            <!-- 다음 단계 버튼 - 크고 명확하게 -->
-            <button onclick="goToStep2()"
-              style="width:100%;padding:16px;background:var(--blue);color:white;border:none;border-radius:var(--radius-sm);font-size:16px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
-                <rect x="14" y="14" width="3" height="3"/><rect x="18" y="14" width="3" height="3"/><rect x="14" y="18" width="3" height="3"/><rect x="18" y="18" width="3" height="3"/>
-              </svg>
-              STEP 2 — QR코드 스캔하기
-            </button>
-          </div>
-
-          <input type="file" id="photo-input-camera" accept="image/*" capture="environment" style="display:none;" onchange="handlePhoto(this)"/>
-        </div>
-
-        <div class="attend-tip">
-          💡 운동 중인 모습, 기구 사용 모습 등 어떤 사진이든 괜찮아요!
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 8px;text-align:center;">
+          <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">보유 포인트</div>
+          <div style="font-size:18px;font-weight:700;color:#d97706;" id="att-points">-</div>
+          <div style="font-size:10px;color:var(--text-hint);">P</div>
         </div>
       </div>
 
-      <!-- STEP 2: QR 스캔 -->
-      <div id="attend-step2" style="display:none;">
-        <div class="attend-card">
-          <div class="attend-icon">📲</div>
-          <div class="attend-title">STEP 2 — QR코드 스캔</div>
-          <div class="attend-desc">센터 내 기구에 부착된<br/>풍산 QR코드를 카메라로 찍어주세요<br/><span style="color:var(--blue);font-weight:600;">어떤 기구 QR이든 출석이 인증돼요!</span></div>
+      <!-- 오늘 출석 상태 -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div id="att-today-dot" style="width:9px;height:9px;border-radius:50%;background:#ef4444;flex-shrink:0;"></div>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text);">오늘 출석</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-top:2px;" id="att-today-date"></div>
+          </div>
+        </div>
+        <div id="att-today-badge" style="background:#fef2f2;color:#b91c1c;font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;border:1px solid #fca5a5;">미완료</div>
+      </div>
 
-          <!-- QR 스캐너 뷰 -->
-          <div id="qr-scanner-wrap" style="margin:16px 0;">
-            <div style="position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:1;">
-              <video id="qr-video" style="width:100%;height:100%;object-fit:cover;" playsinline></video>
-              <!-- 스캔 가이드 박스 -->
-              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
-                <div style="width:180px;height:180px;position:relative;">
-                  <div style="position:absolute;top:0;left:0;width:36px;height:36px;border-top:3px solid #fff;border-left:3px solid #fff;border-radius:4px 0 0 0;"></div>
-                  <div style="position:absolute;top:0;right:0;width:36px;height:36px;border-top:3px solid #fff;border-right:3px solid #fff;border-radius:0 4px 0 0;"></div>
-                  <div style="position:absolute;bottom:0;left:0;width:36px;height:36px;border-bottom:3px solid #fff;border-left:3px solid #fff;border-radius:0 0 0 4px;"></div>
-                  <div style="position:absolute;bottom:0;right:0;width:36px;height:36px;border-bottom:3px solid #fff;border-right:3px solid #fff;border-radius:0 0 4px 0;"></div>
-                  <div class="scan-line"></div>
-                </div>
+      <!-- GPS 상태 -->
+      <div id="att-gps-card" style="background:#f0fdf4;border:1px solid #86efac;border-radius:var(--radius);padding:10px 14px;display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <div id="att-gps-dot" style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>
+        <div id="att-gps-text" style="font-size:12px;color:#15803d;font-weight:600;">위치 확인 중...</div>
+      </div>
+
+      <!-- QR 스캔 -->
+      <div class="attend-card">
+        <div class="attend-icon">📲</div>
+        <div class="attend-title">QR코드 스캔</div>
+        <div class="attend-desc">센터내 비치된 QR에 카메라를 대주세요<br/><span style="color:var(--blue);font-weight:600;">어떤 기구 QR이든 출석이 인증돼요!</span></div>
+
+        <div id="qr-scanner-wrap" style="margin:16px 0;">
+          <div style="position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:1;">
+            <video id="qr-video" style="width:100%;height:100%;object-fit:cover;" playsinline></video>
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+              <div style="width:180px;height:180px;position:relative;">
+                <div style="position:absolute;top:0;left:0;width:36px;height:36px;border-top:3px solid #fff;border-left:3px solid #fff;border-radius:4px 0 0 0;"></div>
+                <div style="position:absolute;top:0;right:0;width:36px;height:36px;border-top:3px solid #fff;border-right:3px solid #fff;border-radius:0 4px 0 0;"></div>
+                <div style="position:absolute;bottom:0;left:0;width:36px;height:36px;border-bottom:3px solid #fff;border-left:3px solid #fff;border-radius:0 0 0 4px;"></div>
+                <div style="position:absolute;bottom:0;right:0;width:36px;height:36px;border-bottom:3px solid #fff;border-right:3px solid #fff;border-radius:0 0 4px 0;"></div>
+                <div class="scan-line"></div>
               </div>
             </div>
-            <div style="text-align:center;margin-top:10px;font-size:13px;color:var(--text-sub);" id="qr-status-msg">QR코드를 네모 안에 맞춰주세요</div>
           </div>
-
-          <button class="btn-outline" onclick="goBackToStep1()">← 이전 단계로</button>
+          <div style="text-align:center;margin-top:10px;font-size:13px;color:var(--text-sub);" id="qr-status-msg">QR코드를 네모 안에 맞춰주세요</div>
         </div>
+      </div>
 
-        <div class="attend-tip">
-          💡 기구마다 QR코드가 붙어있어요. 어떤 기구 QR이든 스캔하면 돼요!
-        </div>
+      <div class="attend-tip">
+        💡 기구마다 QR코드가 붙어있어요. 어떤 기구 QR이든 스캔하면 돼요!
       </div>
 
     </div>
@@ -1305,11 +1271,11 @@
   <div class="motivate-overlay" id="attend-complete-overlay">    <div class="motivate-popup" style="max-width:300px;">
       <span class="popup-emoji">🎉</span>
       <div class="popup-label" style="color:#1a6fd4;">출석 완료!</div>
-      <div class="popup-msg" id="attend-complete-msg">오운완 인증까지 완벽해요!</div>
+      <div class="popup-msg" id="attend-complete-msg">오늘도 운동 완료!</div>
       <div style="background:#e8f1fc;border-radius:10px;padding:12px;margin:14px 0;">
         <div style="font-size:13px;color:#5a6478;margin-bottom:4px;">적립된 포인트</div>
         <div style="font-size:28px;font-weight:700;color:#1a6fd4;">+10P</div>
-        <div style="font-size:12px;color:#9aa3b2;">오운완 인증 보너스 포함!</div>
+        <div style="font-size:12px;color:#9aa3b2;">출석 포인트가 적립됐어요!</div>
       </div>
       <div style="font-size:13px;color:var(--text-sub);margin-bottom:16px;" id="attend-date-msg"></div>
       <button class="popup-close" onclick="closeAttendComplete()">홈으로 돌아가기</button>

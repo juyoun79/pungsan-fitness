@@ -704,67 +704,79 @@
     const userId = localStorage.getItem('current_user');
     const today = getToday();
     const todayKey = 'attend_' + userId + '_' + today;
-    // Firebase에서 출석 여부 확인 (로컬 캐시보다 우선)
+    // 날짜 표시
+    const now = new Date();
+    const dateEl = document.getElementById('att-today-date');
+    if (dateEl) dateEl.textContent = now.getFullYear() + '. ' + (now.getMonth()+1) + '. ' + now.getDate();
+    // Firebase에서 출석 여부 확인
     db.ref('users/' + userId + '/attendance/' + today).once('value', snap => {
       if (snap.exists()) {
         localStorage.setItem(todayKey, 'done');
         alert('오늘은 이미 출석체크를 완료했어요! 내일 또 만나요 😊');
         return;
       }
-      // Firebase에 없으면 로컬도 초기화
       localStorage.removeItem(todayKey);
+      // 통계 로드
+      loadAttendanceStats(userId);
       resetAttendance();
       showScreen('screen-attendance');
+      startQrCamera();
     });
   }
 
+  function loadAttendanceStats(userId) {
+    const now = new Date();
+    const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
+    db.ref('users/' + userId + '/attendance').once('value', snap => {
+      let total = 0, month = 0;
+      snap.forEach(child => { total++; if (child.key.startsWith(monthPrefix)) month++; });
+      const elTotal = document.getElementById('att-total'); if (elTotal) elTotal.textContent = total;
+      const elMonth = document.getElementById('att-month'); if (elMonth) elMonth.textContent = month;
+    });
+    db.ref('users/' + userId + '/points').once('value', snap => {
+      const pts = snap.val() || 0;
+      const elPts = document.getElementById('att-points'); if (elPts) elPts.textContent = pts.toLocaleString();
+    });
+    // GPS 상태 미리 확인
+    checkGpsStatus();
+  }
+
+  function checkGpsStatus() {
+    const gpsText = document.getElementById('att-gps-text');
+    const gpsDot  = document.getElementById('att-gps-dot');
+    const gpsCard = document.getElementById('att-gps-card');
+    if (!navigator.geolocation) {
+      if (gpsText) gpsText.textContent = '위치 확인 불가';
+      if (gpsDot)  gpsDot.style.background = '#ef4444';
+      if (gpsCard) gpsCard.style.background = '#fef2f2';
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const dist = getDistanceMeters(pos.coords.latitude, pos.coords.longitude, GYM_LAT, GYM_LNG);
+        if (dist <= GYM_RADIUS) {
+          if (gpsText) gpsText.textContent = '헬스장 위치 확인됨';
+          if (gpsDot)  gpsDot.style.background = '#22c55e';
+          if (gpsCard) { gpsCard.style.background = '#f0fdf4'; gpsCard.style.borderColor = '#86efac'; }
+        } else {
+          if (gpsText) gpsText.textContent = '헬스장 밖에 있어요 (약 ' + Math.round(dist) + 'm)';
+          if (gpsDot)  gpsDot.style.background = '#ef4444';
+          if (gpsCard) { gpsCard.style.background = '#fef2f2'; gpsCard.style.borderColor = '#fca5a5'; }
+        }
+      },
+      () => {
+        if (gpsText) gpsText.textContent = '위치 권한을 허용해주세요';
+        if (gpsDot)  gpsDot.style.background = '#f59e0b';
+        if (gpsCard) { gpsCard.style.background = '#fffbeb'; gpsCard.style.borderColor = '#fcd34d'; }
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    );
+  }
+
   function resetAttendance() {
-    document.getElementById('attend-step1').style.display = 'block';
-    document.getElementById('attend-step2').style.display = 'none';
-    document.getElementById('photo-preview-wrap').style.display = 'none';
-    document.getElementById('photo-btn-wrap').style.display = 'flex';
-    document.getElementById('step1-circle').className = 'step-circle active';
-    document.getElementById('step2-circle').className = 'step-circle';
-    document.getElementById('step-line').className = 'step-line';
     stopQrCamera();
-  }
-
-  function takePhoto(type) { document.getElementById('photo-input-camera').click(); }
-
-  function handlePhoto(input) {
-    if (!input.files || !input.files[0]) return;
-    const file = input.files[0];
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      document.getElementById('photo-preview').src = e.target.result;
-      document.getElementById('photo-preview-wrap').style.display = 'block';
-      document.getElementById('photo-btn-wrap').style.display = 'none';
-      const userId = localStorage.getItem('current_user');
-      localStorage.setItem('owunwan_' + userId + '_' + getToday(), e.target.result);
-    };
-    reader.readAsDataURL(file);
-  }
-
-  function retakePhoto() { document.getElementById('photo-preview-wrap').style.display = 'none'; document.getElementById('photo-btn-wrap').style.display = 'flex'; }
-
-  function goToStep2() {
-    document.getElementById('attend-step1').style.display = 'none';
-    document.getElementById('attend-step2').style.display = 'block';
-    document.getElementById('step1-circle').className = 'step-circle done';
-    document.getElementById('step1-circle').textContent = '✓';
-    document.getElementById('step2-circle').className = 'step-circle active';
-    document.getElementById('step-line').className = 'step-line done';
-    startQrCamera();
-  }
-
-  function goBackToStep1() {
-    stopQrCamera();
-    document.getElementById('attend-step2').style.display = 'none';
-    document.getElementById('attend-step1').style.display = 'block';
-    document.getElementById('step1-circle').className = 'step-circle active';
-    document.getElementById('step1-circle').textContent = '1';
-    document.getElementById('step2-circle').className = 'step-circle';
-    document.getElementById('step-line').className = 'step-line';
+    const statusEl = document.getElementById('qr-status-msg');
+    if (statusEl) statusEl.textContent = 'QR코드를 네모 안에 맞춰주세요';
   }
 
   async function startQrCamera() {
@@ -849,28 +861,11 @@
     const cur = parseInt(localStorage.getItem(pointKey) || '0');
     localStorage.setItem(pointKey, cur + 10);
     updateStats();
-    const photoSrc = document.getElementById('photo-preview').src;
-    if (photoSrc && photoSrc.startsWith('data:image')) uploadOwunwanToCommunity(photoSrc, userId);
     const nick = localStorage.getItem('name_' + userId) || '회원';
     const now = new Date();
-    document.getElementById('attend-complete-msg').textContent = nick + '님, 오운완 인증까지 완벽해요! 💪';
+    document.getElementById('attend-complete-msg').textContent = nick + '님, 오늘도 운동 완료! 💪';
     document.getElementById('attend-date-msg').textContent = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 출석 완료';
     document.getElementById('attend-complete-overlay').classList.add('active');
-  }
-
-  async function uploadOwunwanToCommunity(dataUrl, userId) {
-    try {
-      const nickname = localStorage.getItem('name_' + userId) || '회원';
-      const res = await fetch(dataUrl); const blob = await res.blob();
-      const file = new File([blob], 'owunwan.jpg', { type: blob.type });
-      const compressed = await compressImage(file);
-      const ref = storage.ref('posts/owunwan_' + Date.now() + '_' + userId + '.jpg');
-      await ref.put(compressed);
-      const photoURL = await ref.getDownloadURL();
-      const now = new Date();
-      const postData = { authorId: userId, nickname, category: '오운완', content: '오늘도 출석 완료! 💪\n' + now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 운동 인증', photoURL, createdAt: Date.now(), commentCount: 0, attendDate: getToday() };
-      await db.ref('posts').push(postData);
-    } catch(e) { console.error('오운완 업로드 실패:', e); }
   }
 
   function closeAttendComplete() { document.getElementById('attend-complete-overlay').classList.remove('active'); resetAttendance(); switchTab('home'); }
