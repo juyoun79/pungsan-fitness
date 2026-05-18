@@ -881,6 +881,273 @@
   }
 
   function closeAttendComplete() { document.getElementById('attend-complete-overlay').classList.remove('active'); resetAttendance(); switchTab('home'); }
+
+  // ══════════════════════════════
+  // 오운완
+  // ══════════════════════════════
+  function openOwunwan() {
+    const userId = localStorage.getItem('current_user');
+    if (!userId) { alert('로그인이 필요해요.'); return; }
+    const today = getToday();
+
+    // 오늘 운동기록 확인
+    const todayRecords = getTodayAllRecords(userId, today);
+    if (todayRecords.length === 0) {
+      alert('오늘 운동기록이 없어요!\n운동을 기록한 후 오운완을 올려주세요 💪');
+      return;
+    }
+
+    // 오늘 이미 오운완 올렸는지 확인
+    db.ref('users/' + userId + '/owunwan/' + today).once('value', snap => {
+      if (snap.exists()) {
+        alert('오늘은 이미 오운완을 올렸어요! 내일 또 만나요 😊');
+        return;
+      }
+      // 모달 초기화 후 열기
+      document.getElementById('owunwan-camera-btn-wrap').style.display = 'block';
+      document.getElementById('owunwan-preview-wrap').style.display = 'none';
+      document.getElementById('owunwan-comment').value = '';
+      document.getElementById('owunwan-photo-input').value = '';
+      const btn = document.getElementById('owunwan-submit-btn');
+      btn.textContent = '오운완 올리기 🔥'; btn.disabled = false;
+
+      // 운동기록 요약 표시
+      const summaryWrap = document.getElementById('owunwan-record-summary');
+      const listEl = document.getElementById('owunwan-record-list');
+      summaryWrap.style.display = 'block';
+      listEl.innerHTML = todayRecords.map(r => {
+        const badge = r.type === 'cardio' ? '<span style="background:#fef2f2;color:#b91c1c;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;margin-right:6px;">유산소</span>'
+          : r.type === 'class' ? '<span style="background:#e0f7fa;color:#0891b2;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;margin-right:6px;">GX수업</span>'
+          : '<span style="background:#ede9fe;color:#7c3aed;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;margin-right:6px;">웨이트</span>';
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:0.5px solid var(--border);">
+          <div style="display:flex;align-items:center;">${badge}<span style="font-size:13px;color:var(--text);">${r.name}</span></div>
+          <span style="font-size:12px;color:var(--text-hint);">${r.summary}</span>
+        </div>`;
+      }).join('');
+
+      document.getElementById('owunwan-modal').style.display = 'block';
+    });
+  }
+
+  function getTodayAllRecords(userId, today) {
+    const records = [];
+    // 기구 웨이트
+    for (const eq of EQUIPMENT_LIST) {
+      if (isDualEquipment(eq.key)) {
+        const dNames = getDualNames(eq.key) || { front:'전면', back:'후면' };
+        [['dual_front', dNames.front], ['dual_back', dNames.back]].forEach(([suffix, subName]) => {
+          const r = JSON.parse(localStorage.getItem('workout_' + suffix + '_' + eq.key + '_' + userId) || '[]').find(r => r.date === today);
+          if (r) {
+            const n = r.sets?.length || 0;
+            const maxW = r.sets ? Math.max(...r.sets.map(s => s.weight||0)) : 0;
+            const rep = r.sets?.[0]?.reps || 0;
+            records.push({ type:'equipment', name: eq.name + ' ' + subName, summary: n + '세트 · ' + (maxW>0?maxW+'kg':'자체중량') + ' · ' + rep + '회' });
+          }
+        });
+      } else {
+        const r = JSON.parse(localStorage.getItem('workout_' + eq.key + '_' + userId) || '[]').find(r => r.date === today);
+        if (r) {
+          const n = r.sets?.length || 0;
+          const maxW = r.sets ? Math.max(...r.sets.map(s => s.weight||0)) : 0;
+          const rep = r.sets?.[0]?.reps || 0;
+          records.push({ type:'equipment', name: eq.name, summary: n + '세트 · ' + (maxW>0?maxW+'kg':'자체중량') + ' · ' + rep + '회' });
+        }
+      }
+    }
+    // 프리웨이트
+    const fwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
+    for (const name of fwIndex) {
+      const r = JSON.parse(localStorage.getItem('freeweight_' + name.replace(/\s+/g,'_') + '_' + userId) || '[]').find(r => r.date === today);
+      if (r) {
+        const n = r.sets?.length || 0;
+        const maxW = r.sets ? Math.max(...r.sets.map(s => s.weight||0)) : 0;
+        const rep = r.sets?.[0]?.reps || 0;
+        records.push({ type:'freeweight', name, summary: n + '세트 · ' + (maxW>0?maxW+'kg':'자체중량') + ' · ' + rep + '회' });
+      }
+    }
+    // 유산소
+    const cardioIndex = JSON.parse(localStorage.getItem('cardio_index_' + userId) || '[]');
+    for (const ctype of cardioIndex) {
+      const r = JSON.parse(localStorage.getItem('cardio_' + ctype + '_' + userId) || '[]').find(r => r.date === today);
+      if (r) records.push({ type:'cardio', name: ctype, summary: (r.duration||0) + '분 · ' + (r.distance||0) + 'km' });
+    }
+    // 수업
+    const classIndex = JSON.parse(localStorage.getItem('class_index_' + userId) || '[]');
+    for (const ctype of classIndex) {
+      const r = JSON.parse(localStorage.getItem('class_' + ctype.replace(/\s+/g,'_') + '_' + userId) || '[]').find(r => r.date === today);
+      if (r) records.push({ type:'class', name: ctype, summary: (r.duration||0) + '분 · 약 ' + (r.kcal||0) + 'kcal' });
+    }
+    return records;
+  }
+
+  function captureOwunwanPhoto() {
+    document.getElementById('owunwan-photo-input').click();
+  }
+
+  function handleOwunwanPhoto(input) {
+    if (!input.files || !input.files[0]) return;
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        const userId = localStorage.getItem('current_user');
+        const today = getToday();
+        const records = getTodayAllRecords(userId, today);
+        composeOwunwanCanvas(img, records);
+        document.getElementById('owunwan-camera-btn-wrap').style.display = 'none';
+        document.getElementById('owunwan-preview-wrap').style.display = 'block';
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function composeOwunwanCanvas(img, records) {
+    const canvas = document.getElementById('owunwan-canvas');
+    // 3:4 비율
+    const W = 1080, H = 1440;
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // 사진 그리기
+    const scale = Math.max(W/img.width, H/img.height);
+    const sw = img.width * scale, sh = img.height * scale;
+    ctx.drawImage(img, (W-sw)/2, (H-sh)/2, sw, sh);
+
+    // 상단 그라디언트
+    const topGrad = ctx.createLinearGradient(0,0,0,260);
+    topGrad.addColorStop(0,'rgba(0,0,0,0.55)');
+    topGrad.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle = topGrad; ctx.fillRect(0,0,W,260);
+
+    // 하단 그라디언트
+    const lineH = 66, totalH = records.length * lineH + 100;
+    const gradStart = H - totalH - 60;
+    const botGrad = ctx.createLinearGradient(0, gradStart, 0, H);
+    botGrad.addColorStop(0,'rgba(0,0,0,0)');
+    botGrad.addColorStop(1,'rgba(0,0,0,0.88)');
+    ctx.fillStyle = botGrad; ctx.fillRect(0, gradStart, W, H - gradStart);
+
+    // 날짜 + 시간
+    const now = new Date();
+    ctx.font = '500 52px "Noto Sans KR", sans-serif';
+    ctx.fillStyle = '#FFD600';
+    ctx.fillText(now.getFullYear() + '. ' + (now.getMonth()+1) + '. ' + now.getDate() + '.', 52, 90);
+    ctx.font = '700 130px "Noto Sans KR", sans-serif';
+    const hh = String(now.getHours()).padStart(2,'0');
+    const mm2 = String(now.getMinutes()).padStart(2,'0');
+    ctx.fillText(hh + ':' + mm2, 52, 230);
+
+    // 워터마크
+    ctx.font = '400 30px "Noto Sans KR", sans-serif';
+    ctx.fillStyle = 'rgba(200,200,200,0.9)';
+    const wm = '풍산휘트니스@기구필라테스';
+    const wmW = ctx.measureText(wm).width;
+    const wmY = H - records.length * lineH - 58;
+    ctx.fillText(wm, (W - wmW) / 2, wmY);
+
+    // 운동기록 목록
+    let y = H - records.length * lineH - 20;
+    records.forEach((rec, i) => {
+      if (i > 0) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(52, y-10); ctx.lineTo(W-52, y-10); ctx.stroke();
+      }
+      // 배지
+      const badgeColor = rec.type === 'cardio' ? '#ef4444' : rec.type === 'class' ? '#0891b2' : '#7c3aed';
+      const badgeLabel = rec.type === 'cardio' ? '유산소' : rec.type === 'class' ? 'GX수업' : '웨이트';
+      ctx.font = '700 26px "Noto Sans KR", sans-serif';
+      const bw = ctx.measureText(badgeLabel).width + 24;
+      ctx.fillStyle = badgeColor;
+      roundRect(ctx, 52, y+2, bw, 36, 8);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(badgeLabel, 64, y+27);
+
+      // 종목명
+      ctx.font = '700 42px "Noto Sans KR", sans-serif';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(rec.name, 52 + bw + 12, y+36);
+
+      // 요약 (오른쪽 정렬)
+      ctx.font = '400 36px "Noto Sans KR", sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      const sw2 = ctx.measureText(rec.summary).width;
+      ctx.fillText(rec.summary, W - 52 - sw2, y+36);
+
+      y += lineH;
+    });
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.lineTo(x+w-r, y); ctx.arcTo(x+w,y,x+w,y+r,r);
+    ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+    ctx.lineTo(x+r, y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+    ctx.lineTo(x, y+r); ctx.arcTo(x,y,x+r,y,r);
+    ctx.closePath(); ctx.fill();
+  }
+
+  async function submitOwunwan() {
+    const userId = localStorage.getItem('current_user');
+    const today = getToday();
+    const canvas = document.getElementById('owunwan-canvas');
+    const btn = document.getElementById('owunwan-submit-btn');
+
+    if (canvas.width === 0) { alert('사진을 먼저 촬영해주세요!'); return; }
+
+    btn.textContent = '업로드 중...'; btn.disabled = true;
+
+    try {
+      // Canvas → Blob
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.88));
+      const ref = storage.ref('posts/owunwan_' + Date.now() + '_' + userId + '.jpg');
+      const snapshot = await ref.put(blob);
+      const photoURL = await snapshot.ref.getDownloadURL();
+
+      const nickname = localStorage.getItem('name_' + userId) || '회원';
+      const comment = document.getElementById('owunwan-comment').value.trim();
+      const now = new Date();
+      const dateLabel = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일';
+
+      const postData = {
+        authorId: userId, nickname,
+        category: '오운완',
+        content: comment || dateLabel + ' 오운완 완료! 💪',
+        photoURL,
+        createdAt: Date.now(),
+        commentCount: 0,
+        owunwanDate: today
+      };
+
+      await db.ref('posts').push(postData);
+
+      // 오운완 기록 저장 + 포인트 지급
+      await db.ref('users/' + userId + '/owunwan/' + today).set(true);
+      await db.ref('users/' + userId + '/points').transaction(cur => (cur || 0) + 30);
+      const pointKey = 'points_' + userId;
+      localStorage.setItem(pointKey, (parseInt(localStorage.getItem(pointKey)||'0') + 30));
+      updateStats();
+
+      closeOwunwanModal();
+      alert('오운완 게시물이 올라갔어요! 🔥\n+30P 포인트가 적립됐어요!');
+      switchTab('community');
+
+    } catch(e) {
+      console.error('오운완 업로드 실패:', e);
+      alert('업로드에 실패했어요.\n오류: ' + (e.message || e));
+      btn.textContent = '오운완 올리기 🔥'; btn.disabled = false;
+    }
+  }
+
+  function closeOwunwanModal() {
+    document.getElementById('owunwan-modal').style.display = 'none';
+    document.getElementById('owunwan-photo-input').value = '';
+    const canvas = document.getElementById('owunwan-canvas');
+    canvas.width = 0; canvas.height = 0;
+  }
   function getToday() { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate(); }
 
   function updateStats() {
