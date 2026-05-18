@@ -780,6 +780,9 @@
     document.getElementById('qr-btn-wrap').style.display = 'none';
     document.getElementById('qr-scanner-wrap').style.display = 'block';
     startQrCamera();
+    setTimeout(() => {
+      document.getElementById('qr-scanner-wrap').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
   }
 
   function stopAttendQr() {
