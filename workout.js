@@ -704,11 +704,9 @@
     const userId = localStorage.getItem('current_user');
     const today = getToday();
     const todayKey = 'attend_' + userId + '_' + today;
-    // 날짜 표시
     const now = new Date();
     const dateEl = document.getElementById('att-today-date');
     if (dateEl) dateEl.textContent = now.getFullYear() + '. ' + (now.getMonth()+1) + '. ' + now.getDate();
-    // Firebase에서 출석 여부 확인
     db.ref('users/' + userId + '/attendance/' + today).once('value', snap => {
       if (snap.exists()) {
         localStorage.setItem(todayKey, 'done');
@@ -716,11 +714,9 @@
         return;
       }
       localStorage.removeItem(todayKey);
-      // 통계 로드
       loadAttendanceStats(userId);
       resetAttendance();
       showScreen('screen-attendance');
-      startQrCamera();
     });
   }
 
@@ -737,7 +733,6 @@
       const pts = snap.val() || 0;
       const elPts = document.getElementById('att-points'); if (elPts) elPts.textContent = pts.toLocaleString();
     });
-    // GPS 상태 미리 확인
     checkGpsStatus();
   }
 
@@ -748,7 +743,7 @@
     if (!navigator.geolocation) {
       if (gpsText) gpsText.textContent = '위치 확인 불가';
       if (gpsDot)  gpsDot.style.background = '#ef4444';
-      if (gpsCard) gpsCard.style.background = '#fef2f2';
+      if (gpsCard) { gpsCard.style.background = '#fef2f2'; gpsCard.style.borderColor = '#fca5a5'; }
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -775,8 +770,22 @@
 
   function resetAttendance() {
     stopQrCamera();
+    document.getElementById('qr-btn-wrap').style.display = 'block';
+    document.getElementById('qr-scanner-wrap').style.display = 'none';
     const statusEl = document.getElementById('qr-status-msg');
     if (statusEl) statusEl.textContent = 'QR코드를 네모 안에 맞춰주세요';
+  }
+
+  function startAttendQr() {
+    document.getElementById('qr-btn-wrap').style.display = 'none';
+    document.getElementById('qr-scanner-wrap').style.display = 'block';
+    startQrCamera();
+  }
+
+  function stopAttendQr() {
+    stopQrCamera();
+    document.getElementById('qr-scanner-wrap').style.display = 'none';
+    document.getElementById('qr-btn-wrap').style.display = 'block';
   }
 
   async function startQrCamera() {
