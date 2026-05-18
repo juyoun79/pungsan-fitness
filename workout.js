@@ -702,9 +702,20 @@
 
   function openAttendance() {
     const userId = localStorage.getItem('current_user');
-    const todayKey = 'attend_' + userId + '_' + getToday();
-    if (localStorage.getItem(todayKey) === 'done') { alert('오늘은 이미 출석체크를 완료했어요! 내일 또 만나요 😊'); return; }
-    resetAttendance(); showScreen('screen-attendance');
+    const today = getToday();
+    const todayKey = 'attend_' + userId + '_' + today;
+    // Firebase에서 출석 여부 확인 (로컬 캐시보다 우선)
+    db.ref('users/' + userId + '/attendance/' + today).once('value', snap => {
+      if (snap.exists()) {
+        localStorage.setItem(todayKey, 'done');
+        alert('오늘은 이미 출석체크를 완료했어요! 내일 또 만나요 😊');
+        return;
+      }
+      // Firebase에 없으면 로컬도 초기화
+      localStorage.removeItem(todayKey);
+      resetAttendance();
+      showScreen('screen-attendance');
+    });
   }
 
   function resetAttendance() {
