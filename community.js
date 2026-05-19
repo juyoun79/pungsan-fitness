@@ -182,7 +182,7 @@
     // display:none이어도 innerHTML은 업데이트 가능
     el.innerHTML = showList.map(n => {
       const isNew  = !n.read;
-      const text   = n.type === 'reply' ? '내 댓글에 답글을 달았어요' : '내 게시글에 댓글을 달았어요';
+      const text   = n.type === 'reply' ? '내 댓글에 답글을 달았어요' : n.type === 'like' ? '내 게시글을 좋아합니다 ❤️' : '내 게시글에 댓글을 달았어요';
       const border = isNew ? '#1a6fd4' : 'var(--border)';
       const dot    = isNew ? '#ef4444' : 'transparent';
       const fw     = isNew ? '700' : '500';
@@ -211,7 +211,7 @@
     wrap.style.display = 'block';
     el.innerHTML = list.map(n => {
       const isNew  = !n.read;
-      const text   = n.type === 'reply' ? '내 댓글에 답글을 달았어요' : '내 게시글에 댓글을 달았어요';
+      const text   = n.type === 'reply' ? '내 댓글에 답글을 달았어요' : n.type === 'like' ? '내 게시글을 좋아합니다 ❤️' : '내 게시글에 댓글을 달았어요';
       const border = isNew ? '#1a6fd4' : 'var(--border)';
       const dot    = isNew ? '#ef4444' : 'transparent';
       const fw     = isNew ? '700' : '500';
@@ -278,7 +278,7 @@
     }
     el.innerHTML = list.map(n => {
       const isNew  = !n.read;
-      const text   = n.type === 'reply' ? '내 댓글에 답글을 달았어요' : '내 게시글에 댓글을 달았어요';
+      const text   = n.type === 'reply' ? '내 댓글에 답글을 달았어요' : n.type === 'like' ? '내 게시글을 좋아합니다 ❤️' : '내 게시글에 댓글을 달았어요';
       const bg     = isNew ? 'rgba(26,111,212,0.07)' : 'var(--card)';
       const dot    = isNew ? '#ef4444' : 'transparent';
       const fw     = isNew ? '700' : '500';
@@ -809,7 +809,7 @@
     const likeRef = db.ref('posts/' + postId + '/likes/' + userId);
     likeRef.once('value').then(snap => {
       if (snap.exists()) {
-        // 좋아요 취소 → 작성자 포인트 -1
+        // 좋아요 취소 → 작성자 포인트 -1 + 알림 삭제
         likeRef.remove();
         btn.classList.remove('liked');
         btn.querySelector('svg').setAttribute('fill','none');
@@ -822,9 +822,18 @@
               if (post.authorId === userId && typeof updateStats === 'function') updateStats();
             }
           });
+          // 좋아요 알림 삭제
+          db.ref('notifications/' + post.authorId).once('value', notifSnap => {
+            notifSnap.forEach(child => {
+              const n = child.val();
+              if (n.type === 'like' && n.postId === postId && n.likerId === userId) {
+                db.ref('notifications/' + post.authorId + '/' + child.key).remove();
+              }
+            });
+          });
         }
       } else {
-        // 좋아요 → 작성자 포인트 +1
+        // 좋아요 → 작성자 포인트 +1 + 알림 저장
         likeRef.set(true);
         btn.classList.add('liked');
         btn.querySelector('svg').setAttribute('fill','#ef4444');
@@ -842,6 +851,17 @@
                 if (post.authorId === userId && typeof updateStats === 'function') updateStats();
               });
             }
+          });
+          // 좋아요 알림 저장
+          const likerNick = localStorage.getItem('nickname_' + userId) || localStorage.getItem('name_' + userId) || '회원';
+          db.ref('notifications/' + post.authorId).push({
+            type: 'like',
+            postId: postId,
+            postTitle: (post.content || '').substring(0, 30),
+            writerName: likerNick,
+            likerId: userId,
+            createdAt: Date.now(),
+            read: false
           });
         }
       }
