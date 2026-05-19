@@ -3190,6 +3190,7 @@
     event.target.style.borderColor = '#7F77DD';
     if (tabId === 'coupon-list') loadAdminCouponList();
     if (tabId === 'coupon-auto') loadAutoConditions();
+    if (tabId === 'coupon-points') loadPointSettings();
   }
 
   function toggleCouponValueLabel() {
@@ -3615,6 +3616,199 @@
         const birth = snap.val();
         localStorage.setItem('body_birth_' + userId, birth);
         el.textContent = formatBirth(birth);
+      }
+    });
+  }
+
+
+  // ── 포인트 설정 ──
+
+  function loadPointSettings() {
+    db.ref('point_settings').once('value', snap => {
+      const s = snap.val() || {};
+      document.getElementById('pts-owunwan').value = s.owunwan ?? 10;
+      document.getElementById('pts-attend').value  = s.attend  ?? 2;
+      document.getElementById('pts-diet').value    = s.diet    ?? 0;
+      document.getElementById('pts-tip').value     = s.tip     ?? 0;
+      document.getElementById('pts-free').value    = s.free    ?? 0;
+    });
+    loadPointTiers();
+  }
+
+  function savePointSettings() {
+    const data = {
+      owunwan: parseInt(document.getElementById('pts-owunwan').value) || 0,
+      attend:  parseInt(document.getElementById('pts-attend').value)  || 0,
+      diet:    parseInt(document.getElementById('pts-diet').value)    || 0,
+      tip:     parseInt(document.getElementById('pts-tip').value)     || 0,
+      free:    parseInt(document.getElementById('pts-free').value)    || 0,
+    };
+    db.ref('point_settings').set(data);
+  }
+
+  // 포인트 달성 구간 관리
+  let pointTiers = [];
+
+  function loadPointTiers() {
+    db.ref('point_tiers').once('value', snap => {
+      pointTiers = [];
+      if (snap.exists()) snap.forEach(child => pointTiers.push({ id: child.key, ...child.val() }));
+      if (pointTiers.length === 0) {
+        // 기본 구간 2개
+        pointTiers = [
+          { id: null, points: 200, type: 'repeat', couponType: 'drink', couponName: '음료 쿠폰', active: true },
+          { id: null, points: 1000, type: 'once', couponType: 'discount', couponName: '재등록 5% 할인', active: false }
+        ];
+      }
+      renderPointTiers();
+    });
+  }
+
+  function renderPointTiers() {
+    const list = document.getElementById('point-tiers-list');
+    if (!list) return;
+    list.innerHTML = '';
+    pointTiers.forEach((tier, idx) => {
+      const couponTypes = [
+        {v:'drink', l:'음료 쿠폰'}, {v:'americano', l:'아메리카노 쿠폰'},
+        {v:'free', l:'무료 횟수'}, {v:'discount', l:'할인 (%)'},
+        {v:'extend', l:'기간 연장 (일)'}
+      ];
+      const opts = couponTypes.map(c => `<option value="${c.v}" ${tier.couponType===c.v?'selected':''}>${c.l}</option>`).join('');
+      const needValue = ['free','discount','extend'].includes(tier.couponType);
+      list.innerHTML += `
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-size:13px;font-weight:600;color:var(--text);">구간 ${idx+1}</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <label style="position:relative;display:inline-block;width:44px;height:24px;">
+                <input type="checkbox" ${tier.active?'checked':''} onchange="togglePointTier(${idx},this.checked)" style="opacity:0;width:0;height:0;">
+                <span style="position:absolute;cursor:pointer;inset:0;background:${tier.active?'#7F77DD':'#ccc'};border-radius:24px;transition:0.3s;">
+                  <span style="position:absolute;top:2px;left:${tier.active?'22':'2'}px;width:20px;height:20px;background:#fff;border-radius:50%;transition:0.3s;"></span>
+                </span>
+              </label>
+              <button onclick="removePointTier(${idx})" style="background:none;border:none;color:#ef4444;font-size:18px;cursor:pointer;">×</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+            <div>
+              <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">달성 포인트</div>
+              <div style="display:flex;align-items:center;gap:4px;">
+                <input type="number" value="${tier.points}" min="1" onchange="updatePointTier(${idx},'points',this.value)"
+                  style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+                <span style="font-size:12px;color:var(--text-hint);white-space:nowrap;">P</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">발행 방식</div>
+              <select onchange="updatePointTier(${idx},'type',this.value)"
+                style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+                <option value="repeat" ${tier.type==='repeat'?'selected':''}>반복형</option>
+                <option value="once" ${tier.type==='once'?'selected':''}>1회형</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr ${needValue?'1fr':''}; gap:8px;">
+            <div>
+              <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">쿠폰 종류</div>
+              <select onchange="updatePointTier(${idx},'couponType',this.value);renderPointTiers()"
+                style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+                ${opts}
+              </select>
+            </div>
+            ${needValue ? `<div>
+              <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">${tier.couponType==='discount'?'할인율(%)':tier.couponType==='extend'?'연장(일)':'횟수'}</div>
+              <input type="number" value="${tier.couponValue||1}" min="1" onchange="updatePointTier(${idx},'couponValue',this.value)"
+                style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+            </div>` : ''}
+          </div>
+          <div style="margin-top:8px;">
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">쿠폰 이름</div>
+            <input type="text" value="${tier.couponName||''}" placeholder="쿠폰 이름 입력" onchange="updatePointTier(${idx},'couponName',this.value)"
+              style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+          </div>
+          <div style="margin-top:6px;font-size:11px;color:var(--text-hint);">
+            ${tier.type==='repeat' ? `🔄 ${tier.points}P마다 반복 발행` : `1️⃣ ${tier.points}P 달성 시 1회만 발행`}
+          </div>
+        </div>`;
+    });
+  }
+
+  function addPointTier() {
+    pointTiers.push({ id: null, points: 500, type: 'once', couponType: 'drink', couponName: '', active: true });
+    savePointTiers();
+    renderPointTiers();
+  }
+
+  function removePointTier(idx) {
+    if (!confirm('이 구간을 삭제할까요?')) return;
+    pointTiers.splice(idx, 1);
+    savePointTiers();
+    renderPointTiers();
+  }
+
+  function togglePointTier(idx, val) {
+    pointTiers[idx].active = val;
+    savePointTiers();
+  }
+
+  function updatePointTier(idx, key, val) {
+    pointTiers[idx][key] = key === 'points' ? parseInt(val) : val;
+    savePointTiers();
+  }
+
+  function savePointTiers() {
+    const data = {};
+    pointTiers.forEach((t, i) => { data['tier_' + i] = { points: t.points, type: t.type, couponType: t.couponType, couponName: t.couponName, couponValue: t.couponValue||1, active: t.active }; });
+    db.ref('point_tiers').set(data);
+  }
+
+  // 포인트 달성 쿠폰 자동 발행 체크
+  function checkPointTierCoupons(userId, newPoints) {
+    db.ref('point_tiers').once('value', snap => {
+      if (!snap.exists()) return;
+      snap.forEach(child => {
+        const tier = child.val();
+        if (!tier.active) return;
+        const expireDays = 30;
+        const expireDate = new Date(); expireDate.setDate(expireDate.getDate() + expireDays);
+        const expire = expireDate.toISOString().slice(0,10);
+
+        if (tier.type === 'repeat') {
+          // 반복형: 몇 번째 구간인지 계산
+          const prevCount = Math.floor((newPoints - 1) / tier.points);
+          const newCount  = Math.floor(newPoints / tier.points);
+          if (newCount > prevCount) {
+            issueCouponToUser(userId, tier, expire);
+          }
+        } else if (tier.type === 'once') {
+          // 1회형: 이전엔 미달, 지금 달성
+          db.ref('point_tier_issued/' + userId + '/' + child.key).once('value', flagSnap => {
+            if (!flagSnap.exists() && newPoints >= tier.points) {
+              issueCouponToUser(userId, tier, expire);
+              db.ref('point_tier_issued/' + userId + '/' + child.key).set(true);
+            }
+          });
+        }
+      });
+    });
+  }
+
+  function issueCouponToUser(userId, tier, expire) {
+    const couponData = {
+      name: tier.couponName || '포인트 달성 쿠폰',
+      type: tier.couponType,
+      value: tier.couponValue || 1,
+      expire, limit: '1', memo: '포인트 달성 자동 발행',
+      issuedAt: new Date().toISOString(), used: false, auto: true
+    };
+    db.ref('coupons/' + userId).push(couponData).then(() => {
+      // 내 쿠폰 카운트 갱신
+      const countEl = document.getElementById('my-coupon-count');
+      if (countEl) {
+        const cur = parseInt(countEl.textContent) || 0;
+        countEl.textContent = (cur + 1) + '장';
+        countEl.style.display = 'inline';
       }
     });
   }

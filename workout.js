@@ -887,13 +887,19 @@
     const userId = localStorage.getItem('current_user');
     const today = getToday();
     db.ref('users/' + userId + '/attendance/' + today).set(true);
-    db.ref('users/' + userId + '/points').transaction(cur => (cur || 0) + 10);
+    db.ref('point_settings/attend').once('value', snap => {
+      const attendPts = snap.val() ?? 2;
+      let newPoints = 0;
+      db.ref('users/' + userId + '/points').transaction(cur => {
+        newPoints = (cur || 0) + attendPts;
+        return newPoints;
+      }).then(() => {
+        if (typeof checkPointTierCoupons === 'function') checkPointTierCoupons(userId, newPoints);
+        updateStats();
+      });
+    });
     const todayKey = 'attend_' + userId + '_' + today;
     localStorage.setItem(todayKey, 'done');
-    const pointKey = 'points_' + userId;
-    const cur = parseInt(localStorage.getItem(pointKey) || '0');
-    localStorage.setItem(pointKey, cur + 10);
-    updateStats();
     const nick = localStorage.getItem('name_' + userId) || '회원';
     const now = new Date();
     document.getElementById('attend-complete-msg').textContent = nick + '님, 오늘도 운동 완료! 💪';
@@ -1171,15 +1177,20 @@
 
       await db.ref('posts').push(postData);
 
-      // 오운완 기록 저장 + 포인트 지급
+      // 오운완 기록 저장 + 포인트 지급 (Firebase 설정값 기준)
       await db.ref('users/' + userId + '/owunwan/' + today).set(true);
-      await db.ref('users/' + userId + '/points').transaction(cur => (cur || 0) + 100);
-      const pointKey = 'points_' + userId;
-      localStorage.setItem(pointKey, (parseInt(localStorage.getItem(pointKey)||'0') + 100));
+      const ptSnap = await db.ref('point_settings/owunwan').once('value');
+      const owunwanPts = ptSnap.val() ?? 10;
+      let newPoints = 0;
+      await db.ref('users/' + userId + '/points').transaction(cur => {
+        newPoints = (cur || 0) + owunwanPts;
+        return newPoints;
+      });
+      if (typeof checkPointTierCoupons === 'function') checkPointTierCoupons(userId, newPoints);
       updateStats();
 
       closeOwunwanModal();
-      alert('오운완 게시물이 올라갔어요! 🔥\n+100P 포인트가 적립됐어요!');
+      alert('오운완 게시물이 올라갔어요! 🔥\n+' + owunwanPts + 'P 포인트가 적립됐어요!');
       switchTab('community');
 
     } catch(e) {

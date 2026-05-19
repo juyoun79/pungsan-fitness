@@ -1713,6 +1713,7 @@
         <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
           <button class="coupon-sub-tab active" onclick="switchCouponTab('coupon-issue')" style="padding:7px 14px;border-radius:20px;border:1px solid #7F77DD;background:#7F77DD;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수동 발행</button>
           <button class="coupon-sub-tab" onclick="switchCouponTab('coupon-auto')" style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg);color:var(--text-sub);font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">자동 조건</button>
+          <button class="coupon-sub-tab" onclick="switchCouponTab('coupon-points')" style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg);color:var(--text-sub);font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">포인트 설정</button>
           <button class="coupon-sub-tab" onclick="switchCouponTab('coupon-list')" style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg);color:var(--text-sub);font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">발행 목록</button>
         </div>
 
@@ -1949,6 +1950,90 @@
               </div>
             </div>
 
+          </div>
+        </div>
+
+
+        <!-- 포인트 설정 섹션 -->
+        <div id="coupon-points" class="coupon-section" style="display:none;">
+          <div class="admin-card">
+            <div class="admin-card-title">📊 활동별 포인트 적립 설정</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:16px;">활동 시 지급할 포인트를 설정해요. 삭제 시 동일한 값이 차감돼요.</div>
+
+            <div style="display:grid;gap:10px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);">
+                <div>
+                  <div style="font-size:14px;font-weight:600;color:var(--text);">💪 오운완 게시물</div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">등록 시 적립 / 삭제 시 차감</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <input id="pts-owunwan" type="number" min="0" value="10" onchange="savePointSettings()"
+                    style="width:60px;padding:8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:16px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+                  <span style="font-size:13px;font-weight:600;color:var(--text-hint);">P</span>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);">
+                <div>
+                  <div style="font-size:14px;font-weight:600;color:var(--text);">✅ 출석체크</div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">출석 1회당 적립</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <input id="pts-attend" type="number" min="0" value="2" onchange="savePointSettings()"
+                    style="width:60px;padding:8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:16px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+                  <span style="font-size:13px;font-weight:600;color:var(--text-hint);">P</span>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);">
+                <div>
+                  <div style="font-size:14px;font-weight:600;color:var(--text);">🥗 식단 게시물</div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">0이면 미적용</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <input id="pts-diet" type="number" min="0" value="0" onchange="savePointSettings()"
+                    style="width:60px;padding:8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:16px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+                  <span style="font-size:13px;font-weight:600;color:var(--text-hint);">P</span>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);">
+                <div>
+                  <div style="font-size:14px;font-weight:600;color:var(--text);">📋 운동팁 게시물</div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">0이면 미적용</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <input id="pts-tip" type="number" min="0" value="0" onchange="savePointSettings()"
+                    style="width:60px;padding:8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:16px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+                  <span style="font-size:13px;font-weight:600;color:var(--text-hint);">P</span>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);">
+                <div>
+                  <div style="font-size:14px;font-weight:600;color:var(--text);">💬 자유 게시물</div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">0이면 미적용</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <input id="pts-free" type="number" min="0" value="0" onchange="savePointSettings()"
+                    style="width:60px;padding:8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:16px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+                  <span style="font-size:13px;font-weight:600;color:var(--text-hint);">P</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 포인트 달성 쿠폰 구간 설정 -->
+          <div class="admin-card" style="margin-top:12px;">
+            <div class="admin-card-title">🎫 포인트 달성 쿠폰 구간 설정</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:16px;">특정 포인트 달성 시 자동으로 쿠폰을 발행해요</div>
+
+            <div id="point-tiers-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px;"></div>
+
+            <button onclick="addPointTier()"
+              style="width:100%;padding:11px;background:var(--bg);border:1.5px dashed #7F77DD;border-radius:var(--radius);color:#7F77DD;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+              + 구간 추가
+            </button>
           </div>
         </div>
 
