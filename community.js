@@ -663,31 +663,36 @@
       communityListener = null;
     }
 
-    // 관리자일 때 회원 실명 미리 캐싱
     const userId = localStorage.getItem('current_user');
     const isAdmin = userId === ADMIN_ID;
+
+    const startFeedListener = () => {
+      communityListener = db.ref('posts').on('value', snap => {
+        allCommunityPosts = [];
+        snap.forEach(child => {
+          const val = child.val();
+          if (val && (val.authorId || val.userId) && (val.nickname || val.name)) {
+            allCommunityPosts.push({ id: child.key, ...val });
+          }
+        });
+        allCommunityPosts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        renderCommunityFeed();
+      });
+    };
+
+    // 관리자일 때 회원 실명 미리 캐싱 완료 후 피드 로드
     if (isAdmin) {
       db.ref('members').once('value', snap => {
         window.memberCache = {};
         snap.forEach(child => {
           window.memberCache[child.key] = child.val().name || '';
-          // role도 캐싱
           if (child.val().role) localStorage.setItem('role_' + child.key, child.val().role);
         });
+        startFeedListener();
       });
+    } else {
+      startFeedListener();
     }
-
-    communityListener = db.ref('posts').on('value', snap => {
-      allCommunityPosts = [];
-      snap.forEach(child => {
-        const val = child.val();
-        if (val && (val.authorId || val.userId) && (val.nickname || val.name)) {
-          allCommunityPosts.push({ id: child.key, ...val });
-        }
-      });
-      allCommunityPosts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      renderCommunityFeed();
-    });
   }
 
   // ── 피드 카드 빌더 (작성자 클릭 기능 포함) ──
@@ -724,8 +729,10 @@
     const isAdminOrStaff = isAdmin || curRole === 'trainer' || curRole === 'manager';
     // 관리자 실명 표시 - memberCache 또는 localStorage에서 읽기
     const realNameStr = (window.memberCache && window.memberCache[post.authorId]) || localStorage.getItem('name_' + post.authorId) || '';
-    const realNameDisplay = isAdmin && realNameStr
+    const realNameDisplay = isAdmin && realNameStr && realNameStr !== post.nickname
       ? ` <span style="font-size:11px;color:var(--text-hint);">${realNameStr}${isAuthorStaff ? ' [직원]' : ''}</span>`
+      : isAdmin && isAuthorStaff && realNameStr
+      ? ` <span style="font-size:11px;color:var(--text-hint);">[직원]</span>`
       : '';
     return `
       <div class="feed-card">
