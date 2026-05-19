@@ -188,13 +188,13 @@
 
       <!-- 생년월일 -->
       <div class="field-wrap" style="margin-bottom:0;">
-        <label class="field-label">생년월일 (선택)</label>
+        <label class="field-label">생년월일</label>
         <div style="position:relative;margin-top:6px;">
-          <input type="number" id="body-birth" placeholder="19791012" maxlength="8"
+          <input type="number" id="body-birth" placeholder="20110101" maxlength="8"
             style="width:100%;box-sizing:border-box;padding:12px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:18px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;"
             onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
         </div>
-        <div style="font-size:12px;color:var(--text-hint);margin-top:4px;">예) 1979년 10월 12일 → 19791012</div>
+        <div style="font-size:12px;color:var(--text-hint);margin-top:4px;">예) 2011년 01월 01일 → 20110101</div>
       </div>
 
     </div>
@@ -563,10 +563,10 @@
   <div id="edit-birth-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;display:none;align-items:center;justify-content:center;">
     <div style="background:var(--card);border-radius:var(--radius);padding:24px;width:88%;max-width:360px;">
       <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:16px;">🎂 생년월일 수정</div>
-      <input type="number" id="edit-birth-input" placeholder="19791012" maxlength="8"
+      <input type="number" id="edit-birth-input" placeholder="20110101" maxlength="8"
         style="width:100%;box-sizing:border-box;padding:13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:18px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;margin-bottom:6px;"
         onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
-      <div style="font-size:12px;color:var(--text-hint);margin-bottom:16px;">예) 1979년 10월 12일 → 19791012</div>
+      <div style="font-size:12px;color:var(--text-hint);margin-bottom:16px;">예) 2011년 01월 01일 → 20110101</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <button onclick="closeEditBirth()" style="padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;color:var(--text);">취소</button>
         <button onclick="saveEditBirth()" style="padding:12px;background:var(--blue);border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;color:#fff;">저장</button>
@@ -1614,10 +1614,10 @@
 
           <div class="field-wrap" style="margin-top:12px;">
             <label class="field-label">생년월일</label>
-            <input type="number" id="reg-birth" placeholder="19791012" maxlength="8"
+            <input type="number" id="reg-birth" placeholder="20110101" maxlength="8"
               style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;"
               onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
-            <div class="hint-text">예) 1979년 10월 12일 → 19791012</div>
+            <div class="hint-text">예) 2011년 01월 01일 → 20110101</div>
           </div>
 
           <button class="btn-primary" style="margin-top:16px;" onclick="registerMember()">✅ 회원 등록하기</button>
