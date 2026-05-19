@@ -663,11 +663,24 @@
       communityListener = null;
     }
 
+    // 관리자일 때 회원 실명 미리 캐싱
+    const userId = localStorage.getItem('current_user');
+    const isAdmin = userId === ADMIN_ID;
+    if (isAdmin) {
+      db.ref('members').once('value', snap => {
+        window.memberCache = {};
+        snap.forEach(child => {
+          window.memberCache[child.key] = child.val().name || '';
+          // role도 캐싱
+          if (child.val().role) localStorage.setItem('role_' + child.key, child.val().role);
+        });
+      });
+    }
+
     communityListener = db.ref('posts').on('value', snap => {
       allCommunityPosts = [];
       snap.forEach(child => {
         const val = child.val();
-        // 작성자 정보 없는 이상한 게시물 제외
         if (val && (val.authorId || val.userId) && (val.nickname || val.name)) {
           allCommunityPosts.push({ id: child.key, ...val });
         }
@@ -709,7 +722,8 @@
     const isAuthorStaff = authorRole === 'trainer' || authorRole === 'manager';
     const curRole = localStorage.getItem('role_' + userId);
     const isAdminOrStaff = isAdmin || curRole === 'trainer' || curRole === 'manager';
-    const realNameStr = localStorage.getItem('name_' + post.authorId) || '';
+    // 관리자 실명 표시 - memberCache 또는 localStorage에서 읽기
+    const realNameStr = (window.memberCache && window.memberCache[post.authorId]) || localStorage.getItem('name_' + post.authorId) || '';
     const realNameDisplay = isAdmin && realNameStr
       ? ` <span style="font-size:11px;color:var(--text-hint);">${realNameStr}${isAuthorStaff ? ' [직원]' : ''}</span>`
       : '';

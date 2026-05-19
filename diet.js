@@ -976,10 +976,10 @@
         return `
           <div style="padding:8px 0;border-bottom:1px solid var(--border);${indent}">
             <div style="display:flex;gap:8px;align-items:flex-start;">
-              <div style="width:${avatarSize}px;height:${avatarSize}px;border-radius:50%;background:${avatarBg};color:white;display:flex;align-items:center;justify-content:center;font-size:${isReply?11:13}px;font-weight:700;flex-shrink:0;">${(maskName(c.nickname||'?', isAdmin))[0]}</div>
+              <div style="width:${avatarSize}px;height:${avatarSize}px;border-radius:50%;background:${avatarBg};color:white;display:flex;align-items:center;justify-content:center;font-size:${isReply?11:13}px;font-weight:700;flex-shrink:0;">${(c.nickname||'?')[0]}</div>
               <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:3px;">
-                  <span style="font-size:13px;font-weight:700;color:var(--text);">${maskName(c.nickname, isAdmin)}</span>
+                  <span style="font-size:13px;font-weight:700;color:var(--text);">${c.nickname||'회원'}</span>
                   ${replyTag}
                   <span style="font-size:11px;color:var(--text-hint);">${getTimeAgo(c.createdAt)}</span>
                   <button onclick="startReply('${c.id}','${(c.nickname||'').replace(/'/g,"\\'")}')" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:11px;font-weight:600;font-family:'Noto Sans KR',sans-serif;padding:0;">↩️ 답글</button>
