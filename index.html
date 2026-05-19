@@ -3960,7 +3960,9 @@
   }
 
   function goHome(nickname, forceHome) {
-    document.getElementById('home-nickname').textContent = nickname + '님';
+    const userId = localStorage.getItem('current_user');
+    const displayName = localStorage.getItem('nickname_' + userId) || nickname;
+    document.getElementById('home-nickname').textContent = displayName + '님';
     if (typeof updateStats === 'function') updateStats();
     loadHomeNotices();
     loadHomeWeightCard();
@@ -4058,11 +4060,13 @@
           localStorage.setItem('name_' + userId, memberName);
           const role = snap.val().role || 'member';
           localStorage.setItem('role_' + userId, role);
+          const nickname = snap.val().nickname || localStorage.getItem('nickname_' + userId) || memberName;
+          localStorage.setItem('nickname_' + userId, nickname);
           const hasBodyInfo = localStorage.getItem('body_weight_' + userId);
           if (!hasBodyInfo) {
             showScreen('screen-nickname');
           } else {
-            goHome(memberName);
+            goHome(nickname);
           }
         } else {
           // members에 없으면 users에서 확인 (강사/매니저 계정)
@@ -4073,11 +4077,13 @@
               localStorage.setItem('name_' + userId, memberName);
               const role = user.role || 'member';
               localStorage.setItem('role_' + userId, role);
+              const nickname = user.nickname || localStorage.getItem('nickname_' + userId) || memberName;
+              localStorage.setItem('nickname_' + userId, nickname);
               const hasBodyInfo = localStorage.getItem('body_weight_' + userId);
               if (!hasBodyInfo) {
                 showScreen('screen-nickname');
               } else {
-                goHome(memberName);
+                goHome(nickname);
               }
             } else {
               localStorage.removeItem('current_user');
@@ -4087,7 +4093,7 @@
           });
         }
       }).catch(() => {
-        const savedName = localStorage.getItem('name_' + userId) || userId;
+        const savedName = localStorage.getItem('nickname_' + userId) || localStorage.getItem('name_' + userId) || userId;
         const hasBodyInfo = localStorage.getItem('body_weight_' + userId);
         if (!hasBodyInfo) showScreen('screen-nickname');
         else goHome(savedName);
