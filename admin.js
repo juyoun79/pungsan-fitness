@@ -3590,7 +3590,16 @@
       expire, limit: '1', memo: '자동 발행',
       issuedAt: new Date().toISOString(), used: false, auto: true
     };
-    db.ref('coupons/' + userId).push(couponData);
+    db.ref('coupons/' + userId).push(couponData).then(ref => {
+      const loggedIn = localStorage.getItem('current_user');
+      if (loggedIn === userId) {
+        const shownKey = 'coupon_shown_' + userId;
+        const shownList = JSON.parse(localStorage.getItem(shownKey) || '[]');
+        shownList.push(ref.key);
+        localStorage.setItem(shownKey, JSON.stringify(shownList));
+        setTimeout(() => showCouponArrive({ id: ref.key, ...couponData }), 500);
+      }
+    });
   }
 
 
@@ -3847,13 +3856,83 @@
       expire, limit: '1', memo: '포인트 달성 자동 발행',
       issuedAt: new Date().toISOString(), used: false, auto: true
     };
-    db.ref('coupons/' + userId).push(couponData).then(() => {
-      // 내 쿠폰 카운트 갱신
+    db.ref('coupons/' + userId).push(couponData).then(ref => {
       const countEl = document.getElementById('my-coupon-count');
       if (countEl) {
         const cur = parseInt(countEl.textContent) || 0;
         countEl.textContent = (cur + 1) + '장';
         countEl.style.display = 'inline';
+      }
+      // 현재 로그인된 회원 본인이면 즉시 팝업
+      const loggedIn = localStorage.getItem('current_user');
+      if (loggedIn === userId) {
+        const shownKey = 'coupon_shown_' + userId;
+        const shownList = JSON.parse(localStorage.getItem(shownKey) || '[]');
+        shownList.push(ref.key);
+        localStorage.setItem(shownKey, JSON.stringify(shownList));
+        setTimeout(() => showCouponArrive({ id: ref.key, ...couponData }), 500);
+      }
+    });
+  }
+
+
+  // ── 쿠폰 도착 팝업 ──
+  function showCouponArrive(coupon) {
+    const modal = document.getElementById('coupon-arrive-modal');
+    if (!modal) return;
+
+    const typeLabel = coupon.type === 'free' ? `무료 ${coupon.value}회`
+      : coupon.type === 'discount' ? `${coupon.value}% 할인`
+      : coupon.type === 'extend' ? `${coupon.value}일 연장`
+      : coupon.type === 'drink' ? '음료 1잔'
+      : coupon.type === 'americano' ? '아메리카노 1잔' : '';
+
+    const icon = coupon.name.includes('생일') ? '🎂'
+      : coupon.type === 'drink' || coupon.type === 'americano' ? '☕'
+      : coupon.type === 'discount' ? '🏷️' : '🎫';
+
+    const iconBg = coupon.name.includes('생일') ? '#FBEAF0'
+      : coupon.type === 'americano' || coupon.type === 'drink' ? '#FEF3C7'
+      : '#EEEDFE';
+
+    document.getElementById('coupon-arrive-icon').textContent = icon;
+    document.getElementById('coupon-arrive-icon').style.background = iconBg;
+    document.getElementById('coupon-arrive-sub').textContent = coupon.memo || '자동 발행';
+    document.getElementById('coupon-arrive-name').textContent = coupon.name;
+    document.getElementById('coupon-arrive-badge').textContent = typeLabel;
+    document.getElementById('coupon-arrive-exp').textContent = '~ ' + coupon.expire + '까지';
+
+    modal.style.display = 'flex';
+  }
+
+  function closeCouponArrive() {
+    const modal = document.getElementById('coupon-arrive-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function closeCouponArriveAndOpen() {
+    closeCouponArrive();
+    if (typeof openMyCoupons === 'function') openMyCoupons();
+  }
+
+  // 로그인 시 미확인 쿠폰 체크
+  function checkNewCoupons(userId) {
+    const shownKey = 'coupon_shown_' + userId;
+    const shownList = JSON.parse(localStorage.getItem(shownKey) || '[]');
+
+    db.ref('coupons/' + userId).once('value', snap => {
+      if (!snap.exists()) return;
+      let newCoupon = null;
+      snap.forEach(child => {
+        if (!shownList.includes(child.key)) {
+          newCoupon = { id: child.key, ...child.val() };
+          return true; // 첫 번째 미확인 쿠폰만
+        }
+      });
+      if (newCoupon) {
+        shownList.push(newCoupon.id);
+        localStorage.setItem(shownKey, JSON.stringify(shownList));
+        setTimeout(() => showCouponArrive(newCoupon), 1000);
       }
     });
   }

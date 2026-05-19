@@ -574,6 +574,29 @@
     </div>
   </div>
 
+  <!-- 쿠폰 도착 팝업 -->
+  <div id="coupon-arrive-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;padding:24px;">
+    <div style="background:var(--card);border-radius:16px;padding:18px;width:100%;max-width:320px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <div id="coupon-arrive-icon" style="width:36px;height:36px;border-radius:10px;background:#EEEDFE;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🎫</div>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);">쿠폰이 도착했어요!</div>
+          <div id="coupon-arrive-sub" style="font-size:11px;color:var(--text-hint);margin-top:1px;"></div>
+        </div>
+      </div>
+      <div style="height:0.5px;background:var(--border);margin-bottom:12px;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <div id="coupon-arrive-name" style="font-size:13px;font-weight:700;color:var(--text);"></div>
+        <div id="coupon-arrive-badge" style="font-size:10px;padding:2px 8px;border-radius:6px;background:#EEEDFE;color:#3C3489;"></div>
+      </div>
+      <div id="coupon-arrive-exp" style="font-size:10px;color:var(--text-hint);margin-bottom:14px;"></div>
+      <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;">
+        <button onclick="closeCouponArrive()" style="padding:6px 12px;background:none;border:none;color:var(--text-hint);font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">닫기</button>
+        <button onclick="closeCouponArriveAndOpen()" style="padding:6px 14px;background:#7F77DD;border:none;border-radius:8px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">내 쿠폰 보기</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 내 쿠폰 모달 -->
   <div id="my-coupon-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;overflow-y:auto;">
     <div style="background:var(--bg);min-height:100vh;max-width:480px;margin:0 auto;padding:0 0 40px;">
@@ -3968,6 +3991,8 @@
     loadHomeWeightCard();
     // 자동 쿠폰 조건 체크
     if (typeof checkAutoCoupons === 'function') checkAutoCoupons(localStorage.getItem('current_user'));
+    // 미확인 쿠폰 체크 (로그인 시)
+    if (typeof checkNewCoupons === 'function') setTimeout(() => checkNewCoupons(userId), 1500);
     // 최초 1회 권한 안내 화면 표시
     const permDone = localStorage.getItem('permission_guide_done_' + userId);
     if (!permDone) {
