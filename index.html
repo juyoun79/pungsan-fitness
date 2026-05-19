@@ -193,6 +193,48 @@
 
 
   <!-- ══════════════════════════════
+       권한 안내 화면 (최초 1회)
+  ══════════════════════════════ -->
+  <div id="screen-permission" class="screen" style="padding-bottom:40px;">
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px 24px;">
+      <div style="width:64px;height:64px;border-radius:50%;background:#EEEDFE;display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#7F77DD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px;text-align:center;">앱 권한 안내</div>
+      <div style="font-size:13px;color:var(--text-hint);text-align:center;line-height:1.6;margin-bottom:24px;">원활한 앱 이용을 위해 아래 권한이 필요해요.<br>팝업이 뜨면 <strong style="color:#7F77DD;">허용</strong>을 눌러주세요!</div>
+      <div style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:flex-start;gap:12px;margin-bottom:10px;">
+        <div style="width:40px;height:40px;border-radius:50%;background:#EEEDFE;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7F77DD" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:3px;">위치 권한</div>
+          <div style="font-size:12px;color:var(--text-hint);line-height:1.6;">출석체크 시 헬스장 근처인지 확인해요.<br><span style="color:#7F77DD;font-weight:600;">정확한 위치</span>를 꼭 선택해주세요!</div>
+        </div>
+      </div>
+      <div style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:flex-start;gap:12px;margin-bottom:10px;">
+        <div style="width:40px;height:40px;border-radius:50%;background:#E1F5EE;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </div>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:3px;">카메라 권한</div>
+          <div style="font-size:12px;color:var(--text-hint);line-height:1.6;">QR 출석체크와 오운완 사진 촬영에 사용돼요.</div>
+        </div>
+      </div>
+      <div style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:flex-start;gap:12px;margin-bottom:28px;">
+        <div style="width:40px;height:40px;border-radius:50%;background:#FEF3C7;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </div>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:3px;">알림 권한</div>
+          <div style="font-size:12px;color:var(--text-hint);line-height:1.6;">잔여횟수 부족, 공지사항 등 중요한 알림을 받아요.</div>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="confirmPermission()" style="width:100%;">확인했어요!</button>
+      <div style="font-size:11px;color:var(--text-hint);margin-top:12px;text-align:center;">이 안내는 다시 표시되지 않아요.</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
        홈 화면
   ══════════════════════════════ -->
   <div id="screen-home" class="screen">
@@ -893,15 +935,6 @@
           </div>
         </div>
         <div id="att-today-badge" style="background:#fef2f2;color:#b91c1c;font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px;border:1px solid #fca5a5;">미완료</div>
-      </div>
-
-      <!-- 위치 권한 안내 배너 -->
-      <div style="background:#faf5ff;border:1px solid #c4b5fd;border-radius:var(--radius);padding:12px 14px;margin-bottom:12px;display:flex;align-items:flex-start;gap:10px;">
-        <div style="font-size:18px;flex-shrink:0;line-height:1.3;">📍</div>
-        <div>
-          <div style="font-size:13px;font-weight:700;color:#6d28d9;margin-bottom:3px;">위치 권한 안내</div>
-          <div style="font-size:12px;color:#5b21b6;line-height:1.6;">출석체크를 위해 위치 권한이 필요해요.<br>팝업이 뜨면 <strong>정확한 위치</strong>를 꼭 선택해주세요!<br><span style="font-size:11px;color:#7c3aed;">대략적인 위치 선택 시 출석이 안될 수 있어요.</span></div>
-        </div>
       </div>
 
       <!-- GPS 상태 -->
@@ -3309,11 +3342,31 @@
 
   // ── 홈으로 이동 + 팝업 표시 ──
 
+  function confirmPermission() {
+    const userId = localStorage.getItem('current_user');
+    localStorage.setItem('permission_guide_done_' + userId, '1');
+    const pendingNickname = localStorage.getItem('pending_nickname');
+    if (pendingNickname) {
+      localStorage.removeItem('pending_nickname');
+      goHome(pendingNickname, true);
+    } else {
+      showScreen('screen-home');
+    }
+  }
+
   function goHome(nickname, forceHome) {
     document.getElementById('home-nickname').textContent = nickname + '님';
     if (typeof updateStats === 'function') updateStats();
     loadHomeNotices();
     loadHomeWeightCard();
+    // 최초 1회 권한 안내 화면 표시
+    const userId = localStorage.getItem('current_user');
+    const permDone = localStorage.getItem('permission_guide_done_' + userId);
+    if (!permDone) {
+      localStorage.setItem('pending_nickname', nickname);
+      showScreen('screen-permission');
+      return;
+    }
     const userId = localStorage.getItem('current_user');
     // fwIndex localStorage 이상한 데이터 자동 정리
     const fwIndexKey = 'freeweight_index_' + userId;
