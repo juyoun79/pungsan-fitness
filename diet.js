@@ -817,7 +817,7 @@
       const todayStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
       const dietSnap = await db.ref('users/' + userId + '/diet_post_date').once('value');
       if (dietSnap.exists() && dietSnap.val() === todayStr) {
-        alert('오늘은 이미 식단 게시물을 올렸어요! 😊\n내일 다시 올려주세요.');
+        alert('오늘은 이미 식단 게시물을 올렸어요! 😊\n기존 게시물에서 수정해주세요.');
         return;
       }
     }
