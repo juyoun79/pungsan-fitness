@@ -829,6 +829,17 @@
       });
       if (post.owunwanDate) db.ref('users/' + post.authorId + '/owunwan/' + post.owunwanDate).remove();
     }
+    // 식단 게시물 포인트 환수
+    if (post && post.category === '식단' && post.authorId) {
+      const ptKey = post.photoURL ? 'dietPhoto' : 'dietText';
+      db.ref('point_settings/' + ptKey).once('value', snap => {
+        const dietPts = snap.val() ?? (post.photoURL ? 10 : 5);
+        if (dietPts > 0) {
+          db.ref('users/' + post.authorId + '/points').transaction(cur => Math.max(0, (cur || 0) - dietPts));
+          if (typeof updateStats === 'function') updateStats();
+        }
+      });
+    }
     db.ref('posts/' + postId).remove().then(() => {
       if (photoURL) storage.refFromURL(photoURL).delete().catch(() => {});
       // 댓글 데이터 삭제

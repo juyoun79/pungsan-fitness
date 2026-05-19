@@ -3626,22 +3626,24 @@
   function loadPointSettings() {
     db.ref('point_settings').once('value', snap => {
       const s = snap.val() || {};
-      document.getElementById('pts-owunwan').value = s.owunwan ?? 10;
-      document.getElementById('pts-attend').value  = s.attend  ?? 2;
-      document.getElementById('pts-diet').value    = s.diet    ?? 0;
-      document.getElementById('pts-tip').value     = s.tip     ?? 0;
-      document.getElementById('pts-free').value    = s.free    ?? 0;
+      document.getElementById('pts-owunwan').value    = s.owunwan   ?? 10;
+      document.getElementById('pts-attend').value     = s.attend    ?? 2;
+      document.getElementById('pts-diet-text').value  = s.dietText  ?? 5;
+      document.getElementById('pts-diet-photo').value = s.dietPhoto ?? 10;
+      document.getElementById('pts-tip').value        = s.tip       ?? 0;
+      document.getElementById('pts-free').value       = s.free      ?? 0;
     });
     loadPointTiers();
   }
 
   function savePointSettings() {
     const data = {
-      owunwan: parseInt(document.getElementById('pts-owunwan').value) || 0,
-      attend:  parseInt(document.getElementById('pts-attend').value)  || 0,
-      diet:    parseInt(document.getElementById('pts-diet').value)    || 0,
-      tip:     parseInt(document.getElementById('pts-tip').value)     || 0,
-      free:    parseInt(document.getElementById('pts-free').value)    || 0,
+      owunwan:    parseInt(document.getElementById('pts-owunwan').value)    || 0,
+      attend:     parseInt(document.getElementById('pts-attend').value)     || 0,
+      dietText:   parseInt(document.getElementById('pts-diet-text').value)  || 0,
+      dietPhoto:  parseInt(document.getElementById('pts-diet-photo').value) || 0,
+      tip:        parseInt(document.getElementById('pts-tip').value)        || 0,
+      free:       parseInt(document.getElementById('pts-free').value)       || 0,
     };
     db.ref('point_settings').set(data);
   }

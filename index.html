@@ -1985,15 +1985,26 @@
                 </div>
               </div>
 
-              <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);">
-                <div>
-                  <div style="font-size:14px;font-weight:600;color:var(--text);">🥗 식단 게시물</div>
-                  <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">0이면 미적용</div>
-                </div>
-                <div style="display:flex;align-items:center;gap:6px;">
-                  <input id="pts-diet" type="number" min="0" value="0" onchange="savePointSettings()"
-                    style="width:60px;padding:8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:16px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
-                  <span style="font-size:13px;font-weight:600;color:var(--text-hint);">P</span>
+              <div style="padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);">
+                <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">🥗 식단 게시물</div>
+                <div style="font-size:11px;color:var(--text-hint);margin-bottom:10px;">글/사진 여부에 따라 다른 포인트 지급</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                  <div>
+                    <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">글만 올릴 때</div>
+                    <div style="display:flex;align-items:center;gap:4px;">
+                      <input id="pts-diet-text" type="number" min="0" value="5" onchange="savePointSettings()"
+                        style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:16px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+                      <span style="font-size:13px;font-weight:600;color:var(--text-hint);">P</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">사진 포함할 때</div>
+                    <div style="display:flex;align-items:center;gap:4px;">
+                      <input id="pts-diet-photo" type="number" min="0" value="10" onchange="savePointSettings()"
+                        style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:16px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+                      <span style="font-size:13px;font-weight:600;color:var(--text-hint);">P</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 

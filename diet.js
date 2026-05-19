@@ -856,6 +856,23 @@
       };
 
       await db.ref('posts').push(postData);
+
+      // 식단 게시물 포인트 적립
+      if (category === '식단') {
+        const ptKey = photoURL ? 'dietPhoto' : 'dietText';
+        const ptSnap = await db.ref('point_settings/' + ptKey).once('value');
+        const dietPts = ptSnap.val() ?? (photoURL ? 10 : 5);
+        if (dietPts > 0) {
+          let newPoints = 0;
+          await db.ref('users/' + userId + '/points').transaction(cur => {
+            newPoints = (cur || 0) + dietPts;
+            return newPoints;
+          });
+          if (typeof checkPointTierCoupons === 'function') checkPointTierCoupons(userId, newPoints);
+          if (typeof updateStats === 'function') updateStats();
+        }
+      }
+
       const postCat = document.getElementById('post-category')?.value || '식단';
     clearPostDraft(postCat);
     mealPhotos = [null, null, null, null];
