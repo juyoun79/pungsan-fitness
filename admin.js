@@ -1020,7 +1020,7 @@
       let entries = Object.entries(members);
       if (query) {
         entries = entries.filter(([phone, info]) =>
-          info.name.includes(query) || phone.includes(query)
+          (info.name || '').includes(query) || phone.includes(query)
         );
       }
       if (entries.length === 0) {
@@ -1054,7 +1054,7 @@
         return `
           <div class="admin-card" style="cursor:pointer;" onclick="openMemberModal('${phone}')">
             <div style="display:flex;align-items:center;gap:12px;">
-              <div class="member-avatar">${info.name[0]}</div>
+              <div class="member-avatar">${(info.name || phone)[0]}</div>
               <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:6px;">
                   <div class="member-name">${info.name}</div>
