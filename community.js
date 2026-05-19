@@ -317,16 +317,25 @@
     if (!feedEl) return;
     feedEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">⏳ 불러오는 중...</div>';
 
-    db.ref('posts').once('value', snap => {
-      adminAllPosts = [];
-      snap.forEach(child => {
-        const val = child.val();
-        if (val) adminAllPosts.push({ id: child.key, ...val });
+    // 회원 실명 먼저 캐싱 후 게시물 로드
+    db.ref('members').once('value', memberSnap => {
+      window.memberCache = {};
+      memberSnap.forEach(child => {
+        window.memberCache[child.key] = child.val().name || '';
+        if (child.val().role) localStorage.setItem('role_' + child.key, child.val().role);
       });
-      adminAllPosts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      renderAdminCommunityFeed();
-    }, err => {
-      feedEl.innerHTML = '<div style="text-align:center;padding:20px;color:#ef4444;font-size:13px;">불러오기 실패</div>';
+
+      db.ref('posts').once('value', snap => {
+        adminAllPosts = [];
+        snap.forEach(child => {
+          const val = child.val();
+          if (val) adminAllPosts.push({ id: child.key, ...val });
+        });
+        adminAllPosts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        renderAdminCommunityFeed();
+      }, err => {
+        feedEl.innerHTML = '<div style="text-align:center;padding:20px;color:#ef4444;font-size:13px;">불러오기 실패</div>';
+      });
     });
   }
 
