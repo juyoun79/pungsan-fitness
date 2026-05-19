@@ -3969,7 +3969,6 @@
     // 자동 쿠폰 조건 체크
     if (typeof checkAutoCoupons === 'function') checkAutoCoupons(localStorage.getItem('current_user'));
     // 최초 1회 권한 안내 화면 표시
-    const userId = localStorage.getItem('current_user');
     const permDone = localStorage.getItem('permission_guide_done_' + userId);
     if (!permDone) {
       localStorage.setItem('pending_nickname', nickname);
