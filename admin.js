@@ -3683,7 +3683,7 @@
             <div style="display:flex;align-items:center;gap:8px;">
               <label style="position:relative;display:inline-block;width:44px;height:24px;">
                 <input type="checkbox" ${tier.active?'checked':''} onchange="togglePointTier(${idx},this.checked)" style="opacity:0;width:0;height:0;">
-                <span style="position:absolute;cursor:pointer;inset:0;background:${tier.active?'#7F77DD':'#ccc'};border-radius:24px;transition:0.3s;">
+                <span class="tier-slider" style="position:absolute;cursor:pointer;inset:0;background:${tier.active?'#7F77DD':'#ccc'};border-radius:24px;transition:0.3s;">
                   <span style="position:absolute;top:2px;left:${tier.active?'22':'2'}px;width:20px;height:20px;background:#fff;border-radius:50%;transition:0.3s;"></span>
                 </span>
               </label>
@@ -3750,7 +3750,14 @@
   function togglePointTier(idx, val) {
     pointTiers[idx].active = val;
     savePointTiers();
-    renderPointTiers();
+    // renderPointTiers 대신 DOM 직접 업데이트로 부드러운 애니메이션 유지
+    const sliders = document.querySelectorAll('#point-tiers-list .tier-slider');
+    const slider = sliders[idx];
+    if (slider) {
+      slider.style.background = val ? '#7F77DD' : '#ccc';
+      const dot = slider.querySelector('span');
+      if (dot) dot.style.left = val ? '22px' : '2px';
+    }
   }
 
   function updatePointTier(idx, key, val) {
