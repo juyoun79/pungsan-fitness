@@ -24,6 +24,7 @@
     if (tabId === 'tab-notice') loadNoticeListAdmin();
     if (tabId === 'tab-community-admin') loadAdminCommunityFeed('전체');
     if (tabId === 'tab-trainer-admin') loadAdminTrainerSchedule();
+    if (tabId === 'tab-coupon') loadMemberSelectOptions();
   }
 
   // ── 관리자 강사 목록 관리 ──
@@ -3168,3 +3169,195 @@
     if (boxEl) boxEl.style.display = 'none';
     trainerFwRestRemain = 0;
   }
+
+  // ── 쿠폰 시스템 ──
+
+  function switchCouponTab(tabId) {
+    document.querySelectorAll('.coupon-section').forEach(s => s.style.display = 'none');
+    document.querySelectorAll('.coupon-sub-tab').forEach(t => {
+      t.style.background = 'var(--bg)'; t.style.color = 'var(--text-sub)'; t.style.borderColor = 'var(--border)';
+    });
+    document.getElementById(tabId).style.display = 'block';
+    event.target.style.background = '#7F77DD';
+    event.target.style.color = '#fff';
+    event.target.style.borderColor = '#7F77DD';
+    if (tabId === 'coupon-list') loadAdminCouponList();
+  }
+
+  function toggleCouponValueLabel() {
+    const type = document.getElementById('coupon-type').value;
+    const label = document.getElementById('coupon-value-label');
+    if (type === 'free') label.textContent = '횟수';
+    else if (type === 'discount') label.textContent = '할인율 (%)';
+    else if (type === 'extend') label.textContent = '연장 (일)';
+  }
+
+  function toggleCouponMemberSelect() {
+    const target = document.getElementById('coupon-target').value;
+    const wrap = document.getElementById('coupon-member-select');
+    wrap.style.display = target === 'specific' ? 'block' : 'none';
+    if (target === 'specific') loadMemberSelectOptions();
+  }
+
+  function loadMemberSelectOptions() {
+    const sel = document.getElementById('coupon-member-id');
+    db.ref('members').once('value', snap => {
+      sel.innerHTML = '<option value="">회원을 선택하세요</option>';
+      snap.forEach(child => {
+        const m = child.val();
+        const name = m.name || child.key;
+        const masked = name.length > 1 ? name[0] + '*'.repeat(name.length - 1) : name;
+        sel.innerHTML += `<option value="${child.key}">${masked} (${child.key})</option>`;
+      });
+    });
+  }
+
+  function issueCoupon() {
+    const name = document.getElementById('coupon-name').value.trim();
+    const type = document.getElementById('coupon-type').value;
+    const value = document.getElementById('coupon-value').value.trim();
+    const expire = document.getElementById('coupon-expire').value;
+    const limit = document.getElementById('coupon-limit').value;
+    const target = document.getElementById('coupon-target').value;
+    const memo = document.getElementById('coupon-memo').value.trim();
+
+    if (!name) { alert('쿠폰 이름을 입력해주세요.'); return; }
+    if (!value) { alert('쿠폰 값을 입력해주세요.'); return; }
+    if (!expire) { alert('유효기간을 설정해주세요.'); return; }
+
+    const couponData = {
+      name, type, value, expire, limit, memo,
+      issuedAt: new Date().toISOString(),
+      used: false
+    };
+
+    if (target === 'all') {
+      db.ref('members').once('value', snap => {
+        const updates = {};
+        snap.forEach(child => {
+          const couponId = db.ref('coupons/' + child.key).push().key;
+          updates['coupons/' + child.key + '/' + couponId] = couponData;
+        });
+        db.ref().update(updates).then(() => {
+          alert('전체 회원에게 쿠폰이 발행됐어요! 🎫');
+          clearCouponForm();
+        });
+      });
+    } else {
+      const memberId = document.getElementById('coupon-member-id').value;
+      if (!memberId) { alert('회원을 선택해주세요.'); return; }
+      db.ref('coupons/' + memberId).push(couponData).then(() => {
+        alert('쿠폰이 발행됐어요! 🎫');
+        clearCouponForm();
+      });
+    }
+  }
+
+  function clearCouponForm() {
+    document.getElementById('coupon-name').value = '';
+    document.getElementById('coupon-value').value = '';
+    document.getElementById('coupon-expire').value = '';
+    document.getElementById('coupon-memo').value = '';
+    document.getElementById('coupon-target').value = 'all';
+    document.getElementById('coupon-member-select').style.display = 'none';
+  }
+
+  function loadAdminCouponList() {
+    const listEl = document.getElementById('admin-coupon-list');
+    listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);">불러오는 중...</div>';
+    db.ref('coupons').once('value', snap => {
+      if (!snap.exists()) { listEl.innerHTML = '<div class="empty-state">발행된 쿠폰이 없어요</div>'; return; }
+      let html = '';
+      snap.forEach(memberSnap => {
+        const memberId = memberSnap.key;
+        memberSnap.forEach(couponSnap => {
+          const c = couponSnap.val();
+          const couponId = couponSnap.key;
+          if (c.used) return;
+          const typeLabel = c.type === 'free' ? `무료 ${c.value}회` : c.type === 'discount' ? `${c.value}% 할인` : `${c.value}일 연장`;
+          const badgeColor = c.type === 'free' ? '#E1F5EE;color:#0F6E56' : c.type === 'discount' ? '#EEEDFE;color:#3C3489' : '#FEF3C7;color:#92400E';
+          html += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <span style="font-size:14px;font-weight:700;color:var(--text);">${c.name}</span>
+              <span style="background:${badgeColor};font-size:11px;padding:3px 8px;border-radius:10px;font-weight:600;">${typeLabel}</span>
+            </div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:2px;">회원: ${memberId}</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:8px;">유효기간: ~${c.expire}</div>
+            ${c.memo ? `<div style="font-size:12px;color:var(--text-sub);margin-bottom:8px;">메모: ${c.memo}</div>` : ''}
+            <button onclick="adminUseCoupon('${memberId}','${couponId}')"
+              style="width:100%;padding:9px;background:#E24B4A;border:none;border-radius:var(--radius-sm);color:white;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+              ✅ 사용 처리
+            </button>
+          </div>`;
+        });
+      });
+      listEl.innerHTML = html || '<div class="empty-state">발행된 쿠폰이 없어요</div>';
+    });
+  }
+
+  function adminUseCoupon(memberId, couponId) {
+    if (!confirm('쿠폰을 사용 처리할까요?')) return;
+    db.ref('coupons/' + memberId + '/' + couponId).remove().then(() => {
+      alert('사용 처리 완료! ✅');
+      loadAdminCouponList();
+    });
+  }
+
+  // 회원 내 쿠폰
+  function openMyCoupons() {
+    document.getElementById('my-coupon-modal').style.display = 'block';
+    loadMyCoupons();
+  }
+
+  function closeMyCoupons() {
+    document.getElementById('my-coupon-modal').style.display = 'none';
+  }
+
+  function loadMyCoupons() {
+    const userId = localStorage.getItem('current_user');
+    const listEl = document.getElementById('my-coupon-list');
+    const countEl = document.getElementById('my-coupon-count');
+    listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);">불러오는 중...</div>';
+    db.ref('coupons/' + userId).once('value', snap => {
+      if (!snap.exists() || !snap.val()) {
+        listEl.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-hint);font-size:14px;">보유한 쿠폰이 없어요 🎫</div>';
+        if (countEl) countEl.style.display = 'none';
+        return;
+      }
+      let count = 0;
+      let html = '';
+      snap.forEach(couponSnap => {
+        const c = couponSnap.val();
+        const couponId = couponSnap.key;
+        const typeLabel = c.type === 'free' ? `무료 이용 ${c.value}회 추가` : c.type === 'discount' ? `${c.value}% 할인` : `${c.value}일 연장`;
+        const borderColor = c.type === 'free' ? '#7F77DD' : c.type === 'discount' ? '#1D9E75' : '#D97706';
+        count++;
+        html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
+          <div style="padding:14px 16px;border-left:4px solid ${borderColor};">
+            <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">${c.name}</div>
+            <div style="font-size:13px;color:var(--text-sub);margin-bottom:4px;">${typeLabel}</div>
+            ${c.memo ? `<div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">${c.memo}</div>` : ''}
+            <div style="font-size:12px;color:var(--text-hint);">~ ${c.expire}까지</div>
+          </div>
+          <div style="padding:12px 16px;background:var(--bg);border-top:1px solid var(--border);">
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;text-align:center;">관리자에게 이 화면을 보여주세요</div>
+            <button onclick="memberUseCoupon('${userId}','${couponId}')"
+              style="width:100%;padding:11px;background:#E24B4A;border:none;border-radius:var(--radius-sm);color:white;font-size:14px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+              ✅ 사용하기 (관리자가 눌러주세요)
+            </button>
+          </div>
+        </div>`;
+      });
+      listEl.innerHTML = html;
+      if (countEl) { countEl.textContent = count + '장'; countEl.style.display = 'inline'; }
+    });
+  }
+
+  function memberUseCoupon(userId, couponId) {
+    if (!confirm('쿠폰을 사용할까요?\n사용 후에는 되돌릴 수 없어요.')) return;
+    db.ref('coupons/' + userId + '/' + couponId).remove().then(() => {
+      alert('쿠폰이 사용됐어요! ✅');
+      loadMyCoupons();
+    });
+  }
+

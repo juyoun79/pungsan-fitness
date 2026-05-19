@@ -496,6 +496,11 @@
       </div>
       <!-- 설정 메뉴 -->
       <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
+        <!-- 내 쿠폰 -->
+        <div onclick="openMyCoupons()" style="padding:16px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500;">🎫 내 쿠폰 <span id="my-coupon-count" style="background:#7F77DD;color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;margin-left:4px;display:none;"></span></div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
         <div onclick="openChangePw()" style="padding:16px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-bottom:1px solid var(--border);">
           <div style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500;">🔑 비밀번호 변경</div>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -504,6 +509,21 @@
           <div style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500;color:#ef4444;">🚪 로그아웃</div>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 내 쿠폰 모달 -->
+  <div id="my-coupon-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;overflow-y:auto;">
+    <div style="background:var(--bg);min-height:100vh;max-width:480px;margin:0 auto;padding:0 0 40px;">
+      <div style="padding:52px 20px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);background:var(--card);">
+        <button onclick="closeMyCoupons()" style="background:none;border:none;cursor:pointer;padding:4px;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div style="font-size:18px;font-weight:700;color:var(--text);">🎫 내 쿠폰</div>
+      </div>
+      <div style="padding:20px;">
+        <div id="my-coupon-list"><div style="text-align:center;padding:40px 20px;color:var(--text-hint);font-size:14px;">보유한 쿠폰이 없어요</div></div>
       </div>
     </div>
   </div>
@@ -1450,6 +1470,7 @@
         <button class="admin-tab" onclick="switchAdminTab('tab-trainer-admin')">👨‍🏫 강사관리</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-community-admin')">💬 커뮤니티</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-notice')">📢 공지</button>
+        <button class="admin-tab" onclick="switchAdminTab('tab-coupon')">🎫 쿠폰</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-settings')">⚙️ 설정</button>
       </div>
     </div>
@@ -1646,6 +1667,95 @@
       </div>
 
       <!-- ── 설정 탭 ── -->
+      <!-- 쿠폰 관리 탭 -->
+      <div id="tab-coupon" class="admin-section">
+
+        <!-- 서브 탭 -->
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+          <button class="coupon-sub-tab active" onclick="switchCouponTab('coupon-issue')" style="padding:7px 14px;border-radius:20px;border:1px solid #7F77DD;background:#7F77DD;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수동 발행</button>
+          <button class="coupon-sub-tab" onclick="switchCouponTab('coupon-list')" style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg);color:var(--text-sub);font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">발행 목록</button>
+        </div>
+
+        <!-- 수동 발행 -->
+        <div id="coupon-issue" class="coupon-section">
+          <div class="admin-card">
+            <div class="admin-card-title">🎫 쿠폰 발행</div>
+            <div style="margin-bottom:12px;">
+              <label class="field-label">쿠폰 이름</label>
+              <input id="coupon-name" type="text" placeholder="예) 5월 감사 이벤트 쿠폰"
+                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
+                onfocus="this.style.borderColor='#7F77DD'" onblur="this.style.borderColor='var(--border)'" />
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+              <div>
+                <label class="field-label">쿠폰 종류</label>
+                <select id="coupon-type" onchange="toggleCouponValueLabel()"
+                  style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);">
+                  <option value="free">무료 횟수 추가</option>
+                  <option value="discount">할인 (%)</option>
+                  <option value="extend">기간 연장 (일)</option>
+                </select>
+              </div>
+              <div>
+                <label class="field-label" id="coupon-value-label">횟수</label>
+                <input id="coupon-value" type="number" min="1" placeholder="3"
+                  style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
+                  onfocus="this.style.borderColor='#7F77DD'" onblur="this.style.borderColor='var(--border)'" />
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+              <div>
+                <label class="field-label">유효기간</label>
+                <input id="coupon-expire" type="date"
+                  style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
+                  onfocus="this.style.borderColor='#7F77DD'" onblur="this.style.borderColor='var(--border)'" />
+              </div>
+              <div>
+                <label class="field-label">사용 제한</label>
+                <select id="coupon-limit"
+                  style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);">
+                  <option value="1">1회만</option>
+                  <option value="unlimited">제한 없음</option>
+                </select>
+              </div>
+            </div>
+            <div style="margin-bottom:12px;">
+              <label class="field-label">발급 대상</label>
+              <select id="coupon-target" onchange="toggleCouponMemberSelect()"
+                style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);">
+                <option value="all">전체 회원</option>
+                <option value="specific">특정 회원</option>
+              </select>
+            </div>
+            <div id="coupon-member-select" style="display:none;margin-bottom:12px;">
+              <label class="field-label">회원 선택</label>
+              <select id="coupon-member-id"
+                style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);">
+                <option value="">회원을 선택하세요</option>
+              </select>
+            </div>
+            <div style="margin-bottom:16px;">
+              <label class="field-label">메모 (선택)</label>
+              <input id="coupon-memo" type="text" placeholder="예) 생일 축하 선물"
+                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
+                onfocus="this.style.borderColor='#7F77DD'" onblur="this.style.borderColor='var(--border)'" />
+            </div>
+            <button onclick="issueCoupon()"
+              style="width:100%;padding:13px;background:#7F77DD;border:none;border-radius:var(--radius);color:white;font-size:15px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+              🎫 쿠폰 발행하기
+            </button>
+          </div>
+        </div>
+
+        <!-- 발행 목록 -->
+        <div id="coupon-list" class="coupon-section" style="display:none;">
+          <div class="admin-card">
+            <div class="admin-card-title">📋 발행된 쿠폰 목록</div>
+            <div id="admin-coupon-list"><div class="empty-state">발행된 쿠폰이 없어요</div></div>
+          </div>
+        </div>
+
+      </div>
       <div id="tab-settings" class="admin-section">
         <div class="admin-card">
           <div class="admin-card-title">🔐 관리자 비밀번호 변경</div>
