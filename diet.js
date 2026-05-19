@@ -808,7 +808,7 @@
     if (!content) { alert('내용을 입력해주세요!'); return; }
 
     const userId = localStorage.getItem('current_user');
-    const nickname = localStorage.getItem('name_' + userId) || '회원';
+    const nickname = localStorage.getItem('nickname_' + userId) || localStorage.getItem('name_' + userId) || '회원';
     const btn = document.getElementById('post-submit-btn');
 
     // 식단 게시물 하루 1개 제한 체크
@@ -1022,7 +1022,7 @@
     const content = document.getElementById('comment-input').value.trim();
     if (!content || !currentCommentPostId) return;
     const userId = localStorage.getItem('current_user');
-    const nickname = localStorage.getItem('name_' + userId);
+    const nickname = localStorage.getItem('nickname_' + userId) || localStorage.getItem('name_' + userId);
     // 로그인 상태 확인
     if (!userId || !nickname) {
       alert('로그인이 필요해요.\n다시 로그인해주세요.');

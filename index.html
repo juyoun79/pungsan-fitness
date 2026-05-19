@@ -246,6 +246,28 @@
   </div>
 
   <!-- ══════════════════════════════
+       닉네임 설정 화면
+  ══════════════════════════════ -->
+  <div id="screen-set-nickname" class="screen" style="padding-bottom:40px;">
+    <div class="nickname-header">
+      <div class="step-badge">처음 방문</div>
+      <h2>닉네임을<br/>설정해주세요</h2>
+      <p>커뮤니티에서 사용할 닉네임이에요.<br/>나중에 1회에 한해 변경 가능해요.</p>
+    </div>
+    <div class="card" style="margin-bottom:16px;">
+      <div class="field-wrap">
+        <label class="field-label">닉네임</label>
+        <input type="text" id="set-nickname-input" placeholder="닉네임 입력 (2~10자)"
+          maxlength="10"
+          style="width:100%;box-sizing:border-box;padding:14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:18px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:6px;"
+          onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
+        <div id="set-nickname-msg" style="font-size:12px;margin-top:6px;min-height:18px;"></div>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="saveInitialNickname()">다음 →</button>
+  </div>
+
+  <!-- ══════════════════════════════
        홈 화면
   ══════════════════════════════ -->
   <div id="screen-home" class="screen">
@@ -508,6 +530,10 @@
       <!-- 설정 메뉴 -->
       <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
         <!-- 생년월일 -->
+        <div onclick="openChangeNickname()" style="padding:16px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500;">✏️ 닉네임 변경 <span id="myinfo-nickname-display" style="font-size:13px;color:var(--text-hint);margin-left:4px;"></span></div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
         <div onclick="openEditBirth()" style="padding:16px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-bottom:1px solid var(--border);">
           <div style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500;">🎂 생년월일 <span id="myinfo-birth" style="font-size:13px;color:var(--text-hint);margin-left:4px;"></span></div>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -2888,12 +2914,20 @@
   // ══════════════════════════════
   function loadMyInfo() {
     const userId = localStorage.getItem('current_user');
-    const nickname = localStorage.getItem('name_' + userId) || '회원';
+    const realName = localStorage.getItem('name_' + userId) || '회원';
+    const nickname = localStorage.getItem('nickname_' + userId) || realName;
     const pts = localStorage.getItem('points_' + userId) || '0';
 
     document.getElementById('myinfo-avatar').textContent = nickname[0];
     document.getElementById('myinfo-nickname').textContent = nickname;
     document.getElementById('myinfo-phone').textContent = userId;
+
+    // 닉네임 변경 1회 제한 표시
+    const nickDisplay = document.getElementById('myinfo-nickname-display');
+    if (nickDisplay) {
+      const changed = localStorage.getItem('nickname_changed_' + userId);
+      nickDisplay.textContent = changed ? '(변경 불가)' : nickname;
+    }
 
     // 신체정보 표시
     const gender = localStorage.getItem('body_gender_' + userId);
@@ -3090,12 +3124,19 @@
         // role 저장 (trainer / manager / member)
         const role = snap.val().role || 'member';
         localStorage.setItem('role_' + id, role);
-        // 신체정보 미입력 시 입력 화면으로
-        const hasBodyInfo = localStorage.getItem('body_weight_' + id);
-        if (!hasBodyInfo) {
-          showScreen('screen-nickname');
+        // 닉네임 미설정 → 닉네임 설정 화면
+        const nickname = snap.val().nickname || localStorage.getItem('nickname_' + id);
+        if (!nickname) {
+          showScreen('screen-set-nickname');
         } else {
-          goHome(memberName, true);
+          localStorage.setItem('nickname_' + id, nickname);
+          // 신체정보 미입력 시 입력 화면으로
+          const hasBodyInfo = localStorage.getItem('body_weight_' + id);
+          if (!hasBodyInfo) {
+            showScreen('screen-nickname');
+          } else {
+            goHome(nickname, true);
+          }
         }
       });
     }).catch(() => {
@@ -3638,6 +3679,102 @@
   }
 
   // ── 신체정보 저장 (처음 입력) ──
+
+  // ── 닉네임 설정 ──
+  function saveInitialNickname() {
+    const val = document.getElementById('set-nickname-input').value.trim();
+    const msgEl = document.getElementById('set-nickname-msg');
+    if (!val || val.length < 2) {
+      msgEl.style.color = '#ef4444';
+      msgEl.textContent = '닉네임을 2자 이상 입력해주세요.';
+      return;
+    }
+    // 중복 체크
+    db.ref('nicknames/' + val).once('value', snap => {
+      if (snap.exists()) {
+        msgEl.style.color = '#ef4444';
+        msgEl.textContent = '이미 사용 중인 닉네임이에요.';
+        return;
+      }
+      const userId = localStorage.getItem('current_user');
+      // Firebase에 닉네임 저장
+      db.ref('members/' + userId + '/nickname').set(val);
+      db.ref('nicknames/' + val).set(userId);
+      localStorage.setItem('nickname_' + userId, val);
+      // 신체정보 미입력이면 신체정보 화면으로
+      const hasBodyInfo = localStorage.getItem('body_weight_' + userId);
+      if (!hasBodyInfo) {
+        showScreen('screen-nickname');
+      } else {
+        const memberName = localStorage.getItem('name_' + userId) || userId;
+        goHome(val, true);
+      }
+    });
+  }
+
+  function openChangeNickname() {
+    const userId = localStorage.getItem('current_user');
+    const changed = localStorage.getItem('nickname_changed_' + userId);
+    if (changed) {
+      alert('닉네임은 1회만 변경 가능해요 😊');
+      return;
+    }
+    const cur = localStorage.getItem('nickname_' + userId) || '';
+    const newNick = prompt('새 닉네임을 입력해주세요 (2~10자)\n현재: ' + cur);
+    if (!newNick || !newNick.trim()) return;
+    const val = newNick.trim();
+    if (val.length < 2 || val.length > 10) {
+      alert('닉네임은 2~10자로 입력해주세요.');
+      return;
+    }
+    if (val === cur) { alert('현재 닉네임과 같아요.'); return; }
+    db.ref('nicknames/' + val).once('value', snap => {
+      if (snap.exists()) { alert('이미 사용 중인 닉네임이에요.'); return; }
+      if (!confirm('"' + val + '" 으로 변경할까요?\n변경 후에는 다시 바꿀 수 없어요.')) return;
+      // 기존 닉네임 해제 + 새 닉네임 저장
+      db.ref('nicknames/' + cur).remove();
+      db.ref('nicknames/' + val).set(userId);
+      db.ref('members/' + userId + '/nickname').set(val);
+      localStorage.setItem('nickname_' + userId, val);
+      localStorage.setItem('nickname_changed_' + userId, '1');
+      // 기존 게시물/댓글 닉네임 일괄 업데이트
+      updateNicknameInPosts(userId, val);
+      updateNicknameInComments(userId, val);
+      // 홈 닉네임 갱신
+      const homeEl = document.getElementById('home-nickname');
+      if (homeEl) homeEl.textContent = val + '님';
+      const myinfoEl = document.getElementById('myinfo-nickname');
+      if (myinfoEl) myinfoEl.textContent = val;
+      alert('닉네임이 변경됐어요! 😊');
+    });
+  }
+
+  function updateNicknameInPosts(userId, newNick) {
+    db.ref('posts').once('value', snap => {
+      const updates = {};
+      snap.forEach(child => {
+        if (child.val().authorId === userId) {
+          updates['posts/' + child.key + '/nickname'] = newNick;
+        }
+      });
+      if (Object.keys(updates).length > 0) db.ref().update(updates);
+    });
+  }
+
+  function updateNicknameInComments(userId, newNick) {
+    db.ref('comments').once('value', snap => {
+      const updates = {};
+      snap.forEach(postSnap => {
+        postSnap.forEach(commentSnap => {
+          if (commentSnap.val().authorId === userId) {
+            updates['comments/' + postSnap.key + '/' + commentSnap.key + '/nickname'] = newNick;
+          }
+        });
+      });
+      if (Object.keys(updates).length > 0) db.ref().update(updates);
+    });
+  }
+
   function saveBodyInfo() {
     const gender = document.getElementById('body-gender').value;
     const age    = parseInt(document.getElementById('body-age').value) || 0;

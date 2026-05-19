@@ -1329,7 +1329,7 @@
           if (!confirm('동명이인으로 등록할까요?')) return;
         }
 
-        db.ref('members/' + phone).set({ name, pw, programs }).then(() => {
+        db.ref('members/' + phone).set({ name: name + '(' + phone.slice(-4) + ')', pw, programs }).then(() => {
           const birth = document.getElementById('reg-birth') ? document.getElementById('reg-birth').value.trim() : '';
           if (birth) db.ref('members/' + phone + '/birth').set(birth);
           document.getElementById('reg-name').value = '';

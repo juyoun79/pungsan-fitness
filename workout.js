@@ -900,7 +900,7 @@
     });
     const todayKey = 'attend_' + userId + '_' + today;
     localStorage.setItem(todayKey, 'done');
-    const nick = localStorage.getItem('name_' + userId) || '회원';
+    const nick = localStorage.getItem('nickname_' + userId) || localStorage.getItem('name_' + userId) || '회원';
     const now = new Date();
     document.getElementById('attend-complete-msg').textContent = nick + '님, 오늘도 운동 완료! 💪';
     document.getElementById('attend-date-msg').textContent = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 출석 완료';
@@ -1160,7 +1160,7 @@
       const snapshot = await ref.put(blob);
       const photoURL = await snapshot.ref.getDownloadURL();
 
-      const nickname = localStorage.getItem('name_' + userId) || '회원';
+      const nickname = localStorage.getItem('nickname_' + userId) || localStorage.getItem('name_' + userId) || '회원';
       const comment = document.getElementById('owunwan-comment').value.trim();
       const now = new Date();
       const dateLabel = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일';

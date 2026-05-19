@@ -579,6 +579,13 @@
   }
 
   // ── 작성자 필터 ──
+  function showAuthorInfo(authorId) {
+    const realName = localStorage.getItem('name_' + authorId) || authorId;
+    const role = localStorage.getItem('role_' + authorId);
+    const isStaff = role === 'trainer' || role === 'manager';
+    alert((isStaff ? '[직원] ' : '') + realName);
+  }
+
   function filterByAuthor(authorId, nickname) {
     communityAuthorFilter = authorId;
     communitySearchQuery = '';
@@ -698,16 +705,25 @@
     const safeContent = (post.content || '').replace(/\n/g,'<br>');
     const safePreview = (post.content || '').replace(/`/g,"'").replace(/\n/g,' ').substring(0,50);
     const canDelete = post.authorId === userId || isAdmin;
+    const authorRole = localStorage.getItem('role_' + post.authorId);
+    const isAuthorStaff = authorRole === 'trainer' || authorRole === 'manager';
+    const curRole = localStorage.getItem('role_' + userId);
+    const isAdminOrStaff = isAdmin || curRole === 'trainer' || curRole === 'manager';
+    const realNameStr = localStorage.getItem('name_' + post.authorId) || '';
+    const realNameDisplay = isAdmin && realNameStr
+      ? ` <span style="font-size:11px;color:var(--text-hint);">${realNameStr}${isAuthorStaff ? ' [직원]' : ''}</span>`
+      : '';
     return `
       <div class="feed-card">
         <div class="feed-header">
-          <div class="feed-avatar">${(maskName(post.nickname||'?', isAdmin))[0]}</div>
+          <div class="feed-avatar">${(post.nickname||'?')[0]}</div>
           <div style="flex:1;">
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span class="feed-nickname" onclick="filterByAuthor('${post.authorId}','${(post.nickname||'').replace(/'/g,"\\'")}' )"
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              <span class="feed-nickname" onclick="${isAdminOrStaff ? `showAuthorInfo('${post.authorId}')` : `filterByAuthor('${post.authorId}','${(post.nickname||'').replace(/'/g,"\\'")}' )`}"
                 style="cursor:pointer;text-decoration:underline;text-decoration-color:transparent;transition:text-decoration-color 0.15s;"
                 onmouseenter="this.style.textDecorationColor='var(--blue)'"
-                onmouseleave="this.style.textDecorationColor='transparent'">${maskName(post.nickname, isAdmin)}</span>
+                onmouseleave="this.style.textDecorationColor='transparent'">${post.nickname || '회원'}</span>
+              ${realNameDisplay}
             </div>
             <div class="feed-meta">${timeAgo}</div>
           </div>
