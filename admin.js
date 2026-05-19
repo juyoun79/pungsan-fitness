@@ -1262,21 +1262,42 @@
   function deleteMember() {
     const info = cachedMembers[currentMemberPhone];
     const name = info ? info.name : '';
-    if (!confirm(name + ' 회원을 삭제할까요?\n삭제 후 복구가 어렵습니다.')) return;
+    if (!confirm(name + ' 회원을 삭제할까요?\n\n삭제되는 것:\n- 로그인 정보\n- 출석/포인트/운동기록\n- 신체정보/쿠폰\n\n유지되는 것:\n- 커뮤니티 게시물/댓글/좋아요\n\n삭제 후 복구가 어렵습니다.')) return;
 
     const phone = currentMemberPhone;
 
-    // Firebase 회원 삭제
-    db.ref('members/' + phone).remove().then(() => {
-      // 삭제 기록 Firebase에 저장 (재등록 시 localStorage 초기화 용도)
-      db.ref('deleted_members/' + phone).set({
-        deletedAt: Date.now(),
-        name: name
-      }).then(() => {
-        closeMemberModal();
-        loadMemberList();
-        alert('✅ ' + name + ' 회원이 삭제됐어요.\n재등록 시 기존 데이터가 초기화됩니다.');
+    // 1. Firebase 개인 데이터 삭제
+    const deleteRefs = [
+      db.ref('members/' + phone),           // 로그인 정보
+      db.ref('users/' + phone),             // 출석/포인트/운동기록/신체정보
+      db.ref('coupons/' + phone),           // 쿠폰
+    ];
+
+    // 2. 강사 담당 연결 삭제 (모든 강사에서 해당 회원 제거)
+    db.ref('trainers').once('value', snap => {
+      snap.forEach(trainerSnap => {
+        const tid = trainerSnap.key;
+        if (trainerSnap.child('trainees/' + phone).exists()) {
+          deleteRefs.push(db.ref('trainers/' + tid + '/trainees/' + phone));
+        }
       });
+
+      Promise.all(deleteRefs.map(ref => ref.remove()))
+        .then(() => {
+          // 3. 로컬스토리지 초기화
+          clearMemberLocalData(phone);
+          // 4. 삭제 기록 저장
+          db.ref('deleted_members/' + phone).set({
+            deletedAt: Date.now(),
+            name: name
+          });
+          closeMemberModal();
+          loadMemberList();
+          alert('✅ ' + name + ' 회원이 삭제됐어요.\n커뮤니티 게시물은 유지됩니다.');
+        })
+        .catch(err => {
+          alert('삭제 중 오류가 발생했어요: ' + err.message);
+        });
     });
   }
 
