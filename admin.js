@@ -3189,9 +3189,12 @@
   function toggleCouponValueLabel() {
     const type = document.getElementById('coupon-type').value;
     const label = document.getElementById('coupon-value-label');
-    if (type === 'free') label.textContent = '횟수';
-    else if (type === 'discount') label.textContent = '할인율 (%)';
-    else if (type === 'extend') label.textContent = '연장 (일)';
+    const valueInput = document.getElementById('coupon-value');
+    if (type === 'free') { label.textContent = '횟수'; valueInput.style.display = ''; valueInput.placeholder = '3'; }
+    else if (type === 'discount') { label.textContent = '할인율 (%)'; valueInput.style.display = ''; valueInput.placeholder = '10'; }
+    else if (type === 'extend') { label.textContent = '연장 (일)'; valueInput.style.display = ''; valueInput.placeholder = '30'; }
+    else if (type === 'drink') { label.textContent = '음료 쿠폰'; valueInput.style.display = 'none'; valueInput.value = '1'; }
+    else if (type === 'americano') { label.textContent = '아메리카노'; valueInput.style.display = 'none'; valueInput.value = '1'; }
   }
 
   function toggleCouponMemberSelect() {
@@ -3323,8 +3326,8 @@
           const c = couponSnap.val();
           const couponId = couponSnap.key;
           if (c.used) return;
-          const typeLabel = c.type === 'free' ? `무료 ${c.value}회` : c.type === 'discount' ? `${c.value}% 할인` : `${c.value}일 연장`;
-          const badgeColor = c.type === 'free' ? '#E1F5EE;color:#0F6E56' : c.type === 'discount' ? '#EEEDFE;color:#3C3489' : '#FEF3C7;color:#92400E';
+          const typeLabel = c.type === 'free' ? `무료 ${c.value}회` : c.type === 'discount' ? `${c.value}% 할인` : c.type === 'extend' ? `${c.value}일 연장` : c.type === 'drink' ? '음료 쿠폰' : c.type === 'americano' ? '아메리카노 쿠폰' : c.value;
+          const badgeColor = c.type === 'free' ? '#E1F5EE;color:#0F6E56' : c.type === 'discount' ? '#EEEDFE;color:#3C3489' : c.type === 'drink' ? '#FEF3C7;color:#92400E' : c.type === 'americano' ? '#FEF3C7;color:#92400E' : '#E6F1FB;color:#185FA5';
           html += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
               <span style="font-size:14px;font-weight:700;color:var(--text);">${c.name}</span>
@@ -3378,7 +3381,7 @@
       snap.forEach(couponSnap => {
         const c = couponSnap.val();
         const couponId = couponSnap.key;
-        const typeLabel = c.type === 'free' ? `무료 이용 ${c.value}회 추가` : c.type === 'discount' ? `${c.value}% 할인` : `${c.value}일 연장`;
+        const typeLabel = c.type === 'free' ? `무료 이용 ${c.value}회 추가` : c.type === 'discount' ? `${c.value}% 할인` : c.type === 'extend' ? `${c.value}일 연장` : c.type === 'drink' ? '☕ 음료 1잔' : c.type === 'americano' ? '☕ 아메리카노 1잔' : c.value;
         const borderColor = c.type === 'free' ? '#7F77DD' : c.type === 'discount' ? '#1D9E75' : '#D97706';
         count++;
         html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
@@ -3416,10 +3419,13 @@
   function toggleAutoValueLabel(key) {
     const type = document.getElementById('auto-' + key + '-type').value;
     const label = document.getElementById('auto-' + key + '-val-label');
+    const valueInput = document.getElementById('auto-' + key + '-value');
     if (!label) return;
-    if (type === 'free') label.textContent = '지급 횟수';
-    else if (type === 'discount') label.textContent = '할인율 (%)';
-    else label.textContent = '연장 (일)';
+    if (type === 'free') { label.textContent = '지급 횟수'; if (valueInput) { valueInput.style.display = ''; valueInput.placeholder = '1'; } }
+    else if (type === 'discount') { label.textContent = '할인율 (%)'; if (valueInput) { valueInput.style.display = ''; valueInput.placeholder = '10'; } }
+    else if (type === 'extend') { label.textContent = '연장 (일)'; if (valueInput) { valueInput.style.display = ''; valueInput.placeholder = '30'; } }
+    else if (type === 'drink') { label.textContent = '음료 쿠폰'; if (valueInput) { valueInput.style.display = 'none'; valueInput.value = '1'; } }
+    else if (type === 'americano') { label.textContent = '아메리카노'; if (valueInput) { valueInput.style.display = 'none'; valueInput.value = '1'; } }
   }
 
   function updateToggleUI(key, isOn) {
