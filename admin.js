@@ -3196,20 +3196,67 @@
     const target = document.getElementById('coupon-target').value;
     const wrap = document.getElementById('coupon-member-select');
     wrap.style.display = target === 'specific' ? 'block' : 'none';
-    if (target === 'specific') loadMemberSelectOptions();
+    if (target === 'specific') {
+      document.getElementById('coupon-member-search').value = '';
+      document.getElementById('coupon-member-id').value = '';
+      document.getElementById('coupon-member-results').style.display = 'none';
+      document.getElementById('coupon-member-selected').style.display = 'none';
+      loadAllMembersForSearch();
+    }
+  }
+
+  let allMembersCache = [];
+
+  function loadAllMembersForSearch() {
+    db.ref('members').once('value', snap => {
+      allMembersCache = [];
+      snap.forEach(child => {
+        const m = child.val();
+        allMembersCache.push({ id: child.key, name: m.name || child.key });
+      });
+    });
+  }
+
+  function searchCouponMember(query) {
+    const resultsEl = document.getElementById('coupon-member-results');
+    const selectedEl = document.getElementById('coupon-member-selected');
+    document.getElementById('coupon-member-id').value = '';
+    selectedEl.style.display = 'none';
+
+    if (!query.trim()) { resultsEl.style.display = 'none'; return; }
+
+    const filtered = allMembersCache.filter(m =>
+      m.name.includes(query) || m.id.includes(query)
+    );
+
+    if (filtered.length === 0) {
+      resultsEl.innerHTML = '<div style="padding:12px;font-size:13px;color:var(--text-hint);text-align:center;">검색 결과가 없어요</div>';
+      resultsEl.style.display = 'block';
+      return;
+    }
+
+    resultsEl.innerHTML = filtered.map(m =>
+      `<div onclick="selectCouponMember('${m.id}','${m.name}')"
+        style="padding:12px 14px;font-size:14px;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);background:var(--card);"
+        onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='var(--card)'">
+        <span style="font-weight:600;">${m.name}</span>
+        <span style="color:var(--text-hint);margin-left:8px;font-size:12px;">${m.id}</span>
+      </div>`
+    ).join('');
+    resultsEl.style.display = 'block';
+  }
+
+  function selectCouponMember(id, name) {
+    document.getElementById('coupon-member-id').value = id;
+    document.getElementById('coupon-member-search').value = '';
+    document.getElementById('coupon-member-results').style.display = 'none';
+    const selectedEl = document.getElementById('coupon-member-selected');
+    selectedEl.textContent = '선택됨: ' + name + ' (' + id + ')';
+    selectedEl.style.display = 'block';
   }
 
   function loadMemberSelectOptions() {
-    const sel = document.getElementById('coupon-member-id');
-    db.ref('members').once('value', snap => {
-      sel.innerHTML = '<option value="">회원을 선택하세요</option>';
-      snap.forEach(child => {
-        const m = child.val();
-        const name = m.name || child.key;
-        const masked = name.length > 1 ? name[0] + '*'.repeat(name.length - 1) : name;
-        sel.innerHTML += `<option value="${child.key}">${masked} (${child.key})</option>`;
-      });
-    });
+    loadAllMembersForSearch();
   }
 
   function issueCoupon() {
