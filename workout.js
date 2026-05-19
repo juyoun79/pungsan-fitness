@@ -1122,6 +1122,18 @@
     ctx.closePath(); ctx.fill();
   }
 
+  function saveOwunwanToGallery() {
+    const canvas = document.getElementById('owunwan-canvas');
+    if (!canvas || canvas.width === 0) {
+      alert('먼저 사진을 촬영해주세요 📷'); return;
+    }
+    const link = document.createElement('a');
+    link.download = '오운완_' + getToday() + '.jpg';
+    link.href = canvas.toDataURL('image/jpeg', 0.95);
+    link.click();
+    alert('갤러리에 저장됐어요! 📥\nSNS에 자유롭게 공유해보세요 💪');
+  }
+
   async function submitOwunwan() {
     const userId = localStorage.getItem('current_user');
     const today = getToday();

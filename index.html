@@ -1362,9 +1362,14 @@
           <div style="position:relative;border-radius:var(--radius);overflow:hidden;">
             <canvas id="owunwan-canvas" style="width:100%;display:block;border-radius:var(--radius);"></canvas>
           </div>
-          <button onclick="captureOwunwanPhoto()" style="width:100%;margin-top:10px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text-sub);font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
-            🔄 다시 찍기
-          </button>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
+            <button onclick="captureOwunwanPhoto()" style="padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text-sub);font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+              🔄 다시 찍기
+            </button>
+            <button onclick="saveOwunwanToGallery()" style="padding:10px;background:#1D9E75;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;color:white;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+              📥 갤러리 저장
+            </button>
+          </div>
         </div>
       </div>
 
