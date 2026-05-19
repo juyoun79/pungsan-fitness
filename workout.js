@@ -721,6 +721,20 @@
       loadAttendanceStats(userId);
       resetAttendance();
       showScreen('screen-attendance');
+      // 위치 권한 상태 체크 → 거부/미설정이면 안내 팝업 1회 표시
+      if (navigator.permissions) {
+        navigator.permissions.query({ name: 'geolocation' }).then(result => {
+          if (result.state === 'denied' || result.state === 'prompt') {
+            const popupKey = 'location_perm_popup_' + userId;
+            if (!localStorage.getItem(popupKey)) {
+              localStorage.setItem(popupKey, '1');
+              setTimeout(() => {
+                alert('📍 위치 권한 안내\n\n출석체크를 위해 위치 권한이 필요해요.\n팝업이 뜨면 반드시 [정확한 위치]를\n선택해주세요!\n\n대략적인 위치 선택 시 출석이 안될 수 있어요.');
+              }, 500);
+            }
+          }
+        });
+      }
     });
   }
 
