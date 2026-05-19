@@ -1673,6 +1673,7 @@
         <!-- 서브 탭 -->
         <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
           <button class="coupon-sub-tab active" onclick="switchCouponTab('coupon-issue')" style="padding:7px 14px;border-radius:20px;border:1px solid #7F77DD;background:#7F77DD;color:#fff;font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수동 발행</button>
+          <button class="coupon-sub-tab" onclick="switchCouponTab('coupon-auto')" style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg);color:var(--text-sub);font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">자동 조건</button>
           <button class="coupon-sub-tab" onclick="switchCouponTab('coupon-list')" style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg);color:var(--text-sub);font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">발행 목록</button>
         </div>
 
@@ -1747,6 +1748,158 @@
               style="width:100%;padding:13px;background:#7F77DD;border:none;border-radius:var(--radius);color:white;font-size:15px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
               🎫 쿠폰 발행하기
             </button>
+          </div>
+        </div>
+
+
+        <!-- 자동 조건 섹션 -->
+        <div id="coupon-auto" class="coupon-section" style="display:none;">
+          <div class="admin-card">
+            <div class="admin-card-title">⚙️ 자동 발행 조건 설정</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:16px;">조건 달성 시 자동으로 쿠폰이 발행돼요</div>
+
+            <!-- 출석 횟수 -->
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <div style="font-size:14px;font-weight:700;color:var(--text);">🏅 출석 횟수 달성</div>
+                <label style="position:relative;display:inline-block;width:44px;height:24px;">
+                  <input type="checkbox" id="auto-attend-on" style="opacity:0;width:0;height:0;" onchange="saveAutoCondition('attend')">
+                  <span id="auto-attend-slider" style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:0.3s;"></span>
+                </label>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                <div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">달성 횟수</div>
+                  <input id="auto-attend-count" type="number" min="1" placeholder="10" onchange="saveAutoCondition('attend')"
+                    style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);text-align:center;">
+                </div>
+                <div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">쿠폰 종류</div>
+                  <select id="auto-attend-type" onchange="toggleAutoValueLabel('attend');saveAutoCondition('attend')"
+                    style="width:100%;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+                    <option value="free">무료 횟수</option>
+                    <option value="discount">할인 (%)</option>
+                    <option value="extend">기간 연장 (일)</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;" id="auto-attend-val-label">지급 횟수</div>
+                  <input id="auto-attend-value" type="number" min="1" placeholder="1" onchange="saveAutoCondition('attend')"
+                    style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);text-align:center;">
+                </div>
+                <div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">유효기간 (일)</div>
+                  <input id="auto-attend-expire" type="number" min="1" placeholder="30" onchange="saveAutoCondition('attend')"
+                    style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);text-align:center;">
+                </div>
+              </div>
+            </div>
+
+            <!-- 연속 출석 -->
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <div style="font-size:14px;font-weight:700;color:var(--text);">🔥 연속 출석</div>
+                <label style="position:relative;display:inline-block;width:44px;height:24px;">
+                  <input type="checkbox" id="auto-streak-on" style="opacity:0;width:0;height:0;" onchange="saveAutoCondition('streak')">
+                  <span id="auto-streak-slider" style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:0.3s;"></span>
+                </label>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                <div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">연속 일수</div>
+                  <input id="auto-streak-count" type="number" min="1" placeholder="7" onchange="saveAutoCondition('streak')"
+                    style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);text-align:center;">
+                </div>
+                <div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">쿠폰 종류</div>
+                  <select id="auto-streak-type" onchange="toggleAutoValueLabel('streak');saveAutoCondition('streak')"
+                    style="width:100%;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+                    <option value="free">무료 횟수</option>
+                    <option value="discount">할인 (%)</option>
+                    <option value="extend">기간 연장 (일)</option>
+                  </select>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;" id="auto-streak-val-label">지급 횟수</div>
+                  <input id="auto-streak-value" type="number" min="1" placeholder="1" onchange="saveAutoCondition('streak')"
+                    style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);text-align:center;">
+                </div>
+                <div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">유효기간 (일)</div>
+                  <input id="auto-streak-expire" type="number" min="1" placeholder="30" onchange="saveAutoCondition('streak')"
+                    style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);text-align:center;">
+                </div>
+              </div>
+            </div>
+
+            <!-- 첫 오운완 -->
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <div style="font-size:14px;font-weight:700;color:var(--text);">💪 첫 오운완 게시물</div>
+                <label style="position:relative;display:inline-block;width:44px;height:24px;">
+                  <input type="checkbox" id="auto-owunwan-on" style="opacity:0;width:0;height:0;" onchange="saveAutoCondition('owunwan')">
+                  <span id="auto-owunwan-slider" style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:0.3s;"></span>
+                </label>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">쿠폰 종류</div>
+                  <select id="auto-owunwan-type" onchange="toggleAutoValueLabel('owunwan');saveAutoCondition('owunwan')"
+                    style="width:100%;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+                    <option value="free">무료 횟수</option>
+                    <option value="discount">할인 (%)</option>
+                    <option value="extend">기간 연장 (일)</option>
+                  </select>
+                </div>
+                <div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;" id="auto-owunwan-val-label">지급 횟수</div>
+                  <input id="auto-owunwan-value" type="number" min="1" placeholder="1" onchange="saveAutoCondition('owunwan')"
+                    style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);text-align:center;">
+                </div>
+              </div>
+              <div style="margin-top:8px;">
+                <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">유효기간 (일)</div>
+                <input id="auto-owunwan-expire" type="number" min="1" placeholder="30" onchange="saveAutoCondition('owunwan')"
+                  style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);text-align:center;">
+              </div>
+            </div>
+
+            <!-- 생일 -->
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <div style="font-size:14px;font-weight:700;color:var(--text);">🎂 생일</div>
+                <label style="position:relative;display:inline-block;width:44px;height:24px;">
+                  <input type="checkbox" id="auto-birthday-on" style="opacity:0;width:0;height:0;" onchange="saveAutoCondition('birthday')">
+                  <span id="auto-birthday-slider" style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:0.3s;"></span>
+                </label>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">쿠폰 종류</div>
+                  <select id="auto-birthday-type" onchange="toggleAutoValueLabel('birthday');saveAutoCondition('birthday')"
+                    style="width:100%;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+                    <option value="free">무료 횟수</option>
+                    <option value="discount">할인 (%)</option>
+                    <option value="extend">기간 연장 (일)</option>
+                  </select>
+                </div>
+                <div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;" id="auto-birthday-val-label">지급 횟수</div>
+                  <input id="auto-birthday-value" type="number" min="1" placeholder="1" onchange="saveAutoCondition('birthday')"
+                    style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);text-align:center;">
+                </div>
+              </div>
+              <div style="margin-top:8px;">
+                <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">유효기간 (일)</div>
+                <input id="auto-birthday-expire" type="number" min="1" placeholder="30" onchange="saveAutoCondition('birthday')"
+                  style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);text-align:center;">
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -3497,6 +3650,8 @@
     if (typeof updateStats === 'function') updateStats();
     loadHomeNotices();
     loadHomeWeightCard();
+    // 자동 쿠폰 조건 체크
+    if (typeof checkAutoCoupons === 'function') checkAutoCoupons(localStorage.getItem('current_user'));
     // 최초 1회 권한 안내 화면 표시
     const userId = localStorage.getItem('current_user');
     const permDone = localStorage.getItem('permission_guide_done_' + userId);

@@ -25,6 +25,7 @@
     if (tabId === 'tab-community-admin') loadAdminCommunityFeed('전체');
     if (tabId === 'tab-trainer-admin') loadAdminTrainerSchedule();
     if (tabId === 'tab-coupon') loadMemberSelectOptions();
+    if (tabId === 'coupon-auto') loadAutoConditions();
   }
 
   // ── 관리자 강사 목록 관리 ──
@@ -3182,6 +3183,7 @@
     event.target.style.color = '#fff';
     event.target.style.borderColor = '#7F77DD';
     if (tabId === 'coupon-list') loadAdminCouponList();
+    if (tabId === 'coupon-auto') loadAutoConditions();
   }
 
   function toggleCouponValueLabel() {
@@ -3406,5 +3408,154 @@
       alert('쿠폰이 사용됐어요! ✅');
       loadMyCoupons();
     });
+  }
+
+
+  // ── 자동 쿠폰 조건 ──
+
+  function toggleAutoValueLabel(key) {
+    const type = document.getElementById('auto-' + key + '-type').value;
+    const label = document.getElementById('auto-' + key + '-val-label');
+    if (!label) return;
+    if (type === 'free') label.textContent = '지급 횟수';
+    else if (type === 'discount') label.textContent = '할인율 (%)';
+    else label.textContent = '연장 (일)';
+  }
+
+  function updateToggleUI(key, isOn) {
+    const slider = document.getElementById('auto-' + key + '-slider');
+    if (!slider) return;
+    slider.style.background = isOn ? '#7F77DD' : '#ccc';
+    slider.style.setProperty('--offset', isOn ? '20px' : '2px');
+    slider.style.cssText += isOn
+      ? ';position:absolute;cursor:pointer;inset:0;background:#7F77DD;border-radius:24px;transition:0.3s;'
+      : ';position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:0.3s;';
+    if (!slider.querySelector('span')) {
+      const dot = document.createElement('span');
+      dot.style.cssText = 'position:absolute;top:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:0.3s;';
+      slider.appendChild(dot);
+    }
+    const dot = slider.querySelector('span');
+    if (dot) dot.style.left = isOn ? '22px' : '2px';
+  }
+
+  function saveAutoCondition(key) {
+    const isOn = document.getElementById('auto-' + key + '-on').checked;
+    updateToggleUI(key, isOn);
+    const data = { on: isOn };
+    if (key === 'attend' || key === 'streak') {
+      data.count = document.getElementById('auto-' + key + '-count').value;
+    }
+    data.type = document.getElementById('auto-' + key + '-type') ? document.getElementById('auto-' + key + '-type').value : 'free';
+    data.value = document.getElementById('auto-' + key + '-value').value;
+    data.expire = document.getElementById('auto-' + key + '-expire').value;
+    db.ref('auto_coupon_conditions/' + key).set(data);
+  }
+
+  function loadAutoConditions() {
+    db.ref('auto_coupon_conditions').once('value', snap => {
+      if (!snap.exists()) return;
+      const conditions = snap.val();
+      ['attend', 'streak', 'owunwan', 'birthday'].forEach(key => {
+        const c = conditions[key];
+        if (!c) return;
+        const onEl = document.getElementById('auto-' + key + '-on');
+        if (onEl) { onEl.checked = c.on || false; updateToggleUI(key, c.on || false); }
+        if (key === 'attend' || key === 'streak') {
+          const countEl = document.getElementById('auto-' + key + '-count');
+          if (countEl && c.count) countEl.value = c.count;
+        }
+        const typeEl = document.getElementById('auto-' + key + '-type');
+        if (typeEl && c.type) { typeEl.value = c.type; toggleAutoValueLabel(key); }
+        const valEl = document.getElementById('auto-' + key + '-value');
+        if (valEl && c.value) valEl.value = c.value;
+        const expEl = document.getElementById('auto-' + key + '-expire');
+        if (expEl && c.expire) expEl.value = c.expire;
+      });
+    });
+  }
+
+  // 자동 쿠폰 발행 체크 (로그인 후 호출)
+  function checkAutoCoupons(userId) {
+    db.ref('auto_coupon_conditions').once('value', snap => {
+      if (!snap.exists()) return;
+      const conds = snap.val();
+
+      // 출석 횟수
+      if (conds.attend && conds.attend.on) {
+        const targetCount = parseInt(conds.attend.count || 0);
+        db.ref('users/' + userId + '/attendance').once('value', attSnap => {
+          const total = attSnap.exists() ? Object.keys(attSnap.val()).length : 0;
+          if (total === targetCount) {
+            const doneKey = 'auto_coupon_attend_' + targetCount + '_' + userId;
+            db.ref('coupon_issued_flags/' + doneKey).once('value', flagSnap => {
+              if (!flagSnap.exists()) {
+                issueAutoCoupon(userId, '출석 ' + targetCount + '회 달성 쿠폰', conds.attend);
+                db.ref('coupon_issued_flags/' + doneKey).set(true);
+              }
+            });
+          }
+        });
+      }
+
+      // 연속 출석
+      if (conds.streak && conds.streak.on) {
+        const targetStreak = parseInt(conds.streak.count || 0);
+        db.ref('users/' + userId + '/attendance').once('value', attSnap => {
+          if (!attSnap.exists()) return;
+          const dates = Object.keys(attSnap.val()).sort().reverse();
+          let streak = 0;
+          let prev = null;
+          for (const d of dates) {
+            if (!prev) { streak = 1; prev = d; continue; }
+            const diff = (new Date(prev) - new Date(d)) / 86400000;
+            if (diff === 1) { streak++; prev = d; } else break;
+          }
+          if (streak === targetStreak) {
+            const doneKey = 'auto_coupon_streak_' + targetStreak + '_' + userId + '_' + getToday();
+            db.ref('coupon_issued_flags/' + doneKey).once('value', flagSnap => {
+              if (!flagSnap.exists()) {
+                issueAutoCoupon(userId, '연속 ' + targetStreak + '일 출석 쿠폰', conds.streak);
+                db.ref('coupon_issued_flags/' + doneKey).set(true);
+              }
+            });
+          }
+        });
+      }
+
+      // 생일
+      if (conds.birthday && conds.birthday.on) {
+        db.ref('members/' + userId).once('value', mSnap => {
+          if (!mSnap.exists()) return;
+          const m = mSnap.val();
+          if (!m.birth) return;
+          const today = getToday();
+          const [, mm, dd] = today.split('-');
+          const [, bm, bd] = m.birth.split('-');
+          if (mm === bm && dd === bd) {
+            const doneKey = 'auto_coupon_birthday_' + userId + '_' + today.slice(0,7);
+            db.ref('coupon_issued_flags/' + doneKey).once('value', flagSnap => {
+              if (!flagSnap.exists()) {
+                issueAutoCoupon(userId, '🎂 생일 축하 쿠폰', conds.birthday);
+                db.ref('coupon_issued_flags/' + doneKey).set(true);
+              }
+            });
+          }
+        });
+      }
+    });
+  }
+
+  function issueAutoCoupon(userId, name, cond) {
+    const expireDays = parseInt(cond.expire || 30);
+    const expireDate = new Date();
+    expireDate.setDate(expireDate.getDate() + expireDays);
+    const expire = expireDate.toISOString().slice(0, 10);
+    const couponData = {
+      name, type: cond.type, value: cond.value,
+      expire, limit: '1', memo: '자동 발행',
+      issuedAt: new Date().toISOString(), used: false, auto: true
+    };
+    db.ref('coupons/' + userId).push(couponData);
   }
 
