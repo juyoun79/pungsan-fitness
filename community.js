@@ -864,7 +864,7 @@
       });
       if (post.owunwanDate) db.ref('users/' + post.authorId + '/owunwan/' + post.owunwanDate).remove();
     }
-    // 식단 게시물 포인트 환수
+    // 식단 게시물 포인트 환수 + 날짜 제한 해제
     if (post && post.category === '식단' && post.authorId) {
       const ptKey = post.photoURL ? 'dietPhoto' : 'dietText';
       db.ref('point_settings/' + ptKey).once('value', snap => {
@@ -873,6 +873,12 @@
           db.ref('users/' + post.authorId + '/points').transaction(cur => Math.max(0, (cur || 0) - dietPts));
           if (typeof updateStats === 'function') updateStats();
         }
+      });
+      // 오늘 날짜 제한 해제 (본인이 삭제할 때만)
+      const today = new Date();
+      const todayStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+      db.ref('users/' + post.authorId + '/diet_post_date').once('value', snap => {
+        if (snap.val() === todayStr) db.ref('users/' + post.authorId + '/diet_post_date').remove();
       });
     }
     db.ref('posts/' + postId).remove().then(() => {
