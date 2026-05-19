@@ -3598,8 +3598,12 @@
   function openEditBirth() {
     const userId = localStorage.getItem('current_user');
     const birth = localStorage.getItem('body_birth_' + userId) || '';
+    if (birth) {
+      alert('생년월일은 최초 입력 후 수정할 수 없어요 🎂\n문의사항은 관리자에게 말씀해주세요.');
+      return;
+    }
     const input = document.getElementById('edit-birth-input');
-    if (input) input.value = birth;
+    if (input) input.value = '';
     document.getElementById('edit-birth-modal').style.display = 'flex';
   }
 
@@ -3629,14 +3633,22 @@
   function loadMyInfoBirth() {
     const userId = localStorage.getItem('current_user');
     const el = document.getElementById('myinfo-birth');
+    const btn = document.getElementById('myinfo-birth-edit-btn');
     if (!el) return;
     const local = localStorage.getItem('body_birth_' + userId);
-    if (local) { el.textContent = formatBirth(local); return; }
+    if (local) {
+      el.textContent = formatBirth(local);
+      if (btn) btn.style.display = 'none';
+      return;
+    }
     db.ref('members/' + userId + '/birth').once('value', snap => {
       if (snap.exists()) {
         const birth = snap.val();
         localStorage.setItem('body_birth_' + userId, birth);
         el.textContent = formatBirth(birth);
+        if (btn) btn.style.display = 'none';
+      } else {
+        if (btn) btn.style.display = 'inline';
       }
     });
   }
