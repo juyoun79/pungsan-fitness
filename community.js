@@ -900,8 +900,23 @@
 
   function deletePost(postId, photoURL) {
     if (!confirm('게시글을 삭제할까요?')) return;
-    // 오운완 게시물이면 설정값만큼 포인트 환수 + owunwan 기록 삭제
     const post = allCommunityPosts.find(p => p.id === postId) || adminAllPosts.find(p => p.id === postId);
+
+    // 좋아요 포인트 환수 (게시글 작성자에게 받은 좋아요 수 × 좋아요 포인트)
+    if (post && post.authorId && post.likes) {
+      const likeCount = Object.keys(post.likes).length;
+      if (likeCount > 0) {
+        db.ref('point_settings/like').once('value', snap => {
+          const likePts = snap.val() ?? 1;
+          if (likePts > 0) {
+            db.ref('users/' + post.authorId + '/points').transaction(cur => Math.max(0, (cur || 0) - (likeCount * likePts)));
+            if (typeof updateStats === 'function') updateStats();
+          }
+        });
+      }
+    }
+
+    // 오운완 게시물이면 설정값만큼 포인트 환수 + owunwan 기록 삭제
     if (post && post.category === '오운완' && post.authorId) {
       db.ref('point_settings/owunwan').once('value', snap => {
         const owunwanPts = snap.val() ?? 10;
