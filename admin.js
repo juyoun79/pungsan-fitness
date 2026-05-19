@@ -3630,6 +3630,7 @@
       document.getElementById('pts-attend').value     = s.attend    ?? 2;
       document.getElementById('pts-diet-text').value  = s.dietText  ?? 5;
       document.getElementById('pts-diet-photo').value = s.dietPhoto ?? 10;
+      document.getElementById('pts-like').value       = s.like      ?? 1;
       document.getElementById('pts-tip').value        = s.tip       ?? 0;
       document.getElementById('pts-free').value       = s.free      ?? 0;
     });
@@ -3642,6 +3643,7 @@
       attend:     parseInt(document.getElementById('pts-attend').value)     || 0,
       dietText:   parseInt(document.getElementById('pts-diet-text').value)  || 0,
       dietPhoto:  parseInt(document.getElementById('pts-diet-photo').value) || 0,
+      like:       parseInt(document.getElementById('pts-like').value)       || 0,
       tip:        parseInt(document.getElementById('pts-tip').value)        || 0,
       free:       parseInt(document.getElementById('pts-free').value)       || 0,
     };

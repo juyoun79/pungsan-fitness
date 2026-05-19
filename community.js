@@ -716,7 +716,8 @@
         ${post.photoURL ? `<img class="feed-photo" src="${post.photoURL}" alt="사진" loading="lazy" onerror="this.style.display='none'" />` : ''}
         <div class="feed-content">${safeContent}</div>
         <div class="feed-actions">
-          <button class="feed-btn ${liked ? 'liked' : ''}" id="like-btn-${post.id}" onclick="toggleLike('${post.id}', this)">
+          <button class="feed-btn ${liked ? 'liked' : ''}" id="like-btn-${post.id}"
+            ${post.authorId === userId ? 'disabled style="opacity:0.35;cursor:not-allowed;"' : `onclick="toggleLike('${post.id}', this)"`}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="${liked ? '#ef4444' : 'none'}" stroke="${liked ? '#ef4444' : 'currentColor'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
             </svg>
@@ -751,18 +752,52 @@
   // ── 좋아요 토글 ──
   function toggleLike(postId, btn) {
     const userId = localStorage.getItem('current_user');
+    if (!userId) return;
+
+    // 게시물 작성자 확인 (자작 좋아요 방지)
+    const post = allCommunityPosts.find(p => p.id === postId) || adminAllPosts.find(p => p.id === postId);
+    if (post && post.authorId === userId) {
+      alert('내 게시물에는 좋아요를 누를 수 없어요 😊'); return;
+    }
+
     const likeRef = db.ref('posts/' + postId + '/likes/' + userId);
     likeRef.once('value').then(snap => {
       if (snap.exists()) {
+        // 좋아요 취소 → 작성자 포인트 -1
         likeRef.remove();
         btn.classList.remove('liked');
         btn.querySelector('svg').setAttribute('fill','none');
         btn.querySelector('svg').setAttribute('stroke','currentColor');
+        if (post && post.authorId) {
+          db.ref('point_settings/like').once('value', ptSnap => {
+            const likePts = ptSnap.val() ?? 1;
+            if (likePts > 0) {
+              db.ref('users/' + post.authorId + '/points').transaction(cur => Math.max(0, (cur || 0) - likePts));
+              if (post.authorId === userId && typeof updateStats === 'function') updateStats();
+            }
+          });
+        }
       } else {
+        // 좋아요 → 작성자 포인트 +1
         likeRef.set(true);
         btn.classList.add('liked');
         btn.querySelector('svg').setAttribute('fill','#ef4444');
         btn.querySelector('svg').setAttribute('stroke','#ef4444');
+        if (post && post.authorId) {
+          db.ref('point_settings/like').once('value', ptSnap => {
+            const likePts = ptSnap.val() ?? 1;
+            if (likePts > 0) {
+              let newPoints = 0;
+              db.ref('users/' + post.authorId + '/points').transaction(cur => {
+                newPoints = (cur || 0) + likePts;
+                return newPoints;
+              }).then(() => {
+                if (typeof checkPointTierCoupons === 'function') checkPointTierCoupons(post.authorId, newPoints);
+                if (post.authorId === userId && typeof updateStats === 'function') updateStats();
+              });
+            }
+          });
+        }
       }
       // 좋아요 수 업데이트
       db.ref('posts/' + postId + '/likes').once('value').then(s => {
