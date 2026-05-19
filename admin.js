@@ -1306,9 +1306,12 @@
         }
 
         db.ref('members/' + phone).set({ name, pw, programs }).then(() => {
+          const birth = document.getElementById('reg-birth') ? document.getElementById('reg-birth').value.trim() : '';
+          if (birth) db.ref('members/' + phone + '/birth').set(birth);
           document.getElementById('reg-name').value = '';
           document.getElementById('reg-phone').value = '';
           document.getElementById('reg-pw').value = '';
+          if (document.getElementById('reg-birth')) document.getElementById('reg-birth').value = '';
           document.querySelectorAll('#reg-programs input').forEach(el => el.checked = false);
           alert('✅ ' + name + ' 회원이 등록됐어요!\n아이디: ' + phone + '\n비밀번호: ' + pw);
         });
@@ -3563,5 +3566,53 @@
       issuedAt: new Date().toISOString(), used: false, auto: true
     };
     db.ref('coupons/' + userId).push(couponData);
+  }
+
+
+  // ── 생년월일 수정 ──
+  function openEditBirth() {
+    const userId = localStorage.getItem('current_user');
+    const birth = localStorage.getItem('body_birth_' + userId) || '';
+    const input = document.getElementById('edit-birth-input');
+    if (input) input.value = birth;
+    document.getElementById('edit-birth-modal').style.display = 'flex';
+  }
+
+  function closeEditBirth() {
+    document.getElementById('edit-birth-modal').style.display = 'none';
+  }
+
+  function saveEditBirth() {
+    const userId = localStorage.getItem('current_user');
+    const birth = document.getElementById('edit-birth-input').value.trim();
+    if (birth && (birth.length !== 8 || isNaN(birth))) {
+      alert('생년월일을 8자리 숫자로 입력해주세요.\n예) 19791012'); return;
+    }
+    localStorage.setItem('body_birth_' + userId, birth);
+    db.ref('members/' + userId + '/birth').set(birth || null);
+    const el = document.getElementById('myinfo-birth');
+    if (el) el.textContent = birth ? formatBirth(birth) : '';
+    closeEditBirth();
+    alert('생년월일이 저장됐어요! 🎂');
+  }
+
+  function formatBirth(birth) {
+    if (!birth || birth.length !== 8) return '';
+    return birth.slice(0,4) + '년 ' + parseInt(birth.slice(4,6)) + '월 ' + parseInt(birth.slice(6,8)) + '일';
+  }
+
+  function loadMyInfoBirth() {
+    const userId = localStorage.getItem('current_user');
+    const el = document.getElementById('myinfo-birth');
+    if (!el) return;
+    const local = localStorage.getItem('body_birth_' + userId);
+    if (local) { el.textContent = formatBirth(local); return; }
+    db.ref('members/' + userId + '/birth').once('value', snap => {
+      if (snap.exists()) {
+        const birth = snap.val();
+        localStorage.setItem('body_birth_' + userId, birth);
+        el.textContent = formatBirth(birth);
+      }
+    });
   }
 
