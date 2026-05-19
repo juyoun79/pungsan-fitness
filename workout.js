@@ -895,7 +895,11 @@
     const today = getToday();
 
     // 오늘 날짜 선택 여부 확인
-    if (calSelectedDate !== today) {
+    const now = new Date();
+    const isToday = calSelectedDate === now.getDate()
+      && calYear === now.getFullYear()
+      && calMonth === now.getMonth();
+    if (!isToday) {
       alert('오늘 날짜를 선택 후\n올리기 버튼을 눌러주세요 📅');
       return;
     }
