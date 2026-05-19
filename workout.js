@@ -894,6 +894,12 @@
     if (!userId) { alert('로그인이 필요해요.'); return; }
     const today = getToday();
 
+    // 오늘 날짜 선택 여부 확인
+    if (calSelectedDate !== today) {
+      alert('오늘 날짜를 선택 후\n올리기 버튼을 눌러주세요 📅');
+      return;
+    }
+
     // 오늘 운동기록 확인
     const todayRecords = getTodayAllRecords(userId, today);
     if (todayRecords.length === 0) {
@@ -912,6 +918,8 @@
       document.getElementById('owunwan-preview-wrap').style.display = 'none';
       document.getElementById('owunwan-comment').value = '';
       document.getElementById('owunwan-photo-input').value = '';
+      const canvas = document.getElementById('owunwan-canvas');
+      canvas.width = 0; canvas.height = 0;
       const btn = document.getElementById('owunwan-submit-btn');
       btn.textContent = '오운완 올리기 🔥'; btn.disabled = false;
 
