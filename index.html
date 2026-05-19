@@ -3367,7 +3367,6 @@
       showScreen('screen-permission');
       return;
     }
-    const userId = localStorage.getItem('current_user');
     // fwIndex localStorage 이상한 데이터 자동 정리
     const fwIndexKey = 'freeweight_index_' + userId;
     const fwIndexRaw = JSON.parse(localStorage.getItem(fwIndexKey) || '[]');
