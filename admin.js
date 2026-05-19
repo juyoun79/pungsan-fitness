@@ -237,7 +237,7 @@
       const schedules = {};
       snap.forEach(child => {
         const info = child.val();
-        const name = localStorage.getItem('name_' + child.key) || child.key;
+        const name = info.name || localStorage.getItem('name_' + child.key) || child.key;
         trainers.push({ id: child.key, name });
         schedules[child.key] = info.schedule || {};
       });
