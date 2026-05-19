@@ -747,10 +747,8 @@
       const elTotal = document.getElementById('att-total'); if (elTotal) elTotal.textContent = total;
       const elMonth = document.getElementById('att-month'); if (elMonth) elMonth.textContent = month;
     });
-    db.ref('users/' + userId + '/points').once('value', snap => {
-      const pts = snap.val() || 0;
-      const elPts = document.getElementById('att-points'); if (elPts) elPts.textContent = pts.toLocaleString();
-    });
+    // 포인트는 updateStats()로 통일해서 전체 동기화
+    if (typeof updateStats === 'function') updateStats();
     checkGpsStatus();
   }
 
@@ -1208,8 +1206,13 @@
       let count = 0; snap.forEach(child => { if (child.key.startsWith(monthPrefix)) count++; });
       const el = document.getElementById('stat-days'); if (el) el.textContent = count;
     });
+    // 항상 Firebase에서 읽어 모든 포인트 표시 동기화
     db.ref('users/' + userId + '/points').once('value', snap => {
-      const pts = snap.val() || 0; const el = document.getElementById('stat-points'); if (el) el.textContent = pts;
+      const pts = snap.val() || 0;
+      const elHome = document.getElementById('stat-points'); if (elHome) elHome.textContent = pts;
+      const elInfo = document.getElementById('myinfo-points'); if (elInfo) elInfo.textContent = pts;
+      const elAtt  = document.getElementById('att-points');   if (elAtt)  elAtt.textContent = pts.toLocaleString();
+      localStorage.setItem('points_' + userId, String(pts));
     });
   }
 

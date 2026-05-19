@@ -2830,11 +2830,13 @@
       document.getElementById('myinfo-attend').textContent = attendCount;
     });
 
-    // 포인트 - Firebase에서 불러오기
+    // 포인트 - 항상 Firebase에서 읽기 (localStorage 의존 제거)
     db.ref('users/' + userId + '/points').once('value', snap => {
-      const pts = snap.val() || localStorage.getItem('points_' + userId) || '0';
+      const pts = snap.val() || 0;
       localStorage.setItem('points_' + userId, String(pts));
-      document.getElementById('myinfo-points').textContent = pts;
+      const elInfo = document.getElementById('myinfo-points'); if (elInfo) elInfo.textContent = pts;
+      const elHome = document.getElementById('stat-points');   if (elHome) elHome.textContent = pts;
+      const elAtt  = document.getElementById('att-points');    if (elAtt)  elAtt.textContent = pts.toLocaleString();
     });
 
     // 내 게시글 수 - 전체 로드 후 클라이언트에서 필터링

@@ -1220,13 +1220,16 @@
     if (newPt === null) return;
     if (isNaN(newPt)) { alert('숫자만 입력해주세요.'); return; }
     const pt = parseInt(newPt);
-    // 로컬스토리지 업데이트
-    localStorage.setItem('points_' + currentMemberPhone, pt);
-    // Firebase 반영
-    db.ref('users/' + currentMemberPhone + '/points').set(pt);
-    alert('포인트가 ' + pt + 'P로 변경됐어요.');
-    closeMemberModal();
-    loadMemberList();
+    // Firebase 저장
+    db.ref('users/' + currentMemberPhone + '/points').set(pt).then(() => {
+      localStorage.setItem('points_' + currentMemberPhone, String(pt));
+      // 현재 로그인된 회원 본인이면 화면 즉시 갱신
+      const loggedIn = localStorage.getItem('current_user');
+      if (loggedIn === currentMemberPhone && typeof updateStats === 'function') updateStats();
+      alert('포인트가 ' + pt + 'P로 변경됐어요.');
+      closeMemberModal();
+      loadMemberList();
+    });
   }
 
   // ── 회원 localStorage 데이터 초기화 ──
