@@ -951,7 +951,8 @@
 
         <!-- 스캔 시작 버튼 (기본 표시) -->
         <div id="qr-btn-wrap" style="margin-top:16px;">
-          <button class="btn-primary" onclick="startAttendQr()" style="display:flex;align-items:center;justify-content:center;gap:8px;">
+          <button id="qr-scan-btn" class="btn-primary" onclick="startAttendQr()" disabled
+            style="display:flex;align-items:center;justify-content:center;gap:8px;opacity:0.45;cursor:not-allowed;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
               <rect x="14" y="14" width="3" height="3"/><rect x="18" y="14" width="3" height="3"/><rect x="14" y="18" width="3" height="3"/><rect x="18" y="18" width="3" height="3"/>

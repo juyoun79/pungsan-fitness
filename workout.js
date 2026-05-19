@@ -767,20 +767,25 @@
     navigator.geolocation.getCurrentPosition(
       pos => {
         const dist = getDistanceMeters(pos.coords.latitude, pos.coords.longitude, GYM_LAT, GYM_LNG);
+        const qrBtn = document.getElementById('qr-scan-btn');
         if (dist <= GYM_RADIUS) {
           if (gpsText) gpsText.textContent = '헬스장 위치 확인됨';
           if (gpsDot)  gpsDot.style.background = '#22c55e';
           if (gpsCard) { gpsCard.style.background = '#f0fdf4'; gpsCard.style.borderColor = '#86efac'; }
+          if (qrBtn) { qrBtn.disabled = false; qrBtn.style.opacity = '1'; qrBtn.style.cursor = 'pointer'; }
         } else {
           if (gpsText) gpsText.textContent = '헬스장 밖에 있어요 (약 ' + Math.round(dist) + 'm)';
           if (gpsDot)  gpsDot.style.background = '#ef4444';
           if (gpsCard) { gpsCard.style.background = '#fef2f2'; gpsCard.style.borderColor = '#fca5a5'; }
+          if (qrBtn) { qrBtn.disabled = true; qrBtn.style.opacity = '0.45'; qrBtn.style.cursor = 'not-allowed'; }
         }
       },
       () => {
         if (gpsText) gpsText.textContent = '위치 권한을 허용해주세요';
         if (gpsDot)  gpsDot.style.background = '#f59e0b';
         if (gpsCard) { gpsCard.style.background = '#fffbeb'; gpsCard.style.borderColor = '#fcd34d'; }
+        const qrBtn = document.getElementById('qr-scan-btn');
+        if (qrBtn) { qrBtn.disabled = true; qrBtn.style.opacity = '0.45'; qrBtn.style.cursor = 'not-allowed'; }
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
