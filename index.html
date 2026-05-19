@@ -3346,12 +3346,31 @@
     const userId = localStorage.getItem('current_user');
     localStorage.setItem('permission_guide_done_' + userId, '1');
     const pendingNickname = localStorage.getItem('pending_nickname');
-    if (pendingNickname) {
-      localStorage.removeItem('pending_nickname');
-      goHome(pendingNickname, true);
-    } else {
-      showScreen('screen-home');
+    if (pendingNickname) localStorage.removeItem('pending_nickname');
+
+    // 1. 위치 권한 요청
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(() => {}, () => {});
     }
+    // 2. 카메라 권한 요청
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => { stream.getTracks().forEach(t => t.stop()); })
+        .catch(() => {});
+    }
+    // 3. 알림 권한 요청
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+
+    // 권한 팝업 처리 후 홈으로 이동
+    setTimeout(() => {
+      if (pendingNickname) {
+        goHome(pendingNickname, true);
+      } else {
+        showScreen('screen-home');
+      }
+    }, 500);
   }
 
   function goHome(nickname, forceHome) {
