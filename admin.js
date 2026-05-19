@@ -3750,6 +3750,7 @@
   function togglePointTier(idx, val) {
     pointTiers[idx].active = val;
     savePointTiers();
+    renderPointTiers();
   }
 
   function updatePointTier(idx, key, val) {
