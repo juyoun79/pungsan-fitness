@@ -3612,33 +3612,51 @@
 
   function _renderWeightDetail() {
     const userId = localStorage.getItem('current_user');
-    // localStorage 캐시 초기화 후 Firebase에서 직접 전체 기록 로드
-    localStorage.removeItem('weight_history_' + userId);
+    const listEl = document.getElementById('weight-detail-list');
+    const cards  = document.getElementById('weight-summary-cards');
+    const canvas = document.getElementById('weight-detail-graph');
+    if (listEl) listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);">불러오는 중...</div>';
+
     db.ref('users/' + userId + '/weightHistory').once('value', snap => {
       const history = [];
-      snap.forEach(child => history.push({ date: child.key, weight: child.val() }));
+      snap.forEach(child => {
+        const w = parseFloat(child.val());
+        if (!isNaN(w)) history.push({ date: child.key, weight: w });
+      });
       history.sort((a, b) => a.date.localeCompare(b.date));
+
+      if (history.length === 0) {
+        if (listEl) listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);">체중 기록이 없어요</div>';
+        return;
+      }
+
+      // localStorage도 최신으로 업데이트
       localStorage.setItem('weight_history_' + userId, JSON.stringify(history));
+
       _renderWeightDetailData(userId, history);
     });
   }
 
   function _renderWeightDetailData(userId, history) {
-    if (history.length === 0) return;
+    if (!history || history.length === 0) return;
 
     // 날짜 기준 필터링 (한국 로컬 시간 기준)
     let data;
     if (weightFilter === 0) {
       data = history;
     } else {
-      const today = new Date();
-      const cutoff = new Date(today.getFullYear(), today.getMonth(), today.getDate() - weightFilter);
-      const cutoffStr = cutoff.getFullYear() + '-' +
-        String(cutoff.getMonth()+1).padStart(2,'0') + '-' +
-        String(cutoff.getDate()).padStart(2,'0');
+      const now = new Date();
+      const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+      const cutoff = new Date(y, m, d - weightFilter);
+      const cy = cutoff.getFullYear();
+      const cm = String(cutoff.getMonth()+1).padStart(2,'0');
+      const cd = String(cutoff.getDate()).padStart(2,'0');
+      const cutoffStr = cy + '-' + cm + '-' + cd;
       data = history.filter(r => r.date >= cutoffStr);
       if (data.length === 0) data = history.slice(-weightFilter);
     }
+
+    console.log('weightFilter:', weightFilter, '전체기록수:', history.length, '필터후:', data.length, data.map(r=>r.date));
 
     // 요약 카드
     const weights = data.map(r => r.weight);
