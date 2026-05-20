@@ -3063,6 +3063,7 @@
     if (userId) localStorage.setItem('last_tab_' + userId, 'home');
     localStorage.removeItem('current_user');
     localStorage.removeItem('auto_login_user');
+    sessionStorage.removeItem('session_user');
     showScreen('screen-login');
   }
 
@@ -3094,34 +3095,40 @@
       return;
     }
 
-    db.ref('members/' + id).once('value').then(snap => {
+    // members와 users 동시 조회로 딜레이 최소화
+    Promise.all([
+      db.ref('members/' + id).once('value'),
+      db.ref('users/' + id).once('value')
+    ]).then(([snap, userSnap]) => {
       if (btn) { btn.textContent = '로그인'; btn.disabled = false; }
 
       if (!snap.exists()) {
         // members에 없으면 users에서 확인 (강사/매니저 계정)
-        db.ref('users/' + id).once('value').then(userSnap => {
-          if (!userSnap.exists()) {
-            alert('등록되지 않은 회원이에요.\n관리자에게 문의해주세요.');
-            return;
-          }
-          const user = userSnap.val();
-          const savedPw = localStorage.getItem('pw_' + id) || user.pw;
-          if (pw !== savedPw) {
-            alert('비밀번호가 틀렸어요.\n초기 비밀번호는 휴대폰 뒤 4자리예요.');
-            return;
-          }
-          localStorage.setItem('current_user', id);
-          const memberName = user.name || id;
-          localStorage.setItem('name_' + id, memberName);
-          const role = user.role || 'member';
-          localStorage.setItem('role_' + id, role);
+        if (!userSnap.exists()) {
+          alert('등록되지 않은 회원이에요.\n관리자에게 문의해주세요.');
+          return;
+        }
+        const user = userSnap.val();
+        const savedPw = localStorage.getItem('pw_' + id) || user.pw;
+        if (pw !== savedPw) {
+          alert('비밀번호가 틀렸어요.\n초기 비밀번호는 휴대폰 뒤 4자리예요.');
+          return;
+        }
+        localStorage.setItem('current_user', id);
+        sessionStorage.setItem('session_user', id);
+        const memberName = user.name || id;
+        localStorage.setItem('name_' + id, memberName);
+        const role = user.role || 'member';
+        localStorage.setItem('role_' + id, role);
+        const nickname = user.nickname || localStorage.getItem('nickname_' + id);
+        if (!nickname) {
+          showScreen('screen-set-nickname');
+        } else {
+          localStorage.setItem('nickname_' + id, nickname);
           const hasBodyInfo = localStorage.getItem('body_weight_' + id);
-          if (!hasBodyInfo) {
-            showScreen('screen-nickname');
-          } else {
-            goHome(memberName, true);
-          }
-        });
+          if (!hasBodyInfo) showScreen('screen-nickname');
+          else goHome(nickname, true);
+        }
         return;
       }
 
@@ -3143,6 +3150,7 @@
         }
         // 로그인 처리
         localStorage.setItem('current_user', id);
+        sessionStorage.setItem('session_user', id); // 새로고침 세션 유지
         if (document.getElementById('auto-login').checked) {
           localStorage.setItem('auto_login_user', id);
         }
@@ -3165,7 +3173,6 @@
             goHome(nickname, true);
           }
         }
-      });
     }).catch(() => {
       if (btn) { btn.textContent = '로그인'; btn.disabled = false; }
       alert('네트워크 오류가 발생했어요. 인터넷 연결을 확인해주세요.');
@@ -4063,8 +4070,8 @@
 
     // 1. 자동 로그인 또는 현재 세션 복원
     const autoUser = localStorage.getItem('auto_login_user');
-    const currentUser = localStorage.getItem('current_user');
-    const userId = autoUser || currentUser; // 둘 중 하나라도 있으면 유지
+    const sessionUser = sessionStorage.getItem('session_user'); // 탭 닫기 전까지 유지
+    const userId = autoUser || sessionUser; // 자동 로그인 or 현재 세션
 
     if (userId) {
       const nick = localStorage.getItem('name_' + userId);

@@ -493,11 +493,12 @@
   // ══════════════════════════════
   function switchTab(tab) {
     // 로그인 상태 확인 - 없으면 로그인 화면으로
-    const userId = localStorage.getItem('current_user');
+    const userId = localStorage.getItem('current_user') || sessionStorage.getItem('session_user');
     if (!userId) {
       showScreen('screen-login');
       return;
     }
+    if (!localStorage.getItem('current_user')) localStorage.setItem('current_user', userId);
     ['home','attend','workout','community','myinfo'].forEach(t => {
       const el = document.getElementById('tab-' + t);
       if (el) el.classList.toggle('active', t === tab || (t === 'attend' && tab === 'trainer'));
