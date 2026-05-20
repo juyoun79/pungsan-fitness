@@ -3435,18 +3435,20 @@
   // ── 홈 체중 그래프 ──
   function renderHomeWeightGraph() {
     const userId = localStorage.getItem('current_user');
-    // 항상 Firebase에서 최신 데이터 로드
     db.ref('users/' + userId + '/weightHistory').once('value', snap => {
       const fbHistory = [];
-      snap.forEach(child => fbHistory.push({ date: child.key, weight: child.val() }));
+      snap.forEach(child => {
+        const w = parseFloat(child.val());
+        if (!isNaN(w)) fbHistory.push({ date: child.key, weight: w });
+      });
       fbHistory.sort((a, b) => a.date.localeCompare(b.date));
       localStorage.setItem('weight_history_' + userId, JSON.stringify(fbHistory));
-      _drawWeightGraph(userId);
+      _drawWeightGraph(userId, fbHistory);
     });
   }
 
-  function _drawWeightGraph(userId) {
-    const history = JSON.parse(localStorage.getItem('weight_history_' + userId) || '[]');
+  function _drawWeightGraph(userId, fbHistory) {
+    const history = fbHistory || JSON.parse(localStorage.getItem('weight_history_' + userId) || '[]');
     const canvas  = document.getElementById('home-weight-graph');
     const rangeEl = document.getElementById('home-weight-range');
     if (!canvas || history.length === 0) return;
