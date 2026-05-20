@@ -3485,8 +3485,8 @@
 
     const GRAPH_H = H - 20;
     const pts = days7.map((r, i) => ({
-      x: W * 0.05 + (W * 0.9) * (i / 6),
-      y: r.weight !== null ? GRAPH_H * 0.1 + (GRAPH_H * 0.75) * (1 - (r.weight - minW) / range2) : null,
+      x: W * 0.10 + (W * 0.82) * (i / 6),
+      y: r.weight !== null ? GRAPH_H * 0.12 + (GRAPH_H * 0.70) * (1 - (r.weight - minW) / range2) : null,
       w: r.weight,
       label: r.label
     }));
@@ -3541,7 +3541,7 @@
       ctx.fillStyle = '#94a3b8';
       ctx.font = '9px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(p.label, p.x, H - 4);
+      ctx.fillText(p.label, Math.max(14, Math.min(W - 14, p.x)), H - 4);
       if (p.y === null) return;
       const dotColor = prevPt === null ? '#888780' : p.w > prevPt.w ? '#E24B4A' : p.w < prevPt.w ? '#378ADD' : '#888780';
       ctx.beginPath();
@@ -3555,7 +3555,8 @@
       ctx.fillStyle = dotColor;
       ctx.font = 'bold 10px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(p.w + 'kg', p.x, p.y - 8);
+      const lbx = Math.max(18, Math.min(W - 18, p.x));
+      ctx.fillText(p.w + 'kg', lbx, p.y - 8);
       prevPt = p;
     });
   }
@@ -3681,12 +3682,14 @@
       const lastDate  = new Date(data[data.length-1].date);
       const totalDays = Math.max((lastDate - firstDate) / 86400000, 1);
 
-      const pts = data.map(r => {
+      const pts = data.map((r, i) => {
         const d = new Date(r.date);
         const dayOffset = (d - firstDate) / 86400000;
+        // 데이터 1개면 중앙에 배치
+        const xRatio = data.length === 1 ? 0.5 : dayOffset / totalDays;
         return {
-          x: W * 0.05 + (W * 0.9) * (dayOffset / totalDays),
-          y: GRAPH_H * 0.1 + (GRAPH_H * 0.75) * (1 - (r.weight - wMin) / range),
+          x: W * 0.10 + (W * 0.82) * xRatio,
+          y: GRAPH_H * 0.12 + (GRAPH_H * 0.70) * (1 - (r.weight - wMin) / range),
           w: r.weight,
           date: r.date ? r.date.slice(5) : ''
         };
@@ -3729,11 +3732,12 @@
         if (show) {
           ctx.fillStyle = dotColor;
           ctx.font = 'bold 10px sans-serif';
+          const lx = Math.max(20, Math.min(W - 20, p.x));
           ctx.textAlign = 'center';
-          ctx.fillText(p.w + 'kg', p.x, p.y - 8);
+          ctx.fillText(p.w + 'kg', lx, p.y - 8);
           ctx.fillStyle = '#94a3b8';
           ctx.font = '9px sans-serif';
-          ctx.fillText(p.date, p.x, H - 4);
+          ctx.fillText(p.date, Math.max(16, Math.min(W - 16, p.x)), H - 4);
         }
       });
     }
