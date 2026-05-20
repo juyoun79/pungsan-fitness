@@ -3453,9 +3453,19 @@
     const canvas  = document.getElementById('home-weight-graph');
     const rangeEl = document.getElementById('home-weight-range');
     if (!canvas || history.length === 0) return;
+    if (rangeEl) rangeEl.textContent = '최근 7일';
 
-    const recent = history.slice(-7);
-    if (rangeEl) rangeEl.textContent = '최근 ' + recent.length + '일';
+    // 날짜 기준 최근 7일 축 생성
+    const today = new Date();
+    const days7 = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      const label = (d.getMonth()+1) + '/' + d.getDate();
+      const rec = history.find(r => r.date === key);
+      days7.push({ key, label, weight: rec ? rec.weight : null });
+    }
 
     const parent = canvas.parentElement;
     const W = parent ? parent.clientWidth - 32 : 300;
@@ -3463,32 +3473,42 @@
     canvas.width  = W;
     canvas.height = H;
 
-    const weights = recent.map(r => r.weight);
+    const recorded = days7.filter(d => d.weight !== null);
+    if (recorded.length === 0) return;
+
+    const weights = recorded.map(r => r.weight);
     const minW    = Math.min(...weights) - 1;
     const maxW    = Math.max(...weights) + 1;
     const range2  = maxW - minW || 1;
     const ctx     = canvas.getContext('2d');
     ctx.clearRect(0, 0, W, H);
 
-    const GRAPH_H = H - 20; // 날짜 레이블 공간 확보
-    const pts = recent.map((r, i) => ({
-      x: W * 0.05 + (W * 0.9) * (i / Math.max(recent.length - 1, 1)),
-      y: GRAPH_H * 0.1 + (GRAPH_H * 0.75) * (1 - (r.weight - minW) / range2),
+    const GRAPH_H = H - 20;
+    const pts = days7.map((r, i) => ({
+      x: W * 0.05 + (W * 0.9) * (i / 6),
+      y: r.weight !== null ? GRAPH_H * 0.1 + (GRAPH_H * 0.75) * (1 - (r.weight - minW) / range2) : null,
       w: r.weight,
-      date: r.date ? r.date.slice(5) : ''
+      label: r.label
     }));
 
-    // 그라데이션 영역
+    // 그라데이션 영역 (기록 있는 점만)
     const grad = ctx.createLinearGradient(0, 0, 0, GRAPH_H);
     grad.addColorStop(0, 'rgba(37,99,235,0.15)');
     grad.addColorStop(1, 'rgba(37,99,235,0)');
     ctx.beginPath();
-    ctx.moveTo(pts[0].x, GRAPH_H);
-    pts.forEach(p => ctx.lineTo(p.x, p.y));
-    ctx.lineTo(pts[pts.length-1].x, GRAPH_H);
-    ctx.closePath();
-    ctx.fillStyle = grad;
-    ctx.fill();
+    let started = false;
+    pts.forEach(p => {
+      if (p.y === null) return;
+      if (!started) { ctx.moveTo(p.x, GRAPH_H); ctx.lineTo(p.x, p.y); started = true; }
+      else ctx.lineTo(p.x, p.y);
+    });
+    if (started) {
+      const last = [...pts].reverse().find(p => p.y !== null);
+      ctx.lineTo(last.x, GRAPH_H);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
 
     // 그리드 라인
     ctx.strokeStyle = '#e2e8f0';
@@ -3498,21 +3518,32 @@
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
     }
 
-    // 선 색상 구분 (1+2 조합)
-    for (let i = 1; i < pts.length; i++) {
-      const lineColor = pts[i].w > pts[i-1].w ? '#E24B4A' : pts[i].w < pts[i-1].w ? '#378ADD' : '#888780';
-      ctx.beginPath();
-      ctx.moveTo(pts[i-1].x, pts[i-1].y);
-      ctx.lineTo(pts[i].x, pts[i].y);
-      ctx.strokeStyle = lineColor;
-      ctx.lineWidth = 2.5;
-      ctx.lineJoin = 'round';
-      ctx.stroke();
-    }
+    // 선 (기록 있는 점끼리만 연결)
+    let prev = null;
+    pts.forEach(p => {
+      if (p.y === null) { prev = null; return; }
+      if (prev !== null) {
+        const lineColor = p.w > prev.w ? '#E24B4A' : p.w < prev.w ? '#378ADD' : '#888780';
+        ctx.beginPath();
+        ctx.moveTo(prev.x, prev.y);
+        ctx.lineTo(p.x, p.y);
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = 2.5;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+      }
+      prev = p;
+    });
 
-    // 점 + 무게/날짜 레이블 (모든 점, 색상 구분)
-    pts.forEach((p, i) => {
-      const dotColor = i === 0 ? '#888780' : p.w > pts[i-1].w ? '#E24B4A' : p.w < pts[i-1].w ? '#378ADD' : '#888780';
+    // 점 + 레이블
+    let prevPt = null;
+    pts.forEach(p => {
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(p.label, p.x, H - 4);
+      if (p.y === null) return;
+      const dotColor = prevPt === null ? '#888780' : p.w > prevPt.w ? '#E24B4A' : p.w < prevPt.w ? '#378ADD' : '#888780';
       ctx.beginPath();
       ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
       ctx.fillStyle = dotColor;
@@ -3525,10 +3556,7 @@
       ctx.font = 'bold 10px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(p.w + 'kg', p.x, p.y - 8);
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '9px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(p.date, p.x, H - 4);
+      prevPt = p;
     });
   }
   let weightFilter = 7;
@@ -3586,10 +3614,30 @@
 
   function _renderWeightDetail() {
     const userId = localStorage.getItem('current_user');
-    const history = JSON.parse(localStorage.getItem('weight_history_' + userId) || '[]');
+    // Firebase에서 직접 전체 기록 로드
+    db.ref('users/' + userId + '/weightHistory').once('value', snap => {
+      const history = [];
+      snap.forEach(child => history.push({ date: child.key, weight: child.val() }));
+      history.sort((a, b) => a.date.localeCompare(b.date));
+      if (history.length > 0) localStorage.setItem('weight_history_' + userId, JSON.stringify(history));
+      _renderWeightDetailData(userId, history);
+    });
+  }
+
+  function _renderWeightDetailData(userId, history) {
     if (history.length === 0) return;
 
-    const data = weightFilter === 0 ? history : history.slice(-weightFilter);
+    // 날짜 기준 필터링
+    let data;
+    if (weightFilter === 0) {
+      data = history;
+    } else {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - weightFilter);
+      const cutoffStr = cutoff.toISOString().slice(0,10);
+      data = history.filter(r => r.date >= cutoffStr);
+      if (data.length === 0) data = history.slice(-weightFilter);
+    }
 
     // 요약 카드
     const weights = data.map(r => r.weight);
@@ -3613,7 +3661,7 @@
         </div>`;
     }
 
-    // 전체 그래프
+    // 전체 그래프 - 날짜 기준 X축
     const canvas = document.getElementById('weight-detail-graph');
     if (canvas && data.length > 0) {
       const W = canvas.parentElement.clientWidth - 28;
@@ -3628,12 +3676,21 @@
       const range = wMax - wMin || 1;
       const GRAPH_H = H - 24;
 
-      const pts = data.map((r, i) => ({
-        x: W * 0.05 + (W * 0.9) * (i / Math.max(data.length - 1, 1)),
-        y: GRAPH_H * 0.1 + (GRAPH_H * 0.75) * (1 - (r.weight - wMin) / range),
-        w: r.weight,
-        date: r.date ? r.date.slice(5) : ''
-      }));
+      // 날짜 범위 기준 X 좌표 계산
+      const firstDate = new Date(data[0].date);
+      const lastDate  = new Date(data[data.length-1].date);
+      const totalDays = Math.max((lastDate - firstDate) / 86400000, 1);
+
+      const pts = data.map(r => {
+        const d = new Date(r.date);
+        const dayOffset = (d - firstDate) / 86400000;
+        return {
+          x: W * 0.05 + (W * 0.9) * (dayOffset / totalDays),
+          y: GRAPH_H * 0.1 + (GRAPH_H * 0.75) * (1 - (r.weight - wMin) / range),
+          w: r.weight,
+          date: r.date ? r.date.slice(5) : ''
+        };
+      });
 
       // 그라데이션
       const grad = ctx.createLinearGradient(0, 0, 0, GRAPH_H);
@@ -3854,8 +3911,7 @@
     const record = { date: dateStr, weight };
     if (idx !== -1) history[idx] = record;
     else history.push(record);
-    // 최근 30개 유지
-    if (history.length > 30) history.shift();
+    // 제한 없이 전체 보관
     localStorage.setItem(key, JSON.stringify(history));
     // Firebase 체중 기록 저장 완료 후 콜백
     db.ref('users/' + userId + '/weightHistory/' + dateStr).set(weight).then(() => {
