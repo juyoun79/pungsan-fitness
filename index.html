@@ -3628,14 +3628,16 @@
   function _renderWeightDetailData(userId, history) {
     if (history.length === 0) return;
 
-    // 날짜 기준 필터링
+    // 날짜 기준 필터링 (한국 로컬 시간 기준)
     let data;
     if (weightFilter === 0) {
       data = history;
     } else {
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - weightFilter);
-      const cutoffStr = cutoff.toISOString().slice(0,10);
+      const today = new Date();
+      const cutoff = new Date(today.getFullYear(), today.getMonth(), today.getDate() - weightFilter);
+      const cutoffStr = cutoff.getFullYear() + '-' +
+        String(cutoff.getMonth()+1).padStart(2,'0') + '-' +
+        String(cutoff.getDate()).padStart(2,'0');
       data = history.filter(r => r.date >= cutoffStr);
       if (data.length === 0) data = history.slice(-weightFilter);
     }
