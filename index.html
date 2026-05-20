@@ -3434,16 +3434,13 @@
 
   // ── 홈 체중 그래프 ──
   function renderHomeWeightGraph() {
-    const userId  = localStorage.getItem('current_user');
-    // Firebase에서 체중 기록 불러와서 그래프 렌더링
+    const userId = localStorage.getItem('current_user');
+    // 항상 Firebase에서 최신 데이터 로드
     db.ref('users/' + userId + '/weightHistory').once('value', snap => {
       const fbHistory = [];
-      snap.forEach(child => { fbHistory.push({ date: child.key, weight: child.val() }); });
+      snap.forEach(child => fbHistory.push({ date: child.key, weight: child.val() }));
       fbHistory.sort((a, b) => a.date.localeCompare(b.date));
-      if (fbHistory.length > 0) {
-        // Firebase 데이터를 로컬스토리지에도 동기화
-        localStorage.setItem('weight_history_' + userId, JSON.stringify(fbHistory));
-      }
+      localStorage.setItem('weight_history_' + userId, JSON.stringify(fbHistory));
       _drawWeightGraph(userId);
     });
   }
@@ -3615,12 +3612,13 @@
 
   function _renderWeightDetail() {
     const userId = localStorage.getItem('current_user');
-    // Firebase에서 직접 전체 기록 로드
+    // localStorage 캐시 초기화 후 Firebase에서 직접 전체 기록 로드
+    localStorage.removeItem('weight_history_' + userId);
     db.ref('users/' + userId + '/weightHistory').once('value', snap => {
       const history = [];
       snap.forEach(child => history.push({ date: child.key, weight: child.val() }));
       history.sort((a, b) => a.date.localeCompare(b.date));
-      if (history.length > 0) localStorage.setItem('weight_history_' + userId, JSON.stringify(history));
+      localStorage.setItem('weight_history_' + userId, JSON.stringify(history));
       _renderWeightDetailData(userId, history);
     });
   }
