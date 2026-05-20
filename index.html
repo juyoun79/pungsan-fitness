@@ -3173,6 +3173,7 @@
             goHome(nickname, true);
           }
         }
+      });
     }).catch(() => {
       if (btn) { btn.textContent = '로그인'; btn.disabled = false; }
       alert('네트워크 오류가 발생했어요. 인터넷 연결을 확인해주세요.');
