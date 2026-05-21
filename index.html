@@ -33,6 +33,39 @@
   const db = firebase.database();
   const storage = firebase.storage();
 
+
+  // ── 커스텀 토스트 & 확인 팝업 ──
+  function showToast(msg, type = 'success') {
+    const existing = document.getElementById('app-toast');
+    if (existing) existing.remove();
+    const toast = document.createElement('div');
+    toast.id = 'app-toast';
+    const bg = type === 'error' ? '#791F1F' : type === 'info' ? '#0C447C' : '#085041';
+    const tc = type === 'error' ? '#F7C1C1' : type === 'info' ? '#B5D4F4' : '#9FE1CB';
+    const icon = type === 'error' ? '❌' : type === 'info' ? 'ℹ️' : '✅';
+    toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:'+bg+';color:'+tc+';padding:12px 20px;border-radius:12px;font-size:14px;font-weight:500;z-index:9999;white-space:pre-line;max-width:90vw;text-align:center;font-family:\'Noto Sans KR\',sans-serif;';
+    toast.textContent = icon + ' ' + msg;
+    document.body.appendChild(toast);
+    setTimeout(() => { if (toast.parentNode) toast.remove(); }, 3000);
+  }
+
+  function showConfirm(msg, onConfirm, onCancel) {
+    const existing = document.getElementById('app-confirm-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-confirm-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+    modal.innerHTML = '<div style="background:var(--bg, #fff);border-radius:16px;padding:24px;width:100%;max-width:280px;font-family:\'Noto Sans KR\',sans-serif;">'
+      + '<div style="font-size:14px;color:var(--text,#1a1a1a);margin-bottom:20px;line-height:1.6;white-space:pre-line;">' + msg + '</div>'
+      + '<div style="display:flex;gap:10px;">'
+      + '<button id="app-confirm-cancel" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">취소</button>'
+      + '<button id="app-confirm-ok" style="flex:1;padding:12px;background:#7F77DD;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">확인</button>'
+      + '</div></div>';
+    document.body.appendChild(modal);
+    document.getElementById('app-confirm-ok').onclick = () => { modal.remove(); if (onConfirm) onConfirm(); };
+    document.getElementById('app-confirm-cancel').onclick = () => { modal.remove(); if (onCancel) onCancel(); };
+  }
+
   // ── 비밀번호 암호화 헬퍼 ──
   function hashPw(pw) {
     if (!pw) return '';
@@ -3066,29 +3099,31 @@
   function saveNewPw() {
     const curPw = document.getElementById('cur-pw-input').value.trim();
     const newPw = document.getElementById('new-pw-input').value.trim();
-    if (!curPw || !newPw) { alert('모두 입력해주세요.'); return; }
-    if (newPw.length < 4) { alert('새 비밀번호는 4자리 이상이어야 해요.'); return; }
+    if (!curPw || !newPw) { showToast('모두 입력해주세요.', 'error'); return; }
+    if (newPw.length < 4) { showToast('새 비밀번호는 4자리 이상이어야 해요.', 'error'); return; }
     const userId = localStorage.getItem('current_user');
     db.ref('members/' + userId).once('value').then(snap => {
       const member = snap.val();
       const savedPw = localStorage.getItem('pw_' + userId) || (member ? member.pw : '');
-      if (!matchPw(curPw, savedPw)) { alert('현재 비밀번호가 틀렸어요.'); return; }
+      if (!matchPw(curPw, savedPw)) { showToast('현재 비밀번호가 틀렸어요.', 'error'); return; }
       const hashedNew = hashPw(newPw);
       localStorage.setItem('pw_' + userId, hashedNew);
       db.ref('members/' + userId + '/pw').set(hashedNew);
       document.getElementById('change-pw-modal').classList.remove('active');
-      alert('비밀번호가 변경됐어요! ✅');
+      showToast('비밀번호가 변경됐어요! ✅', 'success');
     });
   }
 
   function doLogout() {
-    if (!confirm('로그아웃 할까요?')) return;
-    const userId = localStorage.getItem('current_user');
-    if (userId) localStorage.setItem('last_tab_' + userId, 'home');
-    localStorage.removeItem('current_user');
-    localStorage.removeItem('auto_login_user');
-    sessionStorage.removeItem('session_user');
-    showScreen('screen-login');
+    showConfirm('로그아웃 할까요?', () => {
+      const userId = localStorage.getItem('current_user');
+      if (userId) localStorage.setItem('last_tab_' + userId, 'home');
+      localStorage.removeItem('current_user');
+      localStorage.removeItem('auto_login_user');
+      sessionStorage.removeItem('session_user');
+      showScreen('screen-login');
+    });
+
   }
 
 
@@ -3096,8 +3131,8 @@
     const id = document.getElementById('login-id').value.trim().replace(/-/g, '');
     const pw = document.getElementById('login-pw').value.trim();
 
-    if (!id) { alert('아이디(휴대폰 번호)를 입력해주세요.'); return; }
-    if (!pw) { alert('비밀번호를 입력해주세요.'); return; }
+    if (!id) { showToast('아이디(휴대폰 번호)를 입력해주세요.', 'error'); return; }
+    if (!pw) { showToast('비밀번호를 입력해주세요.', 'error'); return; }
 
     const btn = document.querySelector('#screen-login .btn-primary');
     if (btn) { btn.textContent = '확인 중...'; btn.disabled = true; }
@@ -3114,7 +3149,7 @@
           showScreen('screen-admin');
         } else {
           if (btn) { btn.textContent = '로그인'; btn.disabled = false; }
-          alert('관리자 비밀번호가 틀렸어요.');
+          showToast('관리자 비밀번호가 틀렸어요.', 'error');
         }
       });
       return;
@@ -3130,13 +3165,13 @@
       if (!snap.exists()) {
         // members에 없으면 users에서 확인 (강사/매니저 계정)
         if (!userSnap.exists()) {
-          alert('등록되지 않은 회원이에요.\n관리자에게 문의해주세요.');
+          showToast('등록되지 않은 회원이에요.\n관리자에게 문의해주세요.', 'error');
           return;
         }
         const user = userSnap.val();
         const savedPw = localStorage.getItem('pw_' + id) || user.pw;
         if (!matchPw(pw, savedPw)) {
-          alert('비밀번호가 틀렸어요.\n초기 비밀번호는 휴대폰 뒤 4자리예요.');
+          showToast('비밀번호가 틀렸어요.\n초기 비밀번호는 휴대폰 뒤 4자리예요.', 'error');
           return;
         }
         // 평문이면 자동으로 암호화 업그레이드
@@ -3167,7 +3202,7 @@
       // 비밀번호 확인 (로컬에 변경된 비번 있으면 우선 사용)
       const savedPw = localStorage.getItem('pw_' + id) || member.pw;
       if (!matchPw(pw, savedPw)) {
-        alert('비밀번호가 틀렸어요.\n초기 비밀번호는 휴대폰 뒤 4자리예요.');
+        showToast('비밀번호가 틀렸어요.\n초기 비밀번호는 휴대폰 뒤 4자리예요.', 'error');
         return;
       }
       // 평문이면 자동으로 암호화 업그레이드
@@ -3213,7 +3248,7 @@
       });
     }).catch(() => {
       if (btn) { btn.textContent = '로그인'; btn.disabled = false; }
-      alert('네트워크 오류가 발생했어요. 인터넷 연결을 확인해주세요.');
+      showToast('네트워크 오류가 발생했어요.', 'error');
     });
   }
 
@@ -3452,7 +3487,7 @@
   function saveHomeWeight() {
     const input = document.getElementById('home-weight-input');
     const val   = parseFloat(input?.value) || 0;
-    if (!val || val < 20) { alert('올바른 체중을 입력해주세요.'); return; }
+    if (!val || val < 20) { showToast('올바른 체중을 입력해주세요.', 'error'); return; }
     const userId = localStorage.getItem('current_user');
     localStorage.setItem('body_weight_' + userId, val);
     // Firebase body/weight도 같이 업데이트
@@ -3867,7 +3902,7 @@
     const userId = localStorage.getItem('current_user');
     const changed = localStorage.getItem('nickname_changed_' + userId);
     if (changed) {
-      alert('닉네임은 1회만 변경 가능해요 😊');
+      showToast('닉네임은 1회만 변경 가능해요 😊', 'info');
       return;
     }
     const cur = localStorage.getItem('nickname_' + userId) || '';
@@ -3875,29 +3910,31 @@
     if (!newNick || !newNick.trim()) return;
     const val = newNick.trim();
     if (val.length < 2 || val.length > 10) {
-      alert('닉네임은 2~10자로 입력해주세요.');
+      showToast('닉네임은 2~10자로 입력해주세요.', 'error');
       return;
     }
-    if (val === cur) { alert('현재 닉네임과 같아요.'); return; }
+    if (val === cur) { showToast('현재 닉네임과 같아요.', 'error'); return; }
     db.ref('nicknames/' + val).once('value', snap => {
-      if (snap.exists()) { alert('이미 사용 중인 닉네임이에요.'); return; }
-      if (!confirm('"' + val + '" 으로 변경할까요?\n변경 후에는 다시 바꿀 수 없어요.')) return;
-      // 기존 닉네임 해제 + 새 닉네임 저장
-      db.ref('nicknames/' + cur).remove();
-      db.ref('nicknames/' + val).set(userId);
-      db.ref('members/' + userId + '/nickname').set(val);
-      localStorage.setItem('nickname_' + userId, val);
-      localStorage.setItem('nickname_changed_' + userId, '1');
-      // 기존 게시물/댓글 닉네임 일괄 업데이트
-      updateNicknameInPosts(userId, val);
-      updateNicknameInComments(userId, val);
-      // 홈 닉네임 갱신
-      const homeEl = document.getElementById('home-nickname');
-      if (homeEl) homeEl.textContent = val + '님';
-      const myinfoEl = document.getElementById('myinfo-nickname');
-      if (myinfoEl) myinfoEl.textContent = val;
-      alert('닉네임이 변경됐어요! 😊');
-    });
+      if (snap.exists()) { showToast('이미 사용 중인 닉네임이에요.', 'error'); return; }
+      showConfirm('"' + val + '" 으로 변경할까요?\n변경 후에는 다시 바꿀 수 없어요.', () => {
+  
+        // 기존 닉네임 해제 + 새 닉네임 저장
+        db.ref('nicknames/' + cur).remove();
+        db.ref('nicknames/' + val).set(userId);
+        db.ref('members/' + userId + '/nickname').set(val);
+        localStorage.setItem('nickname_' + userId, val);
+        localStorage.setItem('nickname_changed_' + userId, '1');
+        // 기존 게시물/댓글 닉네임 일괄 업데이트
+        updateNicknameInPosts(userId, val);
+        updateNicknameInComments(userId, val);
+        // 홈 닉네임 갱신
+        const homeEl = document.getElementById('home-nickname');
+        if (homeEl) homeEl.textContent = val + '님';
+        const myinfoEl = document.getElementById('myinfo-nickname');
+        if (myinfoEl) myinfoEl.textContent = val;
+        showToast('닉네임이 변경됐어요! 😊', 'success');
+      })
+      });;
   }
 
   function updateNicknameInPosts(userId, newNick) {
@@ -3931,9 +3968,9 @@
     const age    = parseInt(document.getElementById('body-age').value) || 0;
     const height = parseFloat(document.getElementById('body-height').value) || 0;
     const weight = parseFloat(document.getElementById('body-weight').value) || 0;
-    if (!age || age < 10)     { alert('나이를 입력해주세요.'); return; }
-    if (!height || height < 100) { alert('키를 입력해주세요.'); return; }
-    if (!weight || weight < 20)  { alert('체중을 입력해주세요.'); return; }
+    if (!age || age < 10)     { showToast('나이를 입력해주세요.', 'error'); return; }
+    if (!height || height < 100) { showToast('키를 입력해주세요.', 'error'); return; }
+    if (!weight || weight < 20)  { showToast('체중을 입력해주세요.', 'error'); return; }
     const userId = localStorage.getItem('current_user');
     localStorage.setItem('body_gender_' + userId, gender);
     localStorage.setItem('body_age_'    + userId, age);
@@ -4018,9 +4055,9 @@
     const age    = parseInt(document.getElementById('edit-body-age').value) || 0;
     const height = parseFloat(document.getElementById('edit-body-height').value) || 0;
     const weight = parseFloat(document.getElementById('edit-body-weight').value) || 0;
-    if (!age || age < 10)     { alert('나이를 입력해주세요.'); return; }
-    if (!height || height < 100) { alert('키를 입력해주세요.'); return; }
-    if (!weight || weight < 20)  { alert('체중을 입력해주세요.'); return; }
+    if (!age || age < 10)     { showToast('나이를 입력해주세요.', 'error'); return; }
+    if (!height || height < 100) { showToast('키를 입력해주세요.', 'error'); return; }
+    if (!weight || weight < 20)  { showToast('체중을 입력해주세요.', 'error'); return; }
     const userId = localStorage.getItem('current_user');
     localStorage.setItem('body_gender_' + userId, gender);
     localStorage.setItem('body_age_'    + userId, age);
@@ -4044,7 +4081,7 @@
     db.ref('users/' + userId + '/body').set(bodyData);
     document.getElementById('change-nickname-modal').classList.remove('active');
     loadMyInfo();
-    alert('✅ 신체정보가 업데이트됐어요!');
+    showToast('✅ 신체정보가 업데이트됐어요!', 'success');
   }
 
   // ── 신체정보 가져오기 ──

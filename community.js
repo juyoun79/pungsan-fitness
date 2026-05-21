@@ -246,7 +246,7 @@
     // 게시물 존재 여부 먼저 확인
     db.ref('posts/' + postId).once('value', snap => {
       if (!snap.exists()) {
-        alert('삭제된 게시글이에요.');
+        showToast('삭제된 게시글이에요.', 'info');
         // 알림도 삭제
         if (notifId && userId) {
           db.ref('notifications/' + userId + '/' + notifId).remove();
@@ -435,41 +435,43 @@
   }
 
   function adminDeletePost(postId, photoURL) {
-    if (!confirm('이 게시글을 삭제할까요?\n댓글도 함께 삭제돼요.')) return;
-    // 오운완이면 포인트 환수 + owunwan 기록 삭제
-    const post = adminAllPosts.find(p => p.id === postId);
-    if (post && post.category === '오운완' && post.authorId) {
-      db.ref('users/' + post.authorId + '/points').transaction(cur => Math.max(0, (cur || 0) - 100));
-      if (post.owunwanDate) db.ref('users/' + post.authorId + '/owunwan/' + post.owunwanDate).remove();
-    }
-    db.ref('posts/' + postId).remove();
-    db.ref('comments/' + postId).remove();
-    if (photoURL) {
-      try { storage.refFromURL(photoURL).delete(); } catch(e) {}
-    }
-    adminAllPosts = adminAllPosts.filter(p => p.id !== postId);
-    renderAdminCommunityFeed();
-    allCommunityPosts = allCommunityPosts.filter(p => p.id !== postId);
-    renderCommunityFeed();
-    alert('✅ 게시글이 삭제됐어요.');
+    showConfirm('이 게시글을 삭제할까요?\n댓글도 함께 삭제돼요.', () => {  
+      // 오운완이면 포인트 환수 + owunwan 기록 삭제
+      const post = adminAllPosts.find(p => p.id === postId);
+      if (post && post.category === '오운완' && post.authorId) {
+        db.ref('users/' + post.authorId + '/points').transaction(cur => Math.max(0, (cur || 0) - 100));
+        if (post.owunwanDate) db.ref('users/' + post.authorId + '/owunwan/' + post.owunwanDate).remove();
+      }
+      db.ref('posts/' + postId).remove();
+      db.ref('comments/' + postId).remove();
+      if (photoURL) {
+        try { storage.refFromURL(photoURL).delete(); } catch(e) {}
+      }
+      adminAllPosts = adminAllPosts.filter(p => p.id !== postId);
+      renderAdminCommunityFeed();
+      allCommunityPosts = allCommunityPosts.filter(p => p.id !== postId);
+      renderCommunityFeed();
+      showToast('게시글이 삭제됐어요.', 'success');
+    });
   }
 
   function adminViewComments(postId) {
     db.ref('comments/' + postId).once('value', snap => {
       const comments = [];
       snap.forEach(child => { comments.push({ id: child.key, ...child.val() }); });
-      if (comments.length === 0) { alert('댓글이 없어요.'); return; }
+      if (comments.length === 0) { showToast('댓글이 없어요.', 'info'); return; }
       comments.sort((a, b) => (a.createdAt||0) - (b.createdAt||0));
       const msg = comments.map((c,i) => `${i+1}. [${c.nickname}] ${c.content}`).join('\n');
       const delIdx = prompt('댓글 목록:\n' + msg + '\n\n삭제할 댓글 번호를 입력하세요 (취소: 빈칸)');
       if (!delIdx) return;
       const idx = parseInt(delIdx) - 1;
-      if (idx < 0 || idx >= comments.length) { alert('잘못된 번호예요.'); return; }
+      if (idx < 0 || idx >= comments.length) { showToast('잘못된 번호예요.', 'error'); return; }
       const comment = comments[idx];
-      if (!confirm('[' + comment.nickname + '] "' + comment.content + '"\n이 댓글을 삭제할까요?')) return;
-      db.ref('comments/' + postId + '/' + comment.id).remove().then(() => {
-        db.ref('posts/' + postId + '/commentCount').transaction(v => Math.max((v||1)-1, 0));
-        alert('✅ 댓글이 삭제됐어요.');
+      showConfirm('[' + comment.nickname + '] 댓글을 삭제할까요?', () => {
+        db.ref('comments/' + postId + '/' + comment.id).remove().then(() => {
+          db.ref('posts/' + postId + '/commentCount').transaction(v => Math.max((v||1)-1, 0));
+          showToast('댓글이 삭제됐어요.', 'success');
+        });
       });
     });
   }
@@ -478,15 +480,15 @@
   function changeAdminPw() {
     const curPw = document.getElementById('admin-cur-pw').value.trim();
     const newPw = document.getElementById('admin-new-pw').value.trim();
-    if (!curPw || !newPw) { alert('모두 입력해주세요.'); return; }
-    if (newPw.length < 4) { alert('새 비밀번호는 4자리 이상이어야 해요.'); return; }
+    if (!curPw || !newPw) { showToast('모두 입력해주세요.', 'error'); return; }
+    if (newPw.length < 4) { showToast('새 비밀번호는 4자리 이상이어야 해요.', 'error'); return; }
     db.ref('admin_config/pw').once('value').then(snap => {
       const adminPw = snap.val() || 'admin123';
-      if (curPw !== adminPw) { alert('현재 비밀번호가 틀렸어요.'); return; }
+      if (curPw !== adminPw) { showToast('현재 비밀번호가 틀렸어요.', 'error'); return; }
       db.ref('admin_config/pw').set(newPw).then(() => {
         document.getElementById('admin-cur-pw').value = '';
         document.getElementById('admin-new-pw').value = '';
-        alert('✅ 관리자 비밀번호가 변경됐어요!');
+        showToast('관리자 비밀번호가 변경됐어요!', 'success');
       });
     });
   }
@@ -605,7 +607,7 @@
     const realName = localStorage.getItem('name_' + authorId) || authorId;
     const role = localStorage.getItem('role_' + authorId);
     const isStaff = role === 'trainer' || role === 'manager';
-    alert((isStaff ? '[직원] ' : '') + realName);
+    showToast((isStaff ? '[직원] ' : '') + realName, 'info');
   }
 
   function filterByAuthor(authorId, nickname) {
@@ -816,7 +818,7 @@
     // 게시물 작성자 확인 (자작 좋아요 방지)
     const post = allCommunityPosts.find(p => p.id === postId) || adminAllPosts.find(p => p.id === postId);
     if (post && post.authorId === userId) {
-      alert('내 게시물에는 좋아요를 누를 수 없어요 😊'); return;
+      showToast('내 게시물에는 좋아요를 누를 수 없어요 😊', 'info'); return;
     }
 
     const likeRef = db.ref('posts/' + postId + '/likes/' + userId);
@@ -910,7 +912,7 @@
   function saveEditedPost() {
     if (!editingPostId) return;
     const newContent = document.getElementById('edit-post-content').value.trim();
-    if (!newContent) { alert('내용을 입력해주세요.'); return; }
+    if (!newContent) { showToast('내용을 입력해주세요.', 'error'); return; }
     db.ref('posts/' + editingPostId).update({ content: newContent }).then(() => {
       // 로컬 캐시 업데이트
       const post = allCommunityPosts.find(p => p.id === editingPostId);
@@ -918,7 +920,7 @@
       renderCommunityFeed();
       renderAdminCommunityFeed();
       closeEditPostModal();
-      alert('✅ 수정됐어요!');
+      showToast('수정됐어요!', 'success');
     });
   }
 
@@ -926,13 +928,14 @@
     if (!editingPostId) return;
     const postId = editingPostId;
     const post = allCommunityPosts.find(p => p.id === postId) || adminAllPosts.find(p => p.id === postId);
-    if (!confirm('게시글을 삭제할까요?')) return;
-    closeEditPostModal();
-    deletePost(postId, post?.photoURL || '');
+    showConfirm('게시글을 삭제할까요?', () => {
+      closeEditPostModal();
+      deletePost(postId, post?.photoURL || '');
+    });
   }
 
   function deletePost(postId, photoURL) {
-    if (!confirm('게시글을 삭제할까요?')) return;
+    showConfirm('게시글을 삭제할까요?', () => {
     const post = allCommunityPosts.find(p => p.id === postId) || adminAllPosts.find(p => p.id === postId);
 
     // 좋아요 포인트 환수 (게시글 작성자에게 받은 좋아요 수 × 좋아요 포인트)
@@ -1000,12 +1003,13 @@
       renderCommunityFeed();
       renderAdminCommunityFeed();
     });
+    });
   }
 
   // ── 글쓰기 모달 ──
   function openPostModal() {
     if (!localStorage.getItem('current_user')) {
-      alert('로그인이 필요해요.\n다시 로그인해주세요.');
+      showToast('로그인이 필요해요.\n다시 로그인해주세요.', 'error');
       showScreen('screen-login');
       return;
     }

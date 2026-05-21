@@ -638,7 +638,7 @@
       const innerSets = [], outerSets = [];
       document.querySelectorAll('[id^="inner-set-row-"]').forEach(row => { const n = row.id.replace('inner-set-row-', ''); const w = parseFloat(document.getElementById('inner-weight-' + n)?.value) || 0; const r = parseInt(document.getElementById('inner-reps-' + n)?.value) || 0; if (w > 0 || r > 0) innerSets.push({ set: innerSets.length + 1, weight: w, reps: r }); });
       document.querySelectorAll('[id^="outer-set-row-"]').forEach(row => { const n = row.id.replace('outer-set-row-', ''); const w = parseFloat(document.getElementById('outer-weight-' + n)?.value) || 0; const r = parseInt(document.getElementById('outer-reps-' + n)?.value) || 0; if (w > 0 || r > 0) outerSets.push({ set: outerSets.length + 1, weight: w, reps: r }); });
-      if (innerSets.length === 0 && outerSets.length === 0) { alert('최소 1세트 이상 입력해주세요!'); return; }
+      if (innerSets.length === 0 && outerSets.length === 0) { showToast('최소 1세트 이상 입력해주세요!', 'error'); return; }
       _saveDualWorkout(userId, innerSets, outerSets, saveDate); return;
     }
     const sets = [];
@@ -648,7 +648,7 @@
       const w = parseFloat(wEl.value) || 0; const r = parseInt(rEl.value) || 0;
       if (w > 0 || r > 0) sets.push({ set: sets.length + 1, weight: w, reps: r });
     }
-    if (sets.length === 0) { alert('최소 1세트 이상 입력해주세요!'); return; }
+    if (sets.length === 0) { showToast('최소 1세트 이상 입력해주세요!', 'error'); return; }
     const memo = document.getElementById('workout-memo').value;
     const now = new Date();
     const date = saveDate || (now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate());
@@ -714,7 +714,7 @@
     db.ref('users/' + userId + '/attendance/' + today).once('value', snap => {
       if (snap.exists()) {
         localStorage.setItem(todayKey, 'done');
-        alert('오늘은 이미 출석체크를 완료했어요! 내일 또 만나요 😊');
+        showToast('오늘은 이미 출석체크를 완료했어요! 내일 또 만나요 😊', 'info');
         return;
       }
       localStorage.removeItem(todayKey);
@@ -729,7 +729,7 @@
             if (!localStorage.getItem(popupKey)) {
               localStorage.setItem(popupKey, '1');
               setTimeout(() => {
-                alert('📍 위치 권한 안내\n\n출석체크를 위해 위치 권한이 필요해요.\n팝업이 뜨면 반드시 [정확한 위치]를\n선택해주세요!\n\n대략적인 위치 선택 시 출석이 안될 수 있어요.');
+                showToast('위치 권한이 필요해요.\n팝업에서 [정확한 위치]를 선택해주세요!', 'info');
               }, 500);
             }
           }
@@ -860,23 +860,23 @@
 
   function completeAttendance() {
     if (!navigator.geolocation) {
-      alert('이 기기는 위치 확인을 지원하지 않아요.');
+      showToast('이 기기는 위치 확인을 지원하지 않아요.', 'error');
       return;
     }
     navigator.geolocation.getCurrentPosition(
       pos => {
         const dist = getDistanceMeters(pos.coords.latitude, pos.coords.longitude, GYM_LAT, GYM_LNG);
         if (dist > GYM_RADIUS) {
-          alert('헬스장 근처에서만 출석 가능해요! 🏋️\n(현재 위치: 헬스장에서 약 ' + Math.round(dist) + 'm)');
+          showToast('헬스장 근처에서만 출석 가능해요! 🏋️\n(헬스장에서 약 ' + Math.round(dist) + 'm)', 'error');
           return;
         }
         doCompleteAttendance();
       },
       err => {
         if (err.code === 1) {
-          alert('위치 권한을 허용해주세요! 출석 확인에 필요해요.');
+          showToast('위치 권한을 허용해주세요! 출석 확인에 필요해요.', 'error');
         } else {
-          alert('위치를 확인할 수 없어요. 잠시 후 다시 시도해주세요.');
+          showToast('위치를 확인할 수 없어요. 잠시 후 다시 시도해주세요.', 'error');
         }
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -914,7 +914,7 @@
   // ══════════════════════════════
   function openOwunwan() {
     const userId = localStorage.getItem('current_user');
-    if (!userId) { alert('로그인이 필요해요.'); return; }
+    if (!userId) { showToast('로그인이 필요해요.', 'error'); return; }
     const today = getToday();
 
     // 오늘 날짜 선택 여부 확인
@@ -923,21 +923,21 @@
       && calYear === now.getFullYear()
       && calMonth === now.getMonth();
     if (!isToday) {
-      alert('오늘 날짜를 선택 후\n올리기 버튼을 눌러주세요 📅');
+      showToast('오늘 날짜를 선택 후 올리기 버튼을 눌러주세요 📅', 'info');
       return;
     }
 
     // 오늘 운동기록 확인
     const todayRecords = getTodayAllRecords(userId, today);
     if (todayRecords.length === 0) {
-      alert('오늘 운동기록이 없어요!\n운동을 기록한 후 오운완을 올려주세요 💪');
+      showToast('오늘 운동기록이 없어요!\n운동을 기록한 후 올려주세요 💪', 'error');
       return;
     }
 
     // 오늘 이미 오운완 올렸는지 확인
     db.ref('users/' + userId + '/owunwan/' + today).once('value', snap => {
       if (snap.exists()) {
-        alert('오늘은 이미 오운완을 올렸어요! 내일 또 만나요 😊');
+        showToast('오늘은 이미 오운완을 올렸어요! 내일 또 만나요 😊', 'info');
         return;
       }
       // 모달 초기화 후 열기
@@ -1134,18 +1134,18 @@
   function saveOwunwanToGallery() {
     const canvas = document.getElementById('owunwan-canvas');
     if (!canvas || canvas.width === 0) {
-      alert('먼저 사진을 촬영해주세요 📷'); return;
+      showToast('먼저 사진을 촬영해주세요 📷', 'error'); return;
     }
     const link = document.createElement('a');
     link.download = '오운완_' + getToday() + '.jpg';
     link.href = canvas.toDataURL('image/jpeg', 0.95);
     link.click();
-    alert('갤러리에 저장됐어요! 📥\nSNS에 자유롭게 공유해보세요 💪');
+    showToast('갤러리에 저장됐어요! 📥\nSNS에 자유롭게 공유해보세요 💪', 'success');
   }
 
   function openOwunwanNoticePopup() {
     const canvas = document.getElementById('owunwan-canvas');
-    if (!canvas || canvas.width === 0) { alert('사진을 먼저 촬영해주세요!'); return; }
+    if (!canvas || canvas.width === 0) { showToast('사진을 먼저 촬영해주세요!', 'error'); return; }
     const modal = document.getElementById('owunwan-notice-modal');
     modal.style.display = 'flex';
   }
@@ -1161,7 +1161,7 @@
     const canvas = document.getElementById('owunwan-canvas');
     const btn = document.getElementById('owunwan-submit-btn');
 
-    if (canvas.width === 0) { alert('사진을 먼저 촬영해주세요!'); return; }
+    if (canvas.width === 0) { showToast('사진을 먼저 촬영해주세요!', 'error'); return; }
 
     btn.textContent = '업로드 중...'; btn.disabled = true;
 
@@ -1212,12 +1212,12 @@
       updateStats();
 
       closeOwunwanModal();
-      alert('오운완 게시물이 올라갔어요! 🔥\n+' + owunwanPts + 'P 포인트가 적립됐어요!');
+      showToast('오운완 게시물이 올라갔어요! 🔥\n+' + owunwanPts + 'P 포인트가 적립됐어요!', 'success');
       switchTab('community');
 
     } catch(e) {
       console.error('오운완 업로드 실패:', e);
-      alert('업로드에 실패했어요.\n오류: ' + (e.message || e));
+      showToast('업로드에 실패했어요.', 'error');
       btn.textContent = '오운완 올리기 🔥'; btn.disabled = false;
     }
   }
@@ -1298,7 +1298,7 @@
     const safeKey = 'cardio_' + type + '_' + userId;
     const records = JSON.parse(localStorage.getItem(safeKey) || '[]');
     const record = records.find(r => r.date === dateStr);
-    if (!record) { alert('기록을 찾을 수 없어요.'); return; }
+    if (!record) { showToast('기록을 찾을 수 없어요.', 'error'); return; }
     cardioEditDate = dateStr;
     openCardioModal();
     setTimeout(() => {
@@ -1358,15 +1358,16 @@
   }
 
   function deleteCardioRecord() {
-    if (!confirm('이 유산소 기록을 삭제할까요?')) return;
-    const userId = localStorage.getItem('current_user');
-    const type = document.getElementById('cardio-type').value;
-    const key = 'cardio_' + type + '_' + userId;
-    const records = JSON.parse(localStorage.getItem(key) || '[]');
-    const filtered = records.filter(r => r.date !== cardioEditDate);
-    localStorage.setItem(key, JSON.stringify(filtered));
-    closeCardioModal(); renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate);
-    alert('삭제됐어요! 🗑');
+    showConfirm('이 유산소 기록을 삭제할까요?', () => {
+      const userId = localStorage.getItem('current_user');
+      const type = document.getElementById('cardio-type').value;
+      const key = 'cardio_' + type + '_' + userId;
+      const records = JSON.parse(localStorage.getItem(key) || '[]');
+      const filtered = records.filter(r => r.date !== cardioEditDate);
+      localStorage.setItem(key, JSON.stringify(filtered));
+      closeCardioModal(); renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate);
+      showToast('삭제됐어요! 🗑', 'success');
+    });
   }
 
   function saveCardioWorkout() {
@@ -1375,7 +1376,7 @@
     const dist = parseFloat(document.getElementById('cardio-dist').value) || 0;
     const incline = parseFloat(document.getElementById('cardio-incline')?.value) || 0;
     const memo = document.getElementById('cardio-memo').value.trim();
-    if (min === 0) { alert('운동 시간을 입력해주세요!'); return; }
+    if (min === 0) { showToast('운동 시간을 입력해주세요!', 'error'); return; }
     const kcalEl = document.getElementById('cardio-kcal-display');
     const kcal = parseInt((kcalEl ? kcalEl.textContent : '-').replace(/[^0-9]/g, '')) || 0;
     const userId = localStorage.getItem('current_user');
@@ -1462,7 +1463,7 @@
   function saveClassWorkout() {
     const type = document.getElementById('class-type').value;
     const min = parseInt(document.getElementById('class-min').value) || 0;
-    if (min <= 0) { alert('수업 시간을 입력해주세요!'); return; }
+    if (min <= 0) { showToast('수업 시간을 입력해주세요!', 'error'); return; }
     const memo = document.getElementById('class-memo').value.trim();
     const userId = localStorage.getItem('current_user');
     const now = new Date();
@@ -1498,12 +1499,11 @@
 
   function deleteClassRecord() {
     if (!classEditDate) return;
-    if (!confirm('이 수업 기록을 삭제할까요?')) return;
-    const type = document.getElementById('class-type').value;
-    const userId = localStorage.getItem('current_user');
-    const safeKey = 'class_' + type.replace(/\s+/g,'_') + '_' + userId;
-    const existing = JSON.parse(localStorage.getItem(safeKey) || '[]');
-    const filtered = existing.filter(r => r.date !== classEditDate);
+    showConfirm('이 수업 기록을 삭제할까요?', () => {
+      const type = document.getElementById('class-type').value;
+      const userId = localStorage.getItem('current_user');
+      const safeKey = 'class_' + type.replace(/\s+/g,'_') + '_' + userId;
+    });
     localStorage.setItem(safeKey, JSON.stringify(filtered));
     db.ref('users/' + userId + '/classes/' + type.replace(/\s+/g,'_') + '/' + classEditDate).remove();
     closeClassModal();
@@ -1515,7 +1515,7 @@
     const safeKey = 'class_' + type.replace(/\s+/g,'_') + '_' + userId;
     const records = JSON.parse(localStorage.getItem(safeKey) || '[]');
     const record = records.find(r => r.date === dateStr);
-    if (!record) { alert('기록을 찾을 수 없어요.'); return; }
+    if (!record) { showToast('기록을 찾을 수 없어요.', 'error'); return; }
     classEditDate = dateStr;
     // 초기화 없이 바로 값 세팅 후 모달 열기
     document.getElementById('class-type').value = type;
@@ -1570,7 +1570,7 @@
 
   function saveFreeweightWorkout() {
     const name = document.getElementById('fw-name').value.trim();
-    if (!name) { alert('운동 이름을 입력해주세요!'); return; }
+    if (!name) { showToast('운동 이름을 입력해주세요!', 'error'); return; }
     const sets = [];
     for (let i = 1; i <= fwSetCount; i++) {
       const wEl = document.getElementById('fw-weight-' + i); const rEl = document.getElementById('fw-reps-' + i);
@@ -1578,7 +1578,7 @@
       const w = parseFloat(wEl.value) || 0; const r = parseInt(rEl.value) || 0;
       if (w > 0 || r > 0) sets.push({ set: sets.length + 1, weight: w, reps: r });
     }
-    if (sets.length === 0) { alert('최소 1세트 이상 입력해주세요!'); return; }
+    if (sets.length === 0) { showToast('최소 1세트 이상 입력해주세요!', 'error'); return; }
     const userId = isTrainerMode ? trainerTargetId : localStorage.getItem('current_user');
     const memo = document.getElementById('fw-memo').value.trim();
     const now = new Date();

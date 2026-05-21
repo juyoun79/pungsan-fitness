@@ -453,7 +453,7 @@
       snack:     { label: '🍎 간식', val: document.getElementById('meal-snack')?.value.trim() },
     };
     const hasAny = Object.values(meals).some(m => m.val);
-    if (!hasAny) { alert('최소 한 끼니 이상 입력해주세요!'); return; }
+    if (!hasAny) { showToast('최소 한 끼니 이상 입력해주세요!', 'error'); return; }
 
     const mealMap = { breakfast: '🌅 아침', lunch: '☀️ 점심', dinner: '🌙 저녁', snack: '🍎 간식' };
     const mealKcalIds = { breakfast: 'kcal-breakfast', lunch: 'kcal-lunch', dinner: 'kcal-dinner', snack: 'kcal-snack' };
@@ -805,7 +805,7 @@
       const mealSummary = getMealSummaryForPost();
       if (mealSummary) content = mealSummary;
     }
-    if (!content) { alert('내용을 입력해주세요!'); return; }
+    if (!content) { showToast('내용을 입력해주세요!', 'error'); return; }
 
     const userId = localStorage.getItem('current_user');
     const nickname = localStorage.getItem('nickname_' + userId) || localStorage.getItem('name_' + userId) || '회원';
@@ -817,7 +817,7 @@
       const todayStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
       const dietSnap = await db.ref('users/' + userId + '/diet_post_date').once('value');
       if (dietSnap.exists() && dietSnap.val() === todayStr) {
-        alert('오늘은 이미 식단 게시물을 올렸어요! 😊\n기존 게시물에서 수정해주세요.');
+        showToast('오늘은 이미 식단 게시물을 올렸어요! 😊', 'info');
         return;
       }
     }
@@ -841,8 +841,7 @@
           }
         } catch(photoErr) {
           console.error('사진 업로드 오류:', photoErr);
-          const yn = confirm('사진 업로드에 실패했어요.\n사진 없이 글만 올릴까요?');
-          if (!yn) { btn.textContent = '게시하기 🚀'; btn.disabled = false; return; }
+          showConfirm('사진 업로드에 실패했어요.\n사진 없이 글만 올릴까요?', () => {}, () => { btn.textContent = '게시하기 🚀'; btn.disabled = false; }); return;
         }
       } else if (postPhotoFile) {
         try {
@@ -853,8 +852,7 @@
           photoURL = await snapshot.ref.getDownloadURL();
         } catch(photoErr) {
           console.error('사진 업로드 오류:', photoErr);
-          const yn = confirm('사진 업로드에 실패했어요.\n사진 없이 글만 올릴까요?');
-          if (!yn) { btn.textContent = '게시하기 🚀'; btn.disabled = false; return; }
+          showConfirm('사진 업로드에 실패했어요.\n사진 없이 글만 올릴까요?', () => {}, () => { btn.textContent = '게시하기 🚀'; btn.disabled = false; }); return;
         }
       }
 
@@ -899,7 +897,7 @@
 
     } catch(e) {
       console.error('게시글 업로드 오류:', e);
-      alert('게시 실패했어요.\n오류: ' + (e.message || e));
+      showToast('게시 실패했어요.', 'error');
       btn.textContent = '게시하기 🚀';
       btn.disabled = false;
     }
@@ -1025,7 +1023,7 @@
     const nickname = localStorage.getItem('nickname_' + userId) || localStorage.getItem('name_' + userId);
     // 로그인 상태 확인
     if (!userId || !nickname) {
-      alert('로그인이 필요해요.\n다시 로그인해주세요.');
+      showToast('로그인이 필요해요.\n다시 로그인해주세요.', 'error');
       return;
     }
 
@@ -1061,55 +1059,56 @@
   }
 
   function deleteComment(postId, commentId) {
-    if (!confirm('댓글을 삭제할까요?\n답글도 함께 삭제돼요.')) return;
-
-    // 먼저 해당 댓글의 답글 수 파악 후 함께 삭제 (답글의 답글까지 전부)
-    db.ref('comments/' + postId).once('value', snap => {
-      let deleteCount = 0;
-      const toDelete = new Set();
-
-      // 1단계: 직접 답글 찾기
-      snap.forEach(child => {
-        const v = child.val();
-        if (child.key === commentId) {
-          toDelete.add(child.key);
-        }
-        if (v && v.replyTo === commentId) {
-          toDelete.add(child.key);
-        }
-      });
-
-      // 2단계: 답글의 답글 반복 탐색
-      let changed = true;
-      while (changed) {
-        changed = false;
+    showConfirm('댓글을 삭제할까요?\n답글도 함께 삭제돼요.', () => {  
+  
+      // 먼저 해당 댓글의 답글 수 파악 후 함께 삭제 (답글의 답글까지 전부)
+      db.ref('comments/' + postId).once('value', snap => {
+        let deleteCount = 0;
+        const toDelete = new Set();
+  
+        // 1단계: 직접 답글 찾기
         snap.forEach(child => {
           const v = child.val();
-          if (v && v.replyTo && toDelete.has(v.replyTo) && !toDelete.has(child.key)) {
+          if (child.key === commentId) {
             toDelete.add(child.key);
-            changed = true;
+          }
+          if (v && v.replyTo === commentId) {
+            toDelete.add(child.key);
           }
         });
-      }
-
-      deleteCount = toDelete.size;
-      const toDeleteArr = Array.from(toDelete);
-
-      // 일괄 삭제
-      const deletePromises = toDeleteArr.map(key =>
-        db.ref('comments/' + postId + '/' + key).remove()
-      );
-
-      Promise.all(deletePromises).then(() => {
-        // 삭제된 총 개수만큼 commentCount 감소
-        db.ref('posts/' + postId + '/commentCount').transaction(v =>
-          Math.max((v || 0) - deleteCount, 0)
-        ).then(result => {
-          const newCount = result.snapshot.val() || 0;
-          const countEl = document.getElementById('comment-count-' + postId);
-          if (countEl) countEl.textContent = newCount;
+  
+        // 2단계: 답글의 답글 반복 탐색
+        let changed = true;
+        while (changed) {
+          changed = false;
+          snap.forEach(child => {
+            const v = child.val();
+            if (v && v.replyTo && toDelete.has(v.replyTo) && !toDelete.has(child.key)) {
+              toDelete.add(child.key);
+              changed = true;
+            }
+          });
+        }
+  
+        deleteCount = toDelete.size;
+        const toDeleteArr = Array.from(toDelete);
+  
+        // 일괄 삭제
+        const deletePromises = toDeleteArr.map(key =>
+          db.ref('comments/' + postId + '/' + key).remove()
+        );
+  
+        Promise.all(deletePromises).then(() => {
+          // 삭제된 총 개수만큼 commentCount 감소
+          db.ref('posts/' + postId + '/commentCount').transaction(v =>
+            Math.max((v || 0) - deleteCount, 0)
+          ).then(result => {
+            const newCount = result.snapshot.val() || 0;
+            const countEl = document.getElementById('comment-count-' + postId);
+            if (countEl) countEl.textContent = newCount;
+          });
+          loadComments(postId);
         });
-        loadComments(postId);
       });
     });
   }
@@ -1260,7 +1259,7 @@
     const kcal = parseInt(document.getElementById('direct-kcal-value').value) || 0;
     const foodName = document.getElementById('direct-food-name').value.trim() || '직접입력';
     if (kcal <= 0) {
-      alert('칼로리를 입력해주세요!');
+      showToast('칼로리를 입력해주세요!', 'error');
       return;
     }
 
