@@ -3227,27 +3227,27 @@
           return;
         }
         const user = userSnap.val();
-        const savedPw = localStorage.getItem('pw_' + id) || user.pw;
-        if (!matchPw(pw, savedPw)) {
-          showToast('비밀번호가 틀렸어요.\n초기 비밀번호는 휴대폰 뒤 4자리예요.', 'error');
-          return;
+        // 비밀번호: Firebase 값 우선 (stale localStorage 문제 방지)
+        if (!matchPw(pw, user.pw)) {
+          // Firebase pw 불일치 → localStorage pw도 확인
+          const localPw = localStorage.getItem('pw_' + id);
+          if (!localPw || !matchPw(pw, localPw)) {
+            showToast('비밀번호가 틀렸어요.\n초기 비밀번호는 휴대폰 뒤 4자리예요.', 'error');
+            return;
+          }
         }
-        // 평문이면 자동으로 암호화 업그레이드
-        if (savedPw && !/^[a-f0-9]{64}$/.test(savedPw)) {
-          const hashed = hashPw(pw);
-          localStorage.setItem('pw_' + id, hashed);
-          db.ref('users/' + id + '/pw').set(hashed);
-        }
+        // 항상 Firebase pw로 localStorage 동기화
+        localStorage.setItem('pw_' + id, user.pw);
         localStorage.setItem('current_user', id);
         sessionStorage.setItem('session_user', id);
         const memberName = user.name || id;
         localStorage.setItem('name_' + id, memberName);
         const role = user.role || 'member';
         localStorage.setItem('role_' + id, role);
-        // Firebase users에서 닉네임 확인 (다기기 지원)
+        // 닉네임: Firebase에 없으면 무조건 설정화면 (localStorage 무시)
         db.ref('users/' + id + '/nickname').once('value').then(nickSnap => {
           const fbNick = nickSnap.val();
-          const nickname = fbNick || user.nickname || localStorage.getItem('nickname_' + id);
+          const nickname = fbNick;
           if (nickname) {
             localStorage.setItem('nickname_' + id, nickname);
             const hasBodyInfo = localStorage.getItem('body_weight_' + id);
@@ -3276,18 +3276,16 @@
       }
 
       const member = snap.val();
-      // 비밀번호 확인 (로컬에 변경된 비번 있으면 우선 사용)
-      const savedPw = localStorage.getItem('pw_' + id) || member.pw;
-      if (!matchPw(pw, savedPw)) {
-        showToast('비밀번호가 틀렸어요.\n초기 비밀번호는 휴대폰 뒤 4자리예요.', 'error');
-        return;
+      // 비밀번호: Firebase 값 우선 (stale localStorage 문제 방지)
+      if (!matchPw(pw, member.pw)) {
+        const localPw = localStorage.getItem('pw_' + id);
+        if (!localPw || !matchPw(pw, localPw)) {
+          showToast('비밀번호가 틀렸어요.\n초기 비밀번호는 휴대폰 뒤 4자리예요.', 'error');
+          return;
+        }
       }
-      // 평문이면 자동으로 암호화 업그레이드
-      if (savedPw && !/^[a-f0-9]{64}$/.test(savedPw)) {
-        const hashed = hashPw(pw);
-        localStorage.setItem('pw_' + id, hashed);
-        db.ref('members/' + id + '/pw').set(hashed);
-      }
+      // 항상 Firebase pw로 localStorage 동기화
+      localStorage.setItem('pw_' + id, member.pw);
 
       // 로그인 성공 - 삭제 기록 확인 후 localStorage 초기화
       db.ref('deleted_members/' + id).once('value').then(delSnap => {
@@ -3308,9 +3306,9 @@
         // role 저장 (trainer / manager / member)
         const role = snap.val().role || 'member';
         localStorage.setItem('role_' + id, role);
-        // 닉네임: Firebase members 우선, 없으면 로컬 확인
+        // 닉네임: Firebase 값만 신뢰 (stale localStorage 무시)
         const fbNickMember = snap.val().nickname;
-        const nickname = fbNickMember || localStorage.getItem('nickname_' + id);
+        const nickname = fbNickMember;
         if (!nickname) {
           showScreen('screen-set-nickname');
         } else {
