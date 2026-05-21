@@ -81,16 +81,15 @@ async function getFCMAccessToken(privateKey, clientEmail) {
   const signingInput = `${header}.${payload}`;
 
   // PEM 개인키 파싱
-  // 터미널 붙여넣기 시 \n이 리터럴 문자(백슬래시+n)로 저장될 수 있으므로
-  // 1단계: 리터럴 \n → 실제 줄바꿈으로 변환
-  // 2단계: PEM 헤더 제거
-  // 3단계: 모든 공백/줄바꿈 제거 → 순수 base64만 남김
+  // 터미널 붙여넣기 시 발생할 수 있는 모든 경우 처리:
+  // - 리터럴 \n (백슬래시+n) → 실제 줄바꿈으로 변환 후 제거
+  // - JSON 따옴표 포함 여부 무관
+  // - 최종적으로 base64 문자(A-Z a-z 0-9 + / =)만 남김
   const pemStripped = privateKey
     .replace(/\\n/g, '\n')
     .replace(/-----BEGIN PRIVATE KEY-----/g, '')
     .replace(/-----END PRIVATE KEY-----/g, '')
-    .replace(/\s/g, '')
-    .trim();
+    .replace(/[^A-Za-z0-9+\/=]/g, '');
   const keyBytes = Uint8Array.from(atob(pemStripped), c => c.charCodeAt(0));
 
   const cryptoKey = await crypto.subtle.importKey(
