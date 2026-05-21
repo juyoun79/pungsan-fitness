@@ -4690,12 +4690,14 @@ async function sendPushToAll(title, body, notifType, data) {
       })
       .map(([, token]) => token);
 
-    if (validTokens.length === 0) { console.log('⚠️ 발송할 토큰 없음'); return; }
-    console.log('📤 푸시 발송 시도:', validTokens.length + '명', title);
+    // 중복 토큰 제거 (같은 기기에서 여러 계정 사용 시 동일 토큰 발생)
+    const uniqueTokens = [...new Set(validTokens)];
+    if (uniqueTokens.length === 0) { console.log('⚠️ 발송할 토큰 없음'); return; }
+    console.log('📤 푸시 발송 시도:', uniqueTokens.length + '명', title);
     const _res = await fetch('/api/notify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tokens: validTokens, title, body, data: data || {} })
+      body: JSON.stringify({ tokens: uniqueTokens, title, body, data: data || {} })
     });
     const _result = await _res.json();
     if (!_res.ok) {
