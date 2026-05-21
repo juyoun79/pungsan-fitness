@@ -43,7 +43,7 @@
     const bg = type === 'error' ? '#791F1F' : type === 'info' ? '#0C447C' : '#085041';
     const tc = type === 'error' ? '#F7C1C1' : type === 'info' ? '#B5D4F4' : '#9FE1CB';
     const icon = type === 'error' ? '❌' : type === 'info' ? 'ℹ️' : '✅';
-    toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:'+bg+';color:'+tc+';padding:12px 20px;border-radius:12px;font-size:14px;font-weight:500;z-index:9999;white-space:pre-line;max-width:90vw;text-align:center;font-family:\'Noto Sans KR\',sans-serif;';
+    toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:'+bg+';color:'+tc+';padding:12px 20px;border-radius:12px;font-size:14px;font-weight:500;z-index:9999;white-space:pre-line;max-width:80vw;width:max-content;text-align:center;word-break:keep-all;word-wrap:break-word;font-family:\'Noto Sans KR\',sans-serif;';
     toast.textContent = icon + ' ' + msg;
     document.body.appendChild(toast);
     setTimeout(() => { if (toast.parentNode) toast.remove(); }, 3000);
