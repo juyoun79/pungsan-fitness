@@ -1434,6 +1434,10 @@
       loadNoticeListAdmin();
       loadHomeNotices();
       showToast('공지사항이 등록됐어요!', 'success');
+      // 전체 회원 푸시알림
+      if (typeof sendPushToAll === 'function') {
+        sendPushToAll('📢 공지사항', title, 'notice', { type: 'notice' });
+      }
     }).catch(err => { showToast('등록 실패: ' + err.message, 'error'); });
   }
 
@@ -3375,6 +3379,10 @@
         db.ref().update(updates).then(() => {
           showToast('전체 회원에게 쿠폰이 발행됐어요! 🎫', 'success');
           clearCouponForm();
+          // 전체 회원 쿠폰 푸시알림
+          if (typeof sendPushToAll === 'function') {
+            sendPushToAll('🎟️ 쿠폰 도착!', '"' + name + '" 쿠폰이 도착했어요 🎫', 'coupon', { type: 'coupon' });
+          }
         });
       });
     } else {
@@ -3383,6 +3391,10 @@
       db.ref('coupons/' + memberId).push(couponData).then(() => {
         showToast('쿠폰이 발행됐어요! 🎫', 'success');
         clearCouponForm();
+        // 특정 회원 쿠폰 푸시알림
+        if (typeof sendPushToUser === 'function') {
+          sendPushToUser(memberId, '🎟️ 쿠폰 도착!', '"' + name + '" 쿠폰이 도착했어요 🎫', 'coupon', { type: 'coupon' });
+        }
       });
     }
   }
@@ -3925,6 +3937,11 @@
         shownList.push(ref.key);
         localStorage.setItem(shownKey, JSON.stringify(shownList));
         setTimeout(() => showCouponArrive({ id: ref.key, ...couponData }), 500);
+      }
+      // 포인트 달성 쿠폰 푸시알림
+      if (typeof sendPushToUser === 'function') {
+        const couponName = tier.couponName || '포인트 달성 쿠폰';
+        sendPushToUser(userId, '🎟️ 쿠폰 도착!', '"' + couponName + '"이 도착했어요 🎫', 'coupon', { type: 'coupon' });
       }
     });
   }

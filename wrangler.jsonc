@@ -1,12 +1,14 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "pungsan-fitness",
+  "main": "worker.js",
   "compatibility_date": "2026-05-06",
   "observability": {
     "enabled": true
   },
   "assets": {
     "directory": ".",
+    "binding": "ASSETS",
     "headers": [
       {
         "pattern": "*.js",

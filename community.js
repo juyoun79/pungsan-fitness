@@ -68,6 +68,10 @@
           read: false
         }).then(() => console.log('✅ 알림 저장 완료'))
           .catch(e => console.log('❌ 알림 저장 실패:', e));
+        // 댓글 푸시알림
+        if (typeof sendPushToUser === 'function') {
+          sendPushToUser(postOwnerId, '💬 댓글', displayName + '님이 내 게시글에 댓글을 달았어요', 'comment', { type: 'comment', postId: postId });
+        }
       } else {
         console.log('⚠️ 본인 게시글이라 알림 없음');
       }
@@ -89,6 +93,10 @@
               createdAt: Date.now(),
               read: false
             });
+            // 답글 푸시알림
+            if (typeof sendPushToUser === 'function') {
+              sendPushToUser(origOwnerId, '💬 답글', displayName + '님이 내 댓글에 답글을 달았어요', 'comment', { type: 'reply', postId: postId });
+            }
           } else if (origOwnerId && origOwnerId !== writerId && origOwnerId === postOwnerId) {
             // 게시물 작성자 = 원댓글 작성자인 경우: 게시물 알림 대신 답글 알림으로 저장
             // (이미 위에서 comment 알림이 저장됐으므로 추가 저장 안 함)
@@ -879,6 +887,10 @@
             createdAt: Date.now(),
             read: false
           });
+          // 좋아요 푸시알림
+          if (typeof sendPushToUser === 'function') {
+            sendPushToUser(post.authorId, '❤️ 좋아요', likerNick + '님이 내 게시글을 좋아합니다', 'like', { type: 'like', postId: postId });
+          }
         }
       }
       // 좋아요 수 업데이트

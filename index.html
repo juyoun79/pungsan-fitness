@@ -18,6 +18,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <script>
   const firebaseConfig = {
@@ -32,6 +33,16 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
   const storage = firebase.storage();
+
+  // FCM 메시징 초기화 (지원 환경에서만)
+  let messaging = null;
+  try {
+    if (firebase.messaging.isSupported()) {
+      messaging = firebase.messaging();
+    }
+  } catch(e) {
+    console.log('FCM 미지원 환경:', e.message);
+  }
 
 
   // ── 커스텀 토스트 & 확인 팝업 ──
@@ -657,6 +668,10 @@
         </div>
         <div onclick="openChangePw()" style="padding:16px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-bottom:1px solid var(--border);">
           <div style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500;">🔑 비밀번호 변경</div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div onclick="openNotifSettings()" style="padding:16px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500;">🔔 알림 설정</div>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
         <div onclick="doLogout()" style="padding:16px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
@@ -4307,6 +4322,8 @@
     const lastTab = localStorage.getItem('last_tab_' + userId) || 'home';
     // 알림 리스너는 항상 시작 (탭 위치 무관)
     startNotifListener();
+    // FCM 푸시알림 초기화 (로그인 후 1회)
+    if (typeof initFCM === 'function') initFCM(userId);
     // 삭제된 게시물 알림 정리
     cleanupOrphanNotifs(userId);
     // 캐시된 알림이 있으면 즉시 렌더링
@@ -4499,5 +4516,188 @@
     <button onclick="deleteTraineeLog()" style="width:100%;padding:12px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑 이 수업일지 삭제</button>
   </div>
 </div>
+<!-- ───────────────────────────────── -->
+<!-- 🔔 알림 설정 모달                -->
+<!-- ───────────────────────────────── -->
+<div id="notif-settings-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:400;align-items:flex-end;justify-content:center;">
+  <div style="background:var(--card);border-radius:20px 20px 0 0;padding:24px;width:100%;max-width:500px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div style="font-size:17px;font-weight:700;color:var(--text);">🔔 알림 설정</div>
+      <button onclick="closeNotifSettings()" style="background:none;border:none;cursor:pointer;font-size:22px;color:var(--text-hint);line-height:1;">✕</button>
+    </div>
+    <!-- 공지사항 -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border);">
+      <div>
+        <div style="font-size:15px;font-weight:500;color:var(--text);">📢 공지사항</div>
+        <div style="font-size:12px;color:var(--text-hint);margin-top:3px;">헬스장 공지 알림</div>
+      </div>
+      <div onclick="tapNotifToggle('notice')" style="position:relative;width:44px;height:24px;cursor:pointer;flex-shrink:0;">
+        <div id="notif-track-notice" style="position:absolute;inset:0;border-radius:12px;background:#ccc;transition:background 0.3s;"></div>
+        <div id="notif-thumb-notice" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left 0.3s;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>
+      </div>
+    </div>
+    <!-- 쿠폰 -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border);">
+      <div>
+        <div style="font-size:15px;font-weight:500;color:var(--text);">🎟️ 쿠폰 발급</div>
+        <div style="font-size:12px;color:var(--text-hint);margin-top:3px;">쿠폰 도착 시 알림</div>
+      </div>
+      <div onclick="tapNotifToggle('coupon')" style="position:relative;width:44px;height:24px;cursor:pointer;flex-shrink:0;">
+        <div id="notif-track-coupon" style="position:absolute;inset:0;border-radius:12px;background:#ccc;transition:background 0.3s;"></div>
+        <div id="notif-thumb-coupon" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left 0.3s;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>
+      </div>
+    </div>
+    <!-- 좋아요 -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border);">
+      <div>
+        <div style="font-size:15px;font-weight:500;color:var(--text);">❤️ 좋아요</div>
+        <div style="font-size:12px;color:var(--text-hint);margin-top:3px;">내 게시글 좋아요 알림</div>
+      </div>
+      <div onclick="tapNotifToggle('like')" style="position:relative;width:44px;height:24px;cursor:pointer;flex-shrink:0;">
+        <div id="notif-track-like" style="position:absolute;inset:0;border-radius:12px;background:#ccc;transition:background 0.3s;"></div>
+        <div id="notif-thumb-like" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left 0.3s;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>
+      </div>
+    </div>
+    <!-- 댓글·답글 -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;">
+      <div>
+        <div style="font-size:15px;font-weight:500;color:var(--text);">💬 댓글 · 답글</div>
+        <div style="font-size:12px;color:var(--text-hint);margin-top:3px;">내 게시글·댓글에 달린 답글 알림</div>
+      </div>
+      <div onclick="tapNotifToggle('comment')" style="position:relative;width:44px;height:24px;cursor:pointer;flex-shrink:0;">
+        <div id="notif-track-comment" style="position:absolute;inset:0;border-radius:12px;background:#ccc;transition:background 0.3s;"></div>
+        <div id="notif-thumb-comment" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left 0.3s;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text-hint);margin-top:16px;text-align:center;">알림을 완전히 끄려면 기기 설정에서 앱 알림을 변경하세요</div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+//  FCM 푸시알림 시스템
+// ════════════════════════════════════════
+const FCM_VAPID_KEY = 'BBcH1Rczp_E2lOGu6fAAEiPw3M25VlBlF6dPHnD4nhb7Jgp6JMVTTal5cn-D3X65fCZwkPvil03u6xK8lkORq7U';
+
+// ── FCM 초기화 (로그인 후 1회 호출) ──
+async function initFCM(userId) {
+  if (!messaging) return;
+  if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
+  try {
+    const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+
+    const token = await messaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: swReg });
+    if (token) {
+      await db.ref('fcm_tokens/' + userId).set(token);
+    }
+    // 포그라운드 메시지: 토스트로 표시
+    messaging.onMessage((payload) => {
+      const body = (payload.notification && payload.notification.body) || '';
+      if (typeof showToast === 'function') showToast('🔔 ' + body, 'info');
+    });
+  } catch(e) {
+    console.log('FCM 초기화 실패:', e.message);
+  }
+}
+
+// ── 알림 설정 로드 (기본값: 전부 ON) ──
+function getNotifSettings(userId) {
+  const defaults = { notice: true, coupon: true, like: true, comment: true };
+  try {
+    const saved = JSON.parse(localStorage.getItem('notif_settings_' + userId) || '{}');
+    return Object.assign(defaults, saved);
+  } catch { return defaults; }
+}
+
+// ── 알림 설정 저장 (localStorage + Firebase) ──
+function saveNotifSetting(userId, key, value) {
+  const s = getNotifSettings(userId);
+  s[key] = value;
+  localStorage.setItem('notif_settings_' + userId, JSON.stringify(s));
+  db.ref('users/' + userId + '/notif_settings/' + key).set(value);
+}
+
+// ── 알림 설정 모달 열기 ──
+function openNotifSettings() {
+  const userId = localStorage.getItem('current_user');
+  const s = getNotifSettings(userId);
+  ['notice','coupon','like','comment'].forEach(key => _applyNotifToggleUI(key, s[key] !== false));
+  const modal = document.getElementById('notif-settings-modal');
+  modal.style.display = 'flex';
+}
+function closeNotifSettings() {
+  document.getElementById('notif-settings-modal').style.display = 'none';
+}
+
+// ── 토글 탭 ──
+function tapNotifToggle(key) {
+  const userId = localStorage.getItem('current_user');
+  const s = getNotifSettings(userId);
+  const newVal = !(s[key] !== false);
+  saveNotifSetting(userId, key, newVal);
+  _applyNotifToggleUI(key, newVal);
+}
+
+// ── 토글 UI 업데이트 ──
+function _applyNotifToggleUI(key, on) {
+  const track = document.getElementById('notif-track-' + key);
+  const thumb = document.getElementById('notif-thumb-' + key);
+  if (track) track.style.background = on ? 'var(--blue)' : '#ccc';
+  if (thumb) thumb.style.left = on ? '22px' : '2px';
+}
+
+// ── 특정 유저 FCM 알림 설정 조회 (Firebase) ──
+async function _getUserNotifEnabled(userId, type) {
+  try {
+    const snap = await db.ref('users/' + userId + '/notif_settings/' + type).once('value');
+    return snap.val() !== false; // null이면 기본값 true
+  } catch { return true; }
+}
+
+// ── 특정 유저에게 푸시알림 발송 ──
+async function sendPushToUser(userId, title, body, notifType, data) {
+  try {
+    const enabled = await _getUserNotifEnabled(userId, notifType);
+    if (!enabled) return;
+    const tokenSnap = await db.ref('fcm_tokens/' + userId).once('value');
+    const token = tokenSnap.val();
+    if (!token) return;
+    await fetch('/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tokens: [token], title, body, data: data || {} })
+    });
+  } catch(e) { console.log('푸시 발송 실패:', e.message); }
+}
+
+// ── 전체 회원에게 푸시알림 발송 ──
+async function sendPushToAll(title, body, notifType, data) {
+  try {
+    const [tokensSnap, usersSnap] = await Promise.all([
+      db.ref('fcm_tokens').once('value'),
+      db.ref('users').once('value')
+    ]);
+    const tokenMap = tokensSnap.val() || {};
+    const usersMap = usersSnap.val() || {};
+
+    const validTokens = Object.entries(tokenMap)
+      .filter(([uid, token]) => {
+        if (!token) return false;
+        const settings = (usersMap[uid] && usersMap[uid].notif_settings) || {};
+        return settings[notifType] !== false; // 기본값 true
+      })
+      .map(([, token]) => token);
+
+    if (validTokens.length === 0) return;
+    await fetch('/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tokens: validTokens, title, body, data: data || {} })
+    });
+  } catch(e) { console.log('전체 푸시 발송 실패:', e.message); }
+}
+</script>
 </body>
 </html>
