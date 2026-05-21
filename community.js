@@ -936,10 +936,10 @@
 
   function deletePost(postId, photoURL) {
     showConfirm('게시글을 삭제할까요?', () => {
-    const post = allCommunityPosts.find(p => p.id === postId) || adminAllPosts.find(p => p.id === postId);
+      const post = allCommunityPosts.find(p => p.id === postId) || adminAllPosts.find(p => p.id === postId);
 
-    // 좋아요 포인트 환수 (게시글 작성자에게 받은 좋아요 수 × 좋아요 포인트)
-    if (post && post.authorId && post.likes) {
+      // 좋아요 포인트 환수 (게시글 작성자에게 받은 좋아요 수 × 좋아요 포인트)
+      if (post && post.authorId && post.likes) {
       const likeCount = Object.keys(post.likes).length;
       if (likeCount > 0) {
         db.ref('point_settings/like').once('value', snap => {
@@ -950,19 +950,19 @@
           }
         });
       }
-    }
+      }
 
-    // 오운완 게시물이면 설정값만큼 포인트 환수 + owunwan 기록 삭제
-    if (post && post.category === '오운완' && post.authorId) {
+      // 오운완 게시물이면 설정값만큼 포인트 환수 + owunwan 기록 삭제
+      if (post && post.category === '오운완' && post.authorId) {
       db.ref('point_settings/owunwan').once('value', snap => {
         const owunwanPts = snap.val() ?? 10;
         db.ref('users/' + post.authorId + '/points').transaction(cur => Math.max(0, (cur || 0) - owunwanPts));
         if (typeof updateStats === 'function') updateStats();
       });
       if (post.owunwanDate) db.ref('users/' + post.authorId + '/owunwan/' + post.owunwanDate).remove();
-    }
-    // 식단 게시물 포인트 환수 + 날짜 제한 해제
-    if (post && post.category === '식단' && post.authorId) {
+      }
+      // 식단 게시물 포인트 환수 + 날짜 제한 해제
+      if (post && post.category === '식단' && post.authorId) {
       const ptKey = post.photoURL ? 'dietPhoto' : 'dietText';
       db.ref('point_settings/' + ptKey).once('value', snap => {
         const dietPts = snap.val() ?? (post.photoURL ? 10 : 5);
@@ -977,8 +977,8 @@
       db.ref('users/' + post.authorId + '/diet_post_date').once('value', snap => {
         if (snap.val() === todayStr) db.ref('users/' + post.authorId + '/diet_post_date').remove();
       });
-    }
-    db.ref('posts/' + postId).remove().then(() => {
+      }
+      db.ref('posts/' + postId).remove().then(() => {
       if (photoURL) storage.refFromURL(photoURL).delete().catch(() => {});
       // 댓글 데이터 삭제
       db.ref('comments/' + postId).remove().catch(() => {});
@@ -1002,7 +1002,7 @@
       // 현재 보이는 피드 즉시 갱신
       renderCommunityFeed();
       renderAdminCommunityFeed();
-    });
+      });
     });
   }
 

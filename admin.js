@@ -149,8 +149,8 @@
         if (snap.exists()) {
           // 기존 계정이 있으면 role만 trainer로 업데이트
           showConfirm(snap.val().name + ' 님이 이미 등록된 번호예요.\n강사로 전환할까요?', () => {
-          // 기존 members pw 가져오기
-          db.ref('members/' + phone).once('value', mSnap => {
+            // 기존 members pw 가져오기
+            db.ref('members/' + phone).once('value', mSnap => {
             const existingPw = snap.val().pw || (mSnap.exists() ? mSnap.val().pw : null) || phone.slice(-4);
             Promise.all([
               db.ref('users/' + phone).update({ name, role: 'trainer', pw: existingPw }),
@@ -161,7 +161,7 @@
               closeTrainerModal();
               loadAdminTrainerList();
             });
-          });
+            });
           });
         } else {
           Promise.all([
@@ -180,15 +180,15 @@
   function deleteTrainer() {
     if (!editTrainerId) return;
     showConfirm('이 강사를 삭제할까요?\n스케줄 및 담당 회원 정보도 모두 삭제돼요.', () => {
-    Promise.all([
+      Promise.all([
       db.ref('users/' + editTrainerId).remove(),
       db.ref('trainers/' + editTrainerId).remove()
-    ]).then(() => {
+      ]).then(() => {
       showToast('삭제됐어요! 🗑', 'success');
       closeTrainerModal();
       loadAdminTrainerList();
+      });
     });
-  });
   }
   // ── 관리자 강사관리 탭 ──
   const ADMIN_SCH_HOURS = Array.from({length: 18}, (_, i) => i + 6);
@@ -916,18 +916,18 @@
 
   function deleteWorkoutRecord() {
     showConfirm('이 날의 운동기록을 삭제할까요?', () => {
-    const userId = localStorage.getItem('current_user');
-    const records = JSON.parse(localStorage.getItem(editWorkoutKey) || '[]');
-    const filtered = records.filter(r => r.date !== editWorkoutDate);
-    localStorage.setItem(editWorkoutKey, JSON.stringify(filtered));
-    // Firebase 반영
-    const fbPath = getFirebaseWorkoutPath(editWorkoutKey, userId);
-    if (fbPath) db.ref('users/' + userId + '/' + fbPath + '/' + editWorkoutDate).remove();
-    closeEditWorkoutModal();
-    if (calSelectedDate) renderDayDetail(calSelectedDate);
-    if (currentEquipment) loadPrevRecords();
-    showToast('삭제됐어요! 🗑', 'success');
-  });
+      const userId = localStorage.getItem('current_user');
+      const records = JSON.parse(localStorage.getItem(editWorkoutKey) || '[]');
+      const filtered = records.filter(r => r.date !== editWorkoutDate);
+      localStorage.setItem(editWorkoutKey, JSON.stringify(filtered));
+      // Firebase 반영
+      const fbPath = getFirebaseWorkoutPath(editWorkoutKey, userId);
+      if (fbPath) db.ref('users/' + userId + '/' + fbPath + '/' + editWorkoutDate).remove();
+      closeEditWorkoutModal();
+      if (calSelectedDate) renderDayDetail(calSelectedDate);
+      if (currentEquipment) loadPrevRecords();
+      showToast('삭제됐어요! 🗑', 'success');
+    });
   }
   function closeEditWorkoutModal() {
     document.getElementById('edit-workout-modal').classList.remove('active');
@@ -1285,17 +1285,17 @@
     const name = info ? info.name : '';
     showConfirm(name + ' 회원을 삭제할까요?\n\n삭제 후 복구가 어렵습니다.', () => {
 
-    const phone = currentMemberPhone;
+      const phone = currentMemberPhone;
 
-    // 1. Firebase 개인 데이터 삭제
-    const deleteRefs = [
+      // 1. Firebase 개인 데이터 삭제
+      const deleteRefs = [
       db.ref('members/' + phone),           // 로그인 정보
       db.ref('users/' + phone),             // 출석/포인트/운동기록/신체정보
       db.ref('coupons/' + phone),           // 쿠폰
-    ];
+      ];
 
-    // 2. 강사 담당 연결 삭제 (모든 강사에서 해당 회원 제거)
-    db.ref('trainers').once('value', snap => {
+      // 2. 강사 담당 연결 삭제 (모든 강사에서 해당 회원 제거)
+      db.ref('trainers').once('value', snap => {
       snap.forEach(trainerSnap => {
         const tid = trainerSnap.key;
         if (trainerSnap.child('trainees/' + phone).exists()) {
@@ -1319,7 +1319,7 @@
         .catch(err => {
           showToast('삭제 중 오류가 발생했어요.', 'error');
         });
-    });
+      });
     });
   }
 
@@ -1407,11 +1407,11 @@
 
   function deleteNotice(key) {
     showConfirm('이 공지를 삭제할까요?', () => {
-    db.ref('notices/' + key).remove().then(() => {
+      db.ref('notices/' + key).remove().then(() => {
       loadNoticeListAdmin();
       loadHomeNotices();
-    }).catch(err => { showToast('삭제 실패: ' + err.message, 'error'); });
-  });
+      }).catch(err => { showToast('삭제 실패: ' + err.message, 'error'); });
+    });
   }
   let editNoticeKey = null;
 
@@ -1639,13 +1639,13 @@
   function deleteScheduleCell() {
     if (!scheduleActiveKey) return;
     showConfirm('이 일정을 삭제할까요?', () => {
-    const trainerId = localStorage.getItem('current_user');
-    delete scheduleData[scheduleActiveKey];
-    db.ref('trainers/' + trainerId + '/schedule/' + scheduleActiveKey).remove().then(() => {
+      const trainerId = localStorage.getItem('current_user');
+      delete scheduleData[scheduleActiveKey];
+      db.ref('trainers/' + trainerId + '/schedule/' + scheduleActiveKey).remove().then(() => {
       closeScheduleModal();
       renderSchedule();
+      });
     });
-  });
   }
   function changeScheduleWeek(dir) {
     scheduleBaseDate.setDate(scheduleBaseDate.getDate() + dir * 7);
@@ -1840,9 +1840,9 @@
   function cancelLastRegistration() {
     if (!currentTraineeId) return;
     showConfirm('가장 최근 등록을 취소할까요?\n이전 등록 상태로 되돌아가요.', () => {
-    const trainerId = localStorage.getItem('current_user');
-    const ref = db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId);
-    ref.once('value', snap => {
+      const trainerId = localStorage.getItem('current_user');
+      const ref = db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId);
+      ref.once('value', snap => {
       const info = snap.val() || {};
 
       // allRegs 구성
@@ -1884,24 +1884,24 @@
         showToast('등록이 취소됐어요!', 'success');
         refreshTraineeView(currentTraineeId);
       });
+      });
     });
-  });
   }
   function deleteTraineeMember() {
     if (!currentTraineeId) return;
     const name = document.getElementById("trainee-detail-name").textContent;
     showConfirm(name + '님을 담당 회원에서 해제할까요?', () => {
-    const trainerId = localStorage.getItem("current_user");
-    const traineeId = currentTraineeId;
-    Promise.all([
+      const trainerId = localStorage.getItem("current_user");
+      const traineeId = currentTraineeId;
+      Promise.all([
       db.ref("trainers/" + trainerId + "/trainees/" + traineeId).remove(),
       db.ref("users/" + traineeId + "/lessons").remove()
-    ]).then(() => {
+      ]).then(() => {
       showToast(name + '님이 담당 회원에서 해제됐어요.', 'success');
       showScreen("screen-trainer");
       loadTrainerTab();
+      });
     });
-  });
   }
   // 수업 출석 체크 (잔여 횟수 차감)
   function checkTraineeAttend() {
@@ -1914,9 +1914,9 @@
       const remain = info.remain || 0;
       if (remain <= 0) { showToast('잔여 횟수가 없어요!', 'error'); return; }
       showConfirm(info.name + '님 오늘 수업 출석 체크할까요?\n잔여 횟수: ' + remain + ' → ' + (remain - 1) + '회', () => {
-      const today = new Date();
-      const dateStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
-      ref.update({ remain: remain - 1 }).then(() => {
+        const today = new Date();
+        const dateStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+        ref.update({ remain: remain - 1 }).then(() => {
         // 출석 기록 저장
         db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/attendLog/' + dateStr).set({
           date: dateStr,
@@ -1924,8 +1924,8 @@
         });
         refreshTraineeView(currentTraineeId);
         showToast('✅ 출석 체크 완료! 잔여 ' + (remain - 1) + '회', 'success');
+        });
       });
-    });
   });
   }
   // 담당 회원 탭 전환
@@ -2210,13 +2210,13 @@
   function deleteTraineeLog() {
     if (!editLogKey || !currentTraineeId) return;
     showConfirm('이 수업일지를 삭제할까요?', () => {
-    const trainerId = localStorage.getItem('current_user');
-    db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/logs/' + editLogKey).remove().then(() => {
+      const trainerId = localStorage.getItem('current_user');
+      db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/logs/' + editLogKey).remove().then(() => {
       showToast('삭제됐어요! 🗑', 'success');
       closeEditLogModal();
       renderLogTab();
+      });
     });
-  });
   }
   // ══════════════════════════════
   // 사인 기능
@@ -2342,9 +2342,9 @@
   function deleteSign() {
     if (!editSignKey || !currentTraineeId) return;
     showConfirm('이 서명 기록을 삭제할까요?\n잔여 횟수가 1회 복구돼요.', () => {
-    const trainerId = localStorage.getItem('current_user');
-    const ref = db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId);
-    ref.once('value', snap => {
+      const trainerId = localStorage.getItem('current_user');
+      const ref = db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId);
+      ref.once('value', snap => {
       const info = snap.val();
       if (!info) return;
       const remain = info.remain || 0;
@@ -2360,20 +2360,20 @@
         // 카드 + 서명탭 동시 업데이트
         refreshTraineeView(currentTraineeId);
       });
+      });
     });
-  });
   }
   // 당일취소 저장
   function saveNoShow() {
     if (!signTargetMemberId || !signTargetMemberName) return;
     showConfirm(signTargetMemberName + ' 회원님을 당일취소 처리할까요?', () => {
-    const trainerId = localStorage.getItem('current_user');
-    const today = new Date();
-    const dateStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
-    const savedAt = String(today.getHours()).padStart(2,'0')+':'+String(today.getMinutes()).padStart(2,'0');
-    const signData = { date: dateStr, savedAt, noShow: true, memberName: signTargetMemberName };
+      const trainerId = localStorage.getItem('current_user');
+      const today = new Date();
+      const dateStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+      const savedAt = String(today.getHours()).padStart(2,'0')+':'+String(today.getMinutes()).padStart(2,'0');
+      const signData = { date: dateStr, savedAt, noShow: true, memberName: signTargetMemberName };
 
-    db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId + '/signs/' + dateStr + '_' + Date.now()).set(signData)
+      db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId + '/signs/' + dateStr + '_' + Date.now()).set(signData)
       .then(() => {
         // remain 차감 (강사 목록 카드 표시용)
         const ref2 = db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId);
@@ -2386,7 +2386,7 @@
         // 카드 + 서명탭 동시 업데이트
         refreshTraineeView(signTargetMemberId);
       });
-  });
+    });
   }
   // 사인 저장
   function saveSign() {
@@ -2789,13 +2789,13 @@
   // 수업기록 삭제
   function deleteTrainerWorkout(traineeId, eqKey, dateStr) {
     showConfirm('이 운동 기록을 삭제할까요?', () => {
-    db.ref('users/' + traineeId + '/workouts/' + eqKey + '/' + dateStr).remove()
+      db.ref('users/' + traineeId + '/workouts/' + eqKey + '/' + dateStr).remove()
       .then(() => {
         renderTrainerDayDetail(dateStr);
         renderTrainerCal();
       })
       .catch(e => { console.error(e); showToast('삭제 중 오류가 발생했어요.', 'error'); });
-  });
+    });
   }
   // 수업기록 수정 모달 열기 (edit-workout-modal 재활용)
   let trainerEditTraineeId = null, trainerEditEqKey = null, trainerEditDateStr = null;
@@ -3405,11 +3405,11 @@
 
   function adminUseCoupon(memberId, couponId) {
     showConfirm('쿠폰을 사용 처리할까요?', () => {
-    db.ref('coupons/' + memberId + '/' + couponId).remove().then(() => {
+      db.ref('coupons/' + memberId + '/' + couponId).remove().then(() => {
       showToast('사용 처리 완료! ✅', 'success');
       loadAdminCouponList();
+      });
     });
-  });
   }
   // 회원 내 쿠폰
   function openMyCoupons() {
@@ -3463,11 +3463,11 @@
 
   function memberUseCoupon(userId, couponId) {
     showConfirm('쿠폰을 사용할까요?\n사용 후에는 되돌릴 수 없어요.', () => {
-    db.ref('coupons/' + userId + '/' + couponId).remove().then(() => {
+      db.ref('coupons/' + userId + '/' + couponId).remove().then(() => {
       showToast('쿠폰이 사용됐어요! ✅', 'success');
       loadMyCoupons();
+      });
     });
-  });
   }
 
   // ── 자동 쿠폰 조건 ──
@@ -3816,10 +3816,10 @@
 
   function removePointTier(idx) {
     showConfirm('이 구간을 삭제할까요?', () => {
-    pointTiers.splice(idx, 1);
-    savePointTiers();
-    renderPointTiers();
-  });
+      pointTiers.splice(idx, 1);
+      savePointTiers();
+      renderPointTiers();
+    });
   }
   function togglePointTier(idx, val) {
     pointTiers[idx].active = val;
