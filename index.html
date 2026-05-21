@@ -2960,7 +2960,6 @@
     const userId = localStorage.getItem('current_user');
     const realName = localStorage.getItem('name_' + userId) || '회원';
     const nickname = localStorage.getItem('nickname_' + userId) || realName;
-    const pts = localStorage.getItem('points_' + userId) || '0';
 
     document.getElementById('myinfo-avatar').textContent = nickname[0];
     document.getElementById('myinfo-nickname').textContent = nickname;

@@ -1219,20 +1219,23 @@
   }
 
   function editMemberPoint() {
-    const cur = localStorage.getItem('points_' + currentMemberPhone) || '0';
-    const newPt = prompt('포인트를 입력하세요 (현재: ' + cur + 'P):');
-    if (newPt === null) return;
-    if (isNaN(newPt)) { alert('숫자만 입력해주세요.'); return; }
-    const pt = parseInt(newPt);
-    // Firebase 저장
-    db.ref('users/' + currentMemberPhone + '/points').set(pt).then(() => {
-      localStorage.setItem('points_' + currentMemberPhone, String(pt));
-      // 현재 로그인된 회원 본인이면 화면 즉시 갱신
-      const loggedIn = localStorage.getItem('current_user');
-      if (loggedIn === currentMemberPhone && typeof updateStats === 'function') updateStats();
-      alert('포인트가 ' + pt + 'P로 변경됐어요.');
-      closeMemberModal();
-      loadMemberList();
+    // Firebase에서 최신 포인트 읽기
+    db.ref('users/' + currentMemberPhone + '/points').once('value').then(snap => {
+      const cur = snap.val() || 0;
+      const newPt = prompt('포인트를 입력하세요 (현재: ' + cur + 'P):');
+      if (newPt === null) return;
+      if (isNaN(newPt)) { alert('숫자만 입력해주세요.'); return; }
+      const pt = parseInt(newPt);
+      // Firebase 저장
+      db.ref('users/' + currentMemberPhone + '/points').set(pt).then(() => {
+        localStorage.setItem('points_' + currentMemberPhone, String(pt));
+        // 현재 로그인된 회원 본인이면 화면 즉시 갱신
+        const loggedIn = localStorage.getItem('current_user');
+        if (loggedIn === currentMemberPhone && typeof updateStats === 'function') updateStats();
+        alert('포인트가 ' + pt + 'P로 변경됐어요.');
+        closeMemberModal();
+        loadMemberList();
+      });
     });
   }
 
