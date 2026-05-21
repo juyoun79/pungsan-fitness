@@ -135,7 +135,7 @@
       const pw = document.getElementById('trainer-modal-pw').value.trim();
       const updates = { name };
       db.ref('trainers/' + editTrainerId).update({ name });
-      db.ref('users/' + editTrainerId).update(pw ? { name, pw } : { name }).then(() => {
+      db.ref('users/' + editTrainerId).update(pw ? { name, pw: hashPw(pw) } : { name }).then(() => {
         showToast('수정됐어요!', 'success');
         closeTrainerModal();
         loadAdminTrainerList();
