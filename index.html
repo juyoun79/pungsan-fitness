@@ -66,6 +66,64 @@
     document.getElementById('app-confirm-cancel').onclick = () => { modal.remove(); if (onCancel) onCancel(); };
   }
 
+
+  // ── 커스텀 입력 팝업 ──
+  function showInput(title, placeholder, defaultVal, onConfirm, onCancel, inputType) {
+    const existing = document.getElementById('app-input-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-input-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+    modal.innerHTML = '<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:280px;font-family:\'Noto Sans KR\',sans-serif;">'
+      + '<div style="font-size:14px;color:var(--text,#1a1a1a);margin-bottom:12px;line-height:1.6;white-space:pre-line;">' + title + '</div>'
+      + '<input id="app-input-field" type="' + (inputType||'text') + '" value="' + (defaultVal||'') + '" placeholder="' + (placeholder||'') + '" '
+      + 'style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;font-family:\'Noto Sans KR\',sans-serif;margin-bottom:16px;outline:none;">'
+      + '<div style="display:flex;gap:10px;">'
+      + '<button id="app-input-cancel" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">취소</button>'
+      + '<button id="app-input-ok" style="flex:1;padding:12px;background:#7F77DD;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">확인</button>'
+      + '</div></div>';
+    document.body.appendChild(modal);
+    const input = document.getElementById('app-input-field');
+    setTimeout(() => input.focus(), 100);
+    const doConfirm = () => { const val = input.value; modal.remove(); if (onConfirm) onConfirm(val); };
+    const doCancel = () => { modal.remove(); if (onCancel) onCancel(); };
+    document.getElementById('app-input-ok').onclick = doConfirm;
+    document.getElementById('app-input-cancel').onclick = doCancel;
+    input.onkeydown = (e) => { if (e.key === 'Enter') doConfirm(); if (e.key === 'Escape') doCancel(); };
+  }
+
+  // 수업정보 두 칸 입력 팝업 (수업종류 + 횟수)
+  function showTraineeForm(title, defaultType, defaultTotal, onConfirm) {
+    const existing = document.getElementById('app-input-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-input-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+    modal.innerHTML = '<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:280px;font-family:\'Noto Sans KR\',sans-serif;">'
+      + '<div style="font-size:14px;font-weight:700;color:var(--text,#1a1a1a);margin-bottom:16px;">' + title + '</div>'
+      + '<div style="font-size:12px;color:#888;margin-bottom:6px;">수업 종류</div>'
+      + '<input id="app-trainee-type" type="text" value="' + (defaultType||'') + '" placeholder="예) PT / 기구필라테스 / 기타" '
+      + 'style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;font-family:\'Noto Sans KR\',sans-serif;margin-bottom:12px;outline:none;">'
+      + '<div style="font-size:12px;color:#888;margin-bottom:6px;">총 수업 횟수</div>'
+      + '<input id="app-trainee-total" type="number" value="' + (defaultTotal||'') + '" placeholder="예) 10, 20, 30" '
+      + 'style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;font-family:\'Noto Sans KR\',sans-serif;margin-bottom:16px;outline:none;">'
+      + '<div style="display:flex;gap:10px;">'
+      + '<button id="app-trainee-cancel" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">취소</button>'
+      + '<button id="app-trainee-ok" style="flex:1;padding:12px;background:#7F77DD;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">확인</button>'
+      + '</div></div>';
+    document.body.appendChild(modal);
+    setTimeout(() => document.getElementById('app-trainee-type').focus(), 100);
+    document.getElementById('app-trainee-ok').onclick = () => {
+      const type = document.getElementById('app-trainee-type').value.trim();
+      const total = parseInt(document.getElementById('app-trainee-total').value);
+      if (!type) { showToast('수업 종류를 입력해주세요.', 'error'); return; }
+      if (!total || isNaN(total)) { showToast('총 횟수를 입력해주세요.', 'error'); return; }
+      modal.remove();
+      if (onConfirm) onConfirm(type, total);
+    };
+    document.getElementById('app-trainee-cancel').onclick = () => modal.remove();
+  }
+
   // ── 비밀번호 암호화 헬퍼 ──
   function hashPw(pw) {
     if (!pw) return '';
@@ -3906,17 +3964,17 @@
       return;
     }
     const cur = localStorage.getItem('nickname_' + userId) || '';
-    const newNick = prompt('새 닉네임을 입력해주세요 (2~10자)\n현재: ' + cur);
-    if (!newNick || !newNick.trim()) return;
-    const val = newNick.trim();
-    if (val.length < 2 || val.length > 10) {
-      showToast('닉네임은 2~10자로 입력해주세요.', 'error');
-      return;
-    }
-    if (val === cur) { showToast('현재 닉네임과 같아요.', 'error'); return; }
-    db.ref('nicknames/' + val).once('value', snap => {
-      if (snap.exists()) { showToast('이미 사용 중인 닉네임이에요.', 'error'); return; }
-      showConfirm('"' + val + '" 으로 변경할까요?\n변경 후에는 다시 바꿀 수 없어요.', () => {
+    showInput('새 닉네임을 입력해주세요 (2~10자)\n현재: ' + cur, '닉네임 입력', cur, (newNick) => {
+      if (!newNick || !newNick.trim()) return;
+      const val = newNick.trim();
+      if (val.length < 2 || val.length > 10) {
+        showToast('닉네임은 2~10자로 입력해주세요.', 'error');
+        return;
+      }
+      if (val === cur) { showToast('현재 닉네임과 같아요.', 'error'); return; }
+      db.ref('nicknames/' + val).once('value', snap => {
+        if (snap.exists()) { showToast('이미 사용 중인 닉네임이에요.', 'error'); return; }
+        showConfirm('"' + val + '" 으로 변경할까요?\n변경 후에는 다시 바꿀 수 없어요.', () => {
   
         // 기존 닉네임 해제 + 새 닉네임 저장
         db.ref('nicknames/' + cur).remove();
@@ -3933,8 +3991,9 @@
         const myinfoEl = document.getElementById('myinfo-nickname');
         if (myinfoEl) myinfoEl.textContent = val;
         showToast('닉네임이 변경됐어요! 😊', 'success');
-      })
-      });;
+        });
+      });
+    });
   }
 
   function updateNicknameInPosts(userId, newNick) {

@@ -1222,13 +1222,14 @@
   }
 
   function editMemberPw() {
-    const newPw = prompt('새 비밀번호를 입력하세요 (4자리):');
-    if (!newPw || newPw.length < 4) { showToast('4자리를 입력해주세요.', 'error'); return; }
-    const hashedPw = hashPw(newPw);
-    db.ref('members/' + currentMemberPhone + '/pw').set(hashedPw).then(() => {
-      localStorage.removeItem('pw_' + currentMemberPhone);
-      showToast('비밀번호가 변경됐어요!', 'success');
-      closeMemberModal();
+    showInput('새 비밀번호를 입력하세요 (4자리):', '새 비밀번호', '', (newPw) => {
+      if (!newPw || newPw.length < 4) { showToast('4자리를 입력해주세요.', 'error'); return; }
+      const hashedPw = hashPw(newPw);
+      db.ref('members/' + currentMemberPhone + '/pw').set(hashedPw).then(() => {
+        localStorage.removeItem('pw_' + currentMemberPhone);
+        showToast('비밀번호가 변경됐어요!', 'success');
+        closeMemberModal();
+      });
     });
   }
 
@@ -1236,19 +1237,19 @@
     // Firebase에서 최신 포인트 읽기
     db.ref('users/' + currentMemberPhone + '/points').once('value').then(snap => {
       const cur = snap.val() || 0;
-      const newPt = prompt('포인트를 입력하세요 (현재: ' + cur + 'P):');
-      if (newPt === null) return;
-      if (isNaN(newPt)) { showToast('숫자만 입력해주세요.', 'error'); return; }
-      const pt = parseInt(newPt);
-      // Firebase 저장
-      db.ref('users/' + currentMemberPhone + '/points').set(pt).then(() => {
-        localStorage.setItem('points_' + currentMemberPhone, String(pt));
-        // 현재 로그인된 회원 본인이면 화면 즉시 갱신
-        const loggedIn = localStorage.getItem('current_user');
-        if (loggedIn === currentMemberPhone && typeof updateStats === 'function') updateStats();
-        showToast('포인트가 ' + pt + 'P로 변경됐어요.', 'success');
-        closeMemberModal();
-        loadMemberList();
+      showInput('포인트를 입력하세요 (현재: ' + cur + 'P):', '포인트 입력', cur, (newPt) => {
+        if (!newPt && newPt !== '0') return;
+        if (isNaN(newPt)) { showToast('숫자만 입력해주세요.', 'error'); return; }
+        const pt = parseInt(newPt);
+        // Firebase 저장
+        db.ref('users/' + currentMemberPhone + '/points').set(pt).then(() => {
+          localStorage.setItem('points_' + currentMemberPhone, String(pt));
+          const loggedIn = localStorage.getItem('current_user');
+          if (loggedIn === currentMemberPhone && typeof updateStats === 'function') updateStats();
+          showToast('포인트가 ' + pt + 'P로 변경됐어요.', 'success');
+          closeMemberModal();
+          loadMemberList();
+        });
       });
     });
   }
@@ -1758,22 +1759,19 @@
 
   // 담당 회원 선택 후 수업 정보 입력
   function selectTraineeMember(memberId, memberName) {
-    const type = prompt(memberName + '님의 수업 종류를 입력해주세요\n(예: PT / 기구필라테스 / 기타)');
-    if (!type) return;
-    const total = parseInt(prompt('총 수업 횟수를 입력해주세요\n(예: 10, 20, 30)'));
-    if (!total || isNaN(total)) return;
-
-    const trainerId = localStorage.getItem('current_user');
-    db.ref('trainers/' + trainerId + '/trainees/' + memberId).set({
-      name: memberName,
-      type: type,
-      total: total,
-      remain: total,
-      addedAt: Date.now()
-    }).then(() => {
-      showToast(memberName + '님이 담당 회원으로 추가됐어요! 💪', 'success');
-      closeAddTraineeMember();
-      loadTrainerTab();
+    showTraineeForm(memberName + '님 수업 정보 입력', '', '', (type, total) => {
+      const trainerId = localStorage.getItem('current_user');
+      db.ref('trainers/' + trainerId + '/trainees/' + memberId).set({
+        name: memberName,
+        type: type,
+        total: total,
+        remain: total,
+        addedAt: Date.now()
+      }).then(() => {
+        showToast(memberName + '님이 담당 회원으로 추가됐어요! 💪', 'success');
+        closeAddTraineeMember();
+        loadTrainerTab();
+      });
     });
   }
 
@@ -1809,27 +1807,24 @@
     ref.once("value", snap => {
       const info = snap.val();
       if (!info) return;
-      const type = prompt("수업 종류를 입력해주세요", info.type || "");
-      if (type === null) return;
-      const total = parseInt(prompt("총 수업 횟수를 입력해주세요", info.total || 0));
-      if (isNaN(total)) return;
+      showTraineeForm('수업 정보 수정', info.type || '', info.total || '', (type, total) => {
+        // 잔여 횟수 자동 계산 (총횟수 - 현재 차수 서명 횟수)
+        let prevSum = 0;
+        if (info.registrations && typeof info.registrations === 'object') {
+          Object.values(info.registrations).forEach(r => { prevSum += (r.total || 0); });
+        }
+        let totalSigns = 0;
+        if (info.signs && typeof info.signs === 'object') {
+          Object.values(info.signs).forEach(v => { if (v && typeof v === 'object') totalSigns++; });
+        }
+        const signsInCurrentReg = Math.max(0, totalSigns - prevSum);
+        const remain = Math.max(0, total - signsInCurrentReg);
 
-      // 잔여 횟수 자동 계산 (총횟수 - 현재 차수 서명 횟수)
-      let prevSum = 0;
-      if (info.registrations && typeof info.registrations === 'object') {
-        Object.values(info.registrations).forEach(r => { prevSum += (r.total || 0); });
-      }
-      let totalSigns = 0;
-      if (info.signs && typeof info.signs === 'object') {
-        Object.values(info.signs).forEach(v => { if (v && typeof v === 'object') totalSigns++; });
-      }
-      const signsInCurrentReg = Math.max(0, totalSigns - prevSum);
-      const remain = Math.max(0, total - signsInCurrentReg);
-
-      ref.update({ type, total, remain }).then(() => {
-        document.getElementById("trainee-card-type").textContent = type;
-        refreshTraineeView(currentTraineeId);
-        showToast('수정됐어요!', 'success');
+        ref.update({ type, total, remain }).then(() => {
+          document.getElementById("trainee-card-type").textContent = type;
+          refreshTraineeView(currentTraineeId);
+          showToast('수정됐어요!', 'success');
+        });
       });
     });
   }

@@ -462,15 +462,16 @@
       if (comments.length === 0) { showToast('댓글이 없어요.', 'info'); return; }
       comments.sort((a, b) => (a.createdAt||0) - (b.createdAt||0));
       const msg = comments.map((c,i) => `${i+1}. [${c.nickname}] ${c.content}`).join('\n');
-      const delIdx = prompt('댓글 목록:\n' + msg + '\n\n삭제할 댓글 번호를 입력하세요 (취소: 빈칸)');
-      if (!delIdx) return;
-      const idx = parseInt(delIdx) - 1;
-      if (idx < 0 || idx >= comments.length) { showToast('잘못된 번호예요.', 'error'); return; }
-      const comment = comments[idx];
-      showConfirm('[' + comment.nickname + '] 댓글을 삭제할까요?', () => {
-        db.ref('comments/' + postId + '/' + comment.id).remove().then(() => {
-          db.ref('posts/' + postId + '/commentCount').transaction(v => Math.max((v||1)-1, 0));
-          showToast('댓글이 삭제됐어요.', 'success');
+      showInput('삭제할 댓글 번호를 입력하세요:\n' + msg, '번호 입력', '', (delIdx) => {
+        if (!delIdx) return;
+        const idx = parseInt(delIdx) - 1;
+        if (idx < 0 || idx >= comments.length) { showToast('잘못된 번호예요.', 'error'); return; }
+        const comment = comments[idx];
+        showConfirm('[' + comment.nickname + '] 댓글을 삭제할까요?', () => {
+          db.ref('comments/' + postId + '/' + comment.id).remove().then(() => {
+            db.ref('posts/' + postId + '/commentCount').transaction(v => Math.max((v||1)-1, 0));
+            showToast('댓글이 삭제됐어요.', 'success');
+          });
         });
       });
     });
