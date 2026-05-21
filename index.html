@@ -3086,6 +3086,7 @@
         if (pw === adminPw) {
           if (btn) { btn.textContent = '로그인'; btn.disabled = false; }
           localStorage.setItem('current_user', ADMIN_ID);
+          sessionStorage.setItem('session_user', ADMIN_ID);
           loadAdminDashboard();
           showScreen('screen-admin');
         } else {
