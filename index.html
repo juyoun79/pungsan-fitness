@@ -3960,21 +3960,33 @@
   }
   function openEditWeightModal() {
     const userId = localStorage.getItem('current_user');
-    const gender     = localStorage.getItem('body_gender_'      + userId) || 'male';
-    const age        = localStorage.getItem('body_age_'         + userId) || '';
-    const height     = localStorage.getItem('body_height_'      + userId) || '';
-    const weight     = localStorage.getItem('body_weight_'      + userId) || '';
-    const goalType   = localStorage.getItem('body_goal_type_'   + userId) || 'diet';
-    const goalWeight = localStorage.getItem('body_goal_weight_' + userId) || '';
-    document.getElementById('edit-body-gender').value      = gender;
-    document.getElementById('edit-body-age').value         = age;
-    document.getElementById('edit-body-height').value      = height;
-    document.getElementById('edit-body-weight').value      = weight;
-    document.getElementById('edit-body-goal-type').value   = goalType;
-    document.getElementById('edit-body-goal-weight').value = goalWeight;
-    _applyGenderStyle('edit-gender-male', 'edit-gender-female', gender);
-    selectEditGoalType(goalType);
-    document.getElementById('change-nickname-modal').classList.add('active');
+    // Firebase에서 최신 신체정보 읽기 (로컬 fallback)
+    db.ref('users/' + userId + '/body').once('value').then(snap => {
+      if (snap.exists()) {
+        const body = snap.val();
+        localStorage.setItem('body_gender_'      + userId, body.gender || 'female');
+        localStorage.setItem('body_age_'         + userId, body.age || '');
+        localStorage.setItem('body_height_'      + userId, body.height || '');
+        localStorage.setItem('body_weight_'      + userId, body.weight || '');
+        localStorage.setItem('body_goal_type_'   + userId, body.goalType || 'diet');
+        localStorage.setItem('body_goal_weight_' + userId, body.goalWeight || '');
+      }
+      const gender     = localStorage.getItem('body_gender_'      + userId) || 'male';
+      const age        = localStorage.getItem('body_age_'         + userId) || '';
+      const height     = localStorage.getItem('body_height_'      + userId) || '';
+      const weight     = localStorage.getItem('body_weight_'      + userId) || '';
+      const goalType   = localStorage.getItem('body_goal_type_'   + userId) || 'diet';
+      const goalWeight = localStorage.getItem('body_goal_weight_' + userId) || '';
+      document.getElementById('edit-body-gender').value      = gender;
+      document.getElementById('edit-body-age').value         = age;
+      document.getElementById('edit-body-height').value      = height;
+      document.getElementById('edit-body-weight').value      = weight;
+      document.getElementById('edit-body-goal-type').value   = goalType;
+      document.getElementById('edit-body-goal-weight').value = goalWeight;
+      _applyGenderStyle('edit-gender-male', 'edit-gender-female', gender);
+      selectEditGoalType(goalType);
+      document.getElementById('change-nickname-modal').classList.add('active');
+    });
   }
 
   // ── 신체정보 수정 저장 ──
