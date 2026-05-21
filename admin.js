@@ -939,8 +939,20 @@
   // 회원 정보 읽기 (Firebase)
   function getMemberDB() {
     return new Promise(resolve => {
-      db.ref('members').once('value').then(snap => {
-        resolve(snap.val() || {});
+      Promise.all([
+        db.ref('members').once('value'),
+        db.ref('trainers').once('value')
+      ]).then(([membersSnap, trainersSnap]) => {
+        const members = membersSnap.val() || {};
+        const trainerIds = new Set(Object.keys(trainersSnap.val() || {}));
+        // 강사 계정 및 이름 없는 계정 필터링
+        const filtered = {};
+        Object.entries(members).forEach(([phone, info]) => {
+          if (!trainerIds.has(phone) && info.name) {
+            filtered[phone] = info;
+          }
+        });
+        resolve(filtered);
       }).catch(() => resolve({}));
     });
   }
