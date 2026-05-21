@@ -3220,8 +3220,11 @@
     ]).then(([snap, userSnap]) => {
       if (btn) { btn.textContent = '로그인'; btn.disabled = false; }
 
-      if (!snap.exists()) {
-        // members에 없으면 users에서 확인 (강사/매니저 계정)
+      // users에 trainer/manager role이 있으면 강사로 처리 (members 잔여 데이터 무시)
+      const isTrainer = userSnap.exists() && (userSnap.val().role === 'trainer' || userSnap.val().role === 'manager');
+
+      if (!snap.exists() || isTrainer) {
+        // members에 없거나 강사 계정이면 users에서 확인
         if (!userSnap.exists()) {
           showToast('등록되지 않은 회원이에요.\n관리자에게 문의해주세요.', 'error');
           return;
@@ -4085,14 +4088,20 @@
     const birth = document.getElementById('body-birth') ? document.getElementById('body-birth').value.trim() : '';
     if (birth) {
       localStorage.setItem('body_birth_' + userId, birth);
-      db.ref('members/' + userId + '/birth').set(birth);
+      // 강사/관리자는 users에, 회원은 members에 저장
+      const userRoleSave = localStorage.getItem('role_' + userId);
+      if (userRoleSave === 'trainer' || userRoleSave === 'manager') {
+        db.ref('users/' + userId + '/birth').set(birth);
+      } else {
+        db.ref('members/' + userId + '/birth').set(birth);
+      }
     }
     const bodyData = { gender, age, height, weight, goalType };
     if (goalWeight >= 20) bodyData.goalWeight = goalWeight;
     if (birth) bodyData.birth = birth;
     db.ref('users/' + userId + '/body').set(bodyData);
-    const memberName = localStorage.getItem('name_' + userId) || userId;
-    goHome(memberName, true);
+    const nickname = localStorage.getItem('nickname_' + userId) || localStorage.getItem('name_' + userId) || userId;
+    goHome(nickname, true);
   }
 
   // ── 체중 히스토리 저장 및 그래프 ──
@@ -4172,7 +4181,12 @@
     const birth = document.getElementById('body-birth') ? document.getElementById('body-birth').value.trim() : '';
     if (birth) {
       localStorage.setItem('body_birth_' + userId, birth);
-      db.ref('members/' + userId + '/birth').set(birth);
+      const userRoleSave2 = localStorage.getItem('role_' + userId);
+      if (userRoleSave2 === 'trainer' || userRoleSave2 === 'manager') {
+        db.ref('users/' + userId + '/birth').set(birth);
+      } else {
+        db.ref('members/' + userId + '/birth').set(birth);
+      }
     }
     const bodyData = { gender, age, height, weight, goalType };
     if (goalWeight >= 20) bodyData.goalWeight = goalWeight;
