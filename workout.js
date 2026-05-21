@@ -1154,8 +1154,18 @@
     btn.textContent = '업로드 중...'; btn.disabled = true;
 
     try {
-      // Canvas → Blob
-      const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.88));
+      // Canvas → Blob (최대 1200px 압축)
+      const compressedCanvas = document.createElement('canvas');
+      const MAX_SIZE = 1200;
+      let cw = canvas.width, ch = canvas.height;
+      if (cw > MAX_SIZE || ch > MAX_SIZE) {
+        if (cw > ch) { ch = Math.round(ch * MAX_SIZE / cw); cw = MAX_SIZE; }
+        else { cw = Math.round(cw * MAX_SIZE / ch); ch = MAX_SIZE; }
+      }
+      compressedCanvas.width = cw;
+      compressedCanvas.height = ch;
+      compressedCanvas.getContext('2d').drawImage(canvas, 0, 0, cw, ch);
+      const blob = await new Promise(res => compressedCanvas.toBlob(res, 'image/jpeg', 0.82));
       const ref = storage.ref('posts/owunwan_' + Date.now() + '_' + userId + '.jpg');
       const snapshot = await ref.put(blob);
       const photoURL = await snapshot.ref.getDownloadURL();
