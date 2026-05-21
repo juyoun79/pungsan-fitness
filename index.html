@@ -3035,23 +3035,6 @@
     });
   }
 
-  function openChangeNickname() {
-    const userId = localStorage.getItem('current_user');
-    document.getElementById('new-nickname-input').value = localStorage.getItem('name_' + userId) || '';
-    document.getElementById('change-nickname-modal').classList.add('active');
-  }
-
-  function saveNewNickname() {
-    const val = document.getElementById('new-nickname-input').value.trim();
-    if (val.length < 2) { alert('닉네임은 2자 이상 입력해주세요.'); return; }
-    const userId = localStorage.getItem('current_user');
-    localStorage.setItem('name_' + userId, val);
-    document.getElementById('change-nickname-modal').classList.remove('active');
-    document.getElementById('home-nickname').textContent = val + '님';
-    loadMyInfo();
-    alert('닉네임이 변경됐어요! ✅');
-  }
-
   function openChangePw() {
     document.getElementById('cur-pw-input').value = '';
     document.getElementById('new-pw-input').value = '';
