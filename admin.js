@@ -188,6 +188,8 @@
           db.ref('users/' + tid),
           db.ref('trainers/' + tid),
           db.ref('notifications/' + tid),
+          db.ref('members/' + tid),      // 잔여 멤버 데이터 삭제
+          db.ref('coupons/' + tid),      // 쿠폰 데이터 삭제
         ];
         if (nick) deleteRefs.push(db.ref('nicknames/' + nick));
         Promise.all(deleteRefs.map(ref => ref.remove())).then(() => {
