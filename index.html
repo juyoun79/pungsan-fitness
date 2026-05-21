@@ -18,6 +18,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <script>
   const firebaseConfig = {
     apiKey: "AIzaSyBlp0SIVRO0SKZWGGa7OLyhnEZTnruMnH8",
@@ -31,6 +32,21 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
   const storage = firebase.storage();
+
+  // ── 비밀번호 암호화 헬퍼 ──
+  function hashPw(pw) {
+    if (!pw) return '';
+    if (/^[a-f0-9]{64}$/.test(pw)) return pw; // 이미 해시된 값이면 그대로
+    return CryptoJS.SHA256(pw).toString();
+  }
+
+  // 로그인 시 평문/암호화 둘 다 비교 (기존 회원 호환)
+  function matchPw(inputPw, storedPw) {
+    if (!inputPw || !storedPw) return false;
+    if (inputPw === storedPw) return true;           // 평문 일치 (기존 회원)
+    if (hashPw(inputPw) === storedPw) return true;  // 해시 일치
+    return false;
+  }
 </script>
 <link rel="stylesheet" href="style.css">
 <script src="messages.js"></script>
@@ -3050,8 +3066,10 @@
     db.ref('members/' + userId).once('value').then(snap => {
       const member = snap.val();
       const savedPw = localStorage.getItem('pw_' + userId) || (member ? member.pw : '');
-      if (curPw !== savedPw) { alert('현재 비밀번호가 틀렸어요.'); return; }
-      localStorage.setItem('pw_' + userId, newPw);
+      if (!matchPw(curPw, savedPw)) { alert('현재 비밀번호가 틀렸어요.'); return; }
+      const hashedNew = hashPw(newPw);
+      localStorage.setItem('pw_' + userId, hashedNew);
+      db.ref('members/' + userId + '/pw').set(hashedNew);
       document.getElementById('change-pw-modal').classList.remove('active');
       alert('비밀번호가 변경됐어요! ✅');
     });
@@ -3110,9 +3128,15 @@
         }
         const user = userSnap.val();
         const savedPw = localStorage.getItem('pw_' + id) || user.pw;
-        if (pw !== savedPw) {
+        if (!matchPw(pw, savedPw)) {
           alert('비밀번호가 틀렸어요.\n초기 비밀번호는 휴대폰 뒤 4자리예요.');
           return;
+        }
+        // 평문이면 자동으로 암호화 업그레이드
+        if (savedPw && !/^[a-f0-9]{64}$/.test(savedPw)) {
+          const hashed = hashPw(pw);
+          localStorage.setItem('pw_' + id, hashed);
+          db.ref('users/' + id + '/pw').set(hashed);
         }
         localStorage.setItem('current_user', id);
         sessionStorage.setItem('session_user', id);
@@ -3135,9 +3159,15 @@
       const member = snap.val();
       // 비밀번호 확인 (로컬에 변경된 비번 있으면 우선 사용)
       const savedPw = localStorage.getItem('pw_' + id) || member.pw;
-      if (pw !== savedPw) {
+      if (!matchPw(pw, savedPw)) {
         alert('비밀번호가 틀렸어요.\n초기 비밀번호는 휴대폰 뒤 4자리예요.');
         return;
+      }
+      // 평문이면 자동으로 암호화 업그레이드
+      if (savedPw && !/^[a-f0-9]{64}$/.test(savedPw)) {
+        const hashed = hashPw(pw);
+        localStorage.setItem('pw_' + id, hashed);
+        db.ref('members/' + id + '/pw').set(hashed);
       }
 
       // 로그인 성공 - 삭제 기록 확인 후 localStorage 초기화

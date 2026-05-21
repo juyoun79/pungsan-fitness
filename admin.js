@@ -162,7 +162,7 @@
           });
         } else {
           Promise.all([
-            db.ref('users/' + phone).set({ name, pw, role: 'trainer' }),
+            db.ref('users/' + phone).set({ name, pw: hashPw(pw), role: 'trainer' }),
             db.ref('trainers/' + phone).set({ name })
           ]).then(() => {
             alert('✅ ' + name + ' 강사가 등록됐어요!\n아이디: ' + phone + '\n비밀번호: ' + pw);
@@ -1208,7 +1208,9 @@
   function editMemberPw() {
     const newPw = prompt('새 비밀번호를 입력하세요 (4자리):');
     if (!newPw || newPw.length < 4) { alert('4자리를 입력해주세요.'); return; }
-    db.ref('members/' + currentMemberPhone + '/pw').set(newPw).then(() => {
+    const hashedPw = hashPw(newPw);
+    db.ref('members/' + currentMemberPhone + '/pw').set(hashedPw).then(() => {
+      localStorage.removeItem('pw_' + currentMemberPhone);
       alert('비밀번호가 변경됐어요: ' + newPw);
       closeMemberModal();
     });
@@ -1329,7 +1331,8 @@
           if (!confirm('동명이인으로 등록할까요?')) return;
         }
 
-        db.ref('members/' + phone).set({ name: name + '(' + phone.slice(-4) + ')', pw, programs }).then(() => {
+        const hashedPw = hashPw(pw);
+        db.ref('members/' + phone).set({ name: name + '(' + phone.slice(-4) + ')', pw: hashedPw, programs }).then(() => {
           const birth = document.getElementById('reg-birth') ? document.getElementById('reg-birth').value.trim() : '';
           if (birth) db.ref('members/' + phone + '/birth').set(birth);
           document.getElementById('reg-name').value = '';
