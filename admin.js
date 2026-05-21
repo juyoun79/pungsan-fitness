@@ -1345,23 +1345,26 @@
         allSnap.forEach(child => {
           if ((child.val().name || '').trim() === name) duplicateName = true;
         });
+        const doRegister = () => {
+          const hashedPw = hashPw(pw);
+          db.ref('members/' + phone).set({ name: name + '(' + phone.slice(-4) + ')', pw: hashedPw, programs }).then(() => {
+            const birth = document.getElementById('reg-birth') ? document.getElementById('reg-birth').value.trim() : '';
+            if (birth) db.ref('members/' + phone + '/birth').set(birth);
+            document.getElementById('reg-name').value = '';
+            document.getElementById('reg-phone').value = '';
+            document.getElementById('reg-pw').value = '';
+            if (document.getElementById('reg-birth')) document.getElementById('reg-birth').value = '';
+            document.querySelectorAll('#reg-programs input').forEach(el => el.checked = false);
+            showToast('✅ ' + name + ' 회원이 등록됐어요!', 'success');
+          });
+        };
+
         if (duplicateName) {
           showToast('⚠️ 이미 같은 이름의 회원이 있어요.', 'info');
-          // 확인 팝업으로 계속 진행 여부 선택
-          showConfirm('동명이인으로 등록할까요?', () => {
+          showConfirm('동명이인으로 등록할까요?', doRegister);
+        } else {
+          doRegister();
         }
-
-        const hashedPw = hashPw(pw);
-        db.ref('members/' + phone).set({ name: name + '(' + phone.slice(-4) + ')', pw: hashedPw, programs }).then(() => {
-          const birth = document.getElementById('reg-birth') ? document.getElementById('reg-birth').value.trim() : '';
-          if (birth) db.ref('members/' + phone + '/birth').set(birth);
-          document.getElementById('reg-name').value = '';
-          document.getElementById('reg-phone').value = '';
-          document.getElementById('reg-pw').value = '';
-          if (document.getElementById('reg-birth')) document.getElementById('reg-birth').value = '';
-          document.querySelectorAll('#reg-programs input').forEach(el => el.checked = false);
-          showToast('✅ ' + name + ' 회원이 등록됐어요!', 'success');
-        });
       });
     });
   }
@@ -1667,7 +1670,6 @@
         if (info.registrations && typeof info.registrations === 'object') {
           Object.entries(info.registrations).forEach(([key, val]) => {
             if (val && typeof val === 'object') allRegs.push({ key, ...val });
-          });
           });
           allRegs.sort((a, b) => a.key.localeCompare(b.key));
         }
