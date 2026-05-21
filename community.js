@@ -1,3 +1,14 @@
+  // ── XSS 방어: HTML 특수문자 이스케이프 ──
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;');
+  }
+
   // ── 커뮤니티 전역 변수 ──
   let adminAllPosts = [];
   let adminCommunityCategory = '전체';
@@ -398,7 +409,7 @@
             <div style="flex:1;min-width:0;">
               <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
                 <span style="font-size:11px;font-weight:700;color:white;background:var(--blue);padding:2px 6px;border-radius:4px;">${post.category||'?'}</span>
-                <span style="font-size:12px;font-weight:700;color:var(--text);">${post.nickname||'회원'}</span>
+                <span style="font-size:12px;font-weight:700;color:var(--text);">${escapeHtml(post.nickname||'회원')}</span>
                 <span style="font-size:11px;color:var(--text-hint);">${getTimeAgo(post.createdAt)}</span>
               </div>
               <div style="font-size:13px;color:var(--text-sub);word-break:break-all;">${(post.content||'').substring(0,50)}${(post.content||'').length > 50 ? '...' : ''}</div>
@@ -731,8 +742,8 @@
     const likeCount = post.likes ? Object.keys(post.likes).length : 0;
     const commentCount = post.commentCount || 0;
     const timeAgo = getTimeAgo(post.createdAt);
-    const safeContent = (post.content || '').replace(/\n/g,'<br>');
-    const safePreview = (post.content || '').replace(/`/g,"'").replace(/\n/g,' ').substring(0,50);
+    const safeContent = escapeHtml(post.content || '').replace(/\n/g,'<br>');
+    const safePreview = escapeHtml((post.content || '').replace(/\n/g,' ')).substring(0,50);
     const canDelete = post.authorId === userId || isAdmin;
     const authorRole = localStorage.getItem('role_' + post.authorId);
     const isAuthorStaff = authorRole === 'trainer' || authorRole === 'manager';
@@ -748,13 +759,13 @@
     return `
       <div class="feed-card">
         <div class="feed-header">
-          <div class="feed-avatar">${(post.nickname||'?')[0]}</div>
+          <div class="feed-avatar">${escapeHtml((post.nickname||'?')[0])}</div>
           <div style="flex:1;">
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               <span class="feed-nickname" onclick="${isAdminOrStaff ? `showAuthorInfo('${post.authorId}')` : `filterByAuthor('${post.authorId}','${(post.nickname||'').replace(/'/g,"\\'")}' )`}"
                 style="cursor:pointer;text-decoration:underline;text-decoration-color:transparent;transition:text-decoration-color 0.15s;"
                 onmouseenter="this.style.textDecorationColor='var(--blue)'"
-                onmouseleave="this.style.textDecorationColor='transparent'">${post.nickname || '회원'}</span>
+                onmouseleave="this.style.textDecorationColor='transparent'">${escapeHtml(post.nickname || '회원')}</span>
               ${realNameDisplay}
             </div>
             <div class="feed-meta">${timeAgo}</div>
