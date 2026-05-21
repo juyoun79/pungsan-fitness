@@ -29,18 +29,27 @@ export default {
 
 // ── 푸시알림 발송 처리 ──
 async function handleNotify(request, env) {
+  let step = 'init';
   try {
+    step = 'parse_body';
     const { tokens, title, body, data } = await request.json();
 
     if (!tokens || tokens.length === 0) {
       return jsonRes({ success: false, error: 'No tokens' }, 400);
     }
 
+    // 시크릿 확인
+    step = 'check_secrets';
+    if (!env.FCM_PRIVATE_KEY) return jsonRes({ success: false, error: 'FCM_PRIVATE_KEY 없음' }, 500);
+    if (!env.FCM_CLIENT_EMAIL) return jsonRes({ success: false, error: 'FCM_CLIENT_EMAIL 없음' }, 500);
+
     // FCM v1 API 액세스 토큰 발급
+    step = 'get_access_token';
     const accessToken = await getFCMAccessToken(env.FCM_PRIVATE_KEY, env.FCM_CLIENT_EMAIL);
     const projectId = 'pungsan-fitness';
 
     // 토큰별 발송 (병렬)
+    step = 'send_messages';
     const results = await Promise.allSettled(
       tokens.map(token => sendFCMMessage(accessToken, projectId, token, title, body, data))
     );
@@ -51,8 +60,8 @@ async function handleNotify(request, env) {
     return jsonRes({ success: true, sent, failed });
 
   } catch (err) {
-    console.error('알림 발송 오류:', err);
-    return jsonRes({ success: false, error: err.message }, 500);
+    console.error('알림 발송 오류 [' + step + ']:', err);
+    return jsonRes({ success: false, error: '[' + step + '] ' + err.message }, 500);
   }
 }
 

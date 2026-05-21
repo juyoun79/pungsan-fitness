@@ -4690,12 +4690,19 @@ async function sendPushToAll(title, body, notifType, data) {
       })
       .map(([, token]) => token);
 
-    if (validTokens.length === 0) return;
-    await fetch('/api/notify', {
+    if (validTokens.length === 0) { console.log('⚠️ 발송할 토큰 없음'); return; }
+    console.log('📤 푸시 발송 시도:', validTokens.length + '명', title);
+    const _res = await fetch('/api/notify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tokens: validTokens, title, body, data: data || {} })
     });
+    const _result = await _res.json();
+    if (!_res.ok) {
+      console.error('❌ 푸시 서버 오류:', _result.error);
+    } else {
+      console.log('✅ 푸시 발송 완료:', _result);
+    }
   } catch(e) { console.log('전체 푸시 발송 실패:', e.message); }
 }
 </script>
