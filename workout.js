@@ -1143,6 +1143,18 @@
     alert('갤러리에 저장됐어요! 📥\nSNS에 자유롭게 공유해보세요 💪');
   }
 
+  function openOwunwanNoticePopup() {
+    const canvas = document.getElementById('owunwan-canvas');
+    if (!canvas || canvas.width === 0) { alert('사진을 먼저 촬영해주세요!'); return; }
+    const modal = document.getElementById('owunwan-notice-modal');
+    modal.style.display = 'flex';
+  }
+
+  function closeOwunwanNoticePopup() {
+    const modal = document.getElementById('owunwan-notice-modal');
+    modal.style.display = 'none';
+  }
+
   async function submitOwunwan() {
     const userId = localStorage.getItem('current_user');
     const today = getToday();
