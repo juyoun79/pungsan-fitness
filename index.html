@@ -357,7 +357,7 @@
        닉네임 설정 화면
   ══════════════════════════════ -->
   <div id="screen-set-nickname" class="screen" style="padding:0;">
-    <div style="flex:1;display:flex;flex-direction:column;padding:48px 28px 32px;">
+    <div style="flex:1;display:flex;flex-direction:column;padding:48px 28px 100px;">
       <div style="display:inline-block;background:#EEEDFE;color:#534AB7;font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;margin-bottom:20px;width:fit-content;">처음 방문</div>
       <div style="font-size:26px;font-weight:700;color:var(--text);line-height:1.3;margin-bottom:10px;">닉네임을<br>설정해주세요</div>
       <div style="font-size:13px;color:var(--text-hint);line-height:1.7;margin-bottom:36px;">커뮤니티에서 사용할 이름이에요.<br>나중에 1회 변경 가능해요.</div>
@@ -3244,15 +3244,34 @@
         localStorage.setItem('name_' + id, memberName);
         const role = user.role || 'member';
         localStorage.setItem('role_' + id, role);
-        const nickname = user.nickname || localStorage.getItem('nickname_' + id);
-        if (!nickname) {
-          showScreen('screen-set-nickname');
-        } else {
-          localStorage.setItem('nickname_' + id, nickname);
-          const hasBodyInfo = localStorage.getItem('body_weight_' + id);
-          if (!hasBodyInfo) showScreen('screen-nickname');
-          else goHome(nickname, true);
-        }
+        // Firebase users에서 닉네임 확인 (다기기 지원)
+        db.ref('users/' + id + '/nickname').once('value').then(nickSnap => {
+          const fbNick = nickSnap.val();
+          const nickname = fbNick || user.nickname || localStorage.getItem('nickname_' + id);
+          if (nickname) {
+            localStorage.setItem('nickname_' + id, nickname);
+            const hasBodyInfo = localStorage.getItem('body_weight_' + id);
+            if (!hasBodyInfo) {
+              // Firebase에서 신체정보도 확인
+              db.ref('users/' + id + '/body').once('value').then(bodySnap => {
+                if (bodySnap.exists()) {
+                  const body = bodySnap.val();
+                  localStorage.setItem('body_weight_' + id, body.weight || '');
+                  localStorage.setItem('body_gender_' + id, body.gender || '');
+                  localStorage.setItem('body_age_' + id, body.age || '');
+                  localStorage.setItem('body_height_' + id, body.height || '');
+                  goHome(nickname, true);
+                } else {
+                  showScreen('screen-nickname');
+                }
+              });
+            } else {
+              goHome(nickname, true);
+            }
+          } else {
+            showScreen('screen-set-nickname');
+          }
+        });
         return;
       }
 
@@ -3289,16 +3308,28 @@
         // role 저장 (trainer / manager / member)
         const role = snap.val().role || 'member';
         localStorage.setItem('role_' + id, role);
-        // 닉네임 미설정 → 닉네임 설정 화면
-        const nickname = snap.val().nickname || localStorage.getItem('nickname_' + id);
+        // 닉네임: Firebase members 우선, 없으면 로컬 확인
+        const fbNickMember = snap.val().nickname;
+        const nickname = fbNickMember || localStorage.getItem('nickname_' + id);
         if (!nickname) {
           showScreen('screen-set-nickname');
         } else {
           localStorage.setItem('nickname_' + id, nickname);
-          // 신체정보 미입력 시 입력 화면으로
+          // 신체정보: 로컬 없으면 Firebase 확인 (다기기 지원)
           const hasBodyInfo = localStorage.getItem('body_weight_' + id);
           if (!hasBodyInfo) {
-            showScreen('screen-nickname');
+            db.ref('users/' + id + '/body').once('value').then(bodySnap => {
+              if (bodySnap.exists()) {
+                const body = bodySnap.val();
+                localStorage.setItem('body_weight_' + id, body.weight || '');
+                localStorage.setItem('body_gender_' + id, body.gender || '');
+                localStorage.setItem('body_age_' + id, body.age || '');
+                localStorage.setItem('body_height_' + id, body.height || '');
+                goHome(nickname, true);
+              } else {
+                showScreen('screen-nickname');
+              }
+            });
           } else {
             goHome(nickname, true);
           }
