@@ -484,6 +484,7 @@
   function adminLogout() {
     localStorage.removeItem('current_user');
     localStorage.removeItem('auto_login_user');
+    sessionStorage.removeItem('session_user');
     showScreen('screen-login');
   }
 
