@@ -6,9 +6,11 @@
 
   // Firebase에 관리자 계정 초기화 (최초 1회)
   function initAdminAccount() {
+    // 관리자 비밀번호는 Firebase 콘솔에서 직접 설정
+    // 코드에 초기 비밀번호를 노출하지 않음
     db.ref('admin_config/pw').once('value').then(snap => {
       if (!snap.exists()) {
-        db.ref('admin_config/pw').set('admin123');
+        console.warn('관리자 비밀번호가 설정되지 않았습니다. Firebase 콘솔에서 설정해주세요.');
       }
     });
   }
