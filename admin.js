@@ -187,6 +187,7 @@
         const deleteRefs = [
           db.ref('users/' + tid),
           db.ref('trainers/' + tid),
+          db.ref('notifications/' + tid),
         ];
         if (nick) deleteRefs.push(db.ref('nicknames/' + nick));
         Promise.all(deleteRefs.map(ref => ref.remove())).then(() => {
@@ -1297,9 +1298,11 @@
 
       // 1. Firebase 개인 데이터 삭제
       const deleteRefs = [
-      db.ref('members/' + phone),           // 로그인 정보
-      db.ref('users/' + phone),             // 출석/포인트/운동기록/신체정보
-      db.ref('coupons/' + phone),           // 쿠폰
+        db.ref('members/' + phone),           // 로그인 정보
+        db.ref('users/' + phone),             // 출석/포인트/운동기록/신체정보
+        db.ref('coupons/' + phone),           // 쿠폰
+        db.ref('notifications/' + phone),     // 알림
+        db.ref('point_tier_issued/' + phone), // 포인트 구간 쿠폰 발행 기록
       ];
 
       // 2. 강사 담당 연결 삭제 (모든 강사에서 해당 회원 제거)
@@ -1320,7 +1323,17 @@
           .then(() => {
             // 3. 로컬스토리지 초기화
             clearMemberLocalData(phone);
-            // 4. 삭제 기록 저장
+            // 4. coupon_issued_flags 중 해당 회원 관련 항목 삭제
+            db.ref('coupon_issued_flags').once('value').then(flagSnap => {
+              const removes = [];
+              flagSnap.forEach(child => {
+                if (child.key.includes(phone)) {
+                  removes.push(db.ref('coupon_issued_flags/' + child.key).remove());
+                }
+              });
+              if (removes.length) Promise.all(removes);
+            });
+            // 5. 삭제 기록 저장
             db.ref('deleted_members/' + phone).set({
               deletedAt: Date.now(),
               name: name
