@@ -180,13 +180,20 @@
   function deleteTrainer() {
     if (!editTrainerId) return;
     showConfirm('이 강사를 삭제할까요?\n스케줄 및 담당 회원 정보도 모두 삭제돼요.', () => {
-      Promise.all([
-      db.ref('users/' + editTrainerId).remove(),
-      db.ref('trainers/' + editTrainerId).remove()
-      ]).then(() => {
-      showToast('삭제됐어요! 🗑', 'success');
-      closeTrainerModal();
-      loadAdminTrainerList();
+      const tid = editTrainerId;
+      // 닉네임 삭제를 위해 현재 닉네임 먼저 조회
+      db.ref('users/' + tid + '/nickname').once('value').then(nickSnap => {
+        const nick = nickSnap.val() || localStorage.getItem('nickname_' + tid);
+        const deleteRefs = [
+          db.ref('users/' + tid),
+          db.ref('trainers/' + tid),
+        ];
+        if (nick) deleteRefs.push(db.ref('nicknames/' + nick));
+        Promise.all(deleteRefs.map(ref => ref.remove())).then(() => {
+          showToast('삭제됐어요! 🗑', 'success');
+          closeTrainerModal();
+          loadAdminTrainerList();
+        });
       });
     });
   }
@@ -1304,22 +1311,28 @@
         }
       });
 
-      Promise.all(deleteRefs.map(ref => ref.remove()))
-        .then(() => {
-          // 3. 로컬스토리지 초기화
-          clearMemberLocalData(phone);
-          // 4. 삭제 기록 저장
-          db.ref('deleted_members/' + phone).set({
-            deletedAt: Date.now(),
-            name: name
+      // 닉네임 삭제를 위해 현재 닉네임 먼저 조회
+      db.ref('members/' + phone + '/nickname').once('value').then(nickSnap => {
+        const nick = nickSnap.val() || localStorage.getItem('nickname_' + phone);
+        if (nick) deleteRefs.push(db.ref('nicknames/' + nick));
+
+        Promise.all(deleteRefs.map(ref => ref.remove()))
+          .then(() => {
+            // 3. 로컬스토리지 초기화
+            clearMemberLocalData(phone);
+            // 4. 삭제 기록 저장
+            db.ref('deleted_members/' + phone).set({
+              deletedAt: Date.now(),
+              name: name
+            });
+            closeMemberModal();
+            loadMemberList();
+            showToast('✅ ' + name + ' 회원이 삭제됐어요.', 'success');
+          })
+          .catch(err => {
+            showToast('삭제 중 오류가 발생했어요.', 'error');
           });
-          closeMemberModal();
-          loadMemberList();
-          showToast('✅ ' + name + ' 회원이 삭제됐어요.', 'success');
-        })
-        .catch(err => {
-          showToast('삭제 중 오류가 발생했어요.', 'error');
-        });
+      });
       });
     });
   }
