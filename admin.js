@@ -181,17 +181,19 @@
     if (!editTrainerId) return;
     showConfirm('이 강사를 삭제할까요?\n스케줄 및 담당 회원 정보도 모두 삭제돼요.', () => {
       const tid = editTrainerId;
-      // 닉네임 삭제를 위해 현재 닉네임 먼저 조회
-      db.ref('users/' + tid + '/nickname').once('value').then(nickSnap => {
-        const nick = nickSnap.val() || localStorage.getItem('nickname_' + tid);
+      // nicknames에서 해당 강사 닉네임 찾아서 삭제 (저장 경로 무관하게 처리)
+      db.ref('nicknames').orderByValue().equalTo(tid).once('value').then(nickSnap => {
         const deleteRefs = [
           db.ref('users/' + tid),
           db.ref('trainers/' + tid),
           db.ref('notifications/' + tid),
-          db.ref('members/' + tid),      // 잔여 멤버 데이터 삭제
-          db.ref('coupons/' + tid),      // 쿠폰 데이터 삭제
+          db.ref('members/' + tid),
+          db.ref('coupons/' + tid),
         ];
-        if (nick) deleteRefs.push(db.ref('nicknames/' + nick));
+        // 닉네임 키 찾아서 삭제
+        nickSnap.forEach(child => {
+          deleteRefs.push(db.ref('nicknames/' + child.key));
+        });
         Promise.all(deleteRefs.map(ref => ref.remove())).then(() => {
           showToast('삭제됐어요! 🗑', 'success');
           closeTrainerModal();
@@ -1316,10 +1318,11 @@
         }
       });
 
-      // 닉네임 삭제를 위해 현재 닉네임 먼저 조회
-      db.ref('members/' + phone + '/nickname').once('value').then(nickSnap => {
-        const nick = nickSnap.val() || localStorage.getItem('nickname_' + phone);
-        if (nick) deleteRefs.push(db.ref('nicknames/' + nick));
+      // nicknames에서 해당 회원 닉네임 찾아서 삭제
+      db.ref('nicknames').orderByValue().equalTo(phone).once('value').then(nickSnap => {
+        nickSnap.forEach(child => {
+          deleteRefs.push(db.ref('nicknames/' + child.key));
+        });
 
         Promise.all(deleteRefs.map(ref => ref.remove()))
           .then(() => {

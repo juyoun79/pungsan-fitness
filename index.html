@@ -3970,18 +3970,29 @@
         return;
       }
       const userId = localStorage.getItem('current_user');
-      // Firebase에 닉네임 저장
-      db.ref('members/' + userId + '/nickname').set(val);
+      const userRole = localStorage.getItem('role_' + userId);
+      // 역할에 따라 닉네임 저장 경로 분기
+      if (userRole === 'trainer' || userRole === 'manager') {
+        db.ref('users/' + userId + '/nickname').set(val);
+      } else {
+        db.ref('members/' + userId + '/nickname').set(val);
+      }
       db.ref('nicknames/' + val).set(userId);
       localStorage.setItem('nickname_' + userId, val);
-      // 신체정보 미입력이면 신체정보 화면으로
-      const hasBodyInfo = localStorage.getItem('body_weight_' + userId);
-      if (!hasBodyInfo) {
-        showScreen('screen-nickname');
-      } else {
-        const memberName = localStorage.getItem('name_' + userId) || userId;
-        goHome(val, true);
-      }
+      // 신체정보: 항상 Firebase 확인 (stale localStorage 방지)
+      db.ref('users/' + userId + '/body').once('value').then(bodySnap => {
+        if (bodySnap.exists()) {
+          const body = bodySnap.val();
+          localStorage.setItem('body_weight_' + userId, body.weight || '');
+          localStorage.setItem('body_gender_' + userId, body.gender || '');
+          localStorage.setItem('body_age_' + userId, body.age || '');
+          localStorage.setItem('body_height_' + userId, body.height || '');
+          goHome(val, true);
+        } else {
+          localStorage.removeItem('body_weight_' + userId);
+          showScreen('screen-nickname');
+        }
+      });
     });
   }
 
