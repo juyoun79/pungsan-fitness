@@ -4588,6 +4588,8 @@ async function initFCM(userId) {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return;
 
+    // 서비스워커가 완전히 활성화될 때까지 대기 (iOS Safari 호환성)
+    await navigator.serviceWorker.ready;
     const token = await messaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: swReg });
     if (token) {
       // 같은 토큰이 다른 계정에 있으면 삭제 (같은 기기 다계정 중복 알림 방지)
