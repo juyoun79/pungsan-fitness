@@ -4393,16 +4393,27 @@
         if (snap.exists()) {
           const memberName = snap.val().name || localStorage.getItem('name_' + userId) || userId;
           localStorage.setItem('name_' + userId, memberName);
-          const role = snap.val().role || 'member';
-          localStorage.setItem('role_' + userId, role);
+          const memberRole = snap.val().role || 'member';
           const nickname = snap.val().nickname || localStorage.getItem('nickname_' + userId) || memberName;
           localStorage.setItem('nickname_' + userId, nickname);
-          const hasBodyInfo = localStorage.getItem('body_weight_' + userId);
-          if (!hasBodyInfo) {
-            showScreen('screen-nickname');
-          } else {
-            goHome(nickname);
-          }
+          // members에 있어도 users에서 강사/매니저 역할 재확인 (두 곳에 모두 있는 경우 대비)
+          db.ref('users/' + userId).once('value').then(userSnap => {
+            const userRole = userSnap.exists() ? (userSnap.val().role || 'member') : 'member';
+            const finalRole = (userRole === 'trainer' || userRole === 'manager') ? userRole : memberRole;
+            localStorage.setItem('role_' + userId, finalRole);
+            const hasBodyInfo = localStorage.getItem('body_weight_' + userId);
+            if (!hasBodyInfo) {
+              showScreen('screen-nickname');
+            } else {
+              const isTrainerRole = finalRole === 'trainer' || finalRole === 'manager';
+              goHome(nickname, isTrainerRole ? true : false);
+            }
+          }).catch(() => {
+            localStorage.setItem('role_' + userId, memberRole);
+            const hasBodyInfo = localStorage.getItem('body_weight_' + userId);
+            if (!hasBodyInfo) showScreen('screen-nickname');
+            else goHome(nickname);
+          });
         } else {
           // members에 없으면 users에서 확인 (강사/매니저 계정)
           db.ref('users/' + userId).once('value').then(userSnap => {
@@ -4610,7 +4621,7 @@ function handleAttendTab() {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   if (!isIOS) return;
 
-  let startY = 0, pulling = false, threshold = 70;
+  let startY = 0, pulling = false, threshold = 130;
 
   // 현재 활성화된 스크린 반환
   function getActiveScreen() {
