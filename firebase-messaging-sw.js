@@ -23,6 +23,13 @@ messaging.onBackgroundMessage((payload) => {
   const title = d._title || (payload.notification && payload.notification.title) || '풍산휘트니스@기구필라테스';
   const body  = d._body  || (payload.notification && payload.notification.body)  || '';
 
+  // 앱 아이콘 배지 숫자 증가
+  if ('setAppBadge' in navigator) {
+    self.registration.getNotifications().then(notifications => {
+      navigator.setAppBadge(notifications.length + 1).catch(() => {});
+    });
+  }
+
   self.registration.showNotification(title, {
     body: body,
     icon: '/icon-192.png',

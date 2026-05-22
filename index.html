@@ -4324,6 +4324,10 @@
     startNotifListener();
     // FCM 푸시알림 초기화 (로그인 후 1회)
     if (typeof initFCM === 'function') initFCM(userId);
+    // 앱 열릴 때 아이콘 배지 초기화
+    if ('clearAppBadge' in navigator) {
+      navigator.clearAppBadge().catch(() => {});
+    }
     // 삭제된 게시물 알림 정리
     cleanupOrphanNotifs(userId);
     // 캐시된 알림이 있으면 즉시 렌더링
