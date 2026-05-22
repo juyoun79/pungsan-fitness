@@ -4584,6 +4584,10 @@
 //  당겨서 새로고침 (Pull to Refresh)
 // ════════════════════════════════════════
 (function() {
+  // iOS에서만 커스텀 당겨서 새로고침 실행 (Android는 크롬 기본 새로고침 사용)
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  if (!isIOS) return;
+
   let startY = 0, pulling = false, threshold = 70;
 
   // 현재 활성화된 스크린 반환
