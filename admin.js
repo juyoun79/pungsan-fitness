@@ -164,9 +164,11 @@
             });
           });
         } else {
+          // 새 강사 등록 시 혹시 members에 있으면 삭제 (역할 혼용 방지)
           Promise.all([
             db.ref('users/' + phone).set({ name, pw: hashPw(pw), role: 'trainer' }),
-            db.ref('trainers/' + phone).set({ name })
+            db.ref('trainers/' + phone).set({ name }),
+            db.ref('members/' + phone).remove()
           ]).then(() => {
             showToast('✅ ' + name + ' 강사가 등록됐어요!', 'success');
             closeTrainerModal();
