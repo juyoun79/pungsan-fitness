@@ -4602,6 +4602,11 @@ async function initFCM(userId) {
       });
       updates['fcm_tokens/' + userId] = token;
       await db.ref().update(updates);
+      console.log('FCM 토큰 저장 완료:', token.substring(0, 20) + '...');
+      if (typeof showToast === 'function') showToast('알림이 등록됐어요! 🔔', 'success');
+    } else {
+      console.log('FCM 토큰 발급 실패: 토큰 없음');
+      if (typeof showToast === 'function') showToast('알림 토큰 발급 실패', 'error');
     }
     // 포그라운드 메시지: 토스트로 표시 (data 필드 우선 사용)
     messaging.onMessage((payload) => {
@@ -4622,6 +4627,9 @@ async function initFCM(userId) {
     });
   } catch(e) {
     console.log('FCM 초기화 실패:', e.message);
+    if (typeof showToast === 'function') {
+      showToast('알림 등록 실패: ' + e.message, 'error');
+    }
   }
 }
 
