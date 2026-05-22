@@ -394,7 +394,6 @@
        홈 화면
   ══════════════════════════════ -->
   <div id="screen-home" class="screen">
-
     <!-- 상단 헤더 -->
     <div class="home-header">
       <div class="header-top">
@@ -4324,6 +4323,8 @@
     startNotifListener();
     // FCM 푸시알림 초기화 (로그인 후 1회)
     if (typeof initFCM === 'function') initFCM(userId);
+    // 공지사항 실시간 리스너 시작
+    if (typeof startNoticeRealtimeListener === 'function') startNoticeRealtimeListener();
     // 앱 열릴 때 아이콘 배지 초기화
     if ('clearAppBadge' in navigator) {
       navigator.clearAppBadge().catch(() => {});
@@ -4579,6 +4580,97 @@
 
 <script>
 // ════════════════════════════════════════
+// ════════════════════════════════════════
+//  당겨서 새로고침 (Pull to Refresh)
+// ════════════════════════════════════════
+(function() {
+  let startY = 0, pulling = false, threshold = 70;
+
+  // 현재 활성화된 스크린 반환
+  function getActiveScreen() {
+    return document.querySelector('.screen.active');
+  }
+
+  // 스크린 최상단 여부 확인
+  function isAtTop(screen) {
+    return !screen || screen.scrollTop <= 0;
+  }
+
+  // 탭별 새로고침 함수
+  function refreshCurrentTab() {
+    const screen = getActiveScreen();
+    if (!screen) return;
+    const id = screen.id;
+    if (id === 'screen-home') {
+      if (typeof updateStats === 'function') updateStats();
+      if (typeof loadHomeNotices === 'function') loadHomeNotices();
+      if (typeof loadHomeWeightCard === 'function') loadHomeWeightCard();
+    } else if (id === 'screen-community') {
+      if (typeof loadCommunityFeed === 'function') loadCommunityFeed('전체');
+    } else if (id === 'screen-myinfo') {
+      if (typeof loadMyInfo === 'function') loadMyInfo();
+    } else if (id === 'screen-trainer') {
+      if (typeof loadTrainerTab === 'function') loadTrainerTab();
+    } else if (id === 'screen-admin') {
+      if (typeof loadAdminDashboard === 'function') loadAdminDashboard();
+    }
+    if (typeof showToast === 'function') showToast('새로고침 완료!', 'success');
+  }
+
+  // 인디케이터: 화면 상단에 고정
+  const indicator = document.createElement('div');
+  indicator.style.cssText = 'display:none;position:fixed;top:0;left:0;right:0;z-index:9999;text-align:center;padding:10px;background:var(--bg);color:var(--blue);font-size:13px;transition:opacity 0.2s;';
+  indicator.innerHTML = '<span id="ptr-text">↓ 당겨서 새로고침</span>';
+  document.body.appendChild(indicator);
+
+  document.addEventListener('touchstart', (e) => {
+    const screen = getActiveScreen();
+    if (!screen) return;
+    if (isAtTop(screen)) {
+      startY = e.touches[0].clientY;
+      pulling = true;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!pulling) return;
+    const dist = e.touches[0].clientY - startY;
+    if (dist > 10) {
+      indicator.style.display = 'block';
+      const text = document.getElementById('ptr-text');
+      if (text) text.textContent = dist > threshold ? '↑ 놓아서 새로고침' : '↓ 당겨서 새로고침';
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    if (!pulling) return;
+    pulling = false;
+    const dist = e.changedTouches[0].clientY - startY;
+    indicator.style.display = 'none';
+    if (dist > threshold) {
+      refreshCurrentTab();
+    }
+    startY = 0;
+  }, { passive: true });
+})();
+
+// ════════════════════════════════════════
+//  공지사항 실시간 리스너
+// ════════════════════════════════════════
+let _noticeListener = null;
+function startNoticeRealtimeListener() {
+  if (_noticeListener) return;
+  _noticeListener = db.ref('notices').on('value', () => {
+    if (typeof loadHomeNotices === 'function') {
+      const homeScreen = document.getElementById('screen-home');
+      if (homeScreen && homeScreen.classList.contains('active')) {
+        loadHomeNotices();
+      }
+    }
+  });
+}
+
+// ════════════════════════════════════════
 //  FCM 푸시알림 시스템
 // ════════════════════════════════════════
 const FCM_VAPID_KEY = 'BBcH1Rczp_E2lOGu6fAAEiPw3M25VlBlF6dPHnD4nhb7Jgp6JMVTTal5cn-D3X65fCZwkPvil03u6xK8lkORq7U';
@@ -4607,10 +4699,10 @@ async function initFCM(userId) {
       updates['fcm_tokens/' + userId] = token;
       await db.ref().update(updates);
       console.log('FCM 토큰 저장 완료:', token.substring(0, 20) + '...');
-      if (typeof showToast === 'function') showToast('알림이 등록됐어요! 🔔', 'success');
+      console.log('FCM 알림 등록 완료');
     } else {
       console.log('FCM 토큰 발급 실패: 토큰 없음');
-      if (typeof showToast === 'function') showToast('알림 토큰 발급 실패', 'error');
+      console.log('FCM 토큰 발급 실패');
     }
     // 포그라운드 메시지: 토스트로 표시 (data 필드 우선 사용)
     messaging.onMessage((payload) => {
@@ -4632,7 +4724,7 @@ async function initFCM(userId) {
   } catch(e) {
     console.log('FCM 초기화 실패:', e.message);
     if (typeof showToast === 'function') {
-      showToast('알림 등록 실패: ' + e.message, 'error');
+      console.log('FCM 초기화 실패:', e.message);
     }
   }
 }
