@@ -17,15 +17,18 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 // 백그라운드 메시지 수신 처리
+// notification 필드 없이 data 필드로만 수신하므로 data에서 title/body 읽기
 messaging.onBackgroundMessage((payload) => {
-  const title = (payload.notification && payload.notification.title) || '풍산휘트니스@기구필라테스';
-  const body  = (payload.notification && payload.notification.body)  || '';
+  const d = payload.data || {};
+  const title = d._title || (payload.notification && payload.notification.title) || '풍산휘트니스@기구필라테스';
+  const body  = d._body  || (payload.notification && payload.notification.body)  || '';
 
   self.registration.showNotification(title, {
     body: body,
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    data: payload.data || {}
+    vibrate: [200, 100, 200],
+    data: d
   });
 });
 

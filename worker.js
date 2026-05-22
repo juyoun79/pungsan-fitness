@@ -147,21 +147,13 @@ async function sendFCMMessage(accessToken, projectId, token, title, body, data) 
       body: JSON.stringify({
         message: {
           token,
-          notification: { title, body },
+          // notification 필드 제거: 서비스워커에서만 알림 표시 (중복 방지)
           webpush: {
-            notification: {
-              title,
-              body,
-              icon: '/icon-192.png',
-              badge: '/icon-192.png',
-              requireInteraction: false,
-              vibrate: [200, 100, 200]
-            },
             fcm_options: {
               link: 'https://pungsan-fitness.juyoun79.workers.dev'
             }
           },
-          data: safeData
+          data: { ...safeData, _title: title, _body: body }
         }
       })
     }

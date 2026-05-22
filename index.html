@@ -4601,9 +4601,10 @@ async function initFCM(userId) {
       updates['fcm_tokens/' + userId] = token;
       await db.ref().update(updates);
     }
-    // 포그라운드 메시지: 토스트로 표시
+    // 포그라운드 메시지: 토스트로 표시 (data 필드 우선 사용)
     messaging.onMessage((payload) => {
-      const body = (payload.notification && payload.notification.body) || '';
+      const d = payload.data || {};
+      const body = d._body || (payload.notification && payload.notification.body) || '';
       if (typeof showToast === 'function') showToast('🔔 ' + body, 'info');
       // 포그라운드 수신 시 공지 새로고침
       if (typeof loadHomeNotices === 'function') loadHomeNotices();
