@@ -4590,12 +4590,32 @@ async function initFCM(userId) {
 
     const token = await messaging.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: swReg });
     if (token) {
-      await db.ref('fcm_tokens/' + userId).set(token);
+      // 같은 토큰이 다른 계정에 있으면 삭제 (같은 기기 다계정 중복 알림 방지)
+      const allTokensSnap = await db.ref('fcm_tokens').once('value');
+      const updates = {};
+      allTokensSnap.forEach(child => {
+        if (child.key !== userId && child.val() === token) {
+          updates['fcm_tokens/' + child.key] = null;
+        }
+      });
+      updates['fcm_tokens/' + userId] = token;
+      await db.ref().update(updates);
     }
     // 포그라운드 메시지: 토스트로 표시
     messaging.onMessage((payload) => {
       const body = (payload.notification && payload.notification.body) || '';
       if (typeof showToast === 'function') showToast('🔔 ' + body, 'info');
+      // 포그라운드 수신 시 공지 새로고침
+      if (typeof loadHomeNotices === 'function') loadHomeNotices();
+    });
+
+    // 알림 탭해서 앱 열 때 서비스워커 메시지 수신 → 공지 새로고침
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'NOTIF_CLICK') {
+        setTimeout(() => {
+          if (typeof loadHomeNotices === 'function') loadHomeNotices();
+        }, 500);
+      }
     });
   } catch(e) {
     console.log('FCM 초기화 실패:', e.message);

@@ -22,6 +22,13 @@ export default {
       return handleNotify(request, env);
     }
 
+    // 민감한 파일 접근 차단 (서비스 계정 키 등)
+    if (url.pathname.includes('adminsdk') ||
+        url.pathname.includes('service-account') ||
+        (url.pathname.endsWith('.json') && url.pathname !== '/manifest.json')) {
+      return new Response('Not Found', { status: 404 });
+    }
+
     // 그 외 모든 요청: 정적 파일 서빙
     return env.ASSETS.fetch(request);
   }

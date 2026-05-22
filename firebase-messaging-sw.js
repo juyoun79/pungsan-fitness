@@ -32,15 +32,18 @@ messaging.onBackgroundMessage((payload) => {
 // 알림 클릭 시 앱 포커스 또는 새 탭 열기
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const notifType = (event.notification.data && event.notification.data.type) || 'notice';
+  const targetUrl = 'https://pungsan-fitness.juyoun79.workers.dev?notif=' + notifType;
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if (client.url.includes('pungsan-fitness') && 'focus' in client) {
+          client.postMessage({ type: 'NOTIF_CLICK', notifType });
           return client.focus();
         }
       }
       if (clients.openWindow) {
-        return clients.openWindow('https://pungsan-fitness.juyoun79.workers.dev');
+        return clients.openWindow(targetUrl);
       }
     })
   );
