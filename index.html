@@ -4418,7 +4418,9 @@
               if (!hasBodyInfo) {
                 showScreen('screen-nickname');
               } else {
-                goHome(nickname);
+                // 강사/매니저는 자동로그인 시 항상 홈으로 (탭 복원 버그 방지)
+                const isTrainerRole = role === 'trainer' || role === 'manager';
+                goHome(nickname, isTrainerRole ? true : false);
               }
             } else {
               localStorage.removeItem('current_user');

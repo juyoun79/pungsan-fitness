@@ -706,6 +706,12 @@
 
   function openAttendance() {
     const userId = localStorage.getItem('current_user');
+    // 강사/매니저는 출석화면 대신 관리탭으로 (어떤 경로로 호출되든 방어)
+    const role = localStorage.getItem('role_' + userId) || 'member';
+    if (role === 'trainer' || role === 'manager') {
+      if (typeof switchTab === 'function') switchTab('trainer');
+      return;
+    }
     const today = getToday();
     const todayKey = 'attend_' + userId + '_' + today;
     const now = new Date();
