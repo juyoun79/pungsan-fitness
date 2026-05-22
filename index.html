@@ -2932,7 +2932,7 @@
       </svg>
       홈
     </div>
-    <div class="tab-item" id="tab-attend" onclick="switchTab('attend')">
+    <div class="tab-item" id="tab-attend" onclick="handleAttendTab()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
       </svg>
@@ -4318,13 +4318,15 @@
         attendTab.onclick = function() { switchTab('attend'); };
       }
     }
-    const lastTab = localStorage.getItem('last_tab_' + userId) || 'home';
+    let lastTab = localStorage.getItem('last_tab_' + userId) || 'home';
+    // 강사/매니저의 lastTab이 'attend'면 'trainer'로 교정
+    if ((role === 'trainer' || role === 'manager') && lastTab === 'attend') {
+      lastTab = 'trainer';
+    }
     // 알림 리스너는 항상 시작 (탭 위치 무관)
     startNotifListener();
     // FCM 푸시알림 초기화 (로그인 후 1회)
     if (typeof initFCM === 'function') initFCM(userId);
-    // 공지사항 실시간 리스너 시작
-    if (typeof startNoticeRealtimeListener === 'function') startNoticeRealtimeListener();
     // 앱 열릴 때 아이콘 배지 초기화
     if ('clearAppBadge' in navigator) {
       navigator.clearAppBadge().catch(() => {});
@@ -4342,6 +4344,10 @@
     } else {
       switchTab(lastTab);
     }
+    // 공지사항 실시간 리스너 (탭 전환 후 시작 - 타이밍 문제 방지)
+    setTimeout(() => {
+      if (typeof startNoticeRealtimeListener === 'function') startNoticeRealtimeListener();
+    }, 500);
     setTimeout(() => showNoticePopup(userId), 300);
   }
 
@@ -4580,6 +4586,20 @@
 
 <script>
 // ════════════════════════════════════════
+// ════════════════════════════════════════
+//  출석/관리 탭 role-aware 핸들러
+// ════════════════════════════════════════
+function handleAttendTab() {
+  const userId = localStorage.getItem('current_user') || sessionStorage.getItem('session_user');
+  if (!userId) return;
+  const role = localStorage.getItem('role_' + userId) || 'member';
+  if (role === 'trainer' || role === 'manager') {
+    switchTab('trainer');
+  } else {
+    switchTab('attend');
+  }
+}
+
 // ════════════════════════════════════════
 //  당겨서 새로고침 (Pull to Refresh)
 // ════════════════════════════════════════

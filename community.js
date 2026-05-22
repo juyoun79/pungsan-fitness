@@ -527,7 +527,12 @@
       if (el) el.classList.toggle('active', t === tab || (t === 'attend' && tab === 'trainer'));
     });
     // 마지막 탭 저장 (새로고침 복원용)
-    if (userId && userId !== ADMIN_ID) localStorage.setItem('last_tab_' + userId, tab);
+    // 강사/매니저가 'attend'를 직접 호출해도 'trainer'로 저장
+    if (userId && userId !== ADMIN_ID) {
+      const savedRole = localStorage.getItem('role_' + userId) || 'member';
+      const saveTab = (tab === 'attend' && (savedRole === 'trainer' || savedRole === 'manager')) ? 'trainer' : tab;
+      localStorage.setItem('last_tab_' + userId, saveTab);
+    }
     // 커뮤니티 탭 벗어나면 리스너 해제
     if (tab !== 'community') stopCommunityListener();
     if (tab === 'home') {
