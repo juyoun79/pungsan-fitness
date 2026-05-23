@@ -1668,15 +1668,50 @@
     }, 1000);
   }
 
-  function startRestAlarm() { stopRestAlarm(); playBeep(); if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 600]); restAlarmInterval = setInterval(() => { playBeep(); if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 600]); }, 2000); }
-  function stopRestAlarm() { if (restAlarmInterval) { clearInterval(restAlarmInterval); restAlarmInterval = null; } if (navigator.vibrate) navigator.vibrate(0); }
+  // AudioContext 싱글톤 (iOS 반복 재생을 위해 한 번만 생성)
+  let _audioCtx = null;
+  function getAudioCtx() {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+    return _audioCtx;
+  }
+
+  // 타이머 완료 팝업 깜빡임 효과 (iOS 진동 대체 + 갤럭시 추가 피드백)
+  function flashTimerPopup() {
+    const overlay = document.getElementById('timer-done-overlay');
+    if (!overlay) return;
+    overlay.style.transition = 'opacity 0.1s';
+    overlay.style.opacity = '0.3';
+    setTimeout(() => { overlay.style.opacity = '1'; }, 150);
+  }
+
+  function startRestAlarm() {
+    stopRestAlarm();
+    playBeep();
+    if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 600]);
+    flashTimerPopup();
+    restAlarmInterval = setInterval(() => {
+      playBeep();
+      if (navigator.vibrate) navigator.vibrate([400, 200, 400, 200, 600]);
+      flashTimerPopup();
+    }, 2000);
+  }
+
+  function stopRestAlarm() {
+    if (restAlarmInterval) { clearInterval(restAlarmInterval); restAlarmInterval = null; }
+    if (navigator.vibrate) navigator.vibrate(0);
+    const overlay = document.getElementById('timer-done-overlay');
+    if (overlay) { overlay.style.opacity = '1'; overlay.style.transition = ''; }
+  }
 
   function playBeep() {
     try {
-      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      const ac = getAudioCtx();
       const osc = ac.createOscillator(); const gain = ac.createGain();
       osc.connect(gain); gain.connect(ac.destination);
-      osc.frequency.value = 880; gain.gain.setValueAtTime(0.5, ac.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.4);
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.5, ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.4);
       osc.start(); osc.stop(ac.currentTime + 0.4);
     } catch(e) {}
   }
