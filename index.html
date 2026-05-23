@@ -4394,7 +4394,18 @@
       if (typeof startPointsRealtimeListener === 'function') startPointsRealtimeListener(userId);
       if (typeof startCouponsRealtimeListener === 'function') startCouponsRealtimeListener(userId);
     }, 500);
-    setTimeout(() => showNoticePopup(userId), 300);
+    // URL 파라미터로 알림 팝업 트리거된 경우 처리
+    if (window._pendingNotifPopup) {
+      window._pendingNotifPopup = false;
+      setTimeout(() => {
+        if (typeof showNoticePopup === 'function') showNoticePopup(userId);
+        if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
+        // URL 파라미터 제거
+        window.history.replaceState({}, '', window.location.pathname);
+      }, 500);
+    } else {
+      setTimeout(() => showNoticePopup(userId), 300);
+    }
   }
 
   // ── 화면 전환 ──
@@ -4421,7 +4432,8 @@
     // 서비스워커 메시지 리스너 (가능한 빨리 설정 - 알림 탭 처리)
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'NOTIF_CLICK') {
+        if (!event.data) return;
+        if (event.data.type === 'NOTIF_CLICK') {
           setTimeout(() => {
             if (typeof loadHomeNotices === 'function') loadHomeNotices();
             const uid = localStorage.getItem('current_user');
@@ -4429,7 +4441,17 @@
             if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
           }, 800);
         }
+        // 배지 카운트 동기화 (읽음 처리 후 배지 재조정)
+        if (event.data.type === 'BADGE_COUNT') {
+          window._badgeCount = event.data.count;
+        }
       });
+    }
+
+    // URL 파라미터로 알림 팝업 트리거 (앱이 닫혔다가 알림으로 열릴 때)
+    const _urlParams = new URLSearchParams(window.location.search);
+    if (_urlParams.get('notif') === 'notice') {
+      window._pendingNotifPopup = true;
     }
 
     // 1. 자동 로그인 또는 현재 세션 복원

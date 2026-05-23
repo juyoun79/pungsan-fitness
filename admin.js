@@ -849,8 +849,12 @@
         noticeSnap.forEach(child => {
           if (!readList.includes(child.key)) unreadCount++;
         });
-        if (unreadCount === 0 && 'clearAppBadge' in navigator) {
-          navigator.clearAppBadge().catch(() => {});
+        if ('setAppBadge' in navigator) {
+          if (unreadCount === 0) {
+            navigator.clearAppBadge().catch(() => {});
+          } else {
+            navigator.setAppBadge(unreadCount).catch(() => {});
+          }
         }
       });
     }
