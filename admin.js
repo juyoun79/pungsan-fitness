@@ -1751,11 +1751,26 @@
     });
   }
 
+  // 담당 회원 캐시
+  let _traineeMembersCache = [];
+
+  function loadTraineeMembersCache() {
+    db.ref('members').once('value', snap => {
+      _traineeMembersCache = [];
+      snap.forEach(child => {
+        const m = child.val();
+        _traineeMembersCache.push({ id: child.key, name: m.name || child.key });
+      });
+    });
+  }
+
   // 담당 회원 추가 모달 열기
   function openAddTraineeMember() {
     document.getElementById('trainee-search').value = '';
     document.getElementById('trainee-search-result').innerHTML = '';
     document.getElementById('add-trainee-modal').style.display = 'flex';
+    // 모달 열릴 때 미리 회원 목록 로드
+    loadTraineeMembersCache();
   }
 
   // 담당 회원 추가 모달 닫기
@@ -1763,19 +1778,26 @@
     document.getElementById('add-trainee-modal').style.display = 'none';
   }
 
-  // 회원 검색
+  // 회원 검색 (캐시 기반 - 즉시 결과 표시)
   function searchTraineeMember(query) {
     const q = query.trim();
     const resultEl = document.getElementById('trainee-search-result');
     if (!q) { resultEl.innerHTML = ''; return; }
-    db.ref('members').once('value', snap => {
-      const results = [];
-      snap.forEach(child => {
-        const member = child.val();
-        if ((member.name || '').includes(q) || child.key.includes(q)) {
-          results.push({ id: child.key, name: member.name || child.key });
-        }
+    // 캐시가 없으면 Firebase에서 로드 후 재검색
+    if (_traineeMembersCache.length === 0) {
+      db.ref('members').once('value', snap => {
+        _traineeMembersCache = [];
+        snap.forEach(child => {
+          const m = child.val();
+          _traineeMembersCache.push({ id: child.key, name: m.name || child.key });
+        });
+        searchTraineeMember(query);
       });
+      return;
+    }
+    const results = _traineeMembersCache.filter(m =>
+      (m.name || '').includes(q) || m.id.includes(q)
+    );
       if (results.length === 0) {
         resultEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);">검색 결과가 없어요</div>';
         return;
@@ -1791,7 +1813,6 @@
           </div>
         </div>
       `).join('');
-    });
   }
 
   // 담당 회원 선택 후 수업 정보 입력
