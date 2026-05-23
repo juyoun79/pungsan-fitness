@@ -4621,7 +4621,7 @@ function handleAttendTab() {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   if (!isIOS) return;
 
-  let startY = 0, pulling = false, threshold = 130;
+  let startY = 0, pulling = false, threshold = 150;
 
   // 현재 활성화된 스크린 반환
   function getActiveScreen() {
