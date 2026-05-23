@@ -946,10 +946,8 @@
     if (!editingPostId) return;
     const postId = editingPostId;
     const post = allCommunityPosts.find(p => p.id === postId) || adminAllPosts.find(p => p.id === postId);
-    showConfirm('게시글을 삭제할까요?', () => {
-      closeEditPostModal();
-      deletePost(postId, post?.photoURL || '');
-    });
+    closeEditPostModal();
+    deletePost(postId, post?.photoURL || '');
   }
 
   function deletePost(postId, photoURL) {
