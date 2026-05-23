@@ -695,16 +695,27 @@
 
 
   async function saveDietDraftAndExit() {
-    const cat = document.getElementById('post-category')?.value || '식단';
-    if (cat !== '식단') {
-      savePostDraft(cat);
-    } else {
-      await saveDietDraftAuto();
+    showToast('💾 임시저장 중...', 'info');
+    try {
+      const cat = document.getElementById('post-category')?.value || '식단';
+      if (cat !== '식단') {
+        savePostDraft(cat);
+      } else {
+        await saveDietDraftAuto();
+      }
+    } catch(e) {
+      console.warn('임시저장 오류:', e);
     }
-    // 커뮤니티 탭으로 이동 (tab-community 버튼 직접 클릭)
+    // 모달 닫기
+    const modal = document.getElementById('post-modal');
+    if (modal) modal.classList.remove('active');
+    // 커뮤니티 탭으로 이동
     const communityTab = document.getElementById('tab-community');
     if (communityTab) communityTab.click();
+    showToast('💾 임시저장 완료!', 'success');
   }
+  // window에 전역 등록 (onclick에서 호출 가능하도록)
+  window.saveDietDraftAndExit = saveDietDraftAndExit;
 
   function loadDietDraft() {
     const today = new Date().toISOString().slice(0, 10);
