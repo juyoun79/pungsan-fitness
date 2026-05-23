@@ -4418,6 +4418,20 @@
     // 관리자 계정 초기화 (최초 1회)
     initAdminAccount();
 
+    // 서비스워커 메시지 리스너 (가능한 빨리 설정 - 알림 탭 처리)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'NOTIF_CLICK') {
+          setTimeout(() => {
+            if (typeof loadHomeNotices === 'function') loadHomeNotices();
+            const uid = localStorage.getItem('current_user');
+            if (uid && typeof showNoticePopup === 'function') showNoticePopup(uid);
+            if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
+          }, 800);
+        }
+      });
+    }
+
     // 1. 자동 로그인 또는 현재 세션 복원
     const autoUser = localStorage.getItem('auto_login_user');
     const sessionUser = sessionStorage.getItem('session_user'); // 탭 닫기 전까지 유지
@@ -4891,20 +4905,7 @@ async function initFCM(userId) {
       if (typeof loadHomeNotices === 'function') loadHomeNotices();
     });
 
-    // 알림 탭해서 앱 열 때 서비스워커 메시지 수신 → 공지 팝업 + 배지 초기화
-    navigator.serviceWorker.addEventListener('message', (event) => {
-      if (event.data && event.data.type === 'NOTIF_CLICK') {
-        setTimeout(() => {
-          // 공지 목록 새로고침
-          if (typeof loadHomeNotices === 'function') loadHomeNotices();
-          // 공지 팝업 표시
-          const uid = localStorage.getItem('current_user');
-          if (uid && typeof showNoticePopup === 'function') showNoticePopup(uid);
-          // 앱 배지 초기화
-          if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
-        }, 600);
-      }
-    });
+    // (메시지 리스너는 DOMContentLoaded에서 일찍 설정)
   } catch(e) {
     console.log('FCM 초기화 실패:', e.message);
     if (typeof showToast === 'function') {

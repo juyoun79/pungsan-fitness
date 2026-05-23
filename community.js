@@ -545,6 +545,11 @@
       if (window._cachedNotifList) {
         setTimeout(() => _renderNotifToDOM(window._cachedNotifList), 50);
       }
+      // 홈탭 이동 시 안 읽은 공지 팝업 표시
+      const uid = localStorage.getItem('current_user');
+      if (uid && typeof showNoticePopup === 'function') {
+        setTimeout(() => showNoticePopup(uid), 300);
+      }
     } else if (tab === 'attend') {
       openAttendance();
     } else if (tab === 'workout') {
