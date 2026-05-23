@@ -701,13 +701,9 @@
     } else {
       await saveDietDraftAuto();
     }
-    // 커뮤니티 탭으로 이동
-    if (typeof switchTab === 'function') {
-      switchTab('community');
-    } else {
-      const communityBtn = document.querySelector('[onclick*="community"]') || document.querySelector('.tab-btn:nth-child(4)');
-      if (communityBtn) communityBtn.click();
-    }
+    // 커뮤니티 탭으로 이동 (tab-community 버튼 직접 클릭)
+    const communityTab = document.getElementById('tab-community');
+    if (communityTab) communityTab.click();
   }
 
   function loadDietDraft() {
