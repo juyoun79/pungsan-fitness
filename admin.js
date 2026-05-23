@@ -2607,7 +2607,7 @@
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             <input type="text" id="trainer-equipment-search"
-              placeholder="기구이름 또는 번호로 검색"
+              placeholder="기구명·번호 검색"
               style="width:100%;box-sizing:border-box;padding:10px 10px 10px 34px;border:1.5px dashed #1a6fd4;border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
               onfocus="this.style.borderColor='#0f4fa8';showTrainerEqSearchResult(this.value,'${trainerCalSelectedDate||''}','${traineeId}')"
               onblur="this.style.borderColor='#1a6fd4'"
