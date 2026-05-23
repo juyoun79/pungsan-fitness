@@ -3232,6 +3232,8 @@
     showConfirm('로그아웃 할까요?', () => {
       const userId = localStorage.getItem('current_user');
       if (userId) localStorage.setItem('last_tab_' + userId, 'home');
+      // 실시간 리스너 정리
+      if (typeof stopRealtimeListeners === 'function') stopRealtimeListeners();
       localStorage.removeItem('current_user');
       localStorage.removeItem('auto_login_user');
       sessionStorage.removeItem('session_user');
@@ -4386,9 +4388,11 @@
     } else {
       switchTab(lastTab);
     }
-    // 공지사항 실시간 리스너 (탭 전환 후 시작 - 타이밍 문제 방지)
+    // 공지사항/포인트/쿠폰 실시간 리스너 (탭 전환 후 시작)
     setTimeout(() => {
       if (typeof startNoticeRealtimeListener === 'function') startNoticeRealtimeListener();
+      if (typeof startPointsRealtimeListener === 'function') startPointsRealtimeListener(userId);
+      if (typeof startCouponsRealtimeListener === 'function') startCouponsRealtimeListener(userId);
     }, 500);
     setTimeout(() => showNoticePopup(userId), 300);
   }
@@ -4798,6 +4802,50 @@ function startNoticeRealtimeListener() {
       }
     }
   });
+}
+
+// ════════════════════════════════════════
+//  포인트 + 쿠폰 실시간 리스너
+// ════════════════════════════════════════
+let _pointsListener = null;
+let _couponsListener = null;
+
+function startPointsRealtimeListener(userId) {
+  if (_pointsListener) db.ref('users/' + _pointsListener + '/points').off('value');
+  _pointsListener = userId;
+  db.ref('users/' + userId + '/points').on('value', snap => {
+    const pts = snap.val() || 0;
+    // 홈 화면 포인트 표시 업데이트
+    const pointEls = document.querySelectorAll('#home-points, .home-points-display');
+    pointEls.forEach(el => { if (el) el.textContent = pts.toLocaleString() + 'P'; });
+    // 통계 새로고침
+    if (typeof updateStats === 'function') updateStats();
+  });
+}
+
+function startCouponsRealtimeListener(userId) {
+  if (_couponsListener) db.ref('coupons/' + _couponsListener).off('value');
+  _couponsListener = userId;
+  db.ref('coupons/' + userId).on('value', () => {
+    // 쿠폰 변경 시 자동 쿠폰 체크
+    if (typeof checkNewCoupons === 'function') checkNewCoupons(userId);
+    if (typeof checkAutoCoupons === 'function') checkAutoCoupons(userId);
+  });
+}
+
+function stopRealtimeListeners() {
+  if (_pointsListener) {
+    db.ref('users/' + _pointsListener + '/points').off('value');
+    _pointsListener = null;
+  }
+  if (_couponsListener) {
+    db.ref('coupons/' + _couponsListener).off('value');
+    _couponsListener = null;
+  }
+  if (_noticeListener) {
+    db.ref('notices').off('value');
+    _noticeListener = null;
+  }
 }
 
 // ════════════════════════════════════════
