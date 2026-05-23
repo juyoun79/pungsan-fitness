@@ -833,6 +833,27 @@
   }
 
   function openNoticeDetail(id) {
+    // 읽음 처리
+    const userId = localStorage.getItem('current_user');
+    if (userId) {
+      const readList = JSON.parse(localStorage.getItem('read_notices_' + userId) || '[]');
+      if (!readList.includes(id)) {
+        readList.push(id);
+        localStorage.setItem('read_notices_' + userId, JSON.stringify(readList));
+      }
+      // 점 색상 즉시 업데이트
+      if (typeof loadHomeNotices === 'function') loadHomeNotices();
+      // 안 읽은 공지 없으면 배지 초기화
+      db.ref('notices').once('value', noticeSnap => {
+        let unreadCount = 0;
+        noticeSnap.forEach(child => {
+          if (!readList.includes(child.key)) unreadCount++;
+        });
+        if (unreadCount === 0 && 'clearAppBadge' in navigator) {
+          navigator.clearAppBadge().catch(() => {});
+        }
+      });
+    }
     db.ref('notices/' + id).once('value').then(snap => {
       if (!snap.exists()) return;
       const n = snap.val();
@@ -1533,15 +1554,20 @@
         container.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">등록된 공지사항이 없어요</div>';
         return;
       }
-      container.innerHTML = notices.map((n, i) => `
+      const userId = localStorage.getItem('current_user');
+      const readList = JSON.parse(localStorage.getItem('read_notices_' + userId) || '[]');
+      container.innerHTML = notices.map((n) => {
+        const isRead = readList.includes(n.firebaseKey);
+        return `
         <div class="notice-card" onclick="openNoticeDetail('${n.firebaseKey}')" style="cursor:pointer;">
-          <div class="notice-dot" style="${i > 0 ? 'background:#9aa3b2;' : ''}"></div>
+          <div class="notice-dot" style="${isRead ? 'background:#9aa3b2;' : ''}"></div>
           <div class="notice-text">${n.title}</div>
           <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
             <div class="notice-date">${n.date||''}</div>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </div>
-        </div>`).join('');
+        </div>`;
+      }).join('');
     });
   }
 
@@ -3476,6 +3502,8 @@
   function openMyCoupons() {
     document.getElementById('my-coupon-modal').style.display = 'block';
     loadMyCoupons();
+    // 쿠폰 확인 시 배지 초기화
+    if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
   }
 
   function closeMyCoupons() {
