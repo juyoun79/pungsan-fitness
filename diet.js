@@ -693,6 +693,23 @@
     setTimeout(() => toast.remove(), 2000);
   }
 
+
+  async function saveDietDraftAndExit() {
+    const cat = document.getElementById('post-category')?.value || '식단';
+    if (cat !== '식단') {
+      savePostDraft(cat);
+    } else {
+      await saveDietDraftAuto();
+    }
+    // 커뮤니티 탭으로 이동
+    if (typeof switchTab === 'function') {
+      switchTab('community');
+    } else {
+      const communityBtn = document.querySelector('[onclick*="community"]') || document.querySelector('.tab-btn:nth-child(4)');
+      if (communityBtn) communityBtn.click();
+    }
+  }
+
   function loadDietDraft() {
     const today = new Date().toISOString().slice(0, 10);
     const userId = localStorage.getItem('current_user');
