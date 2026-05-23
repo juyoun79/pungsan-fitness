@@ -4621,19 +4621,12 @@ function handleAttendTab() {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   if (!isIOS) return;
 
-  let startY = 0, pulling = false, threshold = 150;
+  let startY = 0, startX = 0, pulling = false, confirmed = false, threshold = 150;
 
-  // 현재 활성화된 스크린 반환
   function getActiveScreen() {
     return document.querySelector('.screen.active');
   }
 
-  // 스크린 최상단 여부 확인
-  function isAtTop(screen) {
-    return !screen || screen.scrollTop <= 0;
-  }
-
-  // 탭별 새로고침 함수
   function refreshCurrentTab() {
     const screen = getActiveScreen();
     if (!screen) return;
@@ -4654,34 +4647,41 @@ function handleAttendTab() {
     if (typeof showToast === 'function') showToast('새로고침 완료!', 'success');
   }
 
-  // 인디케이터: 화면 상단에 고정
   const indicator = document.createElement('div');
-  indicator.style.cssText = 'display:none;position:fixed;top:0;left:0;right:0;z-index:9999;text-align:center;padding:10px;background:var(--bg);color:var(--blue);font-size:13px;transition:opacity 0.2s;';
+  indicator.style.cssText = 'display:none;position:fixed;top:0;left:0;right:0;z-index:9999;text-align:center;padding:10px;background:var(--bg);color:var(--blue);font-size:13px;';
   indicator.innerHTML = '<span id="ptr-text">↓ 당겨서 새로고침</span>';
   document.body.appendChild(indicator);
 
   document.addEventListener('touchstart', (e) => {
     const screen = getActiveScreen();
-    if (!screen) return;
-    if (isAtTop(screen)) {
-      startY = e.touches[0].clientY;
-      pulling = true;
-    }
+    if (!screen || screen.scrollTop > 0) return;
+    startY = e.touches[0].clientY;
+    startX = e.touches[0].clientX;
+    pulling = false;
+    confirmed = false;
   }, { passive: true });
 
   document.addEventListener('touchmove', (e) => {
+    if (startY === 0) return;
+    const dy = e.touches[0].clientY - startY;
+    const dx = Math.abs(e.touches[0].clientX - startX);
+    // 세로 이동이 가로보다 크고 아래로 당길 때만 pulling 확정
+    if (!confirmed && dy > 10 && dy > dx) {
+      confirmed = true;
+      pulling = true;
+    }
     if (!pulling) return;
-    const dist = e.touches[0].clientY - startY;
-    if (dist > 10) {
+    if (dy > 10) {
       indicator.style.display = 'block';
       const text = document.getElementById('ptr-text');
-      if (text) text.textContent = dist > threshold ? '↑ 놓아서 새로고침' : '↓ 당겨서 새로고침';
+      if (text) text.textContent = dy > threshold ? '↑ 놓아서 새로고침' : '↓ 당겨서 새로고침';
     }
   }, { passive: true });
 
   document.addEventListener('touchend', (e) => {
-    if (!pulling) return;
+    if (!pulling) { startY = 0; return; }
     pulling = false;
+    confirmed = false;
     const dist = e.changedTouches[0].clientY - startY;
     indicator.style.display = 'none';
     if (dist > threshold) {
