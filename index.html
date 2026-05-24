@@ -3301,6 +3301,9 @@
         localStorage.setItem('pw_' + id, user.pw);
         localStorage.setItem('current_user', id);
         sessionStorage.setItem('session_user', id);
+        if (document.getElementById('auto-login').checked) {
+          localStorage.setItem('auto_login_user', id);
+        }
         const memberName = user.name || id;
         localStorage.setItem('name_' + id, memberName);
         const role = user.role || 'member';
@@ -4459,6 +4462,12 @@
     const sessionUser = sessionStorage.getItem('session_user'); // 탭 닫기 전까지 유지
     const userId = autoUser || sessionUser; // 자동 로그인 or 현재 세션
 
+    // 자동로그인 저장돼있으면 체크박스 복원
+    if (autoUser) {
+      const cb = document.getElementById('auto-login');
+      if (cb) cb.checked = true;
+    }
+
     if (userId) {
       const nick = localStorage.getItem('name_' + userId);
       localStorage.setItem('current_user', userId);
@@ -4531,9 +4540,19 @@
                 goHome(nickname, isTrainerRole ? true : false);
               }
             } else {
-              localStorage.removeItem('current_user');
-              localStorage.removeItem('auto_login_user');
-              showScreen('screen-login');
+              // 유저 못찾아도 auto_login_user는 지우지 않음 (네트워크 문제일 수 있음)
+              // 대신 로컬 데이터로 폴백 시도
+              const savedNick = localStorage.getItem('nickname_' + userId) || localStorage.getItem('name_' + userId) || userId;
+              const savedRole = localStorage.getItem('role_' + userId) || 'member';
+              const hasBodyInfo = localStorage.getItem('body_weight_' + userId);
+              if (savedNick && hasBodyInfo) {
+                const isTrainer = savedRole === 'trainer' || savedRole === 'manager';
+                goHome(savedNick, isTrainer);
+              } else {
+                localStorage.removeItem('current_user');
+                localStorage.removeItem('auto_login_user');
+                showScreen('screen-login');
+              }
             }
           });
         }
