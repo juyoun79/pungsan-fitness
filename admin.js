@@ -1205,6 +1205,18 @@
     document.querySelectorAll('#edit-member-programs input').forEach(cb => {
       cb.checked = info.programs && info.programs.includes(cb.value);
     });
+    // 닉네임 불러오기 (Firebase에서)
+    const nickEl = document.getElementById('edit-member-nickname');
+    if (nickEl) nickEl.value = '';
+    db.ref('members/' + phone + '/nickname').once('value').then(snap => {
+      if (nickEl) nickEl.value = snap.val() || localStorage.getItem('nickname_' + phone) || '';
+    });
+    // 생년월일 불러오기
+    const birthEl = document.getElementById('edit-member-birth');
+    if (birthEl) birthEl.value = '';
+    db.ref('members/' + phone + '/birth').once('value').then(snap => {
+      if (birthEl) birthEl.value = snap.val() || localStorage.getItem('body_birth_' + phone) || '';
+    });
     document.getElementById('edit-member-modal').classList.add('active');
   }
 
@@ -1213,33 +1225,51 @@
   }
 
   function saveEditMember() {
-    const newName  = document.getElementById('edit-member-name').value.trim();
-    const newPhone = document.getElementById('edit-member-phone').value.trim().replace(/-/g, '');
-    const programs = [...document.querySelectorAll('#edit-member-programs input:checked')].map(el => el.value);
-    const oldPhone = currentMemberPhone;
-    const info = cachedMembers[oldPhone];
+    const newName     = document.getElementById('edit-member-name').value.trim();
+    const newPhone    = document.getElementById('edit-member-phone').value.trim().replace(/-/g, '');
+    const newNickname = (document.getElementById('edit-member-nickname')?.value || '').trim();
+    const newBirth    = (document.getElementById('edit-member-birth')?.value || '').trim();
+    const programs    = [...document.querySelectorAll('#edit-member-programs input:checked')].map(el => el.value);
+    const oldPhone    = currentMemberPhone;
+    const info        = cachedMembers[oldPhone];
 
     if (!newName)  { showToast('이름을 입력해주세요.', 'error'); return; }
     if (!newPhone || newPhone.length < 10) { showToast('전화번호를 정확히 입력해주세요.', 'error'); return; }
+    if (newBirth && (newBirth.length !== 8 || isNaN(newBirth))) {
+      showToast('생년월일은 8자리 숫자로 입력해주세요. (예: 19900101)', 'error'); return;
+    }
 
     const phoneChanged = newPhone !== oldPhone;
 
     const doSave = () => {
+      const updateData = { name: newName, programs };
+      if (newNickname) updateData.nickname = newNickname;
+      if (newBirth)    updateData.birth    = newBirth;
+
       if (phoneChanged) {
-        // 전화번호 변경: 기존 데이터 복사 후 삭제
-        const newData = { ...info, name: newName, programs };
+        const newData = { ...info, ...updateData };
         db.ref('members/' + newPhone).set(newData).then(() => {
           db.ref('members/' + oldPhone).remove();
+          // users에도 닉네임/생년월일 업데이트
+          if (newNickname) db.ref('users/' + newPhone + '/nickname').set(newNickname);
+          if (newBirth)    db.ref('users/' + newPhone + '/birth').set(newBirth);
+          localStorage.setItem('name_' + newPhone, newName);
+          if (newNickname) localStorage.setItem('nickname_' + newPhone, newNickname);
+          if (newBirth)    localStorage.setItem('body_birth_' + newPhone, newBirth);
           closeEditMemberModal();
           closeMemberModal();
           loadMemberList();
           showToast('✅ 회원정보가 수정됐어요!', 'success');
         });
       } else {
-        db.ref('members/' + oldPhone).update({ name: newName, programs }).then(() => {
-          // 이름도 localStorage 업데이트
+        db.ref('members/' + oldPhone).update(updateData).then(() => {
+          // users에도 닉네임/생년월일 업데이트
+          if (newNickname) db.ref('users/' + oldPhone + '/nickname').set(newNickname);
+          if (newBirth)    db.ref('users/' + oldPhone + '/birth').set(newBirth);
           localStorage.setItem('name_' + oldPhone, newName);
-          cachedMembers[oldPhone] = { ...info, name: newName, programs };
+          if (newNickname) localStorage.setItem('nickname_' + oldPhone, newNickname);
+          if (newBirth)    localStorage.setItem('body_birth_' + oldPhone, newBirth);
+          cachedMembers[oldPhone] = { ...info, ...updateData };
           closeEditMemberModal();
           closeMemberModal();
           loadMemberList();

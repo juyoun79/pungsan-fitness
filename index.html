@@ -2958,6 +2958,24 @@
         <div style="font-size:11px;color:var(--text-hint);margin-top:4px;">⚠️ 변경 시 로그인 아이디도 바뀌어요</div>
       </div>
 
+      <!-- 닉네임 -->
+      <div style="margin-bottom:14px;">
+        <label class="field-label">닉네임</label>
+        <input type="text" id="edit-member-nickname" placeholder="닉네임 입력"
+          style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:6px;"
+          onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
+        <div style="font-size:11px;color:var(--text-hint);margin-top:4px;">커뮤니티에 표시되는 이름이에요</div>
+      </div>
+
+      <!-- 생년월일 -->
+      <div style="margin-bottom:14px;">
+        <label class="field-label">생년월일</label>
+        <input type="text" inputmode="numeric" id="edit-member-birth" placeholder="20110101" maxlength="8"
+          style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:6px;"
+          onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
+        <div style="font-size:11px;color:var(--text-hint);margin-top:4px;">8자리 입력 (예: 19900101)</div>
+      </div>
+
       <!-- 수강 프로그램 -->
       <div style="margin-bottom:20px;">
         <label class="field-label">수강 프로그램</label>
