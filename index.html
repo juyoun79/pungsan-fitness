@@ -4470,8 +4470,23 @@
         return;
       }
 
+      // ── 오프라인/Firebase 타임아웃 대비: 5초 안에 응답 없으면 로컬 데이터로 로그인 ──
+      let firebaseResponded = false;
+      const offlineFallback = setTimeout(() => {
+        if (firebaseResponded) return;
+        const savedNick = localStorage.getItem('nickname_' + userId) || localStorage.getItem('name_' + userId) || userId;
+        const savedRole = localStorage.getItem('role_' + userId) || 'member';
+        const hasBodyInfo = localStorage.getItem('body_weight_' + userId);
+        const isTrainer = savedRole === 'trainer' || savedRole === 'manager';
+        console.warn('Firebase 응답 지연 - 로컬 데이터로 자동로그인 처리');
+        if (!hasBodyInfo) showScreen('screen-nickname');
+        else goHome(savedNick, isTrainer);
+      }, 5000);
+
       // Firebase에서 회원 확인 후 홈으로
       db.ref('members/' + userId).once('value').then(snap => {
+        firebaseResponded = true;
+        clearTimeout(offlineFallback);
         if (snap.exists()) {
           const memberName = snap.val().name || localStorage.getItem('name_' + userId) || userId;
           localStorage.setItem('name_' + userId, memberName);
@@ -4523,6 +4538,8 @@
           });
         }
       }).catch(() => {
+        firebaseResponded = true;
+        clearTimeout(offlineFallback);
         const savedName = localStorage.getItem('nickname_' + userId) || localStorage.getItem('name_' + userId) || userId;
         const hasBodyInfo = localStorage.getItem('body_weight_' + userId);
         if (!hasBodyInfo) showScreen('screen-nickname');

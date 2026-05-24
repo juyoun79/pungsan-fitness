@@ -2,7 +2,7 @@
   "name": "풍산휘트니스@기구필라테스",
   "short_name": "풍산휘트니스",
   "description": "풍산휘트니스 회원 전용 앱",
-  "start_url": "./index.html",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#1a6fd4",
   "theme_color": "#1a6fd4",
@@ -19,5 +19,6 @@
       "sizes": "180x180",
       "type": "image/png"
     }
-  ]
+  ],
+  "scope": "/"
 }
