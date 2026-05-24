@@ -61,9 +61,9 @@
             no:      eq.no      || (orig ? orig.no : 99),
             name:    eq.name    || (orig ? orig.name : ''),
             muscles: eq.muscles || (orig ? orig.muscles : ''),
-            effect:  orig ? orig.effect  : '',
-            brand:   orig ? orig.brand   : '',
-            emoji:   orig ? orig.emoji   : '🏋️',
+            effect:  orig ? orig.effect  : (eq.effect  || ''),
+            brand:   orig ? orig.brand   : (eq.brand   || ''),
+            emoji:   orig ? orig.emoji   : (eq.emoji   || '🏋️'),
             memo:    eq.memo    || '',
             key:     eq.key     || child.key,
           });

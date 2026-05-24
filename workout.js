@@ -385,7 +385,7 @@
     if (!q) { resultEl.style.display = 'none'; clearBtn.style.display = 'none'; return; }
     clearBtn.style.display = 'block';
     const userId = localStorage.getItem('current_user');
-    const filtered = EQUIPMENT_LIST.filter(eq => eq.name.includes(q) || eq.muscles.includes(q) || String(eq.no) === q || eq.brand.includes(q));
+    const filtered = EQUIPMENT_LIST.filter(eq => eq.name.includes(q) || (eq.muscles||'').includes(q) || String(eq.no) === q || (eq.brand||'').includes(q));
     if (filtered.length === 0) { resultEl.style.display = 'block'; resultEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-hint);font-size:14px;">검색 결과가 없어요</div>'; return; }
     resultEl.style.display = 'block';
     resultEl.innerHTML = filtered.map((eq, idx) => {
