@@ -2183,6 +2183,18 @@
                 </div>
               </div>
 
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);">
+                <div>
+                  <div style="font-size:14px;font-weight:600;color:var(--text);">⚖️ 체중 기록</div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">하루 1회 적립</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <input id="pts-weight" type="number" min="0" value="1" onchange="savePointSettings()"
+                    style="width:60px;padding:8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:16px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+                  <span style="font-size:13px;font-weight:600;color:var(--text-hint);">P</span>
+                </div>
+              </div>
+
               <div style="padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);">
                 <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">🥗 식단 게시물</div>
                 <div style="font-size:11px;color:var(--text-hint);margin-bottom:10px;">글/사진 여부에 따라 다른 포인트 지급</div>
@@ -3647,6 +3659,28 @@
         loadHomeWeightCard();
       });
     });
+
+    // ── 체중 기록 포인트 (하루 1번) ──
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+    db.ref('users/' + userId + '/weight_point_date').once('value').then(snap => {
+      if (snap.val() === todayStr) return; // 오늘 이미 받음
+      db.ref('point_settings/weightRecord').once('value').then(ptSnap => {
+        const pts = ptSnap.val() ?? 1;
+        if (pts <= 0) return;
+        let newPoints = 0;
+        db.ref('users/' + userId + '/points').transaction(cur => {
+          newPoints = (cur || 0) + pts;
+          return newPoints;
+        }).then(() => {
+          db.ref('users/' + userId + '/weight_point_date').set(todayStr);
+          showToast('⚖️ 체중 기록 +' + pts + 'P 적립!', 'success');
+          if (typeof checkPointTierCoupons === 'function') checkPointTierCoupons(userId, newPoints);
+          if (typeof updateStats === 'function') updateStats();
+        });
+      });
+    });
+
     // 내 정보도 업데이트
     const wEl = document.getElementById('myinfo-weight');
     if (wEl) wEl.textContent = val + 'kg';
