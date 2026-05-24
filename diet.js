@@ -694,7 +694,77 @@
   }
 
 
+  // ── 식단 게시글 수정 저장 ──
+  async function updateDietPost() {
+    const postId = window._editPostId;
+    if (!postId) return;
+
+    const mealSummary = getMealSummaryForPost();
+    const newContent = mealSummary || document.getElementById('post-content').value.trim();
+    if (!newContent) { showToast('내용을 입력해주세요!', 'error'); return; }
+
+    const btn = document.getElementById('post-submit-btn');
+    if (btn) { btn.textContent = '저장 중...'; btn.disabled = true; }
+
+    try {
+      await db.ref('posts/' + postId).update({ content: newContent });
+
+      // 로컬 캐시도 업데이트
+      if (typeof allCommunityPosts !== 'undefined') {
+        const post = allCommunityPosts.find(p => p.id === postId);
+        if (post) post.content = newContent;
+      }
+      if (typeof adminAllPosts !== 'undefined') {
+        const post = adminAllPosts.find(p => p.id === postId);
+        if (post) post.content = newContent;
+      }
+
+      showToast('✅ 수정됐어요!', 'success');
+
+      // 모달 닫기 + 커뮤니티로 이동
+      const modal = document.getElementById('post-modal');
+      if (modal) modal.classList.remove('active');
+      if (typeof closePostModal === 'function') closePostModal();
+
+      const communityTab = document.getElementById('tab-community');
+      if (communityTab) communityTab.click();
+
+    } catch(e) {
+      console.error('수정 오류:', e);
+      showToast('수정에 실패했어요.', 'error');
+      if (btn) { btn.textContent = '🗑️ 삭제하기'; btn.disabled = false; }
+    }
+  }
+
+  // ── 식단 게시글 삭제 (수정 모달에서) ──
+  function deleteDietPostFromModal() {
+    const postId = window._editPostId;
+    if (!postId) return;
+    showConfirm('게시글을 삭제할까요?', () => {
+      // 로컬 캐시에서 post 찾기
+      let post = null;
+      if (typeof allCommunityPosts !== 'undefined') post = allCommunityPosts.find(p => p.id === postId);
+      if (!post && typeof adminAllPosts !== 'undefined') post = adminAllPosts.find(p => p.id === postId);
+
+      // 모달 먼저 닫기
+      const modal = document.getElementById('post-modal');
+      if (modal) modal.classList.remove('active');
+      if (typeof closePostModal === 'function') closePostModal();
+
+      // 삭제 처리
+      if (typeof deletePost === 'function') {
+        deletePost(postId, post?.photoURL || '');
+      }
+    });
+  }
+  window.deleteDietPostFromModal = deleteDietPostFromModal;
+
   async function saveDietDraftAndExit() {
+    // 수정 모드일 때는 수정 저장 후 나가기
+    if (window._editMode && window._editPostId) {
+      await updateDietPost();
+      return;
+    }
     showToast('💾 임시저장 중...', 'info');
     try {
       const cat = document.getElementById('post-category')?.value || '식단';
@@ -822,6 +892,12 @@
 
   // ── 게시글 제출 ──
   async function submitPost() {
+    // 수정 모드면 업데이트 처리
+    if (window._editMode && window._editPostId) {
+      await updateDietPost();
+      return;
+    }
+
     const category = document.getElementById('post-category').value;
     let content = document.getElementById('post-content').value.trim();
     // 식단 카테고리면 추가된 음식 목록으로 내용 합치기

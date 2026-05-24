@@ -921,10 +921,101 @@
     if (!post) return;
     editingPostId = postId;
 
+    // 식단 게시글은 글쓰기 전체 화면으로 오픈
+    if (post.category === '식단') {
+      openPostModalForEdit(post);
+      return;
+    }
+
     const catMap = { '식단':'🥗 식단', '운동팁':'📋 운동팁', '자유':'💬 자유', '오운완':'💪 오운완' };
     document.getElementById('edit-post-category-badge').textContent = catMap[post.category] || post.category || '';
     document.getElementById('edit-post-content').value = post.content || '';
     document.getElementById('edit-post-modal').classList.add('active');
+  }
+
+  // 식단 글 수정: 글쓰기 전체 화면으로 기존 내용 불러와서 열기
+  function openPostModalForEdit(post) {
+    if (!localStorage.getItem('current_user')) return;
+
+    // 수정 모드 플래그 전역 설정
+    window._editMode = true;
+    window._editPostId = post.id;
+
+    postPhotoFile = null;
+    mealPhotos = [null, null, null, null];
+
+    // 기존 내용 불러오기
+    document.getElementById('post-content').value = post.content || '';
+    ['meal-breakfast','meal-lunch','meal-dinner','meal-snack'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    ['kcal-breakfast','kcal-lunch','kcal-dinner','kcal-snack'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.textContent = '';
+    });
+
+    // 식단 내용 파싱해서 끼니별로 채우기
+    if (post.content) {
+      const lines = post.content.split('\n');
+      lines.forEach(line => {
+        if (line.includes('🌅 아침')) {
+          const el = document.getElementById('meal-breakfast');
+          if (el) el.value = line.replace(/🌅 아침[:\s]*/, '').trim();
+        } else if (line.includes('☀️ 점심')) {
+          const el = document.getElementById('meal-lunch');
+          if (el) el.value = line.replace(/☀️ 점심[:\s]*/, '').trim();
+        } else if (line.includes('🌙 저녁')) {
+          const el = document.getElementById('meal-dinner');
+          if (el) el.value = line.replace(/🌙 저녁[:\s]*/, '').trim();
+        } else if (line.includes('🍎 간식')) {
+          const el = document.getElementById('meal-snack');
+          if (el) el.value = line.replace(/🍎 간식[:\s]*/, '').trim();
+        }
+      });
+    }
+
+    renderMealPhotoGrid();
+
+    // 카테고리 식단으로 고정
+    document.querySelectorAll('.cat-select').forEach((b,i) => b.classList.toggle('active', i===0));
+    document.getElementById('post-category').value = '식단';
+
+    // UI 초기화
+    document.getElementById('post-photo-preview-wrap').style.display = 'none';
+    document.getElementById('post-photo-camera').value = '';
+    document.getElementById('post-photo-gallery').value = '';
+
+    // 식단 카테고리 UI 표시
+    const pcw = document.getElementById('post-content-wrap'); if (pcw) pcw.style.display = 'none';
+    const cw = document.getElementById('calorie-calc-wrap'); if (cw) cw.style.display = 'block';
+    const mg = document.getElementById('meal-photo-grid'); if (mg) mg.style.display = 'grid';
+    const pb = document.getElementById('post-photo-buttons'); if (pb) pb.style.display = 'none';
+    const pl = document.getElementById('photo-label'); if (pl) pl.textContent = '사진 (선택 · 끼니별 최대 4장)';
+    const cr = document.getElementById('calorie-result'); if (cr) cr.style.display = 'none';
+    const fl = document.getElementById('food-added-list'); if (fl) fl.style.display = 'none';
+
+    // 수정 모드 UI 변경
+    const modalTitle = document.querySelector('#post-modal .modal-title span');
+    if (modalTitle) modalTitle.textContent = '✏️ 식단 수정';
+
+    const draftBtn = document.getElementById('draft-exit-btn');
+    if (draftBtn) draftBtn.textContent = '✏️ 수정 후 나가기';
+
+    const submitBtn = document.getElementById('post-submit-btn');
+    if (submitBtn) {
+      submitBtn.textContent = '🗑️ 삭제하기';
+      submitBtn.style.background = '#fee2e2';
+      submitBtn.style.color = '#ef4444';
+      submitBtn.onclick = () => deleteDietPostFromModal();
+      submitBtn.disabled = false;
+    }
+
+    // 임시저장 안내 숨기기 (수정 모드에서는 불필요)
+    const draftInfo = document.getElementById('draft-info-box');
+    if (draftInfo) draftInfo.style.display = 'none';
+
+    document.getElementById('post-modal').classList.add('active');
+
+    setTimeout(() => calcMealKcal(), 200);
   }
 
   function closeEditPostModal() {
@@ -1074,6 +1165,24 @@
 
   function closePostModal() {
     document.getElementById('post-modal').classList.remove('active');
+    // 수정 모드 플래그 초기화
+    window._editMode = false;
+    window._editPostId = null;
+    // 타이틀/버튼 원상복구
+    const modalTitle = document.querySelector('#post-modal .modal-title span');
+    if (modalTitle) modalTitle.textContent = '✍️ 새 게시글';
+    const draftBtn = document.getElementById('draft-exit-btn');
+    if (draftBtn) draftBtn.textContent = '💾 임시저장 후 나가기';
+    const submitBtn = document.getElementById('post-submit-btn');
+    if (submitBtn) {
+      submitBtn.textContent = '게시하기 🚀';
+      submitBtn.style.background = '';
+      submitBtn.style.color = '';
+      submitBtn.onclick = () => submitPost();
+      submitBtn.disabled = false;
+    }
+    const draftInfo = document.getElementById('draft-info-box');
+    if (draftInfo) draftInfo.style.display = '';
   }
 
   function selectPostCat(btn, cat) {
