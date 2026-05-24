@@ -28,6 +28,7 @@
     if (tabId === 'tab-trainer-admin') loadAdminTrainerSchedule();
     if (tabId === 'tab-coupon') loadMemberSelectOptions();
     if (tabId === 'coupon-auto') loadAutoConditions();
+    if (tabId === 'tab-equipment-admin') loadAdminEquipmentList();
   }
 
   // ── 관리자 강사 목록 관리 ──
@@ -4064,4 +4065,172 @@
       }
     });
   }
+
+
+  // ══════════════════════════════
+  // 기구 관리
+  // ══════════════════════════════
+
+  // 풍산휘트니스 기본 기구 목록 (최초 1회 Firebase 이전용)
+  const DEFAULT_EQUIPMENT = [
+    { no:1,  name:'체스트 프레스',              muscles:'가슴',                    key:'chest_press' },
+    { no:2,  name:'펙덱 & 리어 델토이드',        muscles:'가슴·어깨 후면',           key:'dual_pec_rear' },
+    { no:3,  name:'랫풀 다운',                  muscles:'등',                      key:'lat_pull' },
+    { no:4,  name:'롱풀',                       muscles:'등',                      key:'long_pull' },
+    { no:5,  name:'크런치 밴치',                muscles:'복부',                    key:'crunch' },
+    { no:6,  name:'로만체어',                   muscles:'허리·등',                  key:'roman_chair' },
+    { no:7,  name:'시티드 레그 프레스',          muscles:'허벅지·엉덩이·종아리',     key:'leg_press_seated' },
+    { no:8,  name:'레그 익스텐션',              muscles:'앞쪽 허벅지',              key:'leg_extension' },
+    { no:9,  name:'시티드 레그 컬',             muscles:'뒷쪽 허벅지',              key:'leg_curl' },
+    { no:10, name:'숄더 프레스',                muscles:'어깨',                    key:'shoulder_press' },
+    { no:11, name:'암 컬',                      muscles:'이두',                    key:'arm_curl' },
+    { no:12, name:'핵 프레스',                  muscles:'허벅지·엉덩이·종아리',     key:'hack_press' },
+    { no:13, name:'링크 아웃타이',              muscles:'엉덩이·햄스트링',          key:'link_out' },
+    { no:14, name:'글루트',                     muscles:'엉덩이·햄스트링',          key:'glute' },
+    { no:15, name:'힙 쓰러스트',                muscles:'엉덩이·햄스트링',          key:'hip_thrust' },
+    { no:16, name:'듀얼 이너&아웃타이',         muscles:'엉덩이·허벅지 안쪽',       key:'dual_inner_out' },
+    { no:17, name:'ISO 레터럴 로우로우',         muscles:'중·하부 승모근·등',         key:'iso_low_row' },
+    { no:18, name:'프론트 랫풀 다운',           muscles:'등',                      key:'front_lat_pull' },
+    { no:19, name:'ISO 레터럴 하이로우',         muscles:'승모근·능형근·후면 삼각근', key:'iso_high_low' },
+    { no:20, name:'ISO 레터럴 로우',            muscles:'등·능형근·후삼각근',       key:'iso_lateral_row' },
+    { no:21, name:'스탠딩 어시스트 친업',        muscles:'중·하부 승모근·등·이두근',  key:'chinup_assist' },
+    { no:22, name:'플레이트 숄더 프레스',        muscles:'어깨',                    key:'plate_shoulder' },
+    { no:23, name:'ISO 레터럴 숄더 프레스',      muscles:'어깨',                    key:'iso_shoulder' },
+    { no:24, name:'티바로우',                   muscles:'등',                      key:'tbar_row' },
+    { no:25, name:'풀 오버',                    muscles:'등·가슴·삼두·코어',         key:'pullover' },
+    { no:26, name:'ISO 와이드 체스트 프레스',    muscles:'가슴',                    key:'iso_wide_chest' },
+    { no:27, name:'ISO 레터럴 인클라인 프레스',  muscles:'윗가슴·앞쪽 어깨·삼두근',  key:'iso_incline' },
+    { no:28, name:'리니어 레그 프레스',          muscles:'허벅지·엉덩이·종아리',     key:'linear_leg_press' },
+    { no:29, name:'브이스쿼트',                 muscles:'하체·엉덩이',              key:'v_squat' },
+    { no:30, name:'시티드 카프레이즈',           muscles:'종아리',                  key:'calf_raise' },
+    { no:31, name:'스미스 머신',                muscles:'운동방법에 따라 다름',      key:'smith_machine' },
+    { no:32, name:'듀얼 케이블 머신',            muscles:'운동방법에 따라 다름',      key:'cable_machine' },
+  ];
+
+  // 기구 목록 불러오기 (Firebase → 없으면 기본값 이전)
+  function loadAdminEquipmentList() {
+    db.ref('equipment').once('value').then(snap => {
+      if (!snap.exists()) {
+        // 최초 1회: 기본값 Firebase에 저장
+        const batch = {};
+        DEFAULT_EQUIPMENT.forEach(eq => { batch[eq.key] = eq; });
+        db.ref('equipment').set(batch).then(() => {
+          renderAdminEquipmentList(DEFAULT_EQUIPMENT);
+          showToast('기본 기구 목록이 설정됐어요!', 'success');
+        });
+      } else {
+        const list = [];
+        snap.forEach(child => list.push(child.val()));
+        list.sort((a, b) => (a.no || 0) - (b.no || 0));
+        renderAdminEquipmentList(list);
+      }
+    });
+  }
+
+  function renderAdminEquipmentList(list) {
+    const container = document.getElementById('admin-equipment-list');
+    if (!container) return;
+    if (!list.length) {
+      container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);font-size:14px;">등록된 기구가 없어요</div>';
+      return;
+    }
+    container.innerHTML = list.map(eq => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;background:var(--card);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="min-width:28px;height:28px;background:var(--blue-light);color:var(--blue);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">${eq.no}</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);">${eq.name}</div>
+            <div style="font-size:11px;color:var(--text-hint);">${eq.muscles || ''}${eq.memo ? ' · ' + eq.memo : ''}</div>
+          </div>
+        </div>
+        <button onclick="openEditEquipmentModal('${eq.key}')" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
+      </div>
+    `).join('');
+  }
+
+  let _equipmentCache = {};
+
+  function openEditEquipmentModal(key) {
+    db.ref('equipment/' + key).once('value').then(snap => {
+      if (!snap.exists()) return;
+      const eq = snap.val();
+      _equipmentCache[key] = eq;
+      document.getElementById('equipment-modal-title').textContent = '✏️ 기구 수정';
+      document.getElementById('equipment-edit-no').value      = eq.no || '';
+      document.getElementById('equipment-edit-name').value    = eq.name || '';
+      document.getElementById('equipment-edit-muscles').value = eq.muscles || '';
+      document.getElementById('equipment-edit-memo').value    = eq.memo || '';
+      document.getElementById('equipment-edit-key').value     = key;
+      document.getElementById('equipment-edit-mode').value    = 'edit';
+      document.getElementById('equipment-delete-btn').style.display = 'block';
+      document.getElementById('equipment-edit-modal').classList.add('active');
+    });
+  }
+
+  function openAddEquipmentModal() {
+    // 현재 최대 번호 + 1 자동 설정
+    db.ref('equipment').once('value').then(snap => {
+      let maxNo = 0;
+      snap.forEach(child => { const n = child.val().no || 0; if (n > maxNo) maxNo = n; });
+      document.getElementById('equipment-modal-title').textContent = '➕ 기구 추가';
+      document.getElementById('equipment-edit-no').value      = maxNo + 1;
+      document.getElementById('equipment-edit-name').value    = '';
+      document.getElementById('equipment-edit-muscles').value = '';
+      document.getElementById('equipment-edit-memo').value    = '';
+      document.getElementById('equipment-edit-key').value     = '';
+      document.getElementById('equipment-edit-mode').value    = 'add';
+      document.getElementById('equipment-delete-btn').style.display = 'none';
+      document.getElementById('equipment-edit-modal').classList.add('active');
+    });
+  }
+
+  function closeEquipmentModal() {
+    document.getElementById('equipment-edit-modal').classList.remove('active');
+  }
+
+  function saveEquipmentEdit() {
+    const mode    = document.getElementById('equipment-edit-mode').value;
+    const key     = document.getElementById('equipment-edit-key').value;
+    const no      = parseInt(document.getElementById('equipment-edit-no').value) || 0;
+    const name    = document.getElementById('equipment-edit-name').value.trim();
+    const muscles = document.getElementById('equipment-edit-muscles').value.trim();
+    const memo    = document.getElementById('equipment-edit-memo').value.trim();
+
+    if (!name) { showToast('기구 이름을 입력해주세요.', 'error'); return; }
+    if (!no)   { showToast('번호를 입력해주세요.', 'error'); return; }
+
+    if (mode === 'add') {
+      // 새 key 생성 (이름 기반)
+      const newKey = 'eq_' + Date.now();
+      db.ref('equipment/' + newKey).set({ no, name, muscles, memo: memo || '', key: newKey }).then(() => {
+        showToast('✅ 기구가 추가됐어요!', 'success');
+        closeEquipmentModal();
+        loadAdminEquipmentList();
+      });
+    } else {
+      db.ref('equipment/' + key).update({ no, name, muscles, memo: memo || '' }).then(() => {
+        showToast('✅ 수정됐어요!', 'success');
+        closeEquipmentModal();
+        loadAdminEquipmentList();
+      });
+    }
+  }
+
+  function deleteEquipment() {
+    const key  = document.getElementById('equipment-edit-key').value;
+    const name = document.getElementById('equipment-edit-name').value;
+    showConfirm(name + ' 기구를 삭제할까요?', () => {
+      db.ref('equipment/' + key).remove().then(() => {
+        showToast('삭제됐어요.', 'success');
+        closeEquipmentModal();
+        loadAdminEquipmentList();
+      });
+    });
+  }
+  window.loadAdminEquipmentList = loadAdminEquipmentList;
+  window.openEditEquipmentModal = openEditEquipmentModal;
+  window.openAddEquipmentModal  = openAddEquipmentModal;
+  window.closeEquipmentModal    = closeEquipmentModal;
+  window.saveEquipmentEdit      = saveEquipmentEdit;
+  window.deleteEquipment        = deleteEquipment;
 

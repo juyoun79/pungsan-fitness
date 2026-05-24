@@ -1701,6 +1701,7 @@
         <button class="admin-tab" onclick="switchAdminTab('tab-notice')">📢 공지</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-coupon')">🎫 쿠폰</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-settings')">⚙️ 설정</button>
+        <button class="admin-tab" onclick="switchAdminTab('tab-equipment-admin')">🏋️ 기구</button>
       </div>
     </div>
 
@@ -2298,6 +2299,59 @@
         </div>
       </div>
 
+      <!-- 기구관리 섹션 -->
+      <div id="tab-equipment-admin" class="admin-section">
+        <div class="admin-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div class="admin-card-title" style="margin:0;">🏋️ 기구 목록</div>
+            <button onclick="openAddEquipmentModal()" style="background:var(--blue);color:white;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 기구 추가</button>
+          </div>
+          <div id="admin-equipment-list">
+            <div style="text-align:center;padding:30px;color:var(--text-hint);font-size:14px;">불러오는 중...</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 기구 수정 모달 -->
+  <div class="modal-overlay" id="equipment-edit-modal">
+    <div class="modal-sheet" style="overflow-y:auto;">
+      <div class="modal-title">
+        <span id="equipment-modal-title">✏️ 기구 수정</span>
+        <button class="modal-close" onclick="closeEquipmentModal()">×</button>
+      </div>
+      <div style="padding:0 4px;">
+        <div style="margin-bottom:14px;">
+          <label class="field-label">번호</label>
+          <input type="number" id="equipment-edit-no" min="1"
+            style="width:80px;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:6px;"
+            onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+        </div>
+        <div style="margin-bottom:14px;">
+          <label class="field-label">기구 이름 *</label>
+          <input type="text" id="equipment-edit-name" placeholder="예) 체스트 프레스"
+            style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:6px;"
+            onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+        </div>
+        <div style="margin-bottom:14px;">
+          <label class="field-label">근육 부위</label>
+          <input type="text" id="equipment-edit-muscles" placeholder="예) 가슴·어깨"
+            style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:6px;"
+            onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+        </div>
+        <div style="margin-bottom:20px;">
+          <label class="field-label">위치/메모 (선택)</label>
+          <input type="text" id="equipment-edit-memo" placeholder="예) 입구 왼쪽"
+            style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:6px;"
+            onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+        </div>
+        <input type="hidden" id="equipment-edit-key" />
+        <input type="hidden" id="equipment-edit-mode" value="edit" />
+        <button class="btn-primary" onclick="saveEquipmentEdit()" style="margin-bottom:10px;">💾 저장</button>
+        <button id="equipment-delete-btn" onclick="deleteEquipment()" style="width:100%;padding:14px;background:#fee2e2;color:#ef4444;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑 기구 삭제</button>
+      </div>
     </div>
   </div>
 
@@ -4480,6 +4534,11 @@
   window.addEventListener('DOMContentLoaded', () => {
     // 관리자 계정 초기화 (최초 1회)
     initAdminAccount();
+
+    // Firebase에서 기구 목록 동기화 (앱 시작 시)
+    if (typeof syncEquipmentFromFirebase === 'function') {
+      syncEquipmentFromFirebase();
+    }
 
     // 서비스워커 메시지 리스너 (가능한 빨리 설정 - 알림 탭 처리)
     if ('serviceWorker' in navigator) {

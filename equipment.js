@@ -1,4 +1,4 @@
-  const EQUIPMENT_LIST = [
+  let EQUIPMENT_LIST = [
     { no:1,  name:'체스트 프레스',             muscles:'가슴',                          effect:'자세교정(상체), 어깨·목 부담 감소',          brand:'DRAX',        emoji:'🏋️', key:'chest_press' },
     { no:2,  name:'펙덱 & 리어 델토이드',       muscles:'가슴·어깨 후면',                 effect:'가슴 안쪽 근육 강화, 어깨 후면 강화',        brand:'DRAX',        emoji:'🤸', key:'dual_pec_rear' },
     { no:3,  name:'랫풀 다운',                 muscles:'등',                            effect:'허리통증 개선, 굽은 자세 개선',              brand:'DRAX',        emoji:'💪', key:'lat_pull' },
@@ -46,6 +46,35 @@
     }
     return '#1a6fd4';
   }
+
+  // Firebase에서 기구 목록 불러와서 EQUIPMENT_LIST 갱신
+  function syncEquipmentFromFirebase(callback) {
+    if (typeof db === 'undefined') { if (callback) callback(); return; }
+    db.ref('equipment').once('value').then(snap => {
+      if (snap.exists()) {
+        const list = [];
+        snap.forEach(child => {
+          const eq = child.val();
+          // 기존 하드코딩 데이터의 effect/brand/emoji 유지
+          const orig = EQUIPMENT_LIST.find(e => e.key === eq.key);
+          list.push({
+            no:      eq.no      || (orig ? orig.no : 99),
+            name:    eq.name    || (orig ? orig.name : ''),
+            muscles: eq.muscles || (orig ? orig.muscles : ''),
+            effect:  orig ? orig.effect  : '',
+            brand:   orig ? orig.brand   : '',
+            emoji:   orig ? orig.emoji   : '🏋️',
+            memo:    eq.memo    || '',
+            key:     eq.key     || child.key,
+          });
+        });
+        list.sort((a, b) => (a.no || 0) - (b.no || 0));
+        EQUIPMENT_LIST = list;
+      }
+      if (callback) callback();
+    }).catch(() => { if (callback) callback(); });
+  }
+  window.syncEquipmentFromFirebase = syncEquipmentFromFirebase;
 
   // ══════════════════════════════
   // 운동기록 달력 변수는 workout.js에서 선언
