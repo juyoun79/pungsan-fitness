@@ -2706,7 +2706,6 @@
       <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;">
         <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
           <div style="font-size:15px;font-weight:700;color:var(--text);">👥 담당 회원</div>
-          <button onclick="openAddTraineeMember()" style="background:var(--blue);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 회원 추가</button>
         </div>
         <div id="trainee-list" style="padding:12px 16px;">
           <div style="text-align:center;padding:20px;color:var(--text-hint);font-size:14px;">담당 회원이 없어요<br/>회원 추가 버튼을 눌러주세요</div>
@@ -2801,12 +2800,7 @@
             </div>
             <button onclick="toggleTraineeHistory()" id="trainee-history-btn" style="background:rgba(255,255,255,0.15);border:none;border-radius:6px;padding:5px 8px;font-size:10px;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;justify-content:center;gap:3px;">등록이력 <span id="trainee-history-arrow">▾</span></button>
           </div>
-          <!-- 오른쪽: 버튼 3개 -->
-          <div style="display:flex;flex-direction:column;gap:5px;">
-            <button onclick="openReregisterModal()" style="flex:1;background:rgba(255,255,255,0.2);border:none;border-radius:6px;padding:5px;font-size:11px;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔄 재등록</button>
-            <button onclick="editTraineeInfo()" style="flex:1;background:rgba(255,255,255,0.2);border:none;border-radius:6px;padding:5px;font-size:11px;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 정보수정</button>
-            <button onclick="deleteTraineeMember()" style="flex:1;background:rgba(255,255,255,0.15);border:none;border-radius:6px;padding:5px;font-size:11px;color:#fca5a5;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑 담당해제</button>
-          </div>
+
         </div>
         <!-- 이전 등록 이력 -->
         <div id="trainee-history-list" style="display:none;margin-top:8px;border-top:0.5px solid rgba(255,255,255,0.2);padding-top:6px;"></div>

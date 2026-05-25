@@ -84,7 +84,10 @@
             <div style="font-size:14px;font-weight:700;color:var(--text);">${t.name}</div>
             <div style="font-size:12px;color:var(--text-hint);">아이디: ${t.id}</div>
           </div>
-          <button onclick="openEditTrainerModal('${t.id}','${t.name}')" style="background:var(--blue-light);color:var(--blue);border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
+          <div style="display:flex;gap:6px;">
+            <button onclick="openAdminAssignTrainee('${t.id}','${t.name}')" style="background:#EAF3DE;color:#3B6D11;border:1px solid #C0DD97;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 회원배정</button>
+            <button onclick="openEditTrainerModal('${t.id}','${t.name}')" style="background:var(--blue-light);color:var(--blue);border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
+          </div>
         </div>`).join('');
 
       // 강사별 스케줄 버튼도 업데이트
@@ -439,7 +442,7 @@
           if (memo) totalMemos++;
           totalLogs += logs.length;
 
-          memberCards.push({ traineeName, signCount, noShowCount, memo, logs, traineeId, type: traineeInfo.type || '', remain: traineeInfo.remain || 0, total: traineeInfo.total || 0 });
+          memberCards.push({ traineeName, signCount, noShowCount, memo, logs, traineeId, type: traineeInfo.type || '', remain: traineeInfo.remain || 0, total: traineeInfo.total || 0, traineeInfo });
         });
         promises.push(p);
       });
@@ -479,10 +482,15 @@
                 <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${m.type ? m.type + ' · ' : ''}잔여 ${m.remain}회 / 총 ${m.total}회</div>
               </div>
             </div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
               <button onclick="toggleRptDetail('${signBtnId}')" style="font-size:11px;padding:4px 8px;background:#E6F1FB;color:#0C447C;border:1px solid #B5D4F4;border-radius:6px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✍️ 서명 ${m.signCount + m.noShowCount}회</button>
               ${m.memo ? '<button onclick="toggleRptDetail(\'' + memoBtnId + '\')" style="font-size:11px;padding:4px 8px;background:#EAF3DE;color:#3B6D11;border:1px solid #C0DD97;border-radius:6px;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">📝 메모</button>' : ''}
               ${m.logs.length > 0 ? '<button onclick="toggleRptDetail(\'' + logBtnId + '\')" style="font-size:11px;padding:4px 8px;background:#FAEEDA;color:#854F0B;border:1px solid #FAC775;border-radius:6px;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">📋 수업일지 ' + m.logs.length + '건</button>' : ''}
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button onclick="openAdminEditTrainee('${trainerId}','${m.traineeId}')" style="font-size:11px;padding:4px 8px;background:#E6F1FB;color:#0C447C;border:1px solid #B5D4F4;border-radius:6px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 수업수정</button>
+              <button onclick="openAdminReregister('${trainerId}','${m.traineeId}','${m.type}')" style="font-size:11px;padding:4px 8px;background:#EAF3DE;color:#3B6D11;border:1px solid #C0DD97;border-radius:6px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔄 재등록</button>
+              <button onclick="adminDeleteTrainee('${trainerId}','${m.traineeId}','${m.traineeName}')" style="font-size:11px;padding:4px 8px;background:#FCEBEB;color:#A32D2D;border:1px solid #F7C1C1;border-radius:6px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑 담당해제</button>
             </div>
             <div id="${signBtnId}" style="display:none;margin-top:8px;background:var(--bg);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.8;">
               <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;font-weight:700;">서명 기록</div>
@@ -4277,4 +4285,192 @@
   window.closeEquipmentModal    = closeEquipmentModal;
   window.saveEquipmentEdit      = saveEquipmentEdit;
   window.deleteEquipment        = deleteEquipment;
+
+
+  // ══════════════════════════════
+  // 관리자 담당회원 관리 함수들
+  // ══════════════════════════════
+
+  // 담당회원 배정 (관리자)
+  function openAdminAssignTrainee(trainerId, trainerName) {
+    // 전체 회원 목록 불러오기
+    db.ref('members').once('value').then(snap => {
+      const members = [];
+      snap.forEach(child => {
+        const m = child.val();
+        if (m.role !== 'trainer' && m.role !== 'manager') {
+          members.push({ id: child.key, name: m.name || child.key });
+        }
+      });
+      if (members.length === 0) { showToast('등록된 회원이 없어요.', 'error'); return; }
+
+      const modal = document.createElement('div');
+      modal.id = 'admin-assign-modal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+      modal.innerHTML = `
+        <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:320px;font-family:'Noto Sans KR',sans-serif;max-height:80vh;overflow-y:auto;">
+          <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">👥 담당회원 배정</div>
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:14px;">${trainerName} 강사</div>
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">회원 선택</div>
+          <select id="assign-member-select" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:12px;">
+            <option value="">회원 선택</option>
+            ${members.map(m => `<option value="${m.id}">${m.name} (${m.id})</option>`).join('')}
+          </select>
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">수업 종류</div>
+          <input id="assign-type" type="text" placeholder="예) PT / 기구필라테스 / 기타"
+            style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:12px;outline:none;">
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">총 수업 횟수</div>
+          <input id="assign-total" type="number" placeholder="예) 10, 20, 30"
+            style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:16px;outline:none;">
+          <div style="display:flex;gap:10px;">
+            <button onclick="document.getElementById('admin-assign-modal').remove()"
+              style="flex:1;padding:12px;background:none;border:1px solid var(--border);border-radius:10px;font-size:14px;font-weight:700;color:var(--text-hint);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+            <button onclick="saveAdminAssignTrainee('${trainerId}','${trainerName}')"
+              style="flex:1;padding:12px;background:var(--blue);border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">배정</button>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+    });
+  }
+
+  function saveAdminAssignTrainee(trainerId, trainerName) {
+    const memberId = document.getElementById('assign-member-select').value;
+    const type = document.getElementById('assign-type').value.trim();
+    const total = parseInt(document.getElementById('assign-total').value);
+    if (!memberId) { showToast('회원을 선택해주세요.', 'error'); return; }
+    if (!type) { showToast('수업 종류를 입력해주세요.', 'error'); return; }
+    if (!total || isNaN(total)) { showToast('총 횟수를 입력해주세요.', 'error'); return; }
+
+    db.ref('members/' + memberId + '/name').once('value').then(snap => {
+      const memberName = snap.val() || memberId;
+      db.ref('trainers/' + trainerId + '/trainees/' + memberId).set({
+        name: memberName,
+        type, total, remain: total,
+        addedAt: Date.now()
+      }).then(() => {
+        showToast(memberName + '님이 ' + trainerName + ' 강사에게 배정됐어요! 💪', 'success');
+        document.getElementById('admin-assign-modal')?.remove();
+        loadMonthlyReport();
+      });
+    });
+  }
+  window.openAdminAssignTrainee = openAdminAssignTrainee;
+  window.saveAdminAssignTrainee = saveAdminAssignTrainee;
+
+  // 수업 정보 수정 (관리자)
+  function openAdminEditTrainee(trainerId, traineeId) {
+    db.ref('trainers/' + trainerId + '/trainees/' + traineeId).once('value').then(snap => {
+      const info = snap.val();
+      if (!info) return;
+      db.ref('members/' + traineeId + '/name').once('value').then(nameSnap => {
+        const memberName = nameSnap.val() || info.name || traineeId;
+        const modal = document.createElement('div');
+        modal.id = 'admin-edit-trainee-modal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+        modal.innerHTML = `
+          <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:320px;font-family:'Noto Sans KR',sans-serif;">
+            <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">✏️ 수업 정보 수정</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:14px;">${memberName}</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">수업 종류</div>
+            <input id="admin-edit-type" type="text" value="${info.type || ''}" placeholder="예) PT / 기구필라테스"
+              style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:12px;outline:none;">
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">총 횟수</div>
+            <input id="admin-edit-total" type="number" value="${info.total || ''}"
+              style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:12px;outline:none;">
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">잔여 횟수</div>
+            <input id="admin-edit-remain" type="number" value="${info.remain || ''}"
+              style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:12px;outline:none;">
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">수정 사유 (선택)</div>
+            <input id="admin-edit-memo" type="text" placeholder="예) 취소 수업 복구"
+              style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:16px;outline:none;">
+            <div style="display:flex;gap:10px;">
+              <button onclick="document.getElementById('admin-edit-trainee-modal').remove()"
+                style="flex:1;padding:12px;background:none;border:1px solid var(--border);border-radius:10px;font-size:14px;font-weight:700;color:var(--text-hint);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+              <button onclick="saveAdminEditTrainee('${trainerId}','${traineeId}')"
+                style="flex:1;padding:12px;background:var(--blue);border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+      });
+    });
+  }
+
+  function saveAdminEditTrainee(trainerId, traineeId) {
+    const type   = document.getElementById('admin-edit-type').value.trim();
+    const total  = parseInt(document.getElementById('admin-edit-total').value);
+    const remain = parseInt(document.getElementById('admin-edit-remain').value);
+    if (!type) { showToast('수업 종류를 입력해주세요.', 'error'); return; }
+    if (isNaN(total) || isNaN(remain)) { showToast('횟수를 입력해주세요.', 'error'); return; }
+    db.ref('trainers/' + trainerId + '/trainees/' + traineeId).update({ type, total, remain }).then(() => {
+      showToast('✅ 수정됐어요!', 'success');
+      document.getElementById('admin-edit-trainee-modal')?.remove();
+      loadMonthlyReport();
+    });
+  }
+  window.openAdminEditTrainee = openAdminEditTrainee;
+  window.saveAdminEditTrainee = saveAdminEditTrainee;
+
+  // 재등록 (관리자)
+  function openAdminReregister(trainerId, traineeId, currentType) {
+    db.ref('members/' + traineeId + '/name').once('value').then(nameSnap => {
+      const memberName = nameSnap.val() || traineeId;
+      const modal = document.createElement('div');
+      modal.id = 'admin-reregister-modal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+      modal.innerHTML = `
+        <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:320px;font-family:'Noto Sans KR',sans-serif;">
+          <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">🔄 재등록</div>
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:14px;">${memberName}</div>
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">수업 종류</div>
+          <input id="admin-rereg-type" type="text" value="${currentType || ''}" placeholder="예) PT / 기구필라테스"
+            style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:12px;outline:none;">
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">추가 횟수</div>
+          <input id="admin-rereg-total" type="number" placeholder="예) 10, 20, 30"
+            style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:16px;outline:none;">
+          <div style="display:flex;gap:10px;">
+            <button onclick="document.getElementById('admin-reregister-modal').remove()"
+              style="flex:1;padding:12px;background:none;border:1px solid var(--border);border-radius:10px;font-size:14px;font-weight:700;color:var(--text-hint);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+            <button onclick="saveAdminReregister('${trainerId}','${traineeId}','${memberName}')"
+              style="flex:1;padding:12px;background:#22c55e;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">재등록</button>
+          </div>
+        </div>`;
+      document.body.appendChild(modal);
+    });
+  }
+
+  function saveAdminReregister(trainerId, traineeId, memberName) {
+    const type  = document.getElementById('admin-rereg-type').value.trim();
+    const count = parseInt(document.getElementById('admin-rereg-total').value);
+    if (!type) { showToast('수업 종류를 입력해주세요.', 'error'); return; }
+    if (!count || isNaN(count)) { showToast('횟수를 입력해주세요.', 'error'); return; }
+    const ref = db.ref('trainers/' + trainerId + '/trainees/' + traineeId);
+    ref.once('value').then(snap => {
+      const info = snap.val() || {};
+      const dateStr = new Date().toISOString().slice(0,10);
+      const regKey = 'reg_' + Date.now();
+      const prevReg = { type: info.type || type, total: info.total || 0, remain: info.remain || 0, date: dateStr };
+      const newRemain = (info.remain || 0) + count;
+      Promise.all([
+        db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/registrations/' + regKey).set(prevReg),
+        ref.update({ type, total: count, remain: newRemain, regDate: dateStr })
+      ]).then(() => {
+        showToast('✅ ' + memberName + ' ' + count + '회 재등록 완료!', 'success');
+        document.getElementById('admin-reregister-modal')?.remove();
+        loadMonthlyReport();
+      });
+    });
+  }
+  window.openAdminReregister = openAdminReregister;
+  window.saveAdminReregister = saveAdminReregister;
+
+  // 담당해제 (관리자)
+  function adminDeleteTrainee(trainerId, traineeId, traineeName) {
+    showConfirm(traineeName + '님을 담당 해제할까요?', () => {
+      db.ref('trainers/' + trainerId + '/trainees/' + traineeId).remove().then(() => {
+        showToast(traineeName + '님이 담당 해제됐어요.', 'success');
+        loadMonthlyReport();
+      });
+    });
+  }
+  window.adminDeleteTrainee = adminDeleteTrainee;
 
