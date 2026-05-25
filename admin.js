@@ -618,9 +618,15 @@
       }
       const currentOrder = idx + 1;
       const currentReg = allRegs[idx];
+
+      // 잔여 횟수: Firebase remain 값 우선 사용 (관리자 수정값 반영)
+      // remain이 없을 때만 서명 기반으로 계산
       let prev = 0;
       for (let i = 0; i < idx; i++) prev += allRegs[i].total;
-      const remain = Math.max(0, currentReg.total - (totalSigns - prev));
+      const calcRemainBySign = Math.max(0, currentReg.total - (totalSigns - prev));
+      const remain = (rootVal.remain !== undefined && rootVal.remain !== null)
+        ? rootVal.remain
+        : calcRemainBySign;
 
       // 카드 업데이트
       const progressEl = document.getElementById('trainee-card-progress');
@@ -628,7 +634,7 @@
       const totalEl = document.getElementById('trainee-card-total');
       if (progressEl) progressEl.textContent = currentOrder + '차 ' + rootType + ' 진행중';
       if (remainEl) remainEl.textContent = remain;
-      if (totalEl) totalEl.textContent = currentReg.total;
+      if (totalEl) totalEl.textContent = rootTotal;
 
       // 서명탭도 같은 데이터로 업데이트
       if (currentTraineeTab === 'sign') {
@@ -787,10 +793,13 @@
       const currentOrder = idx + 1;
       const currentReg = allRegs[idx];
 
-      // 현재 차수 잔여 계산
+      // 현재 차수 잔여 계산 - Firebase remain 우선 사용
       let prev = 0;
       for (let i = 0; i < idx; i++) prev += allRegs[i].total;
-      const remain = Math.max(0, currentReg.total - (totalSigns - prev));
+      const calcRemainBySign = Math.max(0, currentReg.total - (totalSigns - prev));
+      const remain = (rootVal.remain !== undefined && rootVal.remain !== null)
+        ? rootVal.remain
+        : calcRemainBySign;
 
       // 카드 업데이트
       const progressEl = document.getElementById('trainee-card-progress');
@@ -798,7 +807,7 @@
       const totalEl = document.getElementById('trainee-card-total');
       if (progressEl) progressEl.textContent = currentOrder + '차 ' + rootType + ' 진행중';
       if (remainEl) remainEl.textContent = remain;
-      if (totalEl) totalEl.textContent = currentReg.total;
+      if (totalEl) totalEl.textContent = rootTotal;
     });
   }
 
