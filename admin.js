@@ -4292,66 +4292,117 @@
   // ══════════════════════════════
 
   // 담당회원 배정 (관리자)
-  function openAdminAssignTrainee(trainerId, trainerName) {
-    // 전체 회원 목록 불러오기
-    db.ref('members').once('value').then(snap => {
-      const members = [];
-      snap.forEach(child => {
-        const m = child.val();
-        if (m.role !== 'trainer' && m.role !== 'manager') {
-          members.push({ id: child.key, name: m.name || child.key });
-        }
-      });
-      if (members.length === 0) { showToast('등록된 회원이 없어요.', 'error'); return; }
+  // 배정 모달 회원 캐시 (Firebase 로딩 지연 방지)
+  let _assignMembersCache = null;
 
-      const modal = document.createElement('div');
-      modal.id = 'admin-assign-modal';
-      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
-      modal.innerHTML = `
-        <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:320px;font-family:'Noto Sans KR',sans-serif;max-height:80vh;overflow-y:auto;">
-          <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">👥 담당회원 배정</div>
-          <div style="font-size:12px;color:var(--text-hint);margin-bottom:14px;">${trainerName} 강사</div>
-          <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">회원 선택</div>
-          <select id="assign-member-select" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:12px;">
-            <option value="">회원 선택</option>
-            ${members.map(m => `<option value="${m.id}">${m.name} (${m.id})</option>`).join('')}
-          </select>
-          <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">수업 종류</div>
-          <input id="assign-type" type="text" placeholder="예) PT / 기구필라테스 / 기타"
-            style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:12px;outline:none;">
-          <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">총 수업 횟수</div>
-          <input id="assign-total" type="number" placeholder="예) 10, 20, 30"
-            style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:16px;outline:none;">
-          <div style="display:flex;gap:10px;">
-            <button onclick="document.getElementById('admin-assign-modal').remove()"
-              style="flex:1;padding:12px;background:none;border:1px solid var(--border);border-radius:10px;font-size:14px;font-weight:700;color:var(--text-hint);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
-            <button onclick="saveAdminAssignTrainee('${trainerId}','${trainerName}')"
-              style="flex:1;padding:12px;background:var(--blue);border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">배정</button>
-          </div>
-        </div>`;
-      document.body.appendChild(modal);
-    });
+  function openAdminAssignTrainee(trainerId, trainerName) {
+    // 모달 먼저 띄우고 로딩 표시
+    const modal = document.createElement('div');
+    modal.id = 'admin-assign-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+    modal.innerHTML = `
+      <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:320px;font-family:'Noto Sans KR',sans-serif;max-height:80vh;overflow-y:auto;">
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">👥 담당회원 배정</div>
+        <div style="font-size:12px;color:var(--text-hint);margin-bottom:14px;">${trainerName} 강사</div>
+
+        <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">회원 검색</div>
+        <input id="assign-search" type="text" placeholder="이름 또는 전화번호 검색"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--blue);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:6px;outline:none;">
+        <div id="assign-search-result" style="max-height:150px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:12px;display:none;"></div>
+        <div id="assign-selected-member" style="display:none;padding:8px 12px;background:var(--blue-light);border-radius:8px;margin-bottom:12px;font-size:13px;color:var(--blue);font-weight:600;"></div>
+        <input type="hidden" id="assign-member-id">
+
+        <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">수업 종류</div>
+        <input id="assign-type" type="text" placeholder="예) PT / 기구필라테스 / 기타"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:12px;outline:none;">
+        <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">총 수업 횟수</div>
+        <input id="assign-total" type="number" placeholder="예) 10, 20, 30"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:16px;outline:none;">
+        <div style="display:flex;gap:10px;">
+          <button onclick="document.getElementById('admin-assign-modal').remove()"
+            style="flex:1;padding:12px;background:none;border:1px solid var(--border);border-radius:10px;font-size:14px;font-weight:700;color:var(--text-hint);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+          <button onclick="saveAdminAssignTrainee('${trainerId}','${trainerName}')"
+            style="flex:1;padding:12px;background:var(--blue);border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">배정</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    // 회원 목록 로딩 (캐시 우선 → Firebase)
+    const setupSearch = (members) => {
+      _assignMembersCache = members;
+      const searchInput = document.getElementById('assign-search');
+      if (!searchInput) return;
+      searchInput.addEventListener('input', () => {
+        const q = searchInput.value.trim();
+        const resultEl = document.getElementById('assign-search-result');
+        if (!q) { resultEl.style.display = 'none'; return; }
+        // 로컬 필터링 (Firebase 재조회 없음)
+        const filtered = members.filter(m =>
+          m.name.includes(q) || m.id.includes(q)
+        ).slice(0, 8);
+        if (filtered.length === 0) {
+          resultEl.style.display = 'block';
+          resultEl.innerHTML = '<div style="padding:10px 12px;font-size:13px;color:var(--text-hint);">검색 결과가 없어요</div>';
+          return;
+        }
+        resultEl.style.display = 'block';
+        resultEl.innerHTML = filtered.map(m => `
+          <div onclick="selectAssignMember('${m.id}','${m.name}')"
+            style="padding:10px 12px;font-size:13px;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);"
+            ontouchstart="this.style.background='var(--blue-light)'" ontouchend="this.style.background=''">
+            <span style="font-weight:600;">${m.name}</span>
+            <span style="color:var(--text-hint);font-size:11px;margin-left:6px;">${m.id}</span>
+          </div>`).join('');
+      });
+      setTimeout(() => searchInput.focus(), 100);
+    };
+
+    if (_assignMembersCache) {
+      // 캐시 있으면 즉시 사용
+      setupSearch(_assignMembersCache);
+    } else {
+      // Firebase에서 한 번만 로드 후 캐시
+      db.ref('members').once('value').then(snap => {
+        const members = [];
+        snap.forEach(child => {
+          const m = child.val();
+          if (m.role !== 'trainer' && m.role !== 'manager') {
+            members.push({ id: child.key, name: m.name || child.key });
+          }
+        });
+        setupSearch(members);
+      });
+    }
   }
 
+  function selectAssignMember(memberId, memberName) {
+    document.getElementById('assign-member-id').value = memberId;
+    document.getElementById('assign-search').value = memberName;
+    document.getElementById('assign-search-result').style.display = 'none';
+    const selectedEl = document.getElementById('assign-selected-member');
+    selectedEl.style.display = 'block';
+    selectedEl.textContent = '✅ ' + memberName + ' (' + memberId + ')';
+  }
+  window.selectAssignMember = selectAssignMember;
+
   function saveAdminAssignTrainee(trainerId, trainerName) {
-    const memberId = document.getElementById('assign-member-select').value;
+    const memberId = document.getElementById('assign-member-id').value;
+    const memberName = document.getElementById('assign-search').value.trim();
     const type = document.getElementById('assign-type').value.trim();
     const total = parseInt(document.getElementById('assign-total').value);
-    if (!memberId) { showToast('회원을 선택해주세요.', 'error'); return; }
+    if (!memberId) { showToast('회원을 검색해서 선택해주세요.', 'error'); return; }
     if (!type) { showToast('수업 종류를 입력해주세요.', 'error'); return; }
     if (!total || isNaN(total)) { showToast('총 횟수를 입력해주세요.', 'error'); return; }
 
-    db.ref('members/' + memberId + '/name').once('value').then(snap => {
-      const memberName = snap.val() || memberId;
-      db.ref('trainers/' + trainerId + '/trainees/' + memberId).set({
-        name: memberName,
-        type, total, remain: total,
-        addedAt: Date.now()
-      }).then(() => {
-        showToast(memberName + '님이 ' + trainerName + ' 강사에게 배정됐어요! 💪', 'success');
-        document.getElementById('admin-assign-modal')?.remove();
-        loadMonthlyReport();
-      });
+    db.ref('trainers/' + trainerId + '/trainees/' + memberId).set({
+      name: memberName,
+      type, total, remain: total,
+      addedAt: Date.now()
+    }).then(() => {
+      _assignMembersCache = null; // 캐시 초기화
+      showToast(memberName + '님이 ' + trainerName + ' 강사에게 배정됐어요! 💪', 'success');
+      document.getElementById('admin-assign-modal')?.remove();
+      loadMonthlyReport();
     });
   }
   window.openAdminAssignTrainee = openAdminAssignTrainee;
