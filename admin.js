@@ -655,7 +655,11 @@
             const signedCount = groupSigns.length;
             const isFull = signedCount >= reg.total;
             const status = isCurrentOrder ? (isFull ? 'done' : 'active') : (signedCount > 0 ? 'done' : 'waiting');
-            const calcRemain = Math.max(0, reg.total - signedCount);
+            // Firebase remain 우선 (현재 차수만), 이전 차수는 서명 기반 계산
+            const calcRemainBySign = Math.max(0, reg.total - signedCount);
+            const calcRemain = (isCurrentOrder && rootVal && rootVal.remain !== undefined && rootVal.remain !== null)
+              ? rootVal.remain
+              : calcRemainBySign;
             return { reg, signs: groupSigns, status, calcRemain };
           });
           while (signIdx2 < signsArr.length) signGroups[idx].signs.push(signsArr[signIdx2++]);
@@ -1811,7 +1815,11 @@
         }
         let prev = 0;
         for (let i = 0; i < idx; i++) prev += allRegs[i].total;
-        const remain = Math.max(0, allRegs[idx].total - (totalSigns - prev));
+        const calcRemain = Math.max(0, allRegs[idx].total - (totalSigns - prev));
+        // Firebase remain 우선 (관리자 수정값 반영), 없으면 서명 기반 계산
+        const remain = (info.remain !== undefined && info.remain !== null)
+          ? info.remain
+          : calcRemain;
         return { order: idx + 1, remain, type: info.type || '' };
       }
 
