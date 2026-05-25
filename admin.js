@@ -403,13 +403,14 @@
       snap.forEach(traineeSnap => {
         const traineeId = traineeSnap.key;
         const traineeInfo = traineeSnap.val();
-        const traineeName = traineeInfo.name || traineeId;
 
         const p = Promise.all([
+          db.ref('members/' + traineeId + '/name').once('value'),
           db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/signs').once('value'),
           db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/memo').once('value'),
           db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/logs').once('value')
-        ]).then(([signsSnap, memoSnap, logsSnap]) => {
+        ]).then(([memberNameSnap, signsSnap, memoSnap, logsSnap]) => {
+          const traineeName = memberNameSnap.val() || traineeInfo.name || traineeId;
           // 이번달 서명 필터
           const signs = [];
           if (signsSnap.exists()) {
@@ -1763,6 +1764,13 @@
       }
       const entries = Object.entries(data);
 
+      // 모든 담당회원 이름을 members에서 실시간으로 읽기
+      Promise.all(entries.map(([memberId]) =>
+        db.ref('members/' + memberId + '/name').once('value').then(s => ({ memberId, name: s.val() }))
+      )).then(nameResults => {
+        const nameMap = {};
+        nameResults.forEach(r => { if (r.name) nameMap[r.memberId] = r.name; });
+
       // signs 기준으로 현재 차수 + 잔여 계산 헬퍼
       function calcTraineeStatus(info) {
         const allRegs = [];
@@ -1791,6 +1799,7 @@
       }
 
       container.innerHTML = entries.map(([memberId, info]) => {
+        const realName = nameMap[memberId] || info.name || memberId;
         const status = calcTraineeStatus(info);
         const subText = status.type
           ? `${status.type} · ${status.order}차 진행중 · 잔여 ${status.remain}회`
@@ -1800,15 +1809,16 @@
           style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer;"
           ontouchstart="this.style.background='var(--blue-light)'" ontouchend="this.style.background='transparent'">
           <div style="width:40px;height:40px;border-radius:50%;background:var(--blue);color:white;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;">
-            ${(info.name || '?')[0]}
+            ${realName[0]}
           </div>
           <div style="flex:1;">
-            <div style="font-size:14px;font-weight:700;color:var(--text);">${info.name || memberId}</div>
+            <div style="font-size:14px;font-weight:700;color:var(--text);">${realName}</div>
             <div style="font-size:12px;color:var(--text-sub);">${subText}</div>
           </div>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
       `}).join('');
+      }); // Promise.all 닫기
     });
   }
 
@@ -1901,8 +1911,12 @@
     db.ref('trainers/' + trainerId + '/trainees/' + memberId).once('value', snap => {
       const info = snap.val();
       if (!info) return;
-      document.getElementById('trainee-detail-name').textContent = info.name;
-      document.getElementById('trainee-card-name').textContent = info.name;
+      // members에서 최신 이름 실시간 읽기
+      db.ref('members/' + memberId + '/name').once('value').then(nameSnap => {
+        const realName = nameSnap.val() || info.name || memberId;
+        document.getElementById('trainee-detail-name').textContent = realName;
+        document.getElementById('trainee-card-name').textContent = realName;
+      });
       document.getElementById('trainee-card-type').textContent = info.type || '수업 종류 미설정';
       // 잔여/총횟수/차수는 loadTraineeHistory가 signs 기준으로 계산해서 표시
       const progressEl = document.getElementById('trainee-card-progress');
