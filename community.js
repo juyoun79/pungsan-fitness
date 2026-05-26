@@ -723,16 +723,23 @@
       });
     };
 
-    // 관리자일 때 회원 실명 미리 캐싱 완료 후 피드 로드
-    if (isAdmin) {
-      db.ref('members').once('value', snap => {
-        window.memberCache = {};
-        snap.forEach(child => {
-          window.memberCache[child.key] = child.val().name || '';
-          if (child.val().role) localStorage.setItem('role_' + child.key, child.val().role);
-        });
+    // 관리자/강사일 때 회원 실명 미리 캐싱 완료 후 피드 로드
+    const curRole = localStorage.getItem('role_' + userId);
+    const isStaff = curRole === 'trainer' || curRole === 'manager';
+    if (isAdmin || isStaff) {
+      // memberCache가 이미 있으면 재사용, 없으면 Firebase에서 로드
+      if (window.memberCache && Object.keys(window.memberCache).length > 0) {
         startFeedListener();
-      });
+      } else {
+        db.ref('members').once('value', snap => {
+          window.memberCache = {};
+          snap.forEach(child => {
+            window.memberCache[child.key] = child.val().name || '';
+            if (child.val().role) localStorage.setItem('role_' + child.key, child.val().role);
+          });
+          startFeedListener();
+        });
+      }
     } else {
       startFeedListener();
     }
