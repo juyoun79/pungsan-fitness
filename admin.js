@@ -118,6 +118,10 @@
     document.getElementById('trainer-modal-phone').value = '';
     document.getElementById('trainer-modal-pw').value = '';
     document.getElementById('trainer-modal-phone-wrap').style.display = 'block';
+    document.getElementById('trainer-modal-phone-notice').style.display = 'none';
+    document.getElementById('trainer-modal-nickname-wrap').style.display = 'none';
+    document.getElementById('trainer-modal-birth-wrap').style.display = 'none';
+    document.getElementById('trainer-pw-hint').textContent = '(미입력 시 전화번호 뒤 4자리)';
     document.getElementById('trainer-modal-delete-btn').style.display = 'none';
     document.getElementById('trainer-modal').style.display = 'flex';
   }
@@ -129,7 +133,21 @@
     document.getElementById('trainer-modal-phone').value = id;
     document.getElementById('trainer-modal-pw').value = '';
     document.getElementById('trainer-modal-phone-wrap').style.display = 'none';
+    document.getElementById('trainer-modal-phone-notice').style.display = 'block';
+    document.getElementById('trainer-modal-nickname-wrap').style.display = 'block';
+    document.getElementById('trainer-modal-birth-wrap').style.display = 'block';
+    document.getElementById('trainer-pw-hint').textContent = '(입력 시 비밀번호 초기화)';
     document.getElementById('trainer-modal-delete-btn').style.display = 'block';
+    // 닉네임/생년월일 Firebase에서 불러오기
+    const nickEl = document.getElementById('trainer-modal-nickname');
+    const birthEl = document.getElementById('trainer-modal-birth');
+    if (nickEl) nickEl.value = '';
+    if (birthEl) birthEl.value = '';
+    db.ref('users/' + id).once('value').then(snap => {
+      const data = snap.val() || {};
+      if (nickEl) nickEl.value = data.nickname || '';
+      if (birthEl) birthEl.value = data.birth || '';
+    });
     document.getElementById('trainer-modal').style.display = 'flex';
   }
 
@@ -144,11 +162,18 @@
 
     if (editTrainerId) {
       // 수정
-      const pw = document.getElementById('trainer-modal-pw').value.trim();
-      const updates = { name };
+      const pw       = document.getElementById('trainer-modal-pw').value.trim();
+      const nickname = (document.getElementById('trainer-modal-nickname')?.value || '').trim();
+      const birth    = (document.getElementById('trainer-modal-birth')?.value || '').trim();
+      if (birth && (birth.length !== 8 || isNaN(birth))) {
+        showToast('생년월일은 8자리 숫자로 입력해주세요.', 'error'); return;
+      }
+      const updateData = pw ? { name, pw: hashPw(pw) } : { name };
+      if (nickname) updateData.nickname = nickname;
+      if (birth)    updateData.birth    = birth;
       db.ref('trainers/' + editTrainerId).update({ name });
-      db.ref('users/' + editTrainerId).update(pw ? { name, pw: hashPw(pw) } : { name }).then(() => {
-        showToast('수정됐어요!', 'success');
+      db.ref('users/' + editTrainerId).update(updateData).then(() => {
+        showToast('✅ 수정됐어요!', 'success');
         closeTrainerModal();
         loadAdminTrainerList();
       });

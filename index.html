@@ -4720,30 +4720,61 @@
     </div>
   </div>
 
-  <div id="trainer-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:2000;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;">
-    <div style="background:var(--card);border-radius:var(--radius);padding:20px;width:100%;max-width:400px;">
+  <div id="trainer-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:2000;align-items:flex-start;justify-content:center;padding:16px;box-sizing:border-box;overflow-y:auto;">
+    <div style="background:var(--card);border-radius:var(--radius);padding:20px;width:100%;max-width:400px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
         <div id="trainer-modal-title" style="font-size:15px;font-weight:700;color:var(--text);">👨‍🏫 강사 추가</div>
         <button onclick="closeTrainerModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-hint);">×</button>
       </div>
+
+      <!-- 이름 -->
       <div style="margin-bottom:12px;">
-        <label style="font-size:13px;font-weight:700;color:var(--text);display:block;margin-bottom:6px;">이름</label>
+        <label class="field-label">이름</label>
         <input type="text" id="trainer-modal-name" placeholder="강사 이름"
-          style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
+          style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);margin-top:6px;"
           onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"/>
       </div>
+
+      <!-- 닉네임 (수정 시에만 표시) -->
+      <div style="margin-bottom:12px;" id="trainer-modal-nickname-wrap">
+        <label class="field-label">닉네임</label>
+        <input type="text" id="trainer-modal-nickname" placeholder="닉네임"
+          style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);margin-top:6px;"
+          onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"/>
+      </div>
+
+      <!-- 생년월일 (수정 시에만 표시) -->
+      <div style="margin-bottom:12px;" id="trainer-modal-birth-wrap">
+        <label class="field-label">생년월일</label>
+        <input type="text" inputmode="numeric" id="trainer-modal-birth" placeholder="예) 19900101" maxlength="8"
+          style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);margin-top:6px;"
+          onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"/>
+        <div style="font-size:11px;color:var(--text-hint);margin-top:4px;">8자리 입력 (예: 19900101)</div>
+      </div>
+
+      <!-- 전화번호 (추가 시에만 표시) -->
       <div style="margin-bottom:12px;" id="trainer-modal-phone-wrap">
-        <label style="font-size:13px;font-weight:700;color:var(--text);display:block;margin-bottom:6px;">전화번호 (아이디)</label>
+        <label class="field-label">전화번호 (아이디)</label>
         <input type="tel" id="trainer-modal-phone" placeholder="01012345678" maxlength="11"
-          style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
+          style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);margin-top:6px;"
           onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"/>
       </div>
+
+      <!-- 전화번호 변경 안내 (수정 시에만 표시) -->
+      <div style="margin-bottom:12px;padding:10px 12px;background:#FFF8E1;border-radius:8px;border:1px solid #FFD54F;" id="trainer-modal-phone-notice">
+        <div style="font-size:12px;color:#795548;font-weight:600;">📌 전화번호 변경이 필요한 경우</div>
+        <div style="font-size:11px;color:#8D6E63;margin-top:3px;">기존 강사 삭제 후 새 번호로 재등록해 주세요.<br>기존 수업 기록은 유지되지 않아요.</div>
+      </div>
+
+      <!-- 비밀번호 -->
       <div style="margin-bottom:16px;">
-        <label style="font-size:13px;font-weight:700;color:var(--text);display:block;margin-bottom:6px;">비밀번호 <span style="font-size:11px;color:var(--text-hint);">(미입력 시 전화번호 뒤 4자리)</span></label>
+        <label class="field-label">비밀번호 <span style="font-size:11px;color:var(--text-hint);" id="trainer-pw-hint">(미입력 시 전화번호 뒤 4자리)</span></label>
         <input type="text" id="trainer-modal-pw" placeholder="비밀번호"
-          style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
+          style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);margin-top:6px;"
           onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"/>
+        <div style="font-size:11px;color:var(--text-hint);margin-top:4px;" id="trainer-pw-notice" style="display:none;">입력 시 비밀번호가 초기화돼요</div>
       </div>
+
       <button onclick="saveTrainer()" style="width:100%;padding:13px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;">💾 저장</button>
       <button id="trainer-modal-delete-btn" onclick="deleteTrainer()" style="display:none;width:100%;padding:13px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑 강사 삭제</button>
     </div>
