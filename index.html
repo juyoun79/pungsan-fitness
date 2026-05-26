@@ -3023,12 +3023,17 @@
         <div id="ex-guide-list" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;"></div>
         <p style="font-size:11px;color:var(--text-hint);text-align:center;margin-top:12px;">이미지 없는 운동은 추후 업데이트 예정</p>
       </div>
-      <div id="ex-guide-step3" style="display:none;padding:16px;">
-        <div id="ex-guide-img-wrap" style="border-radius:12px;margin-bottom:8px;border:1px solid var(--border);overflow:hidden;touch-action:none;cursor:grab;">
-          <img id="ex-guide-img" src="" style="width:100%;display:block;height:auto;transform-origin:0 0;transform:scale(1) translate(0px,0px);transition:none;pointer-events:none;" alt="운동 가이드" />
+      <div id="ex-guide-step3" style="display:none;padding:0 0 80px 0;">
+        <div style="padding:16px 16px 8px;">
+          <div id="ex-guide-img-wrap" style="border-radius:12px;margin-bottom:8px;border:1px solid var(--border);overflow:hidden;touch-action:pan-y;cursor:grab;">
+            <img id="ex-guide-img" src="" style="width:100%;display:block;height:auto;transform-origin:0 0;transform:scale(1) translate(0px,0px);transition:none;pointer-events:none;" alt="운동 가이드" />
+          </div>
+          <p style="font-size:11px;color:var(--text-hint);text-align:center;margin:0;">🔍 두 손가락으로 확대/축소할 수 있어요</p>
         </div>
-        <p style="font-size:11px;color:var(--text-hint);text-align:center;margin:0 0 12px;">🔍 두 손가락으로 확대/축소할 수 있어요</p>
-        <button onclick="selectExerciseFromGuide()" style="width:100%;padding:13px;background:#3b6d11;border:none;border-radius:10px;color:white;font-size:15px;font-weight:700;cursor:pointer;">✓ 이 운동 선택</button>
+        <!-- 이 운동 선택 버튼: 하단 고정 -->
+        <div style="position:sticky;bottom:0;left:0;right:0;padding:12px 16px;background:var(--bg);border-top:1px solid var(--border);">
+          <button onclick="selectExerciseFromGuide()" style="width:100%;padding:13px;background:#3b6d11;border:none;border-radius:10px;color:white;font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✓ 이 운동 선택</button>
+        </div>
       </div>
     </div>
   </div>
@@ -4999,10 +5004,11 @@ function initPinchZoom() {
   wrap.addEventListener('touchstart', e => {
     _pzTouches = Array.from(e.touches);
     if (_pzTouches.length === 2) {
+      // 핀치: 스크롤 막기
       e.preventDefault();
       _pzLastDist = getDist(_pzTouches);
     } else if (_pzTouches.length === 1 && _pzScale > 1) {
-      e.preventDefault();
+      // 확대된 상태에서 1손가락 패닝
       _dragging = true;
       _lastX = _pzTouches[0].clientX;
       _lastY = _pzTouches[0].clientY;
@@ -5012,6 +5018,7 @@ function initPinchZoom() {
   wrap.addEventListener('touchmove', e => {
     _pzTouches = Array.from(e.touches);
     if (_pzTouches.length === 2) {
+      // 핀치줌: 스크롤 막고 확대/축소
       e.preventDefault();
       const dist = getDist(_pzTouches);
       const delta = dist / _pzLastDist;
@@ -5019,6 +5026,7 @@ function initPinchZoom() {
       _pzLastDist = dist;
       applyTransform();
     } else if (_pzTouches.length === 1 && _dragging) {
+      // 확대된 상태에서 패닝 (세로 이동도 허용)
       e.preventDefault();
       _pzX += _pzTouches[0].clientX - _lastX;
       _pzY += _pzTouches[0].clientY - _lastY;
@@ -5026,12 +5034,12 @@ function initPinchZoom() {
       _lastY = _pzTouches[0].clientY;
       applyTransform();
     }
+    // 1손가락 + scale==1 이면 기본 세로 스크롤 허용 (preventDefault 안 함)
   }, { passive: false });
 
   wrap.addEventListener('touchend', e => {
     _pzTouches = Array.from(e.touches);
     _dragging = false;
-    // 더블탭 시 원래 크기로
     if (_pzScale <= 1) { _pzScale = 1; _pzX = 0; _pzY = 0; applyTransform(); }
   });
 
