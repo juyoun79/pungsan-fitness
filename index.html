@@ -3023,17 +3023,12 @@
         <div id="ex-guide-list" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;"></div>
         <p style="font-size:11px;color:var(--text-hint);text-align:center;margin-top:12px;">이미지 없는 운동은 추후 업데이트 예정</p>
       </div>
-      <div id="ex-guide-step3" style="display:none;padding:0 0 80px 0;">
-        <div style="padding:16px 16px 8px;">
-          <div id="ex-guide-img-wrap" style="border-radius:12px;margin-bottom:8px;border:1px solid var(--border);overflow:hidden;touch-action:pan-y;cursor:grab;">
-            <img id="ex-guide-img" src="" style="width:100%;display:block;height:auto;transform-origin:0 0;transform:scale(1) translate(0px,0px);transition:none;pointer-events:none;" alt="운동 가이드" />
-          </div>
-          <p style="font-size:11px;color:var(--text-hint);text-align:center;margin:0;">🔍 두 손가락으로 확대/축소할 수 있어요</p>
+      <div id="ex-guide-step3" style="display:none;padding:16px;">
+        <div id="ex-guide-img-wrap" style="border-radius:12px;margin-bottom:8px;border:1px solid var(--border);overflow:visible;touch-action:pan-y;">
+          <img id="ex-guide-img" src="" style="width:100%;display:block;height:auto;border-radius:12px;transform-origin:top left;transform:scale(1);transition:none;" alt="운동 가이드" />
         </div>
-        <!-- 이 운동 선택 버튼: 하단 고정 -->
-        <div style="position:sticky;bottom:0;left:0;right:0;padding:12px 16px;background:var(--bg);border-top:1px solid var(--border);">
-          <button onclick="selectExerciseFromGuide()" style="width:100%;padding:13px;background:#3b6d11;border:none;border-radius:10px;color:white;font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✓ 이 운동 선택</button>
-        </div>
+        <p style="font-size:11px;color:var(--text-hint);text-align:center;margin:0 0 12px;">💡 화면을 두 번 탭하면 확대/축소할 수 있어요</p>
+        <button onclick="selectExerciseFromGuide()" style="width:100%;padding:13px;background:#3b6d11;border:none;border-radius:10px;color:white;font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✓ 이 운동 선택</button>
       </div>
     </div>
   </div>
@@ -4912,10 +4907,12 @@ function openExGuide() {
 
 function closeExGuide() {
   document.getElementById('ex-guide-modal').style.display = 'none';
-  // 핀치줌 초기화
-  _pzScale = 1; _pzX = 0; _pzY = 0; _pzInited = false;
+  // 더블탭 줌 초기화
+  _pzScale = 1; _pzInited = false;
   const img = document.getElementById('ex-guide-img');
-  if (img) img.style.transform = 'scale(1) translate(0px,0px)';
+  if (img) img.style.transform = 'scale(1)';
+  const wrapEl = document.getElementById('ex-guide-img-wrap');
+  if (wrapEl) wrapEl.style.height = 'auto';
 }
 
 function exGuideBack() {
@@ -4967,93 +4964,41 @@ function showExDetail(name, img) {
   const imgEl = document.getElementById('ex-guide-img');
   imgEl.src = img;
   // 이미지 열릴 때 줌 초기화
-  imgEl.style.transform = 'scale(1) translate(0px, 0px)';
-  _pzScale = 1; _pzX = 0; _pzY = 0;
+  imgEl.style.transform = 'scale(1)';
+  const wrap = document.getElementById('ex-guide-img-wrap');
+  if (wrap) wrap.style.height = 'auto';
+  _pzScale = 1; _pzInited = false;
   initPinchZoom();
 }
 
-// ── 핀치 줌 구현 ──
-let _pzScale = 1, _pzX = 0, _pzY = 0;
-let _pzLastDist = 0, _pzTouches = [];
+// ── 더블탭 확대/축소 ──
+let _pzScale = 1;
 let _pzInited = false;
 
 function initPinchZoom() {
   const wrap = document.getElementById('ex-guide-img-wrap');
   const img  = document.getElementById('ex-guide-img');
-  if (!wrap || _pzInited) return;
+  if (!wrap || !img || _pzInited) return;
   _pzInited = true;
 
-  function getDist(t) {
-    const dx = t[0].clientX - t[1].clientX;
-    const dy = t[0].clientY - t[1].clientY;
-    return Math.sqrt(dx*dx + dy*dy);
-  }
-  function getMid(t) {
-    return { x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 };
-  }
   function applyTransform() {
-    const maxX = Math.max(0, (img.offsetWidth * _pzScale - wrap.offsetWidth) / 2 + 20);
-    const maxY = Math.max(0, (img.offsetHeight * _pzScale - wrap.offsetHeight) / 2 + 20);
-    _pzX = Math.min(maxX, Math.max(-maxX, _pzX));
-    _pzY = Math.min(maxY, Math.max(-maxY, _pzY));
-    img.style.transform = 'scale(' + _pzScale + ') translate(' + (_pzX / _pzScale) + 'px,' + (_pzY / _pzScale) + 'px)';
+    img.style.transform = 'scale(' + _pzScale + ')';
+    img.style.transformOrigin = 'top left';
+    // 확대 시 이미지 높이만큼 공간 확보
+    wrap.style.height = (_pzScale > 1) ? (img.naturalHeight > 0 ? img.offsetHeight * _pzScale + 'px' : 'auto') : 'auto';
   }
 
-  let _lastX = 0, _lastY = 0, _dragging = false;
-
-  wrap.addEventListener('touchstart', e => {
-    _pzTouches = Array.from(e.touches);
-    if (_pzTouches.length === 2) {
-      // 핀치: 스크롤 막기
-      e.preventDefault();
-      _pzLastDist = getDist(_pzTouches);
-    } else if (_pzTouches.length === 1 && _pzScale > 1) {
-      // 확대된 상태에서 1손가락 패닝
-      _dragging = true;
-      _lastX = _pzTouches[0].clientX;
-      _lastY = _pzTouches[0].clientY;
-    }
-  }, { passive: false });
-
-  wrap.addEventListener('touchmove', e => {
-    _pzTouches = Array.from(e.touches);
-    if (_pzTouches.length === 2) {
-      // 핀치줌: 스크롤 막고 확대/축소
-      e.preventDefault();
-      const dist = getDist(_pzTouches);
-      const delta = dist / _pzLastDist;
-      _pzScale = Math.min(5, Math.max(1, _pzScale * delta));
-      _pzLastDist = dist;
-      applyTransform();
-    } else if (_pzTouches.length === 1 && _dragging) {
-      // 확대된 상태에서 패닝 (세로 이동도 허용)
-      e.preventDefault();
-      _pzX += _pzTouches[0].clientX - _lastX;
-      _pzY += _pzTouches[0].clientY - _lastY;
-      _lastX = _pzTouches[0].clientX;
-      _lastY = _pzTouches[0].clientY;
-      applyTransform();
-    }
-    // 1손가락 + scale==1 이면 기본 세로 스크롤 허용 (preventDefault 안 함)
-  }, { passive: false });
-
-  wrap.addEventListener('touchend', e => {
-    _pzTouches = Array.from(e.touches);
-    _dragging = false;
-    if (_pzScale <= 1) { _pzScale = 1; _pzX = 0; _pzY = 0; applyTransform(); }
-  });
-
-  // 더블탭 원래 크기로 복귀
+  // 더블탭 감지
   let _lastTap = 0;
   wrap.addEventListener('touchend', e => {
     const now = Date.now();
     if (now - _lastTap < 300) {
-      if (_pzScale > 1) { _pzScale = 1; _pzX = 0; _pzY = 0; }
-      else { _pzScale = 2; }
+      e.preventDefault();
+      _pzScale = _pzScale > 1 ? 1 : 2;
       applyTransform();
     }
     _lastTap = now;
-  });
+  }, { passive: false });
 }
 
 function selectExerciseFromGuide() {
