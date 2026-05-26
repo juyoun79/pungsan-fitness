@@ -3024,9 +3024,10 @@
         <p style="font-size:11px;color:var(--text-hint);text-align:center;margin-top:12px;">이미지 없는 운동은 추후 업데이트 예정</p>
       </div>
       <div id="ex-guide-step3" style="display:none;padding:16px;">
-        <div style="border-radius:12px;margin-bottom:16px;border:1px solid var(--border);overflow:hidden;">
-          <img id="ex-guide-img" src="" style="width:100%;display:block;height:auto;" alt="운동 가이드" />
+        <div id="ex-guide-img-wrap" style="border-radius:12px;margin-bottom:8px;border:1px solid var(--border);overflow:hidden;touch-action:none;cursor:grab;">
+          <img id="ex-guide-img" src="" style="width:100%;display:block;height:auto;transform-origin:0 0;transform:scale(1) translate(0px,0px);transition:none;pointer-events:none;" alt="운동 가이드" />
         </div>
+        <p style="font-size:11px;color:var(--text-hint);text-align:center;margin:0 0 12px;">🔍 두 손가락으로 확대/축소할 수 있어요</p>
         <button onclick="selectExerciseFromGuide()" style="width:100%;padding:13px;background:#3b6d11;border:none;border-radius:10px;color:white;font-size:15px;font-weight:700;cursor:pointer;">✓ 이 운동 선택</button>
       </div>
     </div>
@@ -4906,6 +4907,10 @@ function openExGuide() {
 
 function closeExGuide() {
   document.getElementById('ex-guide-modal').style.display = 'none';
+  // 핀치줌 초기화
+  _pzScale = 1; _pzX = 0; _pzY = 0; _pzInited = false;
+  const img = document.getElementById('ex-guide-img');
+  if (img) img.style.transform = 'scale(1) translate(0px,0px)';
 }
 
 function exGuideBack() {
@@ -4954,7 +4959,93 @@ function showExDetail(name, img) {
   document.getElementById('ex-guide-title').textContent = name;
   document.getElementById('ex-guide-step2').style.display = 'none';
   document.getElementById('ex-guide-step3').style.display = 'block';
-  document.getElementById('ex-guide-img').src = img;
+  const imgEl = document.getElementById('ex-guide-img');
+  imgEl.src = img;
+  // 이미지 열릴 때 줌 초기화
+  imgEl.style.transform = 'scale(1) translate(0px, 0px)';
+  _pzScale = 1; _pzX = 0; _pzY = 0;
+  initPinchZoom();
+}
+
+// ── 핀치 줌 구현 ──
+let _pzScale = 1, _pzX = 0, _pzY = 0;
+let _pzLastDist = 0, _pzTouches = [];
+let _pzInited = false;
+
+function initPinchZoom() {
+  const wrap = document.getElementById('ex-guide-img-wrap');
+  const img  = document.getElementById('ex-guide-img');
+  if (!wrap || _pzInited) return;
+  _pzInited = true;
+
+  function getDist(t) {
+    const dx = t[0].clientX - t[1].clientX;
+    const dy = t[0].clientY - t[1].clientY;
+    return Math.sqrt(dx*dx + dy*dy);
+  }
+  function getMid(t) {
+    return { x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 };
+  }
+  function applyTransform() {
+    const maxX = Math.max(0, (img.offsetWidth * _pzScale - wrap.offsetWidth) / 2 + 20);
+    const maxY = Math.max(0, (img.offsetHeight * _pzScale - wrap.offsetHeight) / 2 + 20);
+    _pzX = Math.min(maxX, Math.max(-maxX, _pzX));
+    _pzY = Math.min(maxY, Math.max(-maxY, _pzY));
+    img.style.transform = 'scale(' + _pzScale + ') translate(' + (_pzX / _pzScale) + 'px,' + (_pzY / _pzScale) + 'px)';
+  }
+
+  let _lastX = 0, _lastY = 0, _dragging = false;
+
+  wrap.addEventListener('touchstart', e => {
+    _pzTouches = Array.from(e.touches);
+    if (_pzTouches.length === 2) {
+      e.preventDefault();
+      _pzLastDist = getDist(_pzTouches);
+    } else if (_pzTouches.length === 1 && _pzScale > 1) {
+      e.preventDefault();
+      _dragging = true;
+      _lastX = _pzTouches[0].clientX;
+      _lastY = _pzTouches[0].clientY;
+    }
+  }, { passive: false });
+
+  wrap.addEventListener('touchmove', e => {
+    _pzTouches = Array.from(e.touches);
+    if (_pzTouches.length === 2) {
+      e.preventDefault();
+      const dist = getDist(_pzTouches);
+      const delta = dist / _pzLastDist;
+      _pzScale = Math.min(5, Math.max(1, _pzScale * delta));
+      _pzLastDist = dist;
+      applyTransform();
+    } else if (_pzTouches.length === 1 && _dragging) {
+      e.preventDefault();
+      _pzX += _pzTouches[0].clientX - _lastX;
+      _pzY += _pzTouches[0].clientY - _lastY;
+      _lastX = _pzTouches[0].clientX;
+      _lastY = _pzTouches[0].clientY;
+      applyTransform();
+    }
+  }, { passive: false });
+
+  wrap.addEventListener('touchend', e => {
+    _pzTouches = Array.from(e.touches);
+    _dragging = false;
+    // 더블탭 시 원래 크기로
+    if (_pzScale <= 1) { _pzScale = 1; _pzX = 0; _pzY = 0; applyTransform(); }
+  });
+
+  // 더블탭 원래 크기로 복귀
+  let _lastTap = 0;
+  wrap.addEventListener('touchend', e => {
+    const now = Date.now();
+    if (now - _lastTap < 300) {
+      if (_pzScale > 1) { _pzScale = 1; _pzX = 0; _pzY = 0; }
+      else { _pzScale = 2; }
+      applyTransform();
+    }
+    _lastTap = now;
+  });
 }
 
 function selectExerciseFromGuide() {
