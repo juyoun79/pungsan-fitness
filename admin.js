@@ -2528,16 +2528,17 @@
 
       db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId + '/signs/' + dateStr + '_' + Date.now()).set(signData)
       .then(() => {
-        // remain 차감 (강사 목록 카드 표시용)
+        // remain 차감 후 카드 즉시 업데이트
         const ref2 = db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId);
         ref2.once('value', snap => {
           const info = snap.val();
-          if (info && (info.remain || 0) > 0) ref2.update({ remain: (info.remain || 0) - 1 });
+          const newRemain = (info && (info.remain || 0) > 0) ? (info.remain || 0) - 1 : 0;
+          ref2.update({ remain: newRemain }).then(() => {
+            refreshTraineeView(signTargetMemberId);
+          });
         });
         closeSignModal();
         showToast('당일취소 처리됐어요!', 'success');
-        // 카드 + 서명탭 동시 업데이트
-        refreshTraineeView(signTargetMemberId);
       });
     });
   }
@@ -2576,17 +2577,24 @@
           savedAt
         });
 
-        // remain 차감 (강사 목록 카드 표시용)
+        // remain 차감 후 카드 즉시 업데이트
         const ref2 = db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId);
         ref2.once('value', snap => {
           const info = snap.val();
-          if (info && (info.remain || 0) > 0) ref2.update({ remain: (info.remain || 0) - 1 });
+          const newRemain = (info && (info.remain || 0) > 0) ? (info.remain || 0) - 1 : 0;
+          ref2.update({ remain: newRemain }).then(() => {
+            // remain 저장 완료 후 카드 업데이트 (최신값 반영 보장)
+            refreshTraineeView(signTargetMemberId);
+          });
         });
 
         closeSignModal();
         showToast('✅ 서명 완료! 출석 체크됐어요.', 'success');
-        // 카드 + 서명탭 동시 업데이트 (Firebase 한 번만 읽기)
-        refreshTraineeView(signTargetMemberId);
+        // 관리자 모드 열려있으면 월별 리포트도 갱신
+        const adminRptSection = document.getElementById('tab-trainer-admin');
+        if (adminRptSection && adminRptSection.classList.contains('active')) {
+          setTimeout(() => loadMonthlyReport(), 500);
+        }
       } catch(e) {
         console.error('사인 저장 오류:', e);
         showToast('저장 중 오류가 발생했어요.', 'error');
