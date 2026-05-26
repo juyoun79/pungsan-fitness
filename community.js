@@ -673,15 +673,13 @@
     // 작성자 필터
     if (communityAuthorFilter) posts = posts.filter(p => p.authorId === communityAuthorFilter);
 
-    // 검색 필터 (마스킹된 이름으로 비교)
+    // 검색 필터 (원본 닉네임으로 비교)
     if (communitySearchQuery) {
       const q = communitySearchQuery.toLowerCase();
-      const isAdmin = localStorage.getItem('current_user') === ADMIN_ID;
-      posts = posts.filter(p => {
-        const maskedName = maskName(p.nickname || '', isAdmin).toLowerCase();
-        return maskedName.includes(q) ||
-               (p.content || '').toLowerCase().includes(q);
-      });
+      posts = posts.filter(p =>
+        (p.nickname || '').toLowerCase().includes(q) ||
+        (p.content || '').toLowerCase().includes(q)
+      );
     }
 
     if (posts.length === 0) {
