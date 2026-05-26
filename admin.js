@@ -136,7 +136,7 @@
     document.getElementById('trainer-modal-phone-notice').style.display = 'block';
     document.getElementById('trainer-modal-nickname-wrap').style.display = 'block';
     document.getElementById('trainer-modal-birth-wrap').style.display = 'block';
-    document.getElementById('trainer-pw-hint').textContent = '(입력 시 비밀번호 초기화)';
+    document.getElementById('trainer-pw-hint').textContent = '(새 비밀번호 입력 · 빈칸이면 유지)';
     document.getElementById('trainer-modal-delete-btn').style.display = 'block';
     // 닉네임/생년월일 Firebase에서 불러오기
     const nickEl = document.getElementById('trainer-modal-nickname');
