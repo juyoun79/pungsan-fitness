@@ -3024,10 +3024,12 @@
         <p style="font-size:11px;color:var(--text-hint);text-align:center;margin-top:12px;">이미지 없는 운동은 추후 업데이트 예정</p>
       </div>
       <div id="ex-guide-step3" style="display:none;padding:16px;">
-        <div id="ex-guide-img-wrap" style="border-radius:12px;margin-bottom:8px;border:1px solid var(--border);overflow:visible;touch-action:pan-y;">
-          <img id="ex-guide-img" src="" style="width:100%;display:block;height:auto;border-radius:12px;transform-origin:top left;transform:scale(1);transition:none;" alt="운동 가이드" />
+        <div id="ex-guide-img-wrap" style="border-radius:12px;margin-bottom:8px;border:1px solid var(--border);overflow:auto;-webkit-overflow-scrolling:touch;">
+          <img id="ex-guide-img" src="" style="width:100%;display:block;height:auto;border-radius:12px;transition:width 0.2s;" alt="운동 가이드" />
         </div>
-        <p style="font-size:11px;color:var(--text-hint);text-align:center;margin:0 0 12px;">💡 화면을 두 번 탭하면 확대/축소할 수 있어요</p>
+        <div style="background:#1a6fd4;border-radius:8px;padding:10px 14px;margin-bottom:12px;text-align:center;">
+          <span style="font-size:13px;font-weight:700;color:white;">💡 화면을 두 번 탭하면 확대/축소할 수 있어요</span>
+        </div>
         <button onclick="selectExerciseFromGuide()" style="width:100%;padding:13px;background:#3b6d11;border:none;border-radius:10px;color:white;font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✓ 이 운동 선택</button>
       </div>
     </div>
@@ -4910,9 +4912,9 @@ function closeExGuide() {
   // 더블탭 줌 초기화
   _pzScale = 1; _pzInited = false;
   const img = document.getElementById('ex-guide-img');
-  if (img) img.style.transform = 'scale(1)';
+  if (img) { img.style.width = '100%'; img.style.transform = 'none'; }
   const wrapEl = document.getElementById('ex-guide-img-wrap');
-  if (wrapEl) wrapEl.style.height = 'auto';
+  if (wrapEl) { wrapEl.scrollLeft = 0; wrapEl.scrollTop = 0; }
 }
 
 function exGuideBack() {
@@ -4964,9 +4966,10 @@ function showExDetail(name, img) {
   const imgEl = document.getElementById('ex-guide-img');
   imgEl.src = img;
   // 이미지 열릴 때 줌 초기화
-  imgEl.style.transform = 'scale(1)';
+  imgEl.style.width = '100%';
+  imgEl.style.transform = 'none';
   const wrap = document.getElementById('ex-guide-img-wrap');
-  if (wrap) wrap.style.height = 'auto';
+  if (wrap) { wrap.scrollLeft = 0; wrap.scrollTop = 0; }
   _pzScale = 1; _pzInited = false;
   initPinchZoom();
 }
@@ -4981,11 +4984,19 @@ function initPinchZoom() {
   if (!wrap || !img || _pzInited) return;
   _pzInited = true;
 
-  function applyTransform() {
-    img.style.transform = 'scale(' + _pzScale + ')';
-    img.style.transformOrigin = 'top left';
-    // 확대 시 이미지 높이만큼 공간 확보
-    wrap.style.height = (_pzScale > 1) ? (img.naturalHeight > 0 ? img.offsetHeight * _pzScale + 'px' : 'auto') : 'auto';
+  function applyZoom() {
+    if (_pzScale > 1) {
+      // 확대: width 200%로 가로세로 스크롤 가능
+      img.style.width = '200%';
+      img.style.transform = 'none';
+    } else {
+      // 원래 크기
+      img.style.width = '100%';
+      img.style.transform = 'none';
+      // 스크롤 위치 초기화
+      wrap.scrollLeft = 0;
+      wrap.scrollTop = 0;
+    }
   }
 
   // 더블탭 감지
@@ -4995,7 +5006,7 @@ function initPinchZoom() {
     if (now - _lastTap < 300) {
       e.preventDefault();
       _pzScale = _pzScale > 1 ? 1 : 2;
-      applyTransform();
+      applyZoom();
     }
     _lastTap = now;
   }, { passive: false });
