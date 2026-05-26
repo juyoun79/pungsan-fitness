@@ -29,6 +29,11 @@
     if (tabId === 'tab-coupon') loadMemberSelectOptions();
     if (tabId === 'coupon-auto') loadAutoConditions();
     if (tabId === 'tab-equipment-admin') loadAdminEquipmentList();
+    // 강사관리 탭 벗어날 때 월별 리포트 리스너 해제
+    if (tabId !== 'tab-trainer-admin' && _monthlyReportListener && _monthlyReportTrainerId) {
+      db.ref('trainers/' + _monthlyReportTrainerId + '/trainees').off('value', _monthlyReportListener);
+      _monthlyReportListener = null;
+    }
   }
 
   // ── 관리자 강사 목록 관리 ──
@@ -370,6 +375,10 @@
       adminTrainerList.map(t => '<option value="' + t.id + '">' + t.name + '</option>').join('');
   }
 
+  // 월별 리포트 실시간 리스너 관리
+  let _monthlyReportListener = null;
+  let _monthlyReportTrainerId = null;
+
   function loadMonthlyReport() {
     const sel = document.getElementById('report-trainer-select');
     const trainerId = sel ? sel.value : '';
@@ -378,6 +387,11 @@
     if (!trainerId) {
       summaryEl.innerHTML = '';
       membersEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">강사를 선택해주세요</div>';
+      // 기존 리스너 해제
+      if (_monthlyReportListener && _monthlyReportTrainerId) {
+        db.ref('trainers/' + _monthlyReportTrainerId + '/trainees').off('value', _monthlyReportListener);
+        _monthlyReportListener = null;
+      }
       return;
     }
     summaryEl.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text-hint);font-size:13px;grid-column:span 3;">불러오는 중...</div>';
@@ -392,7 +406,12 @@
       return dateStr.startsWith(monthStrLong) || dateStr.startsWith(monthStrShort);
     }
 
-    db.ref('trainers/' + trainerId + '/trainees').once('value', snap => {
+    // 기존 리스너 해제 후 새 리스너 등록
+    if (_monthlyReportListener && _monthlyReportTrainerId) {
+      db.ref('trainers/' + _monthlyReportTrainerId + '/trainees').off('value', _monthlyReportListener);
+    }
+    _monthlyReportTrainerId = trainerId;
+    _monthlyReportListener = db.ref('trainers/' + trainerId + '/trainees').on('value', snap => {
       if (!snap.exists()) {
         summaryEl.innerHTML = '';
         membersEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">담당 회원이 없어요</div>';
