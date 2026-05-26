@@ -772,10 +772,13 @@
     const isAdminOrStaff = isAdmin || curRole === 'trainer' || curRole === 'manager';
     // 관리자 실명 표시 - memberCache 또는 localStorage에서 읽기
     const realNameStr = (window.memberCache && window.memberCache[post.authorId]) || localStorage.getItem('name_' + post.authorId) || '';
-    const realNameDisplay = isAdmin && realNameStr && realNameStr !== post.nickname
-      ? ` <span style="font-size:11px;color:var(--text-hint);">${realNameStr}${isAuthorStaff ? ' [직원]' : ''}</span>`
-      : isAdmin && isAuthorStaff && realNameStr
-      ? ` <span style="font-size:11px;color:var(--text-hint);">[직원]</span>`
+    // 강사/관리자: 실명(뒤4자리) 항상 표시
+    const last4 = post.authorId ? post.authorId.slice(-4) : '';
+    const staffBadge = isAuthorStaff ? ' <span style="font-size:10px;color:var(--blue);">[직원]</span>' : '';
+    const realNameDisplay = isAdminOrStaff && realNameStr
+      ? ` <span style="font-size:11px;font-weight:600;color:var(--text-sub);">${escapeHtml(realNameStr)}(${last4})${staffBadge}</span>`
+      : isAdminOrStaff
+      ? ` <span style="font-size:11px;color:var(--text-hint);">(${last4})</span>`
       : '';
     return `
       <div class="feed-card">
@@ -783,7 +786,7 @@
           <div class="feed-avatar">${escapeHtml((post.nickname||'?')[0])}</div>
           <div style="flex:1;">
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-              <span class="feed-nickname" onclick="${isAdminOrStaff ? `showAuthorInfo('${post.authorId}')` : `filterByAuthor('${post.authorId}','${(post.nickname||'').replace(/'/g,"\\'")}' )`}"
+              <span class="feed-nickname" onclick="filterByAuthor('${post.authorId}','${(post.nickname||'').replace(/'/g,"\\'")}')" 
                 style="cursor:pointer;text-decoration:underline;text-decoration-color:transparent;transition:text-decoration-color 0.15s;"
                 onmouseenter="this.style.textDecorationColor='var(--blue)'"
                 onmouseleave="this.style.textDecorationColor='transparent'">${escapeHtml(post.nickname || '회원')}</span>
