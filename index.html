@@ -2782,27 +2782,33 @@
 
       <!-- 회원 정보 카드 -->
       <div id="trainee-info-card" style="background:var(--blue);border-radius:var(--radius);padding:12px 14px;color:white;margin-bottom:12px;">
-        <div style="font-size:15px;font-weight:700;margin-bottom:2px;" id="trainee-card-name"></div>
-        <div style="font-size:11px;opacity:0.85;margin-bottom:2px;" id="trainee-card-type"></div>
-        <div style="font-size:11px;color:rgba(255,255,255,0.75);margin-bottom:8px;" id="trainee-card-progress"></div>
-        <div style="display:flex;gap:8px;align-items:stretch;">
-          <!-- 왼쪽: 잔여/총횟수 박스 -->
-          <div style="display:flex;gap:6px;flex-shrink:0;align-items:flex-start;">
-            <div style="background:rgba(255,255,255,0.2);border-radius:6px;padding:10px 8px;text-align:center;min-width:58px;">
-              <div style="font-size:22px;font-weight:700;line-height:1;" id="trainee-card-remain">-</div>
-              <div style="font-size:10px;opacity:0.85;margin-top:3px;">잔여 횟수</div>
+        <div style="display:flex;gap:8px;align-items:stretch;min-width:0;">
+          <!-- 왼쪽: 이름/타입/진행중 텍스트 + 잔여/총횟수 박스 -->
+          <div style="display:flex;flex-direction:column;justify-content:space-between;gap:8px;flex:1;min-width:0;">
+            <div>
+              <div style="font-size:15px;font-weight:700;margin-bottom:2px;" id="trainee-card-name"></div>
+              <div style="font-size:11px;opacity:0.85;margin-bottom:2px;" id="trainee-card-type"></div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.75);" id="trainee-card-progress"></div>
             </div>
-            <div style="background:rgba(255,255,255,0.2);border-radius:6px;padding:10px 8px;text-align:center;min-width:58px;">
-              <div style="font-size:22px;font-weight:700;line-height:1;" id="trainee-card-total">-</div>
-              <div style="font-size:10px;opacity:0.85;margin-top:3px;">총 횟수</div>
+            <div style="display:flex;gap:6px;">
+              <div style="background:rgba(255,255,255,0.2);border-radius:6px;padding:10px 8px;text-align:center;flex:1;">
+                <div style="font-size:22px;font-weight:700;line-height:1;" id="trainee-card-remain">-</div>
+                <div style="font-size:10px;opacity:0.85;margin-top:3px;white-space:nowrap;">잔여 횟수</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.2);border-radius:6px;padding:10px 8px;text-align:center;flex:1;">
+                <div style="font-size:22px;font-weight:700;line-height:1;" id="trainee-card-total">-</div>
+                <div style="font-size:10px;opacity:0.85;margin-top:3px;white-space:nowrap;">총 횟수</div>
+              </div>
             </div>
           </div>
-          <!-- 오른쪽: 서명받기(위, 크게) + 등록이력(아래, 총횟수 하단 라인에 맞춤) -->
-          <div style="flex:1;display:flex;flex-direction:column;gap:5px;">
-            <button onclick="openSignModalFromDetail()" style="flex:1;padding:10px 8px;background:#22c55e;color:white;border:none;border-radius:6px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;line-height:1.4;">
-              ✍️ 수업확인 서명받기
+          <!-- 오른쪽: 서명받기(카드 전체 높이) + 등록이력(하단) -->
+          <div style="display:flex;flex-direction:column;gap:5px;flex:1;min-width:0;">
+            <button onclick="openSignModalFromDetail()" style="flex:1;background:#22c55e;color:white;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;line-height:1.5;padding:8px;">
+              ✍️ 수업확인<br>서명받기
             </button>
-            <button onclick="toggleTraineeHistory()" id="trainee-history-btn" style="background:rgba(255,255,255,0.15);border:none;border-radius:6px;padding:6px 8px;font-size:10px;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;justify-content:center;gap:3px;white-space:nowrap;">등록이력 <span id="trainee-history-arrow">▾</span></button>
+            <button onclick="toggleTraineeHistory()" id="trainee-history-btn" style="background:rgba(255,255,255,0.15);border:none;border-radius:6px;padding:6px 8px;font-size:10px;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;justify-content:center;gap:3px;">
+              등록이력 <span id="trainee-history-arrow">▾</span>
+            </button>
           </div>
         </div>
         <!-- 이전 등록 이력 -->
