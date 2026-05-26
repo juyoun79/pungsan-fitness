@@ -3793,16 +3793,17 @@
     maxStart.setDate(today.getDate() - 6);
     const startDate = firstDate > maxStart ? firstDate : maxStart;
 
-    // 시작일 ~ 오늘까지 날짜 배열 생성
-    const days7 = [];
-    const cur = new Date(startDate);
-    while (cur <= today) {
-      const key = cur.getFullYear() + '-' + String(cur.getMonth()+1).padStart(2,'0') + '-' + String(cur.getDate()).padStart(2,'0');
-      const label = (cur.getMonth()+1) + '/' + cur.getDate();
-      const rec = history.find(r => r.date === key);
-      days7.push({ key, label, weight: rec ? rec.weight : null });
-      cur.setDate(cur.getDate() + 1);
-    }
+    // 기록 있는 날짜만 최대 7개 표시
+    const allRecorded = history.filter(r => {
+      const d = new Date(r.date);
+      return d >= startDate && d <= today;
+    });
+    // 최근 7개만 (기록 있는 날만)
+    const days7 = allRecorded.slice(-7).map(r => {
+      const d = new Date(r.date);
+      const label = (d.getMonth()+1) + '/' + d.getDate();
+      return { key: r.date, label, weight: r.weight };
+    });
 
     // 날짜 범위 레이블 업데이트
     if (rangeEl) {
