@@ -29,10 +29,13 @@
     if (tabId === 'tab-coupon') loadMemberSelectOptions();
     if (tabId === 'coupon-auto') loadAutoConditions();
     if (tabId === 'tab-equipment-admin') loadAdminEquipmentList();
-    // 강사관리 탭 벗어날 때 월별 리포트 리스너 해제
-    if (tabId !== 'tab-trainer-admin' && _monthlyReportListener && _monthlyReportTrainerId) {
-      db.ref('trainers/' + _monthlyReportTrainerId + '/trainees').off('value', _monthlyReportListener);
-      _monthlyReportListener = null;
+    // 강사관리 탭 벗어날 때 모든 리스너 해제
+    if (tabId !== 'tab-trainer-admin') {
+      if (_monthlyReportListener && _monthlyReportTrainerId) {
+        db.ref('trainers/' + _monthlyReportTrainerId + '/trainees').off('value', _monthlyReportListener);
+        _monthlyReportListener = null;
+      }
+      stopMemberRemainListeners();
     }
   }
 
@@ -378,6 +381,30 @@
   // 월별 리포트 실시간 리스너 관리
   let _monthlyReportListener = null;
   let _monthlyReportTrainerId = null;
+  let _memberRemainListeners = {}; // 회원별 잔여횟수 실시간 리스너
+
+  // 회원별 잔여횟수 실시간 리스너 등록
+  function startMemberRemainListeners(trainerId, memberIds) {
+    // 기존 리스너 해제
+    stopMemberRemainListeners(trainerId);
+    memberIds.forEach(memberId => {
+      const ref = db.ref('trainers/' + trainerId + '/trainees/' + memberId + '/remain');
+      const listener = ref.on('value', snap => {
+        const remain = snap.val();
+        if (remain === null || remain === undefined) return;
+        const remainEl = document.getElementById('rpt-remain-' + memberId);
+        if (remainEl) remainEl.textContent = remain;
+      });
+      _memberRemainListeners[memberId] = { ref, listener };
+    });
+  }
+
+  function stopMemberRemainListeners() {
+    Object.entries(_memberRemainListeners).forEach(([memberId, { ref, listener }]) => {
+      ref.off('value', listener);
+    });
+    _memberRemainListeners = {};
+  }
 
   function loadMonthlyReport() {
     const sel = document.getElementById('report-trainer-select');
@@ -485,6 +512,10 @@
           return;
         }
 
+        // 카드 렌더링 후 회원별 잔여횟수 실시간 리스너 등록
+        const memberIdList = memberCards.map(m => m.traineeId);
+        setTimeout(() => startMemberRemainListeners(trainerId, memberIdList), 100);
+
         membersEl.innerHTML = memberCards.map((m, idx) => {
           const signBtnId = 'rpt-sign-' + idx;
           const memoBtnId = 'rpt-memo-' + idx;
@@ -498,7 +529,7 @@
               <div style="width:34px;height:34px;border-radius:50%;background:#E6F1FB;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#0C447C;flex-shrink:0;">${m.traineeName[0]}</div>
               <div>
                 <div style="font-size:14px;font-weight:700;color:var(--text);">${m.traineeName}</div>
-                <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${m.type ? m.type + ' · ' : ''}잔여 ${m.remain}회 / 총 ${m.total}회</div>
+                <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${m.type ? m.type + ' · ' : ''}잔여 <span id="rpt-remain-${m.traineeId}" style="font-weight:700;color:var(--blue);">${m.remain}</span>회 / 총 <span id="rpt-total-${m.traineeId}">${m.total}</span>회</div>
               </div>
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
