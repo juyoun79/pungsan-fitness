@@ -336,12 +336,24 @@
     if (!feedEl) return;
     feedEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">⏳ 불러오는 중...</div>';
 
-    // 회원 실명 먼저 캐싱 후 게시물 로드
-    db.ref('members').once('value', memberSnap => {
+    // 회원 + 강사 실명 모두 캐싱 후 게시물 로드
+    Promise.all([
+      db.ref('members').once('value'),
+      db.ref('users').once('value')
+    ]).then(([memberSnap, userSnap]) => {
       window.memberCache = {};
+      // 일반 회원
       memberSnap.forEach(child => {
         window.memberCache[child.key] = child.val().name || '';
         if (child.val().role) localStorage.setItem('role_' + child.key, child.val().role);
+      });
+      // 강사/매니저 (users DB에서)
+      userSnap.forEach(child => {
+        const role = child.val().role;
+        if ((role === 'trainer' || role === 'manager') && !window.memberCache[child.key]) {
+          window.memberCache[child.key] = child.val().name || '';
+          localStorage.setItem('role_' + child.key, role);
+        }
       });
 
       db.ref('posts').once('value', snap => {
@@ -731,11 +743,21 @@
       if (window.memberCache && Object.keys(window.memberCache).length > 0) {
         startFeedListener();
       } else {
-        db.ref('members').once('value', snap => {
+        Promise.all([
+          db.ref('members').once('value'),
+          db.ref('users').once('value')
+        ]).then(([memberSnap, userSnap]) => {
           window.memberCache = {};
-          snap.forEach(child => {
+          memberSnap.forEach(child => {
             window.memberCache[child.key] = child.val().name || '';
             if (child.val().role) localStorage.setItem('role_' + child.key, child.val().role);
+          });
+          userSnap.forEach(child => {
+            const role = child.val().role;
+            if ((role === 'trainer' || role === 'manager') && !window.memberCache[child.key]) {
+              window.memberCache[child.key] = child.val().name || '';
+              localStorage.setItem('role_' + child.key, role);
+            }
           });
           startFeedListener();
         });
@@ -782,10 +804,11 @@
     // 강사/관리자: 실명(뒤4자리) 항상 표시
     const last4 = post.authorId ? post.authorId.slice(-4) : '';
     const staffBadge = isAuthorStaff ? ' <span style="font-size:10px;color:var(--blue);">[직원]</span>' : '';
-    const realNameDisplay = isAdminOrStaff && realNameStr
-      ? ` <span style="font-size:11px;font-weight:600;color:var(--text-sub);">${escapeHtml(realNameStr)}(${last4})${staffBadge}</span>`
-      : isAdminOrStaff
-      ? ` <span style="font-size:11px;color:var(--text-hint);">(${last4})</span>`
+    // 이름에 이미 (XXXX) 형태 포함된 경우 중복 방지
+    const hasNum = /\(\d{4}\)$/.test(realNameStr);
+    const displayName = realNameStr ? (hasNum ? realNameStr : realNameStr + '(' + last4 + ')') : '(' + last4 + ')';
+    const realNameDisplay = isAdminOrStaff
+      ? ` <span style="font-size:11px;font-weight:600;color:var(--text-sub);">${escapeHtml(displayName)}${staffBadge}</span>`
       : '';
     return `
       <div class="feed-card">
