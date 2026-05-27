@@ -33,9 +33,13 @@ messaging.onBackgroundMessage((payload) => {
     });
   }
 
-  // notification 필드가 있으면 iOS/Android 브라우저가 자동 표시
-  // 서비스워커가 추가로 showNotification 하면 중복 → skip
-  if (payload.notification) {
+  // iOS Safari PWA: notification 필드로 자동 표시 → 서비스워커 skip (중복 방지)
+  // Android Chrome: 서비스워커에서 직접 showNotification 호출해야 표시됨
+  const ua = (self.navigator && self.navigator.userAgent) || '';
+  const isIOS = /iP(hone|ad|od)/.test(ua);
+
+  if (isIOS && payload.notification) {
+    // iOS는 notification 필드로 이미 표시 → skip
     return;
   }
 
