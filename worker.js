@@ -147,15 +147,11 @@ async function sendFCMMessage(accessToken, projectId, token, title, body, data) 
       body: JSON.stringify({
         message: {
           token,
-          // notification 필드: iOS PWA 푸시알림 필수
+          // notification 필드: iOS PWA 네이티브 알림용
+          // webpush.notification 제거: Chrome이 자동표시하여 Android 중복 발생 원인
+          // Android는 서비스워커 showNotification으로만 표시
           notification: { title, body },
           webpush: {
-            notification: {
-              title,
-              body,
-              icon: '/icon-192.png',
-              badge: '/icon-192.png'
-            },
             fcm_options: {
               link: 'https://pungsan-fitness.juyoun79.workers.dev'
             }
