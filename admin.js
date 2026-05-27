@@ -2818,7 +2818,7 @@
         <div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:8px;border-top:0.5px solid var(--border);flex-wrap:wrap;">
           <div style="display:flex;align-items:center;gap:4px;">
             <div style="width:10px;height:10px;border-radius:50%;background:#16a34a;"></div>
-            <span style="font-size:11px;color:var(--text-hint);">서명받은 날</span>
+            <span style="font-size:11px;color:var(--text-hint);">수업한날</span>
           </div>
           <div style="display:flex;align-items:center;gap:4px;">
             <div style="width:7px;height:7px;border-radius:50%;background:#f59e0b;"></div>
@@ -2826,7 +2826,7 @@
           </div>
           <div style="display:flex;align-items:center;gap:4px;">
             <div style="width:7px;height:7px;border-radius:50%;background:var(--blue);"></div>
-            <span style="font-size:11px;color:var(--text-hint);">개인 운동</span>
+            <span style="font-size:11px;color:var(--text-hint);">회원개인운동</span>
           </div>
         </div>`;
 
