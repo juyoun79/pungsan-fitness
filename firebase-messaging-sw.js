@@ -22,15 +22,9 @@ messaging.onBackgroundMessage((payload) => {
   const title = d._title || (payload.notification && payload.notification.title) || '풍산휘트니스@기구필라테스';
   const body  = d._body  || (payload.notification && payload.notification.body)  || '';
 
-  // 배지 카운트 증가
+  // 배지 카운트: 항상 1로 고정 (notifications.length+1 방식은 기존 알림 누적으로 2 이상 될 수 있음)
   if ('setAppBadge' in navigator) {
-    self.registration.getNotifications().then(notifications => {
-      const newCount = notifications.length + 1;
-      navigator.setAppBadge(newCount).catch(() => {});
-      self.registration.active && self.clients.matchAll().then(clients => {
-        clients.forEach(client => client.postMessage({ type: 'BADGE_COUNT', count: newCount }));
-      });
-    });
+    navigator.setAppBadge(1).catch(() => {});
   }
 
   // iOS Safari PWA: notification 필드로 자동 표시 → 서비스워커 skip (중복 방지)
