@@ -15,38 +15,22 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// ── 배지 카운트 (Cache API로 영구 저장) ──
-async function incrementBadge() {
-  try {
-    const cache = await caches.open('pungsan-badge-v1');
-    const res = await cache.match('/badge-count');
-    const prev = res ? ((await res.json()).count || 0) : 0;
-    const count = prev + 1;
-    await cache.put('/badge-count', new Response(JSON.stringify({ count }), {
-      headers: { 'Content-Type': 'application/json' }
-    }));
-    // 서비스워커에서 직접 배지 설정 시도
-    if ('setAppBadge' in navigator) navigator.setAppBadge(count).catch(() => {});
-    // 앱이 열려있으면 창 컨텍스트에서도 setAppBadge 호출 (iOS 호환성)
-    self.clients.matchAll({ includeUncontrolled: true, type: 'window' }).then(clients => {
-      clients.forEach(client => client.postMessage({ type: 'BADGE_COUNT', count }));
-    });
-  } catch {}
-}
-
 // ── 백그라운드 메시지 수신 ──
-// webpush.notification이 Chrome/iOS에서 네이티브로 1번만 표시
-// 여기서는 showNotification 호출하지 않음 → 중복 방지
+// webpush.notification이 네이티브로 표시 → showNotification 호출 안 함 (중복 방지)
+// return으로 Promise 반환 → Firebase SDK가 완료까지 SW 유지 (중요!)
 messaging.onBackgroundMessage((payload) => {
-  // 배지만 증가
-  incrementBadge();
-  // showNotification 호출 안 함 - webpush.notification이 네이티브로 표시
+  return self.registration.getNotifications().then(notifs => {
+    // webpush.notification이 먼저 표시되므로 notifs.length = 현재 알림 수 (새 것 포함)
+    const count = notifs.length;
+    if ('setAppBadge' in navigator) {
+      return navigator.setAppBadge(Math.max(count, 1)).catch(() => {});
+    }
+  }).catch(() => {});
 });
 
 // ── 알림 클릭 시 앱 포커스 ──
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  // webpush.notification.data에서 notifType 읽기
   const notifType = (event.notification.data && event.notification.data.notifType) || 'notice';
   const targetUrl = 'https://pungsan-fitness.juyoun79.workers.dev?notif=' + notifType + '&t=' + Date.now();
   event.waitUntil(

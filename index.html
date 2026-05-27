@@ -4499,21 +4499,8 @@
     startNotifListener();
     // FCM 푸시알림 초기화 (로그인 후 1회)
     if (typeof initFCM === 'function') initFCM(userId);
-    // 앱 열릴 때: 캐시에서 배지 카운트 읽어 window 컨텍스트로 설정 (iOS 호환)
-    // iOS에서는 서비스워커 setAppBadge가 동작 안 해서 window에서 직접 호출 필요
-    if ('setAppBadge' in navigator && 'caches' in window) {
-      caches.open('pungsan-badge-v1').then(cache => {
-        return cache.match('/badge-count');
-      }).then(res => {
-        if (res) return res.json();
-        return { count: 0 };
-      }).then(({ count }) => {
-        if (count > 0) navigator.setAppBadge(count).catch(() => {});
-        else navigator.clearAppBadge().catch(() => {});
-      }).catch(() => {
-        navigator.clearAppBadge().catch(() => {});
-      });
-    } else if ('clearAppBadge' in navigator) {
+    // 앱 열릴 때 아이콘 배지 초기화
+    if ('clearAppBadge' in navigator) {
       navigator.clearAppBadge().catch(() => {});
     }
     // 삭제된 게시물 알림 정리
