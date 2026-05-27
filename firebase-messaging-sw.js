@@ -22,16 +22,23 @@ messaging.onBackgroundMessage((payload) => {
   const title = d._title || (payload.notification && payload.notification.title) || '풍산휘트니스@기구필라테스';
   const body  = d._body  || (payload.notification && payload.notification.body)  || '';
 
-  // 배지 카운트 증가 (현재 표시된 알림 수 + 1)
+  // 배지 카운트 증가
   if ('setAppBadge' in navigator) {
     self.registration.getNotifications().then(notifications => {
       const newCount = notifications.length + 1;
       navigator.setAppBadge(newCount).catch(() => {});
-      // 배지 카운트를 캐시에 저장 (앱에서 참조용)
       self.registration.active && self.clients.matchAll().then(clients => {
         clients.forEach(client => client.postMessage({ type: 'BADGE_COUNT', count: newCount }));
       });
     });
+  }
+
+  // _fromNotification이 있으면 notification 필드가 이미 알림을 표시함 (갤럭시 중복 방지)
+  // iOS는 notification 필드로 직접 표시하므로 서비스워커 showNotification 불필요
+  // 단, notification 필드가 없는 환경에서도 동작하도록 유지
+  if (d._fromNotification === 'true' && payload.notification) {
+    // notification 필드가 있으면 브라우저가 자동 표시 → 서비스워커는 skip
+    return;
   }
 
   self.registration.showNotification(title, {
