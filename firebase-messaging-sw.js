@@ -16,52 +16,71 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// 백그라운드 메시지 수신 처리
+// ── 배지 카운트 관리 (Cache API로 영구 저장 - SW 재시작 후에도 유지) ──
+async function getBadgeCount() {
+  try {
+    const cache = await caches.open('pungsan-badge-v1');
+    const res = await cache.match('/badge-count');
+    if (res) return (await res.json()).count || 0;
+    return 0;
+  } catch { return 0; }
+}
+
+async function incrementBadge() {
+  try {
+    const count = (await getBadgeCount()) + 1;
+    const cache = await caches.open('pungsan-badge-v1');
+    await cache.put('/badge-count', new Response(JSON.stringify({ count }), {
+      headers: { 'Content-Type': 'application/json' }
+    }));
+    if ('setAppBadge' in navigator) navigator.setAppBadge(count).catch(() => {});
+  } catch {}
+}
+
+// ── 백그라운드 메시지 수신 처리 ──
 messaging.onBackgroundMessage((payload) => {
   const d = payload.data || {};
   const title = d._title || (payload.notification && payload.notification.title) || '풍산휘트니스@기구필라테스';
   const body  = d._body  || (payload.notification && payload.notification.body)  || '';
 
-  // 배지 카운트: 항상 1로 고정 (notifications.length+1 방식은 기존 알림 누적으로 2 이상 될 수 있음)
-  if ('setAppBadge' in navigator) {
-    navigator.setAppBadge(1).catch(() => {});
-  }
-
-  // iOS Safari PWA: notification 필드로 자동 표시 → 서비스워커 skip (중복 방지)
-  // Android Chrome: 서비스워커에서 직접 showNotification 호출해야 표시됨
-  const ua = (self.navigator && self.navigator.userAgent) || '';
+  const ua    = (self.navigator && self.navigator.userAgent) || '';
   const isIOS = /iP(hone|ad|od)/.test(ua);
 
   if (isIOS && payload.notification) {
-    // iOS는 notification 필드로 이미 표시 → skip
+    // iOS: notification 필드로 이미 네이티브 표시 → showNotification skip
+    // 배지만 증가
+    incrementBadge();
     return;
   }
 
+  // Android: 서비스워커에서 직접 알림 표시
   self.registration.showNotification(title, {
     body: body,
     icon: '/icon-192.png',
     badge: '/icon-192.png',
     vibrate: [200, 100, 200],
     data: { ...d, notifType: d.type || 'notice' }
-  });
+  }).then(() => {
+    // 알림 표시 후 실제 알림 개수로 배지 설정
+    return self.registration.getNotifications();
+  }).then(notifs => {
+    if ('setAppBadge' in navigator) navigator.setAppBadge(notifs.length).catch(() => {});
+  }).catch(() => {});
 });
 
-// 알림 클릭 시 앱 포커스 또는 새 탭 열기
+// ── 알림 클릭 시 앱 포커스 또는 새 탭 열기 ──
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const notifType = (event.notification.data && event.notification.data.notifType) || 'notice';
-  // URL에 파라미터 추가해서 팝업 트리거 (앱이 새로 로딩될 때도 처리 가능)
   const targetUrl = 'https://pungsan-fitness.juyoun79.workers.dev?notif=' + notifType + '&t=' + Date.now();
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if (client.url.includes('pungsan-fitness') && 'focus' in client) {
-          // 앱이 이미 열려있으면 postMessage로 팝업 트리거
           client.postMessage({ type: 'NOTIF_CLICK', notifType });
           return client.focus();
         }
       }
-      // 앱이 닫혀있으면 URL 파라미터로 팝업 트리거
       return clients.openWindow(targetUrl);
     })
   );
