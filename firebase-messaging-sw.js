@@ -1,5 +1,4 @@
 // Firebase Messaging Service Worker
-// 앱이 닫혀있거나 백그라운드일 때 푸시알림 수신
 
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
@@ -16,20 +15,13 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// ── 배지 카운트 관리 (Cache API로 영구 저장 - SW 재시작 후에도 유지) ──
-async function getBadgeCount() {
+// ── 배지 카운트 (Cache API로 영구 저장) ──
+async function incrementBadge() {
   try {
     const cache = await caches.open('pungsan-badge-v1');
     const res = await cache.match('/badge-count');
-    if (res) return (await res.json()).count || 0;
-    return 0;
-  } catch { return 0; }
-}
-
-async function incrementBadge() {
-  try {
-    const count = (await getBadgeCount()) + 1;
-    const cache = await caches.open('pungsan-badge-v1');
+    const prev = res ? ((await res.json()).count || 0) : 0;
+    const count = prev + 1;
     await cache.put('/badge-count', new Response(JSON.stringify({ count }), {
       headers: { 'Content-Type': 'application/json' }
     }));
@@ -37,40 +29,19 @@ async function incrementBadge() {
   } catch {}
 }
 
-// ── 백그라운드 메시지 수신 처리 ──
+// ── 백그라운드 메시지 수신 ──
+// webpush.notification이 Chrome/iOS에서 네이티브로 1번만 표시
+// 여기서는 showNotification 호출하지 않음 → 중복 방지
 messaging.onBackgroundMessage((payload) => {
-  const d = payload.data || {};
-  const title = d._title || (payload.notification && payload.notification.title) || '풍산휘트니스@기구필라테스';
-  const body  = d._body  || (payload.notification && payload.notification.body)  || '';
-
-  const ua    = (self.navigator && self.navigator.userAgent) || '';
-  const isIOS = /iP(hone|ad|od)/.test(ua);
-
-  if (isIOS && payload.notification) {
-    // iOS: notification 필드로 이미 네이티브 표시 → showNotification skip
-    // 배지만 증가
-    incrementBadge();
-    return;
-  }
-
-  // Android: 서비스워커에서 직접 알림 표시
-  self.registration.showNotification(title, {
-    body: body,
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
-    vibrate: [200, 100, 200],
-    data: { ...d, notifType: d.type || 'notice' }
-  }).then(() => {
-    // 알림 표시 후 실제 알림 개수로 배지 설정
-    return self.registration.getNotifications();
-  }).then(notifs => {
-    if ('setAppBadge' in navigator) navigator.setAppBadge(notifs.length).catch(() => {});
-  }).catch(() => {});
+  // 배지만 증가
+  incrementBadge();
+  // showNotification 호출 안 함 - webpush.notification이 네이티브로 표시
 });
 
-// ── 알림 클릭 시 앱 포커스 또는 새 탭 열기 ──
+// ── 알림 클릭 시 앱 포커스 ──
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  // webpush.notification.data에서 notifType 읽기
   const notifType = (event.notification.data && event.notification.data.notifType) || 'notice';
   const targetUrl = 'https://pungsan-fitness.juyoun79.workers.dev?notif=' + notifType + '&t=' + Date.now();
   event.waitUntil(

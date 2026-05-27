@@ -147,16 +147,16 @@ async function sendFCMMessage(accessToken, projectId, token, title, body, data) 
       body: JSON.stringify({
         message: {
           token,
-          // notification: iOS PWA 네이티브 알림 표시용
-          // webpush.notification: Firebase SDK가 이 필드로 push 이벤트를 가로채
-          //   → Chrome 자동표시 막고 onBackgroundMessage에게 제어권 넘김 (Android 중복 방지 핵심)
-          notification: { title, body },
+          // notification 필드 제거: Firebase SDK가 자동표시 + showNotification 중복 원인
+          // webpush.notification만 사용: Chrome/iOS가 네이티브로 1번만 표시
+          // data에 notifType 포함: notificationclick 핸들러에서 사용
           webpush: {
             notification: {
               title,
               body,
               icon: '/icon-192.png',
-              badge: '/icon-192.png'
+              badge: '/icon-192.png',
+              data: { notifType: (data && data.type) || 'notice' }
             },
             fcm_options: {
               link: 'https://pungsan-fitness.juyoun79.workers.dev'
