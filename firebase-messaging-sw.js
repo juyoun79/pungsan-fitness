@@ -33,11 +33,9 @@ messaging.onBackgroundMessage((payload) => {
     });
   }
 
-  // _fromNotification이 있으면 notification 필드가 이미 알림을 표시함 (갤럭시 중복 방지)
-  // iOS는 notification 필드로 직접 표시하므로 서비스워커 showNotification 불필요
-  // 단, notification 필드가 없는 환경에서도 동작하도록 유지
-  if (d._fromNotification === 'true' && payload.notification) {
-    // notification 필드가 있으면 브라우저가 자동 표시 → 서비스워커는 skip
+  // notification 필드가 있으면 iOS/Android 브라우저가 자동 표시
+  // 서비스워커가 추가로 showNotification 하면 중복 → skip
+  if (payload.notification) {
     return;
   }
 
