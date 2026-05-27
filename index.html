@@ -4577,6 +4577,10 @@
         // 배지 카운트 동기화 (읽음 처리 후 배지 재조정)
         if (event.data.type === 'BADGE_COUNT') {
           window._badgeCount = event.data.count;
+          // 창 컨텍스트에서 setAppBadge 호출 (iOS에서 서비스워커보다 안정적)
+          if ('setAppBadge' in navigator) {
+            navigator.setAppBadge(event.data.count).catch(() => {});
+          }
         }
       });
     }

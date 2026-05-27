@@ -25,7 +25,12 @@ async function incrementBadge() {
     await cache.put('/badge-count', new Response(JSON.stringify({ count }), {
       headers: { 'Content-Type': 'application/json' }
     }));
+    // 서비스워커에서 직접 배지 설정 시도
     if ('setAppBadge' in navigator) navigator.setAppBadge(count).catch(() => {});
+    // 앱이 열려있으면 창 컨텍스트에서도 setAppBadge 호출 (iOS 호환성)
+    self.clients.matchAll({ includeUncontrolled: true, type: 'window' }).then(clients => {
+      clients.forEach(client => client.postMessage({ type: 'BADGE_COUNT', count }));
+    });
   } catch {}
 }
 
