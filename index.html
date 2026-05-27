@@ -4499,8 +4499,21 @@
     startNotifListener();
     // FCM 푸시알림 초기화 (로그인 후 1회)
     if (typeof initFCM === 'function') initFCM(userId);
-    // 앱 열릴 때 아이콘 배지 초기화
-    if ('clearAppBadge' in navigator) {
+    // 앱 열릴 때: 캐시에서 배지 카운트 읽어 window 컨텍스트로 설정 (iOS 호환)
+    // iOS에서는 서비스워커 setAppBadge가 동작 안 해서 window에서 직접 호출 필요
+    if ('setAppBadge' in navigator && 'caches' in window) {
+      caches.open('pungsan-badge-v1').then(cache => {
+        return cache.match('/badge-count');
+      }).then(res => {
+        if (res) return res.json();
+        return { count: 0 };
+      }).then(({ count }) => {
+        if (count > 0) navigator.setAppBadge(count).catch(() => {});
+        else navigator.clearAppBadge().catch(() => {});
+      }).catch(() => {
+        navigator.clearAppBadge().catch(() => {});
+      });
+    } else if ('clearAppBadge' in navigator) {
       navigator.clearAppBadge().catch(() => {});
     }
     // 삭제된 게시물 알림 정리
@@ -4528,6 +4541,8 @@
       setTimeout(() => {
         if (typeof showNoticePopup === 'function') showNoticePopup(userId);
         if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
+        // 배지 캐시도 초기화
+        if ('caches' in window) caches.open('pungsan-badge-v1').then(c => c.put('/badge-count', new Response(JSON.stringify({ count: 0 }), { headers: { 'Content-Type': 'application/json' } }))).catch(() => {});
         // URL 파라미터 제거
         window.history.replaceState({}, '', window.location.pathname);
       }, 500);
@@ -4572,6 +4587,8 @@
             const uid = localStorage.getItem('current_user');
             if (uid && typeof showNoticePopup === 'function') showNoticePopup(uid);
             if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
+            // 배지 캐시 초기화
+            if ('caches' in window) caches.open('pungsan-badge-v1').then(c => c.put('/badge-count', new Response(JSON.stringify({ count: 0 }), { headers: { 'Content-Type': 'application/json' } }))).catch(() => {});
           }, 800);
         }
         // 배지 카운트 동기화 (읽음 처리 후 배지 재조정)
