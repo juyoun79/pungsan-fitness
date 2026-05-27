@@ -250,8 +250,8 @@
       if (isSel)     { border = '2px solid #1a1a2e'; }
       // 점 표시: 강사기록=주황점, 개인운동=파란점
       const dotHtml = hasWork ? `<div style="position:absolute;bottom:1px;left:50%;transform:translateX(-50%);display:flex;gap:2px;align-items:center;">
-        ${hasClass ? `<div style="width:4px;height:4px;border-radius:50%;background:${hasLesson?'rgba(255,255,255,0.9)':'#f59e0b'};"></div>` : ''}
-        ${hasPersonal ? `<div style="width:4px;height:4px;border-radius:50%;background:${hasLesson?'rgba(255,255,255,0.7)':'var(--blue)'};"></div>` : ''}
+        ${hasClass ? `<div style="width:4px;height:4px;border-radius:50%;background:#f59e0b;"></div>` : ''}
+        ${hasPersonal ? `<div style="width:4px;height:4px;border-radius:50%;background:var(--blue);"></div>` : ''}
       </div>` : '';
       html += `<div onclick="selectCalDay(${d})" style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${bg};color:${textColor};font-size:13px;font-weight:${fontW};cursor:pointer;border:${border};transition:opacity 0.1s;position:relative;" ontouchstart="this.style.opacity='0.7'" ontouchend="this.style.opacity='1'">${d}${dotHtml}</div>`;
     }

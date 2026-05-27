@@ -2801,8 +2801,8 @@
             const hasDot = hasTrainer || hasPersonal;
             const dotHtml = hasDot
               ? `<div style="display:flex;gap:2px;justify-content:center;margin:1px auto 0;">
-                  ${hasTrainer ? `<div style="width:5px;height:5px;border-radius:50%;background:${hasLesson?'rgba(255,255,255,0.9)':'#f59e0b'};"></div>` : ''}
-                  ${hasPersonal ? `<div style="width:5px;height:5px;border-radius:50%;background:${hasLesson?'rgba(255,255,255,0.7)':'var(--blue)'};"></div>` : ''}
+                  ${hasTrainer ? `<div style="width:5px;height:5px;border-radius:50%;background:#f59e0b;"></div>` : ''}
+                  ${hasPersonal ? `<div style="width:5px;height:5px;border-radius:50%;background:var(--blue);"></div>` : ''}
                 </div>`
               : '<div style="width:5px;height:5px;margin:1px auto 0;"></div>';
             const dow = (firstDay + i) % 7;
