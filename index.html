@@ -3075,12 +3075,9 @@
         <div id="ex-guide-list" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;"></div>
         <p style="font-size:11px;color:var(--text-hint);text-align:center;margin-top:12px;">이미지 없는 운동은 추후 업데이트 예정</p>
       </div>
-      <div id="ex-guide-step3" style="display:none;padding:16px;">
-        <div id="ex-guide-img-wrap" style="border-radius:12px;margin-bottom:8px;border:1px solid var(--border);overflow:auto;-webkit-overflow-scrolling:touch;">
-          <img id="ex-guide-img" src="" style="width:100%;display:block;height:auto;border-radius:12px;transition:width 0.2s;" alt="운동 가이드" />
-        </div>
-        <div style="background:#1a6fd4;border-radius:8px;padding:10px 14px;margin-bottom:12px;text-align:center;">
-          <span style="font-size:13px;font-weight:700;color:white;">💡 화면을 두 번 탭하면 확대/축소할 수 있어요</span>
+      <div id="ex-guide-step3" style="display:none;padding:8px 16px 16px;">
+        <div id="ex-guide-img-wrap" style="border-radius:12px;margin-bottom:10px;border:1px solid var(--border);overflow:hidden;background:var(--bg);">
+          <img id="ex-guide-img" src="" style="width:100%;display:block;height:auto;border-radius:12px;object-fit:contain;" alt="운동 가이드" />
         </div>
         <button onclick="selectExerciseFromGuide()" style="width:100%;padding:13px;background:#3b6d11;border:none;border-radius:10px;color:white;font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✓ 이 운동 선택</button>
       </div>
@@ -5062,47 +5059,10 @@ function showExDetail(name, img) {
   imgEl.style.transform = 'none';
   const wrap = document.getElementById('ex-guide-img-wrap');
   if (wrap) { wrap.scrollLeft = 0; wrap.scrollTop = 0; }
-  _pzScale = 1; _pzInited = false;
-  initPinchZoom();
+
 }
 
-// ── 더블탭 확대/축소 ──
-let _pzScale = 1;
-let _pzInited = false;
 
-function initPinchZoom() {
-  const wrap = document.getElementById('ex-guide-img-wrap');
-  const img  = document.getElementById('ex-guide-img');
-  if (!wrap || !img || _pzInited) return;
-  _pzInited = true;
-
-  function applyZoom() {
-    if (_pzScale > 1) {
-      // 확대: width 200%로 가로세로 스크롤 가능
-      img.style.width = '250%';
-      img.style.transform = 'none';
-    } else {
-      // 원래 크기
-      img.style.width = '100%';
-      img.style.transform = 'none';
-      // 스크롤 위치 초기화
-      wrap.scrollLeft = 0;
-      wrap.scrollTop = 0;
-    }
-  }
-
-  // 더블탭 감지
-  let _lastTap = 0;
-  wrap.addEventListener('touchend', e => {
-    const now = Date.now();
-    if (now - _lastTap < 300) {
-      e.preventDefault();
-      _pzScale = _pzScale > 1 ? 1 : 2;
-      applyZoom();
-    }
-    _lastTap = now;
-  }, { passive: false });
-}
 
 function selectExerciseFromGuide() {
   const nameInput = document.getElementById('fw-name');
