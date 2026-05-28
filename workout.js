@@ -720,7 +720,41 @@
     db.ref('users/' + userId + '/attendance/' + today).once('value', snap => {
       if (snap.exists()) {
         localStorage.setItem(todayKey, 'done');
-        showToast('오늘은 이미 출석체크를 완료했어요! 내일 또 만나요 😊', 'info');
+        // 출석 완료 화면으로 이동
+        loadAttendanceStats(userId);
+        showScreen('screen-attendance');
+        // 완료 영역 표시, QR/GPS 영역 숨김
+        const doneWrap = document.getElementById('att-done-wrap');
+        const gpsCard  = document.getElementById('att-gps-card');
+        const qrCard   = document.querySelector('#screen-attendance .attend-card');
+        const todayRow = document.querySelector('#screen-attendance [id="att-today-dot"]')?.closest('div[style*="justify-content:space-between"]');
+        if (doneWrap) doneWrap.style.display = 'block';
+        if (gpsCard)  gpsCard.style.display  = 'none';
+        if (qrCard)   qrCard.style.display   = 'none';
+        if (todayRow) todayRow.style.display  = 'none';
+        // 완료 시각 표시
+        const doneTime = document.getElementById('att-done-time');
+        if (doneTime) {
+          const n = new Date();
+          const h = n.getHours(), m = n.getMinutes();
+          const ampm = h < 12 ? '오전' : '오후';
+          const hh = h % 12 || 12;
+          doneTime.textContent = n.getFullYear() + '년 ' + (n.getMonth()+1) + '월 ' + n.getDate() + '일 ' + ampm + ' ' + hh + ':' + String(m).padStart(2,'0');
+        }
+        // 누적/이번달 출석 수 동기화
+        db.ref('users/' + userId + '/attendance').once('value', aSnap => {
+          const monthPrefix = new Date().getFullYear() + '-' + (new Date().getMonth()+1) + '-';
+          let total = 0, month = 0;
+          aSnap.forEach(c => { total++; if (c.key.startsWith(monthPrefix)) month++; });
+          const elT = document.getElementById('att-done-total'); if (elT) elT.textContent = total;
+          const elM = document.getElementById('att-done-month'); if (elM) elM.textContent = month;
+        });
+        // 포인트 설정값 가져와서 표시
+        db.ref('point_settings/attend').once('value', ptSnap => {
+          const pts = ptSnap.val() ?? 2;
+          const elPts  = document.getElementById('att-done-pts');      if (elPts)  elPts.textContent  = '+' + pts + 'P 적립됐어요';
+          const elNext = document.getElementById('att-done-next-pts'); if (elNext) elNext.textContent = '+' + pts + 'P';
+        });
         return;
       }
       localStorage.removeItem(todayKey);
@@ -801,6 +835,15 @@
     document.getElementById('qr-scanner-wrap').style.display = 'none';
     const statusEl = document.getElementById('qr-status-msg');
     if (statusEl) statusEl.textContent = 'QR코드를 네모 안에 맞춰주세요';
+    // 완료 영역 숨기고 QR/GPS 영역 복원
+    const doneWrap = document.getElementById('att-done-wrap');
+    const gpsCard  = document.getElementById('att-gps-card');
+    const qrCard   = document.querySelector('#screen-attendance .attend-card');
+    const todayRow = document.querySelector('#screen-attendance [id="att-today-dot"]')?.closest('div[style*="justify-content:space-between"]');
+    if (doneWrap) doneWrap.style.display  = 'none';
+    if (gpsCard)  gpsCard.style.display   = '';
+    if (qrCard)   qrCard.style.display    = '';
+    if (todayRow) todayRow.style.display  = '';
   }
 
   function startAttendQr() {
