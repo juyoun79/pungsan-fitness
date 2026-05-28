@@ -893,8 +893,17 @@
     const userId = localStorage.getItem('current_user');
     const today = getToday();
     db.ref('users/' + userId + '/attendance/' + today).set(true);
+    const todayKey = 'attend_' + userId + '_' + today;
+    localStorage.setItem(todayKey, 'done');
+    const nick = localStorage.getItem('nickname_' + userId) || localStorage.getItem('name_' + userId) || '회원';
+    const now = new Date();
+    document.getElementById('attend-complete-msg').textContent = nick + '님, 오늘도 운동 완료! 💪';
+    document.getElementById('attend-date-msg').textContent = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 출석 완료';
     db.ref('point_settings/attend').once('value', snap => {
       const attendPts = snap.val() ?? 2;
+      const pointEl = document.getElementById('attend-point-display');
+      if (pointEl) pointEl.textContent = '+' + attendPts + 'P';
+      document.getElementById('attend-complete-overlay').classList.add('active');
       let newPoints = 0;
       db.ref('users/' + userId + '/points').transaction(cur => {
         newPoints = (cur || 0) + attendPts;
@@ -904,13 +913,6 @@
         updateStats();
       });
     });
-    const todayKey = 'attend_' + userId + '_' + today;
-    localStorage.setItem(todayKey, 'done');
-    const nick = localStorage.getItem('nickname_' + userId) || localStorage.getItem('name_' + userId) || '회원';
-    const now = new Date();
-    document.getElementById('attend-complete-msg').textContent = nick + '님, 오늘도 운동 완료! 💪';
-    document.getElementById('attend-date-msg').textContent = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 출석 완료';
-    document.getElementById('attend-complete-overlay').classList.add('active');
   }
 
   function closeAttendComplete() { document.getElementById('attend-complete-overlay').classList.remove('active'); resetAttendance(); switchTab('home'); }

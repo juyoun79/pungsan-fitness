@@ -459,7 +459,11 @@
       // 오운완이면 포인트 환수 + owunwan 기록 삭제
       const post = adminAllPosts.find(p => p.id === postId);
       if (post && post.category === '오운완' && post.authorId) {
-        db.ref('users/' + post.authorId + '/points').transaction(cur => Math.max(0, (cur || 0) - 100));
+        db.ref('point_settings/owunwan').once('value', snap => {
+          const owunwanPts = snap.val() ?? 10;
+          db.ref('users/' + post.authorId + '/points').transaction(cur => Math.max(0, (cur || 0) - owunwanPts));
+          if (typeof updateStats === 'function') updateStats();
+        });
         if (post.owunwanDate) db.ref('users/' + post.authorId + '/owunwan/' + post.owunwanDate).remove();
       }
       db.ref('posts/' + postId).remove();
