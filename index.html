@@ -1269,54 +1269,72 @@
 
     <div style="padding:16px 16px var(--safe-pad);">
 
-      <!-- 기구 검색창 -->
-      <div style="position:relative;margin-bottom:14px;">
-        <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <input type="text" id="equipment-search"
-          placeholder="기구이름 또는 번호로 검색하세요"
-          style="width:100%;box-sizing:border-box;padding:12px 12px 12px 40px;border:1.5px dashed #1a6fd4;border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);"
-          onfocus="this.style.borderColor='#0f4fa8'"
-          onblur="this.style.borderColor='#1a6fd4'"
-          oninput="showEquipmentSearchResult(this.value)" />
-        <button id="search-clear-btn" onclick="clearEquipmentSearch()" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:var(--text-hint);border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;color:white;font-size:13px;line-height:1;padding:0;">×</button>
+      <!-- 1행: 검색창 + 프리웨이트|이미지 버튼 -->
+      <div style="display:flex;gap:8px;margin-bottom:8px;align-items:stretch;">
+
+        <!-- 검색창 (반 크기) -->
+        <div style="position:relative;flex:1;min-width:0;">
+          <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" id="equipment-search"
+            placeholder="기구명.번호검색"
+            style="width:100%;height:100%;box-sizing:border-box;padding:12px 28px 12px 32px;border:1.5px dashed #1a6fd4;border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);"
+            onfocus="this.style.borderColor='#0f4fa8'"
+            onblur="this.style.borderColor='#1a6fd4'"
+            oninput="showEquipmentSearchResult(this.value)" />
+          <button id="search-clear-btn" onclick="clearEquipmentSearch()" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);background:var(--text-hint);border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;color:white;font-size:12px;line-height:1;padding:0;">×</button>
+        </div>
+
+        <!-- 프리웨이트 | 이미지찾기 분리 버튼 -->
+        <div style="display:flex;flex:1;overflow:hidden;border-radius:var(--radius-sm);border:1.5px dashed #8b5cf6;">
+          <button onclick="openFreeweightModal()"
+            style="flex:1.3;padding:12px 8px;background:var(--card);border:none;color:#8b5cf6;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:background 0.15s;"
+            ontouchstart="this.style.background='#f3e8ff'" ontouchend="this.style.background='var(--card)'"
+            onmouseenter="this.style.background='#f3e8ff'" onmouseleave="this.style.background='var(--card)'">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 4v16M18 4v16M6 12h12M3 8h3M18 8h3M3 16h3M18 16h3"/>
+            </svg>
+            프리웨이트
+          </button>
+          <div style="width:1px;background:#c4b5fd;opacity:0.7;"></div>
+          <button onclick="openExGuide()"
+            style="flex:1;padding:10px 6px;background:#ede9fe;border:none;color:#5b21b6;font-size:11px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:background 0.15s;"
+            ontouchstart="this.style.background='#ddd6fe'" ontouchend="this.style.background='#ede9fe'"
+            onmouseenter="this.style.background='#ddd6fe'" onmouseleave="this.style.background='#ede9fe'">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+            </svg>
+            이미지
+          </button>
+        </div>
       </div>
 
       <!-- 검색 결과 드롭다운 -->
-      <div id="equipment-search-result" style="display:none;background:var(--card);border:1.5px solid var(--blue);border-radius:var(--radius-sm);margin-bottom:14px;overflow:hidden;box-shadow:0 4px 16px rgba(26,111,212,0.12);max-height:280px;overflow-y:auto;"></div>
+      <div id="equipment-search-result" style="display:none;background:var(--card);border:1.5px solid var(--blue);border-radius:var(--radius-sm);margin-bottom:8px;overflow:hidden;box-shadow:0 4px 16px rgba(26,111,212,0.12);max-height:280px;overflow-y:auto;"></div>
 
-      <!-- 운동 기록 추가 버튼 3개 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-        <button onclick="openFreeweightModal()"
-          style="padding:12px 8px;background:var(--card);border:1.5px dashed #8b5cf6;border-radius:var(--radius-sm);color:#8b5cf6;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background 0.15s;"
-          ontouchstart="this.style.background='#f3e8ff'" ontouchend="this.style.background='var(--card)'"
-          onmouseenter="this.style.background='#f3e8ff'" onmouseleave="this.style.background='var(--card)'">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M6 4v16M18 4v16M6 12h12M3 8h3M18 8h3M3 16h3M18 16h3"/>
+      <!-- 2행: 기구필라테스/GX + 유산소 기록 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
+        <button onclick="openClassModal()"
+          style="padding:12px 8px;background:var(--card);border:1.5px dashed #0891b2;border-radius:var(--radius-sm);color:#0891b2;font-size:12px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:background 0.15s;"
+          ontouchstart="this.style.background='#e0f7fa'" ontouchend="this.style.background='var(--card)'"
+          onmouseenter="this.style.background='#e0f7fa'" onmouseleave="this.style.background='var(--card)'">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+            <path d="M12 8v4l3 3"/>
           </svg>
-          프리웨이트 기록
+          기구필라테스/GX
         </button>
         <button onclick="openCardioModal()"
-          style="padding:12px 8px;background:var(--card);border:1.5px dashed #ef4444;border-radius:var(--radius-sm);color:#ef4444;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background 0.15s;"
+          style="padding:12px 8px;background:var(--card);border:1.5px dashed #ef4444;border-radius:var(--radius-sm);color:#ef4444;font-size:12px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:background 0.15s;"
           ontouchstart="this.style.background='#fee2e2'" ontouchend="this.style.background='var(--card)'"
           onmouseenter="this.style.background='#fee2e2'" onmouseleave="this.style.background='var(--card)'">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
           </svg>
           유산소 기록
         </button>
       </div>
-      <button onclick="openClassModal()"
-        style="width:100%;padding:12px 8px;background:var(--card);border:1.5px dashed #0891b2;border-radius:var(--radius-sm);color:#0891b2;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:16px;transition:background 0.15s;"
-        ontouchstart="this.style.background='#e0f7fa'" ontouchend="this.style.background='var(--card)'"
-        onmouseenter="this.style.background='#e0f7fa'" onmouseleave="this.style.background='var(--card)'">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
-          <path d="M12 8v4l3 3"/>
-        </svg>
-        기구필라테스 / GX수업
-      </button>
 
       <!-- 달력 카드 -->
       <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px;">
@@ -2876,11 +2894,7 @@
     </div>
     <div style="padding:20px 16px 100px;overflow-y:auto;">
 
-      <!-- 이미지로 운동 찾기 버튼 -->
-      <button onclick="openExGuide()" style="width:100%;padding:10px;background:#eaf3de;border:1.5px solid #97c459;border-radius:10px;color:#27500a;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px;">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#3b6d11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-        이미지로 운동 찾기
-      </button>
+
 
       <!-- 운동 이름 검색 -->
       <div class="field-wrap" style="margin-bottom:8px;">
