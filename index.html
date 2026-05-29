@@ -3078,6 +3078,7 @@
       <div id="ex-guide-step3" style="display:none;padding:8px 16px 16px;">
         <div id="ex-guide-img-wrap" style="border-radius:12px;margin-bottom:10px;border:1px solid var(--border);overflow:hidden;background:#ffffff;max-height:62vh;display:flex;align-items:center;justify-content:center;">
           <img id="ex-guide-img" src="" style="width:100%;max-height:62vh;display:block;object-fit:contain;border-radius:12px;" alt="운동 가이드" />
+          <video id="ex-guide-video" src="" style="display:none;width:100%;max-height:62vh;border-radius:12px;object-fit:contain;" autoplay loop muted playsinline></video>
         </div>
         <button onclick="selectExerciseFromGuide()" style="width:100%;padding:13px;background:#3b6d11;border:none;border-radius:10px;color:white;font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✓ 이 운동 선택</button>
       </div>
@@ -4951,7 +4952,7 @@ const EX_GUIDE_DATA = {
     { name: '바벨 쉬러그', img: null },
   ],
   '가슴': [
-    { name: '바벨 벤치프레스', img: '/images/bench_press.gif' },
+    { name: '바벨 벤치프레스', img: '/images/bench_press.gif', video: 'https://firebasestorage.googleapis.com/v0/b/pungsan-fitness.firebasestorage.app/o/barbell_bench_press.mp4?alt=media&token=22c3a656-1b34-445e-b0bf-e284066a5679' },
     { name: '덤벨 벤치프레스', img: '/images/dumbbell_bench_press.gif' },
     { name: '덤벨 플라이', img: '/images/dumbbell_fly.gif' },
     { name: '덤벨 인클라인 벤치프레스', img: null },
@@ -5031,7 +5032,7 @@ function selectBodyPart(part) {
   const listEl = document.getElementById('ex-guide-list');
   listEl.innerHTML = list.map(ex => {
     if (ex.img) {
-      return `<div onclick="showExDetail('${ex.name}','${ex.img}')"
+      return `<div onclick="showExDetail('${ex.name}','${ex.img}','${ex.video||''}')"
         style="border:1.5px solid #97c459;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--card);">
         <img src="${ex.img}" style="width:100%;height:110px;object-fit:contain;background:#ffffff;" alt="${ex.name}" />
         <div style="padding:7px 8px;font-size:12px;font-weight:700;color:var(--text);">${ex.name}</div>
@@ -5046,17 +5047,28 @@ function selectBodyPart(part) {
   }).join('');
 }
 
-function showExDetail(name, img) {
+function showExDetail(name, img, video) {
   _exGuideStep = 3;
   _exGuideSelectedName = name;
   document.getElementById('ex-guide-title').textContent = name;
   document.getElementById('ex-guide-step2').style.display = 'none';
   document.getElementById('ex-guide-step3').style.display = 'block';
-  const imgEl = document.getElementById('ex-guide-img');
-  imgEl.src = img;
-  const wrap = document.getElementById('ex-guide-img-wrap');
+  const imgEl   = document.getElementById('ex-guide-img');
+  const videoEl = document.getElementById('ex-guide-video');
+  const wrap    = document.getElementById('ex-guide-img-wrap');
+  if (video) {
+    imgEl.style.display   = 'none';
+    videoEl.style.display = 'block';
+    videoEl.src = video;
+    videoEl.load();
+    videoEl.play();
+  } else {
+    videoEl.style.display = 'none';
+    videoEl.src = '';
+    imgEl.style.display = 'block';
+    imgEl.src = img;
+  }
   if (wrap) { wrap.scrollLeft = 0; wrap.scrollTop = 0; }
-
 }
 
 
