@@ -3064,10 +3064,8 @@
           <button onclick="selectBodyPart('등')" style="padding:16px 8px;background:var(--card);border:1.5px solid var(--border);border-radius:10px;font-size:15px;cursor:pointer;color:var(--text);">💪 등</button>
           <button onclick="selectBodyPart('가슴')" style="padding:16px 8px;background:var(--card);border:1.5px solid var(--border);border-radius:10px;font-size:15px;cursor:pointer;color:var(--text);">🏋️ 가슴</button>
           <button onclick="selectBodyPart('어깨')" style="padding:16px 8px;background:var(--card);border:1.5px solid var(--border);border-radius:10px;font-size:15px;cursor:pointer;color:var(--text);">🤸 어깨</button>
-          <button onclick="selectBodyPart('이두')" style="padding:16px 8px;background:var(--card);border:1.5px solid var(--border);border-radius:10px;font-size:15px;cursor:pointer;color:var(--text);">💪 이두</button>
-          <button onclick="selectBodyPart('삼두')" style="padding:16px 8px;background:var(--card);border:1.5px solid var(--border);border-radius:10px;font-size:15px;cursor:pointer;color:var(--text);">💪 삼두</button>
-          <button onclick="selectBodyPart('복부')" style="padding:16px 8px;background:var(--card);border:1.5px solid var(--border);border-radius:10px;font-size:15px;cursor:pointer;color:var(--text);">🔥 복부</button>
-          <button onclick="selectBodyPart('엉덩이')" style="padding:16px 8px;background:var(--card);border:1.5px solid var(--border);border-radius:10px;font-size:15px;cursor:pointer;color:var(--text);">🍑 엉덩이</button>
+          <button onclick="selectBodyPart('팔')" style="padding:16px 8px;background:var(--card);border:1.5px solid var(--border);border-radius:10px;font-size:15px;cursor:pointer;color:var(--text);">💪 팔</button>
+          <button onclick="selectBodyPart('코어/복부')" style="padding:16px 8px;background:var(--card);border:1.5px solid var(--border);border-radius:10px;font-size:15px;cursor:pointer;color:var(--text);">🔥 코어/복부</button>
         </div>
       </div>
       <div id="ex-guide-step2" style="display:none;padding:16px;">
@@ -4944,6 +4942,9 @@ const EX_GUIDE_DATA = {
     { name: '스모 데드리프트', img: null },
     { name: '덤벨 런지', img: null },
     { name: '불가리안 스쿼트', img: null, video: 'https://firebasestorage.googleapis.com/v0/b/pungsan-fitness.firebasestorage.app/o/bulgarian_squat.mp4?alt=media&token=4826065f-4349-4fec-88f9-db1a24a038b0' },
+    { name: '바벨 힙 쓰러스트', img: null },
+    { name: '덤벨 힙 쓰러스트', img: null },
+    { name: '힙 브릿지', img: null },
   ],
   '등': [
     { name: '바벨 벤트오버 로우', img: '/images/bent_over_row.gif', video: 'https://firebasestorage.googleapis.com/v0/b/pungsan-fitness.firebasestorage.app/o/barbell_bent_over_row.mp4?alt=media&token=28a44d20-e048-404f-aebd-de65a2a7266d' },
@@ -4963,25 +4964,18 @@ const EX_GUIDE_DATA = {
     { name: '덤벨 레터럴 레이즈', img: null },
     { name: '아놀드 프레스', img: null },
   ],
-  '이두': [
+  '팔': [
     { name: '바벨 컬', img: null },
     { name: '덤벨 컬', img: null },
     { name: '해머 컬', img: null },
-  ],
-  '삼두': [
     { name: '라잉 트라이셉스 익스텐션', img: null },
     { name: '덤벨 킥백', img: null },
     { name: '딥스', img: null },
   ],
-  '복부': [
+  '코어/복부': [
     { name: '크런치', img: null },
     { name: '레그 레이즈', img: null },
     { name: '플랭크', img: null },
-  ],
-  '엉덩이': [
-    { name: '바벨 힙 쓰러스트', img: null },
-    { name: '덤벨 힙 쓰러스트', img: null },
-    { name: '힙 브릿지', img: null },
   ],
 };
 
