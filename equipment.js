@@ -91,7 +91,7 @@
     { name: '바벨 런지',                 category: '바벨', muscles: '하체' },
     { name: '바벨 컬',                   category: '바벨', muscles: '이두' },
     { name: '루마니안 데드리프트',       category: '바벨', muscles: '하체' },
-    { name: '컨벤셔널 데드리프트',       category: '바벨', muscles: '등' },
+    { name: '컨벤셔널 데드리프트',       category: '바벨', muscles: '하체' },
     { name: '스모 데드리프트',           category: '바벨', muscles: '하체' },
     { name: '라잉 트라이셉스 익스텐션', category: '바벨', muscles: '삼두' },
     { name: '스플릿 스쿼트',             category: '바벨', muscles: '하체' },
