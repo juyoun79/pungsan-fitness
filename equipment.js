@@ -116,7 +116,7 @@
     { name: '벤트오버 레터럴 레이즈',    category: '덤벨', muscles: '어깨' },
     { name: '덤벨 스텝업',               category: '덤벨', muscles: '하체' },
     { name: '덤벨 킥백',                 category: '덤벨', muscles: '팔 · 삼두' },
-    { name: '덤벨 풀오버',               category: '덤벨', muscles: '가슴' },
+    { name: '덤벨 풀오버',               category: '덤벨', muscles: '등' },
     { name: '덤벨 힙 쓰러스트',          category: '덤벨', muscles: '하체' },
     { name: '덤벨 리버스 플라이',        category: '덤벨', muscles: '어깨' },
     { name: '덤벨 사이드런지',           category: '덤벨', muscles: '하체' },
