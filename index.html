@@ -4952,7 +4952,7 @@ const EX_GUIDE_DATA = {
     { name: '바벨 쉬러그', img: null },
   ],
   '가슴': [
-    { name: '바벨 벤치프레스', img: '/images/bench_press.gif', video: 'https://firebasestorage.googleapis.com/v0/b/pungsan-fitness.firebasestorage.app/o/barbell_bench_press.mp4?alt=media&token=22c3a656-1b34-445e-b0bf-e284066a5679' },
+    { name: '바벨 벤치프레스', img: '/images/bench_press.gif', video: 'https://firebasestorage.googleapis.com/v0/b/pungsan-fitness.firebasestorage.app/o/barbell_bench_press.mp4?alt=media&token=e1f6941b-6d35-4c38-a0e1-abe00aa38e1a' },
     { name: '덤벨 벤치프레스', img: '/images/dumbbell_bench_press.gif' },
     { name: '덤벨 플라이', img: '/images/dumbbell_fly.gif' },
     { name: '덤벨 인클라인 벤치프레스', img: null },
@@ -5031,10 +5031,13 @@ function selectBodyPart(part) {
   const list = EX_GUIDE_DATA[part] || [];
   const listEl = document.getElementById('ex-guide-list');
   listEl.innerHTML = list.map(ex => {
-    if (ex.img) {
-      return `<div onclick="showExDetail('${ex.name}','${ex.img}','${ex.video||''}')"
+    if (ex.img || ex.video) {
+      const mediaHtml = ex.video
+        ? `<video src="${ex.video}" style="width:100%;height:110px;object-fit:contain;background:#ffffff;" autoplay loop muted playsinline></video>`
+        : `<img src="${ex.img}" style="width:100%;height:110px;object-fit:contain;background:#ffffff;" alt="${ex.name}" />`;
+      return `<div onclick="showExDetail('${ex.name}','${ex.img||''}','${ex.video||''}')"
         style="border:1.5px solid #97c459;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--card);">
-        <img src="${ex.img}" style="width:100%;height:110px;object-fit:contain;background:#ffffff;" alt="${ex.name}" />
+        ${mediaHtml}
         <div style="padding:7px 8px;font-size:12px;font-weight:700;color:var(--text);">${ex.name}</div>
       </div>`;
     } else {
