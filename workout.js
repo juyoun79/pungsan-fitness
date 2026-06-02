@@ -1595,7 +1595,39 @@
     resultEl.innerHTML = filtered.map(e => `<div onclick="selectFwExercise('${e.name}')" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);" onmouseover="this.style.background='var(--blue-light)'" onmouseout="this.style.background=''"><span style="font-size:14px;color:var(--text);">${e.name}</span><span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;">${e.category}</span></div>`).join('');
   }
 
-  function selectFwExercise(name) { document.getElementById('fw-name').value = name; document.getElementById('fw-search-results').style.display = 'none'; }
+  function selectFwExercise(name) {
+    document.getElementById('fw-name').value = name;
+    document.getElementById('fw-search-results').style.display = 'none';
+    loadFwPrevRecords(name);
+  }
+
+  function loadFwPrevRecords(name) {
+    const userId = localStorage.getItem('current_user');
+    const container = document.getElementById('prev-records');
+    if (!container) return;
+    const safeKey = 'freeweight_' + name.replace(/\s+/g,'_') + '_' + userId;
+    const records = JSON.parse(localStorage.getItem(safeKey) || '[]');
+    if (records.length === 0) {
+      container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:14px;">아직 기록이 없어요.<br/>첫 번째 기록을 남겨보세요! 💪</div>';
+      return;
+    }
+    container.innerHTML = records.slice().reverse().slice(0,5).map(r => {
+      const color = '#f59e0b';
+      return `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="font-size:14px;font-weight:700;color:var(--text);">${r.dateLabel}</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="font-size:12px;color:var(--text-hint);">${r.savedAt||''}</div>
+            <button onclick="openEditWorkoutModal('${safeKey}','${r.date}')" style="background:#f59e0b18;color:#d97706;border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:${r.memo ? '10px' : '0'};">
+          ${r.sets.map(s => `<div style="background:#f59e0b18;border-radius:8px;padding:8px;text-align:center;"><div style="font-size:11px;color:#d97706;margin-bottom:2px;">${s.set}세트</div><div style="font-size:14px;font-weight:700;color:var(--text);">${s.weight > 0 ? s.weight+'kg' : '-'} × ${s.reps}회</div></div>`).join('')}
+        </div>
+        ${r.memo ? `<div style="font-size:13px;color:var(--text-sub);background:var(--bg);border-radius:8px;padding:8px 10px;">📝 ${r.memo}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
 
   function openFreeweightModal() {
     fwSetCount = 0; document.getElementById('fw-set-list').innerHTML = ''; document.getElementById('fw-name').value = ''; document.getElementById('fw-memo').value = ''; document.getElementById('fw-search-results').style.display = 'none';
@@ -1604,7 +1636,7 @@
 
   function closeFreeweightModal() { skipFwRestTimer(); if (isTrainerMode) { isTrainerMode = false; showScreen('screen-trainee-detail'); switchTraineeTab('record'); } else { showScreen('screen-workout-qr'); renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate); } }
 
-  function setFwName(name) { document.getElementById('fw-name').value = name; document.querySelectorAll('.fw-tag').forEach(t => { t.classList.toggle('selected', t.textContent === name); }); }
+  function setFwName(name) { document.getElementById('fw-name').value = name; document.querySelectorAll('.fw-tag').forEach(t => { t.classList.toggle('selected', t.textContent === name); }); loadFwPrevRecords(name); }
 
   function addFwSet() {
     fwSetCount++;
