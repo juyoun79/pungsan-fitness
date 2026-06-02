@@ -3872,13 +3872,21 @@
     ctx.clearRect(0, 0, W, H);
 
     const GRAPH_H = H - 20;
-    const total = days7.length;
-    const pts = days7.map((r, i) => ({
-      x: W * 0.10 + (W * 0.82) * (total === 1 ? 0.5 : i / (total - 1)),
-      y: r.weight !== null ? GRAPH_H * 0.12 + (GRAPH_H * 0.70) * (1 - (r.weight - minW) / range2) : null,
-      w: r.weight,
-      label: r.label
-    }));
+    // 날짜 간격에 비례한 X좌표 계산 (1주 전체보기와 동일한 방식)
+    const firstDate2 = new Date(days7[0].key);
+    const lastDate2  = new Date(days7[days7.length-1].key);
+    const totalDays2 = Math.max((lastDate2 - firstDate2) / 86400000, 1);
+    const pts = days7.map((r) => {
+      const d = new Date(r.key);
+      const dayOffset = (d - firstDate2) / 86400000;
+      const xRatio = days7.length === 1 ? 0.5 : dayOffset / totalDays2;
+      return {
+        x: W * 0.10 + (W * 0.82) * xRatio,
+        y: r.weight !== null ? GRAPH_H * 0.12 + (GRAPH_H * 0.70) * (1 - (r.weight - minW) / range2) : null,
+        w: r.weight,
+        label: r.label
+      };
+    });
 
     // 그라데이션 영역 (기록 있는 점만)
     const grad = ctx.createLinearGradient(0, 0, 0, GRAPH_H);
