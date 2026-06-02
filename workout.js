@@ -1603,7 +1603,7 @@
 
   function loadFwPrevRecords(name) {
     const userId = localStorage.getItem('current_user');
-    const container = document.getElementById('prev-records');
+    const container = document.getElementById('fw-prev-records');
     if (!container) return;
     const safeKey = 'freeweight_' + name.replace(/\s+/g,'_') + '_' + userId;
     const records = JSON.parse(localStorage.getItem(safeKey) || '[]');
