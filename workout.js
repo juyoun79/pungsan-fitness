@@ -1997,6 +1997,32 @@
     if (box.style.display === 'block') document.getElementById('routine-ex-search-input').focus();
   }
 
+  // 부위 대분류 → 세부 부위 매핑 (기구 검색용)
+  const MUSCLE_CATEGORY_MAP = {
+    '하체': ['허벅지', '앞쪽 허벅지', '뒷쪽 허벅지', '종아리', '엉덩이', '햄스트링', '허벅지·엉덩이', '하체'],
+    '등':   ['등', '승모근', '능형근', '광배근', '허리·등', '중·하부 승모근', '후면 삼각근'],
+    '가슴': ['가슴', '윗가슴'],
+    '어깨': ['어깨', '후면 삼각근', '앞쪽 어깨', '삼각근'],
+    '팔':   ['이두', '삼두', '전완'],
+    '복부': ['복부', '코어'],
+    '코어': ['복부', '코어'],
+    '허리': ['허리', '허리·등'],
+  };
+
+  // 검색어가 대분류일 때 매핑된 키워드 포함해서 muscles 매칭 여부 확인
+  function matchesMuscle(muscles, query) {
+    const ql = query.toLowerCase();
+    const m = (muscles || '').toLowerCase();
+    if (m.includes(ql)) return true;
+    // 대분류 매핑 검색
+    for (const [category, keywords] of Object.entries(MUSCLE_CATEGORY_MAP)) {
+      if (category.toLowerCase() === ql) {
+        if (keywords.some(k => m.includes(k.toLowerCase()))) return true;
+      }
+    }
+    return false;
+  }
+
   function searchRoutineExercise(q) {
     const results = document.getElementById('routine-ex-search-results');
     if (!q.trim()) { results.innerHTML = ''; return; }
@@ -2004,7 +2030,7 @@
     const fwItems = FW_EXERCISE_LIST.filter(e => e.name.toLowerCase().includes(ql) || e.muscles.toLowerCase().includes(ql) || e.category.toLowerCase().includes(ql))
       .map(e => ({ name: e.name, tag: e.muscles || e.category, type: 'fw' }));
     const eqItems = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : [])
-      .filter(e => e.name.toLowerCase().includes(ql) || (e.muscles||'').toLowerCase().includes(ql) || String(e.no) === q.trim())
+      .filter(e => e.name.toLowerCase().includes(ql) || matchesMuscle(e.muscles, q.trim()) || String(e.no) === q.trim())
       .map(e => ({ name: e.name, tag: e.muscles || '기구', type: 'eq' }));
     const combined = [...fwItems, ...eqItems];
     if (combined.length === 0) { results.innerHTML = '<div style="padding:10px 14px;font-size:13px;color:var(--text-hint);">검색 결과 없음</div>'; return; }
@@ -2172,7 +2198,7 @@
     const fwItems = FW_EXERCISE_LIST.filter(e => e.name.toLowerCase().includes(ql) || e.muscles.toLowerCase().includes(ql) || e.category.toLowerCase().includes(ql))
       .map(e => ({ name: e.name, tag: e.muscles || e.category, type: 'fw' }));
     const eqItems = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : [])
-      .filter(e => e.name.toLowerCase().includes(ql) || (e.muscles||'').toLowerCase().includes(ql) || String(e.no) === q.trim())
+      .filter(e => e.name.toLowerCase().includes(ql) || matchesMuscle(e.muscles, q.trim()) || String(e.no) === q.trim())
       .map(e => ({ name: e.name, tag: e.muscles || '기구', type: 'eq' }));
     const combined = [...fwItems, ...eqItems];
     if (combined.length === 0) { results.innerHTML = '<div style="padding:10px 14px;font-size:13px;color:var(--text-hint);">검색 결과 없음</div>'; return; }
