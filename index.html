@@ -2904,9 +2904,12 @@
       <button onclick="openRoutineCreate()" style="background:#7c3aed;border:none;border-radius:10px;padding:7px 14px;color:white;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">+ 새 루틴</button>
     </div>
     <div style="padding:16px 16px calc(var(--tab-h) * 2 + env(safe-area-inset-bottom,16px) + 16px);overflow-y:auto;">
-      <div id="routine-draft-banner" style="display:none;background:#fef3c7;border:1.5px solid #fbbf24;border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;cursor:pointer;" onclick="resumeRoutineDraft()">
-        <div style="font-size:13px;font-weight:700;color:#92400e;">⚡ 이어서 하기</div>
-        <div id="routine-draft-info" style="font-size:11px;color:#b45309;margin-top:2px;"></div>
+      <div id="routine-draft-banner" style="display:none;background:#fef3c7;border:1.5px solid #fbbf24;border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;display:none;align-items:center;justify-content:space-between;gap:8px;">
+        <div style="flex:1;cursor:pointer;" onclick="resumeRoutineDraft()">
+          <div style="font-size:13px;font-weight:700;color:#92400e;">⚡ 이어서 하기</div>
+          <div id="routine-draft-info" style="font-size:11px;color:#b45309;margin-top:2px;"></div>
+        </div>
+        <button onclick="deleteRoutineDraft()" style="background:#fde68a;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;color:#92400e;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">×</button>
       </div>
       <div id="routine-list-container"></div>
       <div id="routine-list-empty" style="display:none;text-align:center;padding:48px 16px;">

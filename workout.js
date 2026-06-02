@@ -1874,12 +1874,23 @@
     if (draft) {
       try {
         const d = JSON.parse(draft);
-        banner.style.display = 'block';
+        banner.style.display = 'flex';
         info.textContent = (d.routineName || '루틴') + ' · ' + (d.savedAt || '') + ' 임시저장됨';
       } catch(e) { localStorage.removeItem(draftKey); banner.style.display = 'none'; }
     } else {
       banner.style.display = 'none';
     }
+  }
+
+  function deleteRoutineDraft() {
+    showConfirm('임시저장을 삭제할까요?', () => {
+      const userId = localStorage.getItem('current_user');
+      if (!userId) return;
+      localStorage.removeItem('routine_draft_' + userId);
+      const banner = document.getElementById('routine-draft-banner');
+      if (banner) banner.style.display = 'none';
+      showToast('임시저장이 삭제됐어요.', 'success');
+    });
   }
 
   function resumeRoutineDraft() {
@@ -2003,11 +2014,11 @@
         : 'background:#dbeafe;color:#1e40af;';
       const badgeText = e.type === 'fw' ? '프리' : '기구';
       return `<div onclick="addRoutineExercise('${escapeHtml(e.name)}')" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);" onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background=''">
-        <span style="font-size:13px;color:var(--text);">${escapeHtml(e.name)}</span>
-        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
-          <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;${badgeStyle}">${badgeText}</span>
-          <span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;">${escapeHtml(e.tag)}</span>
+        <div style="display:flex;align-items:center;gap:5px;min-width:0;">
+          <span style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(e.name)}</span>
+          <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;flex-shrink:0;${badgeStyle}">${badgeText}</span>
         </div>
+        <span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;flex-shrink:0;">${escapeHtml(e.tag)}</span>
       </div>`;
     }).join('');
   }
@@ -2171,11 +2182,11 @@
         : 'background:#dbeafe;color:#1e40af;';
       const badgeText = e.type === 'fw' ? '프리' : '기구';
       return `<div onclick="addRoutineWorkoutExercise('${escapeHtml(e.name)}')" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);" onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background=''">
-        <span style="font-size:13px;color:var(--text);">${escapeHtml(e.name)}</span>
-        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
-          <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;${badgeStyle}">${badgeText}</span>
-          <span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;">${escapeHtml(e.tag)}</span>
+        <div style="display:flex;align-items:center;gap:5px;min-width:0;">
+          <span style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(e.name)}</span>
+          <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;flex-shrink:0;${badgeStyle}">${badgeText}</span>
         </div>
+        <span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;flex-shrink:0;">${escapeHtml(e.tag)}</span>
       </div>`;
     }).join('');
   }
