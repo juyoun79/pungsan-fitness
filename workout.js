@@ -1805,19 +1805,16 @@
     const db = firebase.database();
     db.ref('users/' + userId + '/routines').once('value', snap => {
       const data = snap.val();
-      const banner = document.getElementById('routine-banner');
       const title = document.getElementById('routine-banner-title');
       const sub = document.getElementById('routine-banner-sub');
-      if (!banner) return;
+      if (!title) return;
+      title.textContent = '내 루틴 만들기';
       if (data) {
-        const keys = Object.keys(data);
-        const count = keys.length;
-        const names = keys.map(k => data[k].name).slice(0, 2).join(', ');
-        title.textContent = '내 루틴 ' + count + '개';
-        sub.textContent = names + (count > 2 ? ' 외 ' + (count - 2) + '개' : '');
+        const count = Object.keys(data).length;
+        sub.textContent = '내 루틴 ' + count + '개';
+        sub.style.display = 'block';
       } else {
-        title.textContent = '내 루틴';
-        sub.textContent = '루틴을 만들면 빠르게 시작할 수 있어요';
+        sub.style.display = 'none';
       }
     });
   }
