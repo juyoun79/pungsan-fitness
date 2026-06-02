@@ -1992,11 +1992,17 @@
   function searchRoutineExercise(q) {
     const results = document.getElementById('routine-ex-search-results');
     if (!q.trim()) { results.innerHTML = ''; return; }
-    const filtered = FW_EXERCISE_LIST.filter(e => e.name.toLowerCase().includes(q.toLowerCase()) || e.muscles.toLowerCase().includes(q.toLowerCase()) || e.category.toLowerCase().includes(q.toLowerCase()));
-    if (filtered.length === 0) { results.innerHTML = '<div style="padding:10px 14px;font-size:13px;color:var(--text-hint);">검색 결과 없음</div>'; return; }
-    results.innerHTML = filtered.map(e => `<div onclick="addRoutineExercise('${escapeHtml(e.name)}')" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);" onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background=''">
+    const ql = q.toLowerCase();
+    const fwItems = FW_EXERCISE_LIST.filter(e => e.name.toLowerCase().includes(ql) || e.muscles.toLowerCase().includes(ql) || e.category.toLowerCase().includes(ql))
+      .map(e => ({ name: e.name, tag: e.category }));
+    const eqItems = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : [])
+      .filter(e => e.name.toLowerCase().includes(ql) || (e.muscles||'').toLowerCase().includes(ql) || String(e.no) === q.trim())
+      .map(e => ({ name: e.name, tag: e.muscles || '기구' }));
+    const combined = [...fwItems, ...eqItems];
+    if (combined.length === 0) { results.innerHTML = '<div style="padding:10px 14px;font-size:13px;color:var(--text-hint);">검색 결과 없음</div>'; return; }
+    results.innerHTML = combined.map(e => `<div onclick="addRoutineExercise('${escapeHtml(e.name)}')" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);" onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background=''">
       <span style="font-size:13px;color:var(--text);">${escapeHtml(e.name)}</span>
-      <span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;">${e.category}</span>
+      <span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;">${escapeHtml(e.tag)}</span>
     </div>`).join('');
   }
 
@@ -2145,11 +2151,17 @@
   function searchRoutineWorkoutExercise(q) {
     const results = document.getElementById('routine-workout-ex-search-results');
     if (!q.trim()) { results.innerHTML = ''; return; }
-    const filtered = FW_EXERCISE_LIST.filter(e => e.name.toLowerCase().includes(q.toLowerCase()) || e.muscles.toLowerCase().includes(q.toLowerCase()) || e.category.toLowerCase().includes(q.toLowerCase()));
-    if (filtered.length === 0) { results.innerHTML = '<div style="padding:10px 14px;font-size:13px;color:var(--text-hint);">검색 결과 없음</div>'; return; }
-    results.innerHTML = filtered.map(e => `<div onclick="addRoutineWorkoutExercise('${escapeHtml(e.name)}')" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);" onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background=''">
+    const ql = q.toLowerCase();
+    const fwItems = FW_EXERCISE_LIST.filter(e => e.name.toLowerCase().includes(ql) || e.muscles.toLowerCase().includes(ql) || e.category.toLowerCase().includes(ql))
+      .map(e => ({ name: e.name, tag: e.category }));
+    const eqItems = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : [])
+      .filter(e => e.name.toLowerCase().includes(ql) || (e.muscles||'').toLowerCase().includes(ql) || String(e.no) === q.trim())
+      .map(e => ({ name: e.name, tag: e.muscles || '기구' }));
+    const combined = [...fwItems, ...eqItems];
+    if (combined.length === 0) { results.innerHTML = '<div style="padding:10px 14px;font-size:13px;color:var(--text-hint);">검색 결과 없음</div>'; return; }
+    results.innerHTML = combined.map(e => `<div onclick="addRoutineWorkoutExercise('${escapeHtml(e.name)}')" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);" onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background=''">
       <span style="font-size:13px;color:var(--text);">${escapeHtml(e.name)}</span>
-      <span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;">${e.category}</span>
+      <span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;">${escapeHtml(e.tag)}</span>
     </div>`).join('');
   }
 
