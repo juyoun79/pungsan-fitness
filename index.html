@@ -3838,7 +3838,7 @@
     const firstDate = new Date(history[0].date);
     // 오늘 기준 최대 6일 전 vs 첫 기록일 중 더 최근 날짜를 시작점으로
     const maxStart = new Date(today);
-    maxStart.setDate(today.getDate() - 6);
+    maxStart.setDate(today.getDate() - 7);
     const startDate = firstDate > maxStart ? firstDate : maxStart;
 
     // 기록 있는 날짜만 최대 7개 표시
