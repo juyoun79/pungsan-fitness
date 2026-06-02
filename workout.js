@@ -150,6 +150,7 @@
     clearEquipmentSearch();
     renderCalendar();
     document.getElementById('cal-day-detail').innerHTML = '';
+    updateRoutineBanner();
     syncWorkoutsFromFirebase(() => {
       loadLessonDaysInMonth(calYear, calMonth, () => {
         renderCalendar();
@@ -1788,3 +1789,447 @@
     stopRestAlarm(); releaseWakeLock();
     const box = document.getElementById('fw-rest-timer-box'); if (box) box.style.display = 'none';
   }
+
+  // ══════════════════════════════
+  //  루틴 기능 전체
+  // ══════════════════════════════
+
+  let currentRoutineWorkout = null; // 현재 운동 중인 루틴 데이터
+  let routineDraftKey = ''; // 임시저장 키
+
+  // 루틴 배너 업데이트 (운동기록 탭 진입 시 호출)
+  function updateRoutineBanner() {
+    const userId = localStorage.getItem('current_user');
+    if (!userId) return;
+    routineDraftKey = 'routine_draft_' + userId;
+    const db = firebase.database();
+    db.ref('users/' + userId + '/routines').once('value', snap => {
+      const data = snap.val();
+      const banner = document.getElementById('routine-banner');
+      const title = document.getElementById('routine-banner-title');
+      const sub = document.getElementById('routine-banner-sub');
+      if (!banner) return;
+      if (data) {
+        const keys = Object.keys(data);
+        const count = keys.length;
+        const names = keys.map(k => data[k].name).slice(0, 2).join(', ');
+        title.textContent = '내 루틴 ' + count + '개';
+        sub.textContent = names + (count > 2 ? ' 외 ' + (count - 2) + '개' : '');
+      } else {
+        title.textContent = '내 루틴';
+        sub.textContent = '루틴을 만들면 빠르게 시작할 수 있어요';
+      }
+    });
+  }
+
+  // ── 루틴 목록 화면 ──
+  function openRoutineList() {
+    showScreen('screen-routine-list');
+    loadRoutineList();
+    checkRoutineDraft();
+  }
+
+  function closeRoutineList() {
+    showScreen('screen-workout-qr');
+  }
+
+  function loadRoutineList() {
+    const userId = localStorage.getItem('current_user');
+    if (!userId) return;
+    const container = document.getElementById('routine-list-container');
+    const empty = document.getElementById('routine-list-empty');
+    container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
+    firebase.database().ref('users/' + userId + '/routines').once('value', snap => {
+      const data = snap.val();
+      if (!data) {
+        container.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      const routines = Object.entries(data).sort((a, b) => (b[1].updatedAt || 0) - (a[1].updatedAt || 0));
+      container.innerHTML = routines.map(([id, r]) => {
+        const exNames = (r.exercises || []).map(e => e.name).join(' · ');
+        const count = (r.exercises || []).length;
+        return `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <div style="font-size:16px;font-weight:700;color:var(--text);">${escapeHtml(r.name)}</div>
+            <div style="display:flex;gap:6px;">
+              <button onclick="openRoutineEdit('${id}')" style="background:#f3f4f6;border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
+              <button onclick="deleteRoutine('${id}')" style="background:#fee2e2;border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;color:#ef4444;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;">${count}가지 운동 · ${escapeHtml(exNames)}</div>
+          <button onclick="startRoutineWorkout('${id}')" style="width:100%;padding:10px;background:#7c3aed;border:none;border-radius:var(--radius-sm);color:white;font-size:14px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">이 루틴으로 운동 시작</button>
+        </div>`;
+      }).join('');
+    });
+  }
+
+  // 임시저장 확인
+  function checkRoutineDraft() {
+    const userId = localStorage.getItem('current_user');
+    if (!userId) return;
+    const draftKey = 'routine_draft_' + userId;
+    const draft = localStorage.getItem(draftKey);
+    const banner = document.getElementById('routine-draft-banner');
+    const info = document.getElementById('routine-draft-info');
+    if (draft) {
+      try {
+        const d = JSON.parse(draft);
+        banner.style.display = 'block';
+        info.textContent = (d.routineName || '루틴') + ' · ' + (d.savedAt || '') + ' 임시저장됨';
+      } catch(e) { localStorage.removeItem(draftKey); banner.style.display = 'none'; }
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+
+  function resumeRoutineDraft() {
+    const userId = localStorage.getItem('current_user');
+    if (!userId) return;
+    const draft = localStorage.getItem('routine_draft_' + userId);
+    if (!draft) return;
+    try {
+      const d = JSON.parse(draft);
+      currentRoutineWorkout = d;
+      showScreen('screen-routine-workout');
+      document.getElementById('routine-workout-title').textContent = d.routineName || '운동 기록';
+      renderRoutineWorkoutList();
+    } catch(e) { showToast('임시저장 복구에 실패했어요.', 'error'); }
+  }
+
+  // ── 루틴 만들기 화면 ──
+  function openRoutineCreate() {
+    document.getElementById('routine-create-title').textContent = '루틴 만들기';
+    document.getElementById('routine-edit-id').value = '';
+    document.getElementById('routine-name-input').value = '';
+    document.getElementById('routine-exercise-list').innerHTML = '';
+    document.getElementById('routine-ex-search-box').style.display = 'none';
+    document.getElementById('routine-ex-search-input').value = '';
+    showScreen('screen-routine-create');
+  }
+
+  function openRoutineEdit(routineId) {
+    const userId = localStorage.getItem('current_user');
+    firebase.database().ref('users/' + userId + '/routines/' + routineId).once('value', snap => {
+      const r = snap.val();
+      if (!r) return;
+      document.getElementById('routine-create-title').textContent = '루틴 수정';
+      document.getElementById('routine-edit-id').value = routineId;
+      document.getElementById('routine-name-input').value = r.name || '';
+      document.getElementById('routine-ex-search-box').style.display = 'none';
+      renderRoutineCreateList(r.exercises || []);
+      showScreen('screen-routine-create');
+    });
+  }
+
+  function closeRoutineCreate() {
+    showScreen('screen-routine-list');
+    loadRoutineList();
+  }
+
+  // 루틴 만들기 - 운동 목록 렌더
+  function renderRoutineCreateList(exercises) {
+    const container = document.getElementById('routine-exercise-list');
+    if (!exercises || exercises.length === 0) { container.innerHTML = ''; return; }
+    container.innerHTML = exercises.map((ex, i) => `
+      <div id="routine-create-item-${i}" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="font-size:14px;font-weight:700;color:var(--text);">${i+1}. ${escapeHtml(ex.name)}</div>
+          <button onclick="removeRoutineCreateItem(${i})" style="background:#fee2e2;border:none;border-radius:6px;padding:4px 8px;font-size:11px;color:#ef4444;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+          <div style="text-align:center;">
+            <div style="font-size:10px;color:var(--text-hint);margin-bottom:3px;">세트</div>
+            <input type="number" min="1" max="20" value="${ex.sets||3}" id="rc-sets-${i}"
+              style="width:100%;box-sizing:border-box;padding:7px 4px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:'Noto Sans KR',sans-serif;background:var(--bg);"
+              onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='var(--border)'"/>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:10px;color:var(--text-hint);margin-bottom:3px;">기본 무게(kg)</div>
+            <input type="number" min="0" max="500" step="2.5" value="${ex.weight||0}" id="rc-weight-${i}"
+              style="width:100%;box-sizing:border-box;padding:7px 4px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:'Noto Sans KR',sans-serif;background:var(--bg);"
+              onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='var(--border)'"/>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:10px;color:var(--text-hint);margin-bottom:3px;">기본 횟수</div>
+            <input type="number" min="1" max="999" value="${ex.reps||10}" id="rc-reps-${i}"
+              style="width:100%;box-sizing:border-box;padding:7px 4px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:'Noto Sans KR',sans-serif;background:var(--bg);"
+              onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='var(--border)'"/>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  // 루틴 만들기 - 현재 입력값 수집
+  function collectRoutineCreateItems() {
+    const container = document.getElementById('routine-exercise-list');
+    const items = container.querySelectorAll('[id^="routine-create-item-"]');
+    const exercises = [];
+    items.forEach((item, i) => {
+      const nameEl = item.querySelector('div[style*="font-weight:700"]');
+      const name = nameEl ? nameEl.textContent.replace(/^\d+\.\s*/, '').trim() : '';
+      const sets = parseInt(document.getElementById('rc-sets-' + i)?.value) || 3;
+      const weight = parseFloat(document.getElementById('rc-weight-' + i)?.value) || 0;
+      const reps = parseInt(document.getElementById('rc-reps-' + i)?.value) || 10;
+      if (name) exercises.push({ name, sets, weight, reps });
+    });
+    return exercises;
+  }
+
+  function removeRoutineCreateItem(idx) {
+    const exercises = collectRoutineCreateItems().filter((_, i) => i !== idx);
+    renderRoutineCreateList(exercises);
+  }
+
+  function openRoutineExSearch() {
+    const box = document.getElementById('routine-ex-search-box');
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    if (box.style.display === 'block') document.getElementById('routine-ex-search-input').focus();
+  }
+
+  function searchRoutineExercise(q) {
+    const results = document.getElementById('routine-ex-search-results');
+    if (!q.trim()) { results.innerHTML = ''; return; }
+    const filtered = FW_EXERCISE_LIST.filter(e => e.name.toLowerCase().includes(q.toLowerCase()) || e.muscles.toLowerCase().includes(q.toLowerCase()) || e.category.toLowerCase().includes(q.toLowerCase()));
+    if (filtered.length === 0) { results.innerHTML = '<div style="padding:10px 14px;font-size:13px;color:var(--text-hint);">검색 결과 없음</div>'; return; }
+    results.innerHTML = filtered.map(e => `<div onclick="addRoutineExercise('${escapeHtml(e.name)}')" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);" onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background=''">
+      <span style="font-size:13px;color:var(--text);">${escapeHtml(e.name)}</span>
+      <span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;">${e.category}</span>
+    </div>`).join('');
+  }
+
+  function addRoutineExercise(name) {
+    const existing = collectRoutineCreateItems();
+    existing.push({ name, sets: 3, weight: 0, reps: 10 });
+    renderRoutineCreateList(existing);
+    document.getElementById('routine-ex-search-box').style.display = 'none';
+    document.getElementById('routine-ex-search-input').value = '';
+    document.getElementById('routine-ex-search-results').innerHTML = '';
+  }
+
+  // 루틴 저장
+  function saveRoutine() {
+    const userId = localStorage.getItem('current_user');
+    if (!userId) return;
+    const name = document.getElementById('routine-name-input').value.trim();
+    if (!name) { showToast('루틴 이름을 입력해주세요!', 'error'); return; }
+    const exercises = collectRoutineCreateItems();
+    if (exercises.length === 0) { showToast('운동을 1개 이상 추가해주세요!', 'error'); return; }
+    const editId = document.getElementById('routine-edit-id').value;
+    const routineId = editId || ('routine_' + Date.now());
+    const data = { name, exercises, updatedAt: Date.now() };
+    firebase.database().ref('users/' + userId + '/routines/' + routineId).set(data, err => {
+      if (err) { showToast('저장 실패. 다시 시도해주세요.', 'error'); return; }
+      showToast(editId ? '루틴이 수정됐어요!' : '루틴이 저장됐어요!', 'success');
+      closeRoutineCreate();
+      updateRoutineBanner();
+    });
+  }
+
+  // 루틴 삭제
+  function deleteRoutine(routineId) {
+    showConfirm('이 루틴을 삭제할까요?', () => {
+      const userId = localStorage.getItem('current_user');
+      firebase.database().ref('users/' + userId + '/routines/' + routineId).remove(() => {
+        showToast('루틴이 삭제됐어요.', 'success');
+        loadRoutineList();
+        updateRoutineBanner();
+      });
+    });
+  }
+
+  // ── 루틴으로 운동하기 ──
+  function startRoutineWorkout(routineId) {
+    const userId = localStorage.getItem('current_user');
+    firebase.database().ref('users/' + userId + '/routines/' + routineId).once('value', snap => {
+      const r = snap.val();
+      if (!r) return;
+      // 각 운동의 이전 기록 불러오기
+      const exercises = (r.exercises || []).map(ex => {
+        const safeKey = 'freeweight_' + ex.name.replace(/\s+/g,'_') + '_' + userId;
+        const records = JSON.parse(localStorage.getItem(safeKey) || '[]');
+        const last = records[records.length - 1];
+        // 이전 기록 있으면 그 값으로, 없으면 루틴 기본값으로
+        const prevSets = last ? last.sets : null;
+        const sets = ex.sets || 3;
+        const inputSets = [];
+        for (let i = 0; i < sets; i++) {
+          inputSets.push({
+            set: i + 1,
+            weight: prevSets && prevSets[i] ? prevSets[i].weight : (ex.weight || 0),
+            reps: prevSets && prevSets[i] ? prevSets[i].reps : (ex.reps || 10),
+            prevWeight: prevSets && prevSets[i] ? prevSets[i].weight : null
+          });
+        }
+        return { name: ex.name, sets: inputSets };
+      });
+      currentRoutineWorkout = { routineId, routineName: r.name, exercises };
+      saveRoutineDraft();
+      showScreen('screen-routine-workout');
+      document.getElementById('routine-workout-title').textContent = r.name;
+      renderRoutineWorkoutList();
+    });
+  }
+
+  function closeRoutineWorkout() {
+    showConfirm('운동을 그만할까요?\n입력한 내용은 임시저장 돼요.', () => {
+      saveRoutineDraft();
+      showScreen('screen-routine-list');
+    });
+  }
+
+  // 루틴 운동 화면 렌더
+  function renderRoutineWorkoutList() {
+    const container = document.getElementById('routine-workout-list');
+    if (!currentRoutineWorkout) return;
+    const { exercises } = currentRoutineWorkout;
+    container.innerHTML = exercises.map((ex, ei) => `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;">
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:10px;">${ei+1}. ${escapeHtml(ex.name)}</div>
+        <div style="display:grid;grid-template-columns:36px 1fr 1fr 36px;gap:4px;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border);">
+          <div style="text-align:center;font-size:10px;color:var(--text-hint);">세트</div>
+          <div style="text-align:center;font-size:10px;color:var(--text-hint);">무게(kg)</div>
+          <div style="text-align:center;font-size:10px;color:var(--text-hint);">횟수</div>
+          <div></div>
+        </div>
+        ${ex.sets.map((s, si) => `
+        <div style="display:grid;grid-template-columns:36px 1fr 1fr 36px;gap:4px;margin-bottom:6px;align-items:center;">
+          <div style="text-align:center;font-size:13px;font-weight:700;color:white;background:#7c3aed;border-radius:8px;height:38px;display:flex;align-items:center;justify-content:center;">${s.set}</div>
+          <div style="position:relative;">
+            <input type="number" min="0" max="500" step="2.5" value="${s.weight}"
+              id="rw-weight-${ei}-${si}"
+              style="width:100%;box-sizing:border-box;padding:8px 4px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:'Noto Sans KR',sans-serif;background:var(--bg);"
+              onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='var(--border)'"
+              oninput="autoSaveRoutineDraft()"/>
+            ${s.prevWeight !== null ? `<div style="position:absolute;top:-8px;right:4px;font-size:9px;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 4px;">저번 ${s.prevWeight}kg</div>` : ''}
+          </div>
+          <input type="number" min="0" max="9999" value="${s.reps}"
+            id="rw-reps-${ei}-${si}"
+            style="width:100%;box-sizing:border-box;padding:8px 4px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:'Noto Sans KR',sans-serif;background:var(--bg);"
+            onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='var(--border)'"
+            oninput="autoSaveRoutineDraft()"/>
+          <button onclick="removeRoutineWorkoutSet(${ei},${si})" style="width:36px;height:38px;border:none;background:#fee2e2;color:#ef4444;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;"${ex.sets.length <= 1 ? ' disabled style="opacity:0.3;width:36px;height:38px;border:none;background:#fee2e2;color:#ef4444;border-radius:8px;cursor:not-allowed;font-size:16px;display:flex;align-items:center;justify-content:center;"' : ''}>×</button>
+        </div>`).join('')}
+        <button onclick="addRoutineWorkoutSet(${ei})" style="width:100%;padding:7px;background:var(--bg);border:1.5px dashed var(--border);border-radius:8px;color:var(--text-hint);font-size:12px;font-family:'Noto Sans KR',sans-serif;cursor:pointer;margin-top:2px;">+ 세트 추가</button>
+      </div>`).join('');
+  }
+
+  function addRoutineWorkoutSet(exIdx) {
+    if (!currentRoutineWorkout) return;
+    const ex = currentRoutineWorkout.exercises[exIdx];
+    const last = ex.sets[ex.sets.length - 1];
+    ex.sets.push({ set: ex.sets.length + 1, weight: last ? last.weight : 0, reps: last ? last.reps : 10, prevWeight: null });
+    renderRoutineWorkoutList();
+    autoSaveRoutineDraft();
+  }
+
+  function removeRoutineWorkoutSet(exIdx, setIdx) {
+    if (!currentRoutineWorkout) return;
+    const ex = currentRoutineWorkout.exercises[exIdx];
+    if (ex.sets.length <= 1) return;
+    ex.sets.splice(setIdx, 1);
+    ex.sets.forEach((s, i) => s.set = i + 1);
+    renderRoutineWorkoutList();
+    autoSaveRoutineDraft();
+  }
+
+  // 루틴 운동 화면 - 운동 추가
+  function openRoutineExSearchInWorkout() {
+    const box = document.getElementById('routine-workout-ex-search-box');
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    if (box.style.display === 'block') document.getElementById('routine-workout-ex-search-input').focus();
+  }
+
+  function searchRoutineWorkoutExercise(q) {
+    const results = document.getElementById('routine-workout-ex-search-results');
+    if (!q.trim()) { results.innerHTML = ''; return; }
+    const filtered = FW_EXERCISE_LIST.filter(e => e.name.toLowerCase().includes(q.toLowerCase()) || e.muscles.toLowerCase().includes(q.toLowerCase()) || e.category.toLowerCase().includes(q.toLowerCase()));
+    if (filtered.length === 0) { results.innerHTML = '<div style="padding:10px 14px;font-size:13px;color:var(--text-hint);">검색 결과 없음</div>'; return; }
+    results.innerHTML = filtered.map(e => `<div onclick="addRoutineWorkoutExercise('${escapeHtml(e.name)}')" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);" onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background=''">
+      <span style="font-size:13px;color:var(--text);">${escapeHtml(e.name)}</span>
+      <span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;">${e.category}</span>
+    </div>`).join('');
+  }
+
+  function addRoutineWorkoutExercise(name) {
+    if (!currentRoutineWorkout) return;
+    const userId = localStorage.getItem('current_user');
+    const safeKey = 'freeweight_' + name.replace(/\s+/g,'_') + '_' + userId;
+    const records = JSON.parse(localStorage.getItem(safeKey) || '[]');
+    const last = records[records.length - 1];
+    const prevSets = last ? last.sets : null;
+    currentRoutineWorkout.exercises.push({
+      name,
+      sets: [{ set:1, weight: prevSets && prevSets[0] ? prevSets[0].weight : 0, reps: prevSets && prevSets[0] ? prevSets[0].reps : 10, prevWeight: prevSets && prevSets[0] ? prevSets[0].weight : null }]
+    });
+    document.getElementById('routine-workout-ex-search-box').style.display = 'none';
+    document.getElementById('routine-workout-ex-search-input').value = '';
+    document.getElementById('routine-workout-ex-search-results').innerHTML = '';
+    renderRoutineWorkoutList();
+    autoSaveRoutineDraft();
+  }
+
+  // 자동 임시저장
+  function autoSaveRoutineDraft() {
+    if (!currentRoutineWorkout) return;
+    // 현재 입력값을 currentRoutineWorkout에 반영
+    const { exercises } = currentRoutineWorkout;
+    exercises.forEach((ex, ei) => {
+      ex.sets.forEach((s, si) => {
+        const wEl = document.getElementById('rw-weight-' + ei + '-' + si);
+        const rEl = document.getElementById('rw-reps-' + ei + '-' + si);
+        if (wEl) s.weight = parseFloat(wEl.value) || 0;
+        if (rEl) s.reps = parseInt(rEl.value) || 0;
+      });
+    });
+    saveRoutineDraft();
+  }
+
+  function saveRoutineDraft() {
+    const userId = localStorage.getItem('current_user');
+    if (!userId || !currentRoutineWorkout) return;
+    const now = new Date();
+    const timeStr = (now.getHours() < 10 ? '0' : '') + now.getHours() + ':' + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
+    currentRoutineWorkout.savedAt = timeStr;
+    localStorage.setItem('routine_draft_' + userId, JSON.stringify(currentRoutineWorkout));
+  }
+
+  // 루틴 운동 기록 저장
+  function saveRoutineWorkout() {
+    if (!currentRoutineWorkout) return;
+    // 입력값 최종 반영
+    autoSaveRoutineDraft();
+    const { exercises, routineName } = currentRoutineWorkout;
+    const userId = localStorage.getItem('current_user');
+    const now = new Date();
+    const date = now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate();
+    const dateLabel = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일';
+    const savedAt = (now.getHours() < 10 ? '0' : '') + now.getHours() + ':' + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
+    let savedCount = 0;
+    exercises.forEach(ex => {
+      const validSets = ex.sets.filter(s => s.weight > 0 || s.reps > 0);
+      if (validSets.length === 0) return;
+      const safeKey = 'freeweight_' + ex.name.replace(/\s+/g,'_') + '_' + userId;
+      const records = JSON.parse(localStorage.getItem(safeKey) || '[]');
+      const existing = records.findIndex(r => r.date === date);
+      const record = { date, dateLabel, savedAt, sets: validSets.map((s,i) => ({set:i+1, weight:s.weight, reps:s.reps})) };
+      if (existing >= 0) records[existing] = record; else records.push(record);
+      localStorage.setItem(safeKey, JSON.stringify(records));
+      // Firebase에도 저장
+      const fbKey = ex.name.replace(/[\.\#\$\[\]]/g, '_');
+      firebase.database().ref('users/' + userId + '/workouts/' + date.replace(/-/g,'/') + '/' + fbKey).set({ name: ex.name, sets: validSets, savedAt, recordedBy: 'member' });
+      savedCount++;
+    });
+    if (savedCount === 0) { showToast('저장할 기록이 없어요. 무게나 횟수를 입력해주세요.', 'error'); return; }
+    // 임시저장 삭제
+    localStorage.removeItem('routine_draft_' + userId);
+    currentRoutineWorkout = null;
+    showToast(routineName + ' 기록이 저장됐어요! 💪', 'success');
+    showScreen('screen-workout-qr');
+    renderCalendar();
+    if (typeof calSelectedDate !== 'undefined' && calSelectedDate) renderDayDetail(calSelectedDate);
+    updateRoutineBanner();
+  }
+
