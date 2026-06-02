@@ -1994,16 +1994,25 @@
     if (!q.trim()) { results.innerHTML = ''; return; }
     const ql = q.toLowerCase();
     const fwItems = FW_EXERCISE_LIST.filter(e => e.name.toLowerCase().includes(ql) || e.muscles.toLowerCase().includes(ql) || e.category.toLowerCase().includes(ql))
-      .map(e => ({ name: e.name, tag: e.category }));
+      .map(e => ({ name: e.name, tag: e.muscles || e.category, type: 'fw' }));
     const eqItems = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : [])
       .filter(e => e.name.toLowerCase().includes(ql) || (e.muscles||'').toLowerCase().includes(ql) || String(e.no) === q.trim())
-      .map(e => ({ name: e.name, tag: e.muscles || '기구' }));
+      .map(e => ({ name: e.name, tag: e.muscles || '기구', type: 'eq' }));
     const combined = [...fwItems, ...eqItems];
     if (combined.length === 0) { results.innerHTML = '<div style="padding:10px 14px;font-size:13px;color:var(--text-hint);">검색 결과 없음</div>'; return; }
-    results.innerHTML = combined.map(e => `<div onclick="addRoutineExercise('${escapeHtml(e.name)}')" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);" onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background=''">
-      <span style="font-size:13px;color:var(--text);">${escapeHtml(e.name)}</span>
-      <span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;">${escapeHtml(e.tag)}</span>
-    </div>`).join('');
+    results.innerHTML = combined.map(e => {
+      const badgeStyle = e.type === 'fw'
+        ? 'background:#ede9fe;color:#5b21b6;'
+        : 'background:#dbeafe;color:#1e40af;';
+      const badgeText = e.type === 'fw' ? '프리' : '기구';
+      return `<div onclick="addRoutineExercise('${escapeHtml(e.name)}')" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);" onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background=''">
+        <span style="font-size:13px;color:var(--text);">${escapeHtml(e.name)}</span>
+        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
+          <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;${badgeStyle}">${badgeText}</span>
+          <span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;">${escapeHtml(e.tag)}</span>
+        </div>
+      </div>`;
+    }).join('');
   }
 
   function addRoutineExercise(name) {
@@ -2153,16 +2162,25 @@
     if (!q.trim()) { results.innerHTML = ''; return; }
     const ql = q.toLowerCase();
     const fwItems = FW_EXERCISE_LIST.filter(e => e.name.toLowerCase().includes(ql) || e.muscles.toLowerCase().includes(ql) || e.category.toLowerCase().includes(ql))
-      .map(e => ({ name: e.name, tag: e.category }));
+      .map(e => ({ name: e.name, tag: e.muscles || e.category, type: 'fw' }));
     const eqItems = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : [])
       .filter(e => e.name.toLowerCase().includes(ql) || (e.muscles||'').toLowerCase().includes(ql) || String(e.no) === q.trim())
-      .map(e => ({ name: e.name, tag: e.muscles || '기구' }));
+      .map(e => ({ name: e.name, tag: e.muscles || '기구', type: 'eq' }));
     const combined = [...fwItems, ...eqItems];
     if (combined.length === 0) { results.innerHTML = '<div style="padding:10px 14px;font-size:13px;color:var(--text-hint);">검색 결과 없음</div>'; return; }
-    results.innerHTML = combined.map(e => `<div onclick="addRoutineWorkoutExercise('${escapeHtml(e.name)}')" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);" onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background=''">
-      <span style="font-size:13px;color:var(--text);">${escapeHtml(e.name)}</span>
-      <span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;">${escapeHtml(e.tag)}</span>
-    </div>`).join('');
+    results.innerHTML = combined.map(e => {
+      const badgeStyle = e.type === 'fw'
+        ? 'background:#ede9fe;color:#5b21b6;'
+        : 'background:#dbeafe;color:#1e40af;';
+      const badgeText = e.type === 'fw' ? '프리' : '기구';
+      return `<div onclick="addRoutineWorkoutExercise('${escapeHtml(e.name)}')" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);" onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background=''">
+        <span style="font-size:13px;color:var(--text);">${escapeHtml(e.name)}</span>
+        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
+          <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;${badgeStyle}">${badgeText}</span>
+          <span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;">${escapeHtml(e.tag)}</span>
+        </div>
+      </div>`;
+    }).join('');
   }
 
   function addRoutineWorkoutExercise(name) {
