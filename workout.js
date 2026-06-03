@@ -2591,22 +2591,22 @@
         const fbKey = ('dual_back_' + eqMatch.key).replace(/[\.\#\$\[\]]/g, '_');
         firebase.database().ref('users/' + userId + '/workouts/' + date.replace(/-/g,'/') + '/' + fbKey).set({ name: ex.name, sets: mappedSets, savedAt, recordedBy: 'member' });
       } else if (eqMatch) {
-        // 일반 기구 — workout_${key} 키로 저장
+        // 일반 기구 — 기존 기구 저장과 동일한 키 사용
         const storageKey = 'workout_' + eqMatch.key + '_' + userId;
         const records = JSON.parse(localStorage.getItem(storageKey) || '[]');
         const idx = records.findIndex(r => r.date === date);
         if (idx >= 0) records[idx] = record; else records.unshift(record);
         localStorage.setItem(storageKey, JSON.stringify(records));
-        const fbKey = ('eq_' + eqMatch.key).replace(/[\.\#\$\[\]]/g, '_');
+        const fbKey = eqMatch.key.replace(/[\.\#\$\[\]]/g, '_');
         firebase.database().ref('users/' + userId + '/workouts/' + date.replace(/-/g,'/') + '/' + fbKey).set({ name: ex.name, sets: mappedSets, savedAt, recordedBy: 'member' });
       } else {
-        // 프리웨이트 — freeweight_${name} 키로 저장
+        // 프리웨이트 — 기존 프리웨이트 저장과 동일한 키 사용
         const safeKey = 'freeweight_' + ex.name.replace(/\s+/g,'_') + '_' + userId;
         const records = JSON.parse(localStorage.getItem(safeKey) || '[]');
         const idx = records.findIndex(r => r.date === date);
         if (idx >= 0) records[idx] = record; else records.push(record);
         localStorage.setItem(safeKey, JSON.stringify(records));
-        const fbKey = ex.name.replace(/[\.\#\$\[\]]/g, '_');
+        const fbKey = 'fw_' + ex.name.replace(/\s+/g,'_').replace(/[\.\#\$\[\]]/g, '_');
         firebase.database().ref('users/' + userId + '/workouts/' + date.replace(/-/g,'/') + '/' + fbKey).set({ name: ex.name, sets: mappedSets, savedAt, recordedBy: 'member' });
       }
       savedCount++;
