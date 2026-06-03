@@ -2333,15 +2333,16 @@
           <button onclick="toggleSkipRoutineExercise(${ei})" style="background:${isSkipped?'#ede9fe':'#f3f4f6'};border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;color:${isSkipped?'#7c3aed':'var(--text-hint)'};cursor:pointer;font-family:'Noto Sans KR',sans-serif;flex-shrink:0;margin-left:6px;">${isSkipped?'되돌리기':'건너뛰기'}</button>
         </div>
         ${isSkipped ? '' : `
-        <div style="display:grid;grid-template-columns:36px 1fr 1fr 36px;gap:4px;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border);">
+        <div style="display:grid;grid-template-columns:36px 1fr 1fr 48px 36px;gap:4px;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border);">
           <div style="text-align:center;font-size:10px;color:var(--text-hint);">세트</div>
           <div style="text-align:center;font-size:10px;color:var(--text-hint);">무게(kg)</div>
           <div style="text-align:center;font-size:10px;color:var(--text-hint);">횟수</div>
+          <div style="text-align:center;font-size:10px;color:var(--text-hint);">완료</div>
           <div></div>
         </div>
         ${ex.sets.map((s, si) => `
-        <div style="display:grid;grid-template-columns:36px 1fr 1fr 36px;gap:4px;margin-bottom:6px;align-items:center;">
-          <div style="text-align:center;font-size:13px;font-weight:700;color:white;background:${s.done ? '#22c55e' : '#7c3aed'};border-radius:8px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;" onclick="toggleRwSetDone(${ei},${si})">${s.done ? '✓' : s.set}</div>
+        <div style="display:grid;grid-template-columns:36px 1fr 1fr 48px 36px;gap:4px;margin-bottom:6px;align-items:center;">
+          <div style="text-align:center;font-size:13px;font-weight:700;color:white;background:#7c3aed;border-radius:8px;height:38px;display:flex;align-items:center;justify-content:center;">${s.set}</div>
           <div style="position:relative;">
             <input type="number" min="0" max="500" step="2.5" value="${s.weight}"
               id="rw-weight-${ei}-${si}"
@@ -2355,6 +2356,7 @@
             style="width:100%;box-sizing:border-box;padding:8px 4px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:'Noto Sans KR',sans-serif;background:var(--bg);"
             onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='var(--border)'"
             oninput="autoSaveRoutineDraft()"/>
+          <button onclick="toggleRwSetDone(${ei},${si})" style="width:48px;height:38px;border:none;background:${s.done?'#22c55e':'#f3f4f6'};color:${s.done?'white':'var(--text-hint)'};border-radius:8px;cursor:pointer;font-size:${s.done?'18px':'13px'};font-weight:700;display:flex;align-items:center;justify-content:center;font-family:'Noto Sans KR',sans-serif;">${s.done?'✓':'완료'}</button>
           <button onclick="removeRoutineWorkoutSet(${ei},${si})" style="width:36px;height:38px;border:none;background:#fee2e2;color:#ef4444;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;"${ex.sets.length<=1?' disabled style="opacity:0.3;width:36px;height:38px;border:none;background:#fee2e2;color:#ef4444;border-radius:8px;cursor:not-allowed;font-size:16px;display:flex;align-items:center;justify-content:center;"':''}>×</button>
         </div>`).join('')}
         <button onclick="addRoutineWorkoutSet(${ei})" style="width:100%;padding:7px;background:var(--bg);border:1.5px dashed var(--border);border-radius:8px;color:var(--text-hint);font-size:12px;font-family:'Noto Sans KR',sans-serif;cursor:pointer;margin-top:2px;">+ 세트 추가</button>
