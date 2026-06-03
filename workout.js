@@ -392,7 +392,10 @@
     resultEl.innerHTML = filtered.map((eq, idx) => {
       const color = getMuscleColor(eq.muscles);
       const records = JSON.parse(localStorage.getItem('workout_' + eq.key + '_' + userId) || '[]');
-      const last = records[0];
+      const frontRecords = JSON.parse(localStorage.getItem('workout_dual_front_' + eq.key + '_' + userId) || '[]');
+      const backRecords = JSON.parse(localStorage.getItem('workout_dual_back_' + eq.key + '_' + userId) || '[]');
+      const allRecords = [...records, ...frontRecords, ...backRecords].sort((a, b) => new Date(b.date) - new Date(a.date));
+      const last = allRecords[0];
       const border = idx < filtered.length - 1 ? 'border-bottom:1px solid var(--border);' : '';
       return `<div onclick="selectEquipmentFromSearch('${eq.key}')" style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;${border}" ontouchstart="this.style.background='var(--blue-light)'" ontouchend="this.style.background='transparent'" onmouseenter="this.style.background='var(--blue-light)'" onmouseleave="this.style.background='transparent'"><div style="width:36px;height:36px;border-radius:10px;background:${color}18;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${eq.emoji}</div><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:11px;font-weight:700;color:white;background:${color};padding:2px 6px;border-radius:5px;flex-shrink:0;">${eq.no}번</span><span style="font-size:14px;font-weight:700;color:var(--text);">${eq.name}</span></div><div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${eq.muscles} · ${last ? '최근 ' + last.dateLabel : '기록 없음'}</div></div><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg></div>`;
     }).join('');
