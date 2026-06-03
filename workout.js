@@ -2028,11 +2028,7 @@
 
   // 카테고리 탭 선택
   function selectRoutineCategory(cat) {
-    const active = document.getElementById('rcat-' + cat);
-    const results = document.getElementById('routine-ex-search-results');
-    const isActive = active && active.style.background === 'rgb(124, 58, 237)';
-
-    // 탭 스타일 전체 초기화
+    // 탭 스타일 초기화
     ['하체','가슴','등','어깨','팔','코어','기구'].forEach(c => {
       const btn = document.getElementById('rcat-' + c);
       if (!btn) return;
@@ -2040,14 +2036,8 @@
       btn.style.color = 'var(--text-sub)';
       btn.style.borderColor = 'var(--border)';
     });
-
-    // 이미 활성 탭이면 목록 닫기
-    if (isActive) {
-      results.innerHTML = '';
-      return;
-    }
-
     // 선택 탭 활성화
+    const active = document.getElementById('rcat-' + cat);
     if (active) {
       active.style.background = '#7c3aed';
       active.style.color = 'white';
@@ -2057,6 +2047,7 @@
     const input = document.getElementById('routine-ex-search-input');
     if (input) input.value = '';
 
+    const results = document.getElementById('routine-ex-search-results');
     const existing = collectRoutineCreateItems().map(e => e.name);
 
     let items = [];
@@ -2204,12 +2195,39 @@
     firebase.database().ref('users/' + userId + '/routines/' + routineId).once('value', snap => {
       const r = snap.val();
       if (!r) return;
-      // 각 운동의 이전 기록 불러오기
       const exercises = (r.exercises || []).map(ex => {
-        const safeKey = 'freeweight_' + ex.name.replace(/\s+/g,'_') + '_' + userId;
-        const records = JSON.parse(localStorage.getItem(safeKey) || '[]');
-        const last = records[records.length - 1];
-        // 이전 기록 있으면 그 값으로, 없으면 루틴 기본값으로
+        let last = null;
+        let isDual = false;
+        let dualFrontLast = null;
+        let dualBackLast = null;
+
+        // 기구 운동 여부 확인
+        const eqMatch = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : [])
+          .find(e => e.name === ex.name);
+
+        if (eqMatch) {
+          // 듀얼 기구
+          if (typeof isDualEquipment === 'function' && isDualEquipment(eqMatch.key)) {
+            isDual = true;
+            const frontRecs = JSON.parse(localStorage.getItem('workout_dual_front_' + eqMatch.key + '_' + userId) || '[]');
+            const backRecs = JSON.parse(localStorage.getItem('workout_dual_back_' + eqMatch.key + '_' + userId) || '[]');
+            dualFrontLast = frontRecs[0] || null;
+            dualBackLast = backRecs[0] || null;
+            // 가장 최근 기록으로 last 설정
+            const allRecs = [...frontRecs, ...backRecs].sort((a, b) => new Date(b.date) - new Date(a.date));
+            last = allRecs[0] || null;
+          } else {
+            // 일반 기구
+            const recs = JSON.parse(localStorage.getItem('workout_' + eqMatch.key + '_' + userId) || '[]');
+            last = recs[0] || null;
+          }
+        } else {
+          // 프리웨이트
+          const safeKey = 'freeweight_' + ex.name.replace(/\s+/g,'_') + '_' + userId;
+          const recs = JSON.parse(localStorage.getItem(safeKey) || '[]');
+          last = recs[recs.length - 1] || null;
+        }
+
         const prevSets = last ? last.sets : null;
         const sets = ex.sets || 3;
         const inputSets = [];
@@ -2221,7 +2239,7 @@
             prevWeight: prevSets && prevSets[i] ? prevSets[i].weight : null
           });
         }
-        return { name: ex.name, sets: inputSets };
+        return { name: ex.name, sets: inputSets, isEquipment: !!eqMatch, eqKey: eqMatch ? eqMatch.key : null, isDual };
       });
       currentRoutineWorkout = { routineId, routineName: r.name, exercises };
       saveRoutineDraft();
@@ -2243,9 +2261,22 @@
     const container = document.getElementById('routine-workout-list');
     if (!currentRoutineWorkout) return;
     const { exercises } = currentRoutineWorkout;
-    container.innerHTML = exercises.map((ex, ei) => `
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;">
-        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:10px;">${ei+1}. ${escapeHtml(ex.name)}</div>
+    container.innerHTML = exercises.map((ex, ei) => {
+      const isSkipped = ex.skipped || false;
+      return `
+      <div style="background:var(--card);border:1px solid ${isSkipped ? 'var(--border)' : 'var(--border)'};border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;opacity:${isSkipped ? '0.45' : '1'};">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${isSkipped ? '0' : '10px'};">
+          <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
+            <div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0;">
+              <button onclick="moveRoutineWorkoutItem(${ei},'up')" ${ei===0?'disabled':''} style="background:${ei===0?'var(--border)':'#ede9fe'};border:none;border-radius:5px;width:22px;height:20px;cursor:${ei===0?'default':'pointer'};color:${ei===0?'var(--text-hint)':'#7c3aed'};font-size:11px;display:flex;align-items:center;justify-content:center;padding:0;">▲</button>
+              <button onclick="moveRoutineWorkoutItem(${ei},'down')" ${ei===exercises.length-1?'disabled':''} style="background:${ei===exercises.length-1?'var(--border)':'#ede9fe'};border:none;border-radius:5px;width:22px;height:20px;cursor:${ei===exercises.length-1?'default':'pointer'};color:${ei===exercises.length-1?'var(--text-hint)':'#7c3aed'};font-size:11px;display:flex;align-items:center;justify-content:center;padding:0;">▼</button>
+            </div>
+            <div style="font-size:15px;font-weight:700;color:var(--text);${isSkipped?'text-decoration:line-through;color:var(--text-hint);':''}">${ei+1}. ${escapeHtml(ex.name)}</div>
+            ${isSkipped ? '<span style="font-size:11px;background:#f3f4f6;color:var(--text-hint);padding:2px 8px;border-radius:10px;flex-shrink:0;">건너뜀</span>' : ''}
+          </div>
+          <button onclick="toggleSkipRoutineExercise(${ei})" style="background:${isSkipped?'#ede9fe':'#f3f4f6'};border:none;border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;color:${isSkipped?'#7c3aed':'var(--text-hint)'};cursor:pointer;font-family:'Noto Sans KR',sans-serif;flex-shrink:0;margin-left:6px;">${isSkipped?'되돌리기':'건너뛰기'}</button>
+        </div>
+        ${isSkipped ? '' : `
         <div style="display:grid;grid-template-columns:36px 1fr 1fr 36px;gap:4px;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border);">
           <div style="text-align:center;font-size:10px;color:var(--text-hint);">세트</div>
           <div style="text-align:center;font-size:10px;color:var(--text-hint);">무게(kg)</div>
@@ -2268,11 +2299,34 @@
             style="width:100%;box-sizing:border-box;padding:8px 4px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:'Noto Sans KR',sans-serif;background:var(--bg);"
             onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='var(--border)'"
             oninput="autoSaveRoutineDraft()"/>
-          <button onclick="removeRoutineWorkoutSet(${ei},${si})" style="width:36px;height:38px;border:none;background:#fee2e2;color:#ef4444;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;"${ex.sets.length <= 1 ? ' disabled style="opacity:0.3;width:36px;height:38px;border:none;background:#fee2e2;color:#ef4444;border-radius:8px;cursor:not-allowed;font-size:16px;display:flex;align-items:center;justify-content:center;"' : ''}>×</button>
+          <button onclick="removeRoutineWorkoutSet(${ei},${si})" style="width:36px;height:38px;border:none;background:#fee2e2;color:#ef4444;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;"${ex.sets.length<=1?' disabled style="opacity:0.3;width:36px;height:38px;border:none;background:#fee2e2;color:#ef4444;border-radius:8px;cursor:not-allowed;font-size:16px;display:flex;align-items:center;justify-content:center;"':''}>×</button>
         </div>`).join('')}
         <button onclick="addRoutineWorkoutSet(${ei})" style="width:100%;padding:7px;background:var(--bg);border:1.5px dashed var(--border);border-radius:8px;color:var(--text-hint);font-size:12px;font-family:'Noto Sans KR',sans-serif;cursor:pointer;margin-top:2px;">+ 세트 추가</button>
-      </div>`).join('');
+        `}
+      </div>`;
+    }).join('');
   }
+
+  function toggleSkipRoutineExercise(exIdx) {
+    if (!currentRoutineWorkout) return;
+    autoSaveRoutineDraft();
+    const ex = currentRoutineWorkout.exercises[exIdx];
+    ex.skipped = !ex.skipped;
+    renderRoutineWorkoutList();
+    autoSaveRoutineDraft();
+  }
+
+  function moveRoutineWorkoutItem(idx, dir) {
+    if (!currentRoutineWorkout) return;
+    autoSaveRoutineDraft();
+    const exs = currentRoutineWorkout.exercises;
+    const target = dir === 'up' ? idx - 1 : idx + 1;
+    if (target < 0 || target >= exs.length) return;
+    [exs[idx], exs[target]] = [exs[target], exs[idx]];
+    renderRoutineWorkoutList();
+    autoSaveRoutineDraft();
+  }
+
 
   function addRoutineWorkoutSet(exIdx) {
     if (!currentRoutineWorkout) return;
@@ -2293,11 +2347,47 @@
     autoSaveRoutineDraft();
   }
 
-  // 루틴 운동 화면 - 운동 추가
+  function selectRoutineWorkoutCategory(cat) {
+    const active = document.getElementById('rwcat-' + cat);
+    const results = document.getElementById('routine-workout-ex-search-results');
+    const isActive = active && active.style.background === 'rgb(124, 58, 237)';
+    ['하체','가슴','등','어깨','팔','코어','기구'].forEach(c => {
+      const btn = document.getElementById('rwcat-' + c);
+      if (!btn) return;
+      btn.style.background = 'var(--bg)';
+      btn.style.color = 'var(--text-sub)';
+      btn.style.borderColor = 'var(--border)';
+    });
+    if (isActive) { results.innerHTML = ''; return; }
+    if (active) { active.style.background = '#7c3aed'; active.style.color = 'white'; active.style.borderColor = '#7c3aed'; }
+    const input = document.getElementById('routine-workout-ex-search-input');
+    if (input) input.value = '';
+    const existing = (currentRoutineWorkout ? currentRoutineWorkout.exercises : []).map(e => e.name);
+    let items = [];
+    if (cat === '기구') {
+      items = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : []).map(e => ({ name: e.name, tag: e.muscles || '기구', type: 'eq' }));
+    } else {
+      const fwCats = { '하체':'하체', '가슴':'가슴', '등':'등', '어깨':'어깨', '팔':'팔', '코어':'코어복부' };
+      items = FW_EXERCISE_LIST.filter(e => e.category === (fwCats[cat]||cat) || matchesMuscle(e.muscles, cat)).map(e => ({ name: e.name, tag: e.muscles||e.category, type: 'fw' }));
+    }
+    if (items.length === 0) { results.innerHTML = '<div style="padding:12px 14px;font-size:13px;color:var(--text-hint);">운동이 없어요</div>'; return; }
+    results.innerHTML = items.map(e => {
+      const isAdded = existing.includes(e.name);
+      const badgeStyle = e.type==='fw' ? 'background:#ede9fe;color:#5b21b6;' : 'background:#dbeafe;color:#1e40af;';
+      const badgeText = e.type==='fw' ? '프리' : '기구';
+      return `<div onclick="addRoutineWorkoutExercise('${escapeHtml(e.name)}')" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);${isAdded?'background:#f3e8ff;':''}" onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background='${isAdded?'#f3e8ff':''}'" >
+        <div style="display:flex;align-items:center;gap:5px;min-width:0;">
+          ${isAdded ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'}
+          <span style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(e.name)}</span>
+          <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;flex-shrink:0;${badgeStyle}">${badgeText}</span>
+        </div>
+        <span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;flex-shrink:0;">${escapeHtml(e.tag)}</span>
+      </div>`;
+    }).join('');
+  }
+
   function openRoutineExSearchInWorkout() {
-    const box = document.getElementById('routine-workout-ex-search-box');
-    box.style.display = box.style.display === 'none' ? 'block' : 'none';
-    if (box.style.display === 'block') document.getElementById('routine-workout-ex-search-input').focus();
+    document.getElementById('routine-workout-ex-search-input').focus();
   }
 
   function searchRoutineWorkoutExercise(q) {
@@ -2329,20 +2419,41 @@
   function addRoutineWorkoutExercise(name) {
     if (!currentRoutineWorkout) return;
     const userId = localStorage.getItem('current_user');
-    const safeKey = 'freeweight_' + name.replace(/\s+/g,'_') + '_' + userId;
-    const records = JSON.parse(localStorage.getItem(safeKey) || '[]');
-    const last = records[records.length - 1];
+    let last = null;
+    const eqMatch = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : []).find(e => e.name === name);
+    if (eqMatch) {
+      if (typeof isDualEquipment === 'function' && isDualEquipment(eqMatch.key)) {
+        const frontRecs = JSON.parse(localStorage.getItem('workout_dual_front_' + eqMatch.key + '_' + userId) || '[]');
+        const backRecs = JSON.parse(localStorage.getItem('workout_dual_back_' + eqMatch.key + '_' + userId) || '[]');
+        const allRecs = [...frontRecs, ...backRecs].sort((a,b) => new Date(b.date)-new Date(a.date));
+        last = allRecs[0] || null;
+      } else {
+        const recs = JSON.parse(localStorage.getItem('workout_' + eqMatch.key + '_' + userId) || '[]');
+        last = recs[0] || null;
+      }
+    } else {
+      const safeKey = 'freeweight_' + name.replace(/\s+/g,'_') + '_' + userId;
+      const recs = JSON.parse(localStorage.getItem(safeKey) || '[]');
+      last = recs[recs.length - 1] || null;
+    }
     const prevSets = last ? last.sets : null;
     currentRoutineWorkout.exercises.push({
       name,
-      sets: [{ set:1, weight: prevSets && prevSets[0] ? prevSets[0].weight : 0, reps: prevSets && prevSets[0] ? prevSets[0].reps : 10, prevWeight: prevSets && prevSets[0] ? prevSets[0].weight : null }]
+      sets: [{ set:1, weight: prevSets&&prevSets[0]?prevSets[0].weight:0, reps: prevSets&&prevSets[0]?prevSets[0].reps:10, prevWeight: prevSets&&prevSets[0]?prevSets[0].weight:null }],
+      isEquipment: !!eqMatch, eqKey: eqMatch?eqMatch.key:null
     });
-    document.getElementById('routine-workout-ex-search-box').style.display = 'none';
-    document.getElementById('routine-workout-ex-search-input').value = '';
-    document.getElementById('routine-workout-ex-search-results').innerHTML = '';
+    // 카테고리 탭 새로고침
+    const activeCat = ['하체','가슴','등','어깨','팔','코어','기구'].find(c => {
+      const btn = document.getElementById('rwcat-' + c);
+      return btn && btn.style.background === 'rgb(124, 58, 237)';
+    });
+    if (activeCat) selectRoutineWorkoutCategory(activeCat);
+    const searchVal = document.getElementById('routine-workout-ex-search-input')?.value;
+    if (searchVal && searchVal.trim()) searchRoutineWorkoutExercise(searchVal);
     renderRoutineWorkoutList();
     autoSaveRoutineDraft();
   }
+
 
   // 자동 임시저장
   function autoSaveRoutineDraft() {
@@ -2382,6 +2493,7 @@
     const savedAt = (now.getHours() < 10 ? '0' : '') + now.getHours() + ':' + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
     let savedCount = 0;
     exercises.forEach(ex => {
+      if (ex.skipped) return; // 건너뛴 운동 제외
       const validSets = ex.sets.filter(s => s.weight > 0 || s.reps > 0);
       if (validSets.length === 0) return;
       const safeKey = 'freeweight_' + ex.name.replace(/\s+/g,'_') + '_' + userId;
