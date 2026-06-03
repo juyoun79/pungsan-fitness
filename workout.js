@@ -2029,10 +2029,7 @@
 
   // 카테고리 탭 선택
   function selectRoutineCategory(cat) {
-    const active = document.getElementById('rcat-' + cat);
-    const results = document.getElementById('routine-ex-search-results');
-    const isActive = active && active.style.background === 'rgb(124, 58, 237)';
-    // 탭 스타일 전체 초기화
+    // 탭 스타일 초기화
     ['하체','가슴','등','어깨','팔','코어','기구'].forEach(c => {
       const btn = document.getElementById('rcat-' + c);
       if (!btn) return;
@@ -2040,9 +2037,8 @@
       btn.style.color = 'var(--text-sub)';
       btn.style.borderColor = 'var(--border)';
     });
-    // 이미 활성 탭이면 목록 닫기
-    if (isActive) { if (results) results.innerHTML = ''; return; }
     // 선택 탭 활성화
+    const active = document.getElementById('rcat-' + cat);
     if (active) {
       active.style.background = '#7c3aed';
       active.style.color = 'white';
@@ -2052,6 +2048,7 @@
     const input = document.getElementById('routine-ex-search-input');
     if (input) input.value = '';
 
+    const results = document.getElementById('routine-ex-search-results');
     const existing = collectRoutineCreateItems().map(e => e.name);
 
     let items = [];
@@ -2146,7 +2143,7 @@
     // 듀얼머신 확인
     const eqMatch = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : []).find(e => e.name === name);
     if (eqMatch && typeof isDualEquipment === 'function' && isDualEquipment(eqMatch.key)) {
-      const info = getDualEquipmentInfo(eqMatch.key);
+      const info = getDualNames(eqMatch.key);
       const frontName = info.front + ' (' + eqMatch.name + ')';
       const backName = info.back + ' (' + eqMatch.name + ')';
       // 이미 추가된 경우 둘 다 제거
@@ -2167,42 +2164,14 @@
         renderRoutineCreateList(existing);
       }
     }
-    // 현재 활성 카테고리 탭 새로고침 (토글 없이 강제 렌더)
+    // 현재 활성 카테고리 탭 새로고침
     const activeCat = ['하체','가슴','등','어깨','팔','코어','기구'].find(c => {
       const btn = document.getElementById('rcat-' + c);
       return btn && btn.style.background === 'rgb(124, 58, 237)';
     });
-    if (activeCat) refreshRoutineCategoryList(activeCat);
+    if (activeCat) selectRoutineCategory(activeCat);
     const searchVal = document.getElementById('routine-ex-search-input')?.value;
     if (searchVal && searchVal.trim()) searchRoutineExercise(searchVal);
-  }
-
-  // 카테고리 목록 강제 새로고침 (토글 없이)
-  function refreshRoutineCategoryList(cat) {
-    const results = document.getElementById('routine-ex-search-results');
-    const existing = collectRoutineCreateItems().map(e => e.name);
-    let items = [];
-    if (cat === '기구') {
-      items = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : []).map(e => ({ name: e.name, tag: e.muscles || '기구', type: 'eq' }));
-    } else {
-      const fwCats = { '하체':'하체', '가슴':'가슴', '등':'등', '어깨':'어깨', '팔':'팔', '코어':'코어복부' };
-      const catKey = fwCats[cat] || cat;
-      items = FW_EXERCISE_LIST.filter(e => e.category === catKey || matchesMuscle(e.muscles, cat)).map(e => ({ name: e.name, tag: e.muscles || e.category, type: 'fw' }));
-    }
-    if (!results || items.length === 0) return;
-    results.innerHTML = items.map(e => {
-      const isAdded = existing.includes(e.name);
-      const badgeStyle = e.type === 'fw' ? 'background:#ede9fe;color:#5b21b6;' : 'background:#dbeafe;color:#1e40af;';
-      const badgeText = e.type === 'fw' ? '프리' : '기구';
-      return `<div onclick="addRoutineExercise('${escapeHtml(e.name)}')" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);${isAdded?'background:#f3e8ff;':''}" onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background='${isAdded?'#f3e8ff':''}'" >
-        <div style="display:flex;align-items:center;gap:5px;min-width:0;">
-          ${isAdded ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'}
-          <span style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(e.name)}</span>
-          <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;flex-shrink:0;${badgeStyle}">${badgeText}</span>
-        </div>
-        <span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;flex-shrink:0;">${escapeHtml(e.tag)}</span>
-      </div>`;
-    }).join('');
   }
 
   // 루틴 저장
@@ -2456,32 +2425,6 @@
     }).join('');
   }
 
-  function refreshRoutineWorkoutCategoryList(cat) {
-    const results = document.getElementById('routine-workout-ex-search-results');
-    const existing = (currentRoutineWorkout ? currentRoutineWorkout.exercises : []).map(e => e.name);
-    let items = [];
-    if (cat === '기구') {
-      items = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : []).map(e => ({ name: e.name, tag: e.muscles || '기구', type: 'eq' }));
-    } else {
-      const fwCats = { '하체':'하체', '가슴':'가슴', '등':'등', '어깨':'어깨', '팔':'팔', '코어':'코어복부' };
-      items = FW_EXERCISE_LIST.filter(e => e.category === (fwCats[cat]||cat) || matchesMuscle(e.muscles, cat)).map(e => ({ name: e.name, tag: e.muscles||e.category, type: 'fw' }));
-    }
-    if (!results || items.length === 0) return;
-    results.innerHTML = items.map(e => {
-      const isAdded = existing.includes(e.name);
-      const badgeStyle = e.type==='fw' ? 'background:#ede9fe;color:#5b21b6;' : 'background:#dbeafe;color:#1e40af;';
-      const badgeText = e.type==='fw' ? '프리' : '기구';
-      return `<div onclick="addRoutineWorkoutExercise('${escapeHtml(e.name)}')" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);${isAdded?'background:#f3e8ff;':''}" onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background='${isAdded?'#f3e8ff':''}'" >
-        <div style="display:flex;align-items:center;gap:5px;min-width:0;">
-          ${isAdded ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'}
-          <span style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(e.name)}</span>
-          <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;flex-shrink:0;${badgeStyle}">${badgeText}</span>
-        </div>
-        <span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;flex-shrink:0;">${escapeHtml(e.tag)}</span>
-      </div>`;
-    }).join('');
-  }
-
   function openRoutineExSearchInWorkout() {
     document.getElementById('routine-workout-ex-search-input').focus();
   }
@@ -2519,7 +2462,7 @@
 
     // 듀얼머신이면 front/back 두 개로 분리
     if (eqMatch && typeof isDualEquipment === 'function' && isDualEquipment(eqMatch.key)) {
-      const info = getDualEquipmentInfo(eqMatch.key);
+      const info = getDualNames(eqMatch.key);
       const frontRecs = JSON.parse(localStorage.getItem('workout_dual_front_' + eqMatch.key + '_' + userId) || '[]');
       const backRecs = JSON.parse(localStorage.getItem('workout_dual_back_' + eqMatch.key + '_' + userId) || '[]');
       const frontLast = frontRecs[0] || null;
@@ -2550,12 +2493,12 @@
         sets: [{ set:1, weight: prevSets&&prevSets[0]?prevSets[0].weight:0, reps: prevSets&&prevSets[0]?prevSets[0].reps:10, prevWeight: prevSets&&prevSets[0]?prevSets[0].weight:null }]
       });
     }
-    // 카테고리 탭 강제 새로고침 (토글 없이)
+    // 카테고리 탭 새로고침
     const activeCat = ['하체','가슴','등','어깨','팔','코어','기구'].find(c => {
       const btn = document.getElementById('rwcat-' + c);
       return btn && btn.style.background === 'rgb(124, 58, 237)';
     });
-    if (activeCat) refreshRoutineWorkoutCategoryList(activeCat);
+    if (activeCat) selectRoutineWorkoutCategory(activeCat);
     const searchVal = document.getElementById('routine-workout-ex-search-input')?.value;
     if (searchVal && searchVal.trim()) searchRoutineWorkoutExercise(searchVal);
     renderRoutineWorkoutList();
