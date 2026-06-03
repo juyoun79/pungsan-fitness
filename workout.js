@@ -1855,6 +1855,7 @@
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
             <div style="font-size:16px;font-weight:700;color:var(--text);">${escapeHtml(r.name)}</div>
             <div style="display:flex;gap:6px;">
+              <button onclick="copyRoutine('${id}')" style="background:#ede9fe;border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;color:#5b21b6;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">복사</button>
               <button onclick="openRoutineEdit('${id}')" style="background:#f3f4f6;border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
               <button onclick="deleteRoutine('${id}')" style="background:#fee2e2;border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;color:#ef4444;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
             </div>
@@ -2174,6 +2175,27 @@
       showToast(editId ? '루틴이 수정됐어요!' : '루틴이 저장됐어요!', 'success');
       closeRoutineCreate();
       updateRoutineBanner();
+    });
+  }
+
+  // 루틴 복사
+  function copyRoutine(routineId) {
+    const userId = localStorage.getItem('current_user');
+    firebase.database().ref('users/' + userId + '/routines/' + routineId).once('value', snap => {
+      const r = snap.val();
+      if (!r) return;
+      const newId = 'routine_' + Date.now();
+      const newData = {
+        name: r.name + ' (복사)',
+        exercises: r.exercises || [],
+        updatedAt: Date.now()
+      };
+      firebase.database().ref('users/' + userId + '/routines/' + newId).set(newData, err => {
+        if (err) { showToast('복사 실패. 다시 시도해주세요.', 'error'); return; }
+        showToast('"' + r.name + '" 루틴이 복사됐어요!', 'success');
+        loadRoutineList();
+        updateRoutineBanner();
+      });
     });
   }
 
