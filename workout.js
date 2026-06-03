@@ -1916,8 +1916,15 @@
     document.getElementById('routine-edit-id').value = '';
     document.getElementById('routine-name-input').value = '';
     document.getElementById('routine-exercise-list').innerHTML = '';
-    document.getElementById('routine-ex-search-box').style.display = 'none';
     document.getElementById('routine-ex-search-input').value = '';
+    document.getElementById('routine-ex-search-results').innerHTML = '';
+    ['하체','가슴','등','어깨','팔','코어','기구'].forEach(c => {
+      const btn = document.getElementById('rcat-' + c);
+      if (!btn) return;
+      btn.style.background = 'var(--bg)';
+      btn.style.color = 'var(--text-sub)';
+      btn.style.borderColor = 'var(--border)';
+    });
     showScreen('screen-routine-create');
   }
 
@@ -1929,7 +1936,15 @@
       document.getElementById('routine-create-title').textContent = '루틴 수정';
       document.getElementById('routine-edit-id').value = routineId;
       document.getElementById('routine-name-input').value = r.name || '';
-      document.getElementById('routine-ex-search-box').style.display = 'none';
+      document.getElementById('routine-ex-search-input').value = '';
+      document.getElementById('routine-ex-search-results').innerHTML = '';
+      ['하체','가슴','등','어깨','팔','코어','기구'].forEach(c => {
+        const btn = document.getElementById('rcat-' + c);
+        if (!btn) return;
+        btn.style.background = 'var(--bg)';
+        btn.style.color = 'var(--text-sub)';
+        btn.style.borderColor = 'var(--border)';
+      });
       renderRoutineCreateList(r.exercises || []);
       showScreen('screen-routine-create');
     });
@@ -1995,9 +2010,66 @@
   }
 
   function openRoutineExSearch() {
-    const box = document.getElementById('routine-ex-search-box');
-    box.style.display = box.style.display === 'none' ? 'block' : 'none';
-    if (box.style.display === 'block') document.getElementById('routine-ex-search-input').focus();
+    document.getElementById('routine-ex-search-input').focus();
+  }
+
+  // 카테고리 탭 선택
+  function selectRoutineCategory(cat) {
+    // 탭 스타일 초기화
+    ['하체','가슴','등','어깨','팔','코어','기구'].forEach(c => {
+      const btn = document.getElementById('rcat-' + c);
+      if (!btn) return;
+      btn.style.background = 'var(--bg)';
+      btn.style.color = 'var(--text-sub)';
+      btn.style.borderColor = 'var(--border)';
+    });
+    // 선택 탭 활성화
+    const active = document.getElementById('rcat-' + cat);
+    if (active) {
+      active.style.background = '#7c3aed';
+      active.style.color = 'white';
+      active.style.borderColor = '#7c3aed';
+    }
+    // 검색창 초기화
+    const input = document.getElementById('routine-ex-search-input');
+    if (input) input.value = '';
+
+    const results = document.getElementById('routine-ex-search-results');
+    const existing = collectRoutineCreateItems().map(e => e.name);
+
+    let items = [];
+    if (cat === '기구') {
+      items = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : [])
+        .map(e => ({ name: e.name, tag: e.muscles || '기구', type: 'eq' }));
+    } else {
+      const fwCats = { '하체':'하체', '가슴':'가슴', '등':'등', '어깨':'어깨', '팔':'팔', '코어':'코어복부' };
+      const catKey = fwCats[cat] || cat;
+      items = FW_EXERCISE_LIST
+        .filter(e => e.category === catKey || e.muscles === cat || matchesMuscle(e.muscles, cat))
+        .map(e => ({ name: e.name, tag: e.muscles || e.category, type: 'fw' }));
+    }
+
+    if (items.length === 0) {
+      results.innerHTML = '<div style="padding:12px 14px;font-size:13px;color:var(--text-hint);">운동이 없어요</div>';
+      return;
+    }
+
+    results.innerHTML = items.map(e => {
+      const isAdded = existing.includes(e.name);
+      const badgeStyle = e.type === 'fw' ? 'background:#ede9fe;color:#5b21b6;' : 'background:#dbeafe;color:#1e40af;';
+      const badgeText = e.type === 'fw' ? '프리' : '기구';
+      return `<div onclick="addRoutineExercise('${escapeHtml(e.name)}')"
+        id="rcat-item-${escapeHtml(e.name).replace(/\s/g,'_')}"
+        style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);${isAdded ? 'background:#f3e8ff;' : ''}"
+        onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background='${isAdded ? '#f3e8ff' : ''}'">
+        <div style="display:flex;align-items:center;gap:5px;min-width:0;">
+          ${isAdded ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'}
+          <span style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(e.name)}</span>
+          <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;flex-shrink:0;${badgeStyle}">${badgeText}</span>
+        </div>
+        <span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;flex-shrink:0;">${escapeHtml(e.tag)}</span>
+      </div>`;
+    }).join('');
   }
 
   // 부위 대분류 → 세부 부위 매핑 (기구 검색용)
@@ -2054,11 +2126,23 @@
 
   function addRoutineExercise(name) {
     const existing = collectRoutineCreateItems();
-    existing.push({ name, sets: 3, weight: 0, reps: 10 });
-    renderRoutineCreateList(existing);
-    document.getElementById('routine-ex-search-box').style.display = 'none';
-    document.getElementById('routine-ex-search-input').value = '';
-    document.getElementById('routine-ex-search-results').innerHTML = '';
+    if (existing.find(e => e.name === name)) {
+      // 이미 추가된 경우 제거
+      const filtered = existing.filter(e => e.name !== name);
+      renderRoutineCreateList(filtered);
+    } else {
+      existing.push({ name, sets: 3, weight: 0, reps: 10 });
+      renderRoutineCreateList(existing);
+    }
+    // 현재 활성 카테고리 탭 새로고침
+    const activeCat = ['하체','가슴','등','어깨','팔','코어','기구'].find(c => {
+      const btn = document.getElementById('rcat-' + c);
+      return btn && btn.style.background === 'rgb(124, 58, 237)';
+    });
+    if (activeCat) selectRoutineCategory(activeCat);
+    // 검색 중이었으면 검색 결과 새로고침
+    const searchVal = document.getElementById('routine-ex-search-input')?.value;
+    if (searchVal && searchVal.trim()) searchRoutineExercise(searchVal);
   }
 
   // 루틴 저장

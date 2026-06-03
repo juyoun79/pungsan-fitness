@@ -2942,18 +2942,32 @@
       </div>
       <div style="font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:8px;">운동 목록</div>
       <div id="routine-exercise-list"></div>
-      <button onclick="openRoutineExSearch()" style="width:100%;padding:12px;background:var(--card);border:1.5px dashed #c4b5fd;border-radius:var(--radius-sm);color:#7c3aed;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:4px;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        운동 추가
-      </button>
-      <!-- 운동 검색 드롭다운 -->
-      <div id="routine-ex-search-box" style="display:none;margin-top:8px;background:var(--card);border:1.5px solid #7c3aed;border-radius:var(--radius-sm);overflow:hidden;">
-        <div style="padding:8px 10px;border-bottom:1px solid var(--border);position:relative;">
-          <input type="text" id="routine-ex-search-input" placeholder="운동명·부위·기구번호 검색"
-            style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
-            oninput="searchRoutineExercise(this.value)"/>
+
+      <!-- 운동 추가 패널 -->
+      <div style="margin-top:8px;background:var(--card);border:1.5px solid #c4b5fd;border-radius:var(--radius-sm);overflow:hidden;">
+        <div style="padding:10px 12px;border-bottom:1px solid var(--border);">
+          <div style="font-size:12px;font-weight:700;color:#5b21b6;margin-bottom:8px;">운동 추가</div>
+          <!-- 검색창 -->
+          <div style="position:relative;margin-bottom:8px;">
+            <svg style="position:absolute;left:9px;top:50%;transform:translateY(-50%);pointer-events:none;" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="routine-ex-search-input" placeholder="운동명·부위·기구번호 검색"
+              style="width:100%;box-sizing:border-box;padding:8px 10px 8px 28px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
+              oninput="searchRoutineExercise(this.value)"
+              onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='var(--border)'"/>
+          </div>
+          <!-- 카테고리 탭 -->
+          <div style="display:flex;gap:5px;flex-wrap:wrap;" id="routine-category-tabs">
+            <button onclick="selectRoutineCategory('하체')" id="rcat-하체" style="padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;border:0.5px solid var(--border);background:var(--bg);color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">하체</button>
+            <button onclick="selectRoutineCategory('가슴')" id="rcat-가슴" style="padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;border:0.5px solid var(--border);background:var(--bg);color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">가슴</button>
+            <button onclick="selectRoutineCategory('등')" id="rcat-등" style="padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;border:0.5px solid var(--border);background:var(--bg);color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">등</button>
+            <button onclick="selectRoutineCategory('어깨')" id="rcat-어깨" style="padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;border:0.5px solid var(--border);background:var(--bg);color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">어깨</button>
+            <button onclick="selectRoutineCategory('팔')" id="rcat-팔" style="padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;border:0.5px solid var(--border);background:var(--bg);color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">팔</button>
+            <button onclick="selectRoutineCategory('코어')" id="rcat-코어" style="padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;border:0.5px solid var(--border);background:var(--bg);color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">코어</button>
+            <button onclick="selectRoutineCategory('기구')" id="rcat-기구" style="padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;border:0.5px solid var(--border);background:var(--bg);color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">기구</button>
+          </div>
         </div>
-        <div id="routine-ex-search-results" style="max-height:200px;overflow-y:auto;"></div>
+        <!-- 검색 결과 or 카테고리 결과 -->
+        <div id="routine-ex-search-results" style="max-height:220px;overflow-y:auto;"></div>
       </div>
     </div>
   </div>
