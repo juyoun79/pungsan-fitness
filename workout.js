@@ -2505,32 +2505,57 @@
   // 루틴 운동 기록 저장
   function saveRoutineWorkout() {
     if (!currentRoutineWorkout) return;
-    // 입력값 최종 반영
-    autoSaveRoutineDraft();
     const { exercises, routineName } = currentRoutineWorkout;
     const userId = localStorage.getItem('current_user');
     const now = new Date();
     const date = now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate();
     const dateLabel = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일';
-    const savedAt = (now.getHours() < 10 ? '0' : '') + now.getHours() + ':' + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
+    const savedAt = (now.getHours()<10?'0':'') + now.getHours() + ':' + (now.getMinutes()<10?'0':'') + now.getMinutes();
     let savedCount = 0;
-    exercises.forEach(ex => {
-      if (ex.skipped) return; // 건너뛴 운동 제외
+
+    exercises.forEach((ex, ei) => {
+      if (ex.skipped) return;
+      // input값 직접 읽어서 반영
+      ex.sets.forEach((s, si) => {
+        const wEl = document.getElementById('rw-weight-' + ei + '-' + si);
+        const rEl = document.getElementById('rw-reps-' + ei + '-' + si);
+        if (wEl) s.weight = parseFloat(wEl.value) || 0;
+        if (rEl) s.reps = parseInt(rEl.value) || 0;
+      });
+
       const validSets = ex.sets.filter(s => s.weight > 0 || s.reps > 0);
       if (validSets.length === 0) return;
-      const safeKey = 'freeweight_' + ex.name.replace(/\s+/g,'_') + '_' + userId;
-      const records = JSON.parse(localStorage.getItem(safeKey) || '[]');
-      const existing = records.findIndex(r => r.date === date);
-      const record = { date, dateLabel, savedAt, sets: validSets.map((s,i) => ({set:i+1, weight:s.weight, reps:s.reps})) };
-      if (existing >= 0) records[existing] = record; else records.push(record);
-      localStorage.setItem(safeKey, JSON.stringify(records));
-      // Firebase에도 저장
-      const fbKey = ex.name.replace(/[\.\#\$\[\]]/g, '_');
-      firebase.database().ref('users/' + userId + '/workouts/' + date.replace(/-/g,'/') + '/' + fbKey).set({ name: ex.name, sets: validSets, savedAt, recordedBy: 'member' });
+      const mappedSets = validSets.map((s,i) => ({ set:i+1, weight:s.weight, reps:s.reps }));
+      const record = { date, dateLabel, savedAt, sets: mappedSets };
+
+      // 기구 vs 프리웨이트 구분 저장
+      const eqMatch = ex.eqKey
+        ? { key: ex.eqKey }
+        : (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : []).find(e => e.name === ex.name);
+
+      if (eqMatch) {
+        // 기구 운동 — workout_${key} 키로 저장
+        const storageKey = 'workout_' + eqMatch.key + '_' + userId;
+        const records = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        const idx = records.findIndex(r => r.date === date);
+        if (idx >= 0) records[idx] = record; else records.unshift(record);
+        localStorage.setItem(storageKey, JSON.stringify(records));
+        const fbKey = ('eq_' + eqMatch.key).replace(/[\.\#\$\[\]]/g, '_');
+        firebase.database().ref('users/' + userId + '/workouts/' + date.replace(/-/g,'/') + '/' + fbKey).set({ name: ex.name, sets: mappedSets, savedAt, recordedBy: 'member' });
+      } else {
+        // 프리웨이트 — freeweight_${name} 키로 저장
+        const safeKey = 'freeweight_' + ex.name.replace(/\s+/g,'_') + '_' + userId;
+        const records = JSON.parse(localStorage.getItem(safeKey) || '[]');
+        const idx = records.findIndex(r => r.date === date);
+        if (idx >= 0) records[idx] = record; else records.push(record);
+        localStorage.setItem(safeKey, JSON.stringify(records));
+        const fbKey = ex.name.replace(/[\.\#\$\[\]]/g, '_');
+        firebase.database().ref('users/' + userId + '/workouts/' + date.replace(/-/g,'/') + '/' + fbKey).set({ name: ex.name, sets: mappedSets, savedAt, recordedBy: 'member' });
+      }
       savedCount++;
     });
+
     if (savedCount === 0) { showToast('저장할 기록이 없어요. 무게나 횟수를 입력해주세요.', 'error'); return; }
-    // 임시저장 삭제
     localStorage.removeItem('routine_draft_' + userId);
     currentRoutineWorkout = null;
     showToast(routineName + ' 기록이 저장됐어요! 💪', 'success');
@@ -2539,4 +2564,5 @@
     if (typeof calSelectedDate !== 'undefined' && calSelectedDate) renderDayDetail(calSelectedDate);
     updateRoutineBanner();
   }
+
 
