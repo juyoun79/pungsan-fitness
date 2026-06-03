@@ -1961,9 +1961,13 @@
     if (!exercises || exercises.length === 0) { container.innerHTML = ''; return; }
     container.innerHTML = exercises.map((ex, i) => `
       <div id="routine-create-item-${i}" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <div style="font-size:14px;font-weight:700;color:var(--text);">${i+1}. ${escapeHtml(ex.name)}</div>
-          <button onclick="removeRoutineCreateItem(${i})" style="background:#fee2e2;border:none;border-radius:6px;padding:4px 8px;font-size:11px;color:#ef4444;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:6px;">
+          <div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0;">
+            <button onclick="moveRoutineItem(${i},'up')" ${i === 0 ? 'disabled' : ''} style="background:${i === 0 ? 'var(--border)' : '#ede9fe'};border:none;border-radius:5px;width:24px;height:22px;cursor:${i === 0 ? 'default' : 'pointer'};color:${i === 0 ? 'var(--text-hint)' : '#7c3aed'};font-size:12px;display:flex;align-items:center;justify-content:center;padding:0;">▲</button>
+            <button onclick="moveRoutineItem(${i},'down')" ${i === exercises.length - 1 ? 'disabled' : ''} style="background:${i === exercises.length - 1 ? 'var(--border)' : '#ede9fe'};border:none;border-radius:5px;width:24px;height:22px;cursor:${i === exercises.length - 1 ? 'default' : 'pointer'};color:${i === exercises.length - 1 ? 'var(--text-hint)' : '#7c3aed'};font-size:12px;display:flex;align-items:center;justify-content:center;padding:0;">▼</button>
+          </div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);flex:1;">${i+1}. ${escapeHtml(ex.name)}</div>
+          <button onclick="removeRoutineCreateItem(${i})" style="background:#fee2e2;border:none;border-radius:6px;padding:4px 8px;font-size:11px;color:#ef4444;cursor:pointer;font-family:'Noto Sans KR',sans-serif;flex-shrink:0;">삭제</button>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
           <div style="text-align:center;">
@@ -1987,6 +1991,15 @@
         </div>
       </div>`).join('');
   }
+
+  function moveRoutineItem(idx, dir) {
+    const exercises = collectRoutineCreateItems();
+    const target = dir === 'up' ? idx - 1 : idx + 1;
+    if (target < 0 || target >= exercises.length) return;
+    [exercises[idx], exercises[target]] = [exercises[target], exercises[idx]];
+    renderRoutineCreateList(exercises);
+  }
+
 
   // 루틴 만들기 - 현재 입력값 수집
   function collectRoutineCreateItems() {
