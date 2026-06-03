@@ -2140,13 +2140,29 @@
 
   function addRoutineExercise(name) {
     const existing = collectRoutineCreateItems();
-    if (existing.find(e => e.name === name)) {
-      // 이미 추가된 경우 제거
-      const filtered = existing.filter(e => e.name !== name);
-      renderRoutineCreateList(filtered);
+    // 듀얼머신 확인
+    const eqMatch = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : []).find(e => e.name === name);
+    if (eqMatch && typeof isDualEquipment === 'function' && isDualEquipment(eqMatch.key)) {
+      const info = getDualEquipmentInfo(eqMatch.key);
+      const frontName = info.front + ' (' + eqMatch.name + ')';
+      const backName = info.back + ' (' + eqMatch.name + ')';
+      // 이미 추가된 경우 둘 다 제거
+      if (existing.find(e => e.name === frontName)) {
+        const filtered = existing.filter(e => e.name !== frontName && e.name !== backName);
+        renderRoutineCreateList(filtered);
+      } else {
+        existing.push({ name: frontName, sets: 3, weight: 0, reps: 10, isDualFront: true, eqKey: eqMatch.key });
+        existing.push({ name: backName, sets: 3, weight: 0, reps: 10, isDualBack: true, eqKey: eqMatch.key });
+        renderRoutineCreateList(existing);
+      }
     } else {
-      existing.push({ name, sets: 3, weight: 0, reps: 10 });
-      renderRoutineCreateList(existing);
+      if (existing.find(e => e.name === name)) {
+        const filtered = existing.filter(e => e.name !== name);
+        renderRoutineCreateList(filtered);
+      } else {
+        existing.push({ name, sets: 3, weight: 0, reps: 10 });
+        renderRoutineCreateList(existing);
+      }
     }
     // 현재 활성 카테고리 탭 새로고침
     const activeCat = ['하체','가슴','등','어깨','팔','코어','기구'].find(c => {
@@ -2154,7 +2170,6 @@
       return btn && btn.style.background === 'rgb(124, 58, 237)';
     });
     if (activeCat) selectRoutineCategory(activeCat);
-    // 검색 중이었으면 검색 결과 새로고침
     const searchVal = document.getElementById('routine-ex-search-input')?.value;
     if (searchVal && searchVal.trim()) searchRoutineExercise(searchVal);
   }
@@ -2217,51 +2232,53 @@
     firebase.database().ref('users/' + userId + '/routines/' + routineId).once('value', snap => {
       const r = snap.val();
       if (!r) return;
-      const exercises = (r.exercises || []).map(ex => {
-        let last = null;
-        let isDual = false;
-        let dualFrontLast = null;
-        let dualBackLast = null;
-
-        // 기구 운동 여부 확인
-        const eqMatch = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : [])
-          .find(e => e.name === ex.name);
-
-        if (eqMatch) {
-          // 듀얼 기구
-          if (typeof isDualEquipment === 'function' && isDualEquipment(eqMatch.key)) {
-            isDual = true;
-            const frontRecs = JSON.parse(localStorage.getItem('workout_dual_front_' + eqMatch.key + '_' + userId) || '[]');
-            const backRecs = JSON.parse(localStorage.getItem('workout_dual_back_' + eqMatch.key + '_' + userId) || '[]');
-            dualFrontLast = frontRecs[0] || null;
-            dualBackLast = backRecs[0] || null;
-            // 가장 최근 기록으로 last 설정
-            const allRecs = [...frontRecs, ...backRecs].sort((a, b) => new Date(b.date) - new Date(a.date));
-            last = allRecs[0] || null;
-          } else {
-            // 일반 기구
-            const recs = JSON.parse(localStorage.getItem('workout_' + eqMatch.key + '_' + userId) || '[]');
-            last = recs[0] || null;
+      const exercises = [];
+      (r.exercises || []).forEach(ex => {
+        // 이미 분리된 듀얼(isDualFront/isDualBack) 또는 일반 운동
+        if (ex.isDualFront || ex.isDualBack) {
+          const storageKey = ex.isDualFront
+            ? 'workout_dual_front_' + ex.eqKey + '_' + userId
+            : 'workout_dual_back_' + ex.eqKey + '_' + userId;
+          const recs = JSON.parse(localStorage.getItem(storageKey) || '[]');
+          const last = recs[0] || null;
+          const prevSets = last ? last.sets : null;
+          const sets = ex.sets || 3;
+          const inputSets = [];
+          for (let i = 0; i < sets; i++) {
+            inputSets.push({
+              set: i+1,
+              weight: prevSets&&prevSets[i] ? prevSets[i].weight : (ex.weight||0),
+              reps: prevSets&&prevSets[i] ? prevSets[i].reps : (ex.reps||10),
+              prevWeight: prevSets&&prevSets[i] ? prevSets[i].weight : null
+            });
           }
-        } else {
-          // 프리웨이트
-          const safeKey = 'freeweight_' + ex.name.replace(/\s+/g,'_') + '_' + userId;
-          const recs = JSON.parse(localStorage.getItem(safeKey) || '[]');
-          last = recs[recs.length - 1] || null;
+          exercises.push({ name: ex.name, sets: inputSets, eqKey: ex.eqKey, isDualFront: ex.isDualFront, isDualBack: ex.isDualBack });
+          return;
         }
 
+        // 기구 여부 확인
+        const eqMatch = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : []).find(e => e.name === ex.name);
+        let last = null;
+        if (eqMatch) {
+          const recs = JSON.parse(localStorage.getItem('workout_' + eqMatch.key + '_' + userId) || '[]');
+          last = recs[0] || null;
+        } else {
+          const safeKey = 'freeweight_' + ex.name.replace(/\s+/g,'_') + '_' + userId;
+          const recs = JSON.parse(localStorage.getItem(safeKey) || '[]');
+          last = recs[recs.length-1] || null;
+        }
         const prevSets = last ? last.sets : null;
         const sets = ex.sets || 3;
         const inputSets = [];
         for (let i = 0; i < sets; i++) {
           inputSets.push({
-            set: i + 1,
-            weight: prevSets && prevSets[i] ? prevSets[i].weight : (ex.weight || 0),
-            reps: prevSets && prevSets[i] ? prevSets[i].reps : (ex.reps || 10),
-            prevWeight: prevSets && prevSets[i] ? prevSets[i].weight : null
+            set: i+1,
+            weight: prevSets&&prevSets[i] ? prevSets[i].weight : (ex.weight||0),
+            reps: prevSets&&prevSets[i] ? prevSets[i].reps : (ex.reps||10),
+            prevWeight: prevSets&&prevSets[i] ? prevSets[i].weight : null
           });
         }
-        return { name: ex.name, sets: inputSets, isEquipment: !!eqMatch, eqKey: eqMatch ? eqMatch.key : null, isDual };
+        exercises.push({ name: ex.name, sets: inputSets, isEquipment: !!eqMatch, eqKey: eqMatch ? eqMatch.key : null });
       });
       currentRoutineWorkout = { routineId, routineName: r.name, exercises };
       saveRoutineDraft();
@@ -2441,29 +2458,41 @@
   function addRoutineWorkoutExercise(name) {
     if (!currentRoutineWorkout) return;
     const userId = localStorage.getItem('current_user');
-    let last = null;
     const eqMatch = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : []).find(e => e.name === name);
-    if (eqMatch) {
-      if (typeof isDualEquipment === 'function' && isDualEquipment(eqMatch.key)) {
-        const frontRecs = JSON.parse(localStorage.getItem('workout_dual_front_' + eqMatch.key + '_' + userId) || '[]');
-        const backRecs = JSON.parse(localStorage.getItem('workout_dual_back_' + eqMatch.key + '_' + userId) || '[]');
-        const allRecs = [...frontRecs, ...backRecs].sort((a,b) => new Date(b.date)-new Date(a.date));
-        last = allRecs[0] || null;
-      } else {
+
+    // 듀얼머신이면 front/back 두 개로 분리
+    if (eqMatch && typeof isDualEquipment === 'function' && isDualEquipment(eqMatch.key)) {
+      const info = getDualEquipmentInfo(eqMatch.key);
+      const frontRecs = JSON.parse(localStorage.getItem('workout_dual_front_' + eqMatch.key + '_' + userId) || '[]');
+      const backRecs = JSON.parse(localStorage.getItem('workout_dual_back_' + eqMatch.key + '_' + userId) || '[]');
+      const frontLast = frontRecs[0] || null;
+      const backLast = backRecs[0] || null;
+      const frontName = info.front + ' (' + eqMatch.name + ')';
+      const backName = info.back + ' (' + eqMatch.name + ')';
+      currentRoutineWorkout.exercises.push({
+        name: frontName, eqKey: eqMatch.key, isDualFront: true,
+        sets: [{ set:1, weight: frontLast&&frontLast.sets[0]?frontLast.sets[0].weight:0, reps: frontLast&&frontLast.sets[0]?frontLast.sets[0].reps:10, prevWeight: frontLast&&frontLast.sets[0]?frontLast.sets[0].weight:null }]
+      });
+      currentRoutineWorkout.exercises.push({
+        name: backName, eqKey: eqMatch.key, isDualBack: true,
+        sets: [{ set:1, weight: backLast&&backLast.sets[0]?backLast.sets[0].weight:0, reps: backLast&&backLast.sets[0]?backLast.sets[0].reps:10, prevWeight: backLast&&backLast.sets[0]?backLast.sets[0].weight:null }]
+      });
+    } else {
+      let last = null;
+      if (eqMatch) {
         const recs = JSON.parse(localStorage.getItem('workout_' + eqMatch.key + '_' + userId) || '[]');
         last = recs[0] || null;
+      } else {
+        const safeKey = 'freeweight_' + name.replace(/\s+/g,'_') + '_' + userId;
+        const recs = JSON.parse(localStorage.getItem(safeKey) || '[]');
+        last = recs[recs.length - 1] || null;
       }
-    } else {
-      const safeKey = 'freeweight_' + name.replace(/\s+/g,'_') + '_' + userId;
-      const recs = JSON.parse(localStorage.getItem(safeKey) || '[]');
-      last = recs[recs.length - 1] || null;
+      const prevSets = last ? last.sets : null;
+      currentRoutineWorkout.exercises.push({
+        name, isEquipment: !!eqMatch, eqKey: eqMatch ? eqMatch.key : null,
+        sets: [{ set:1, weight: prevSets&&prevSets[0]?prevSets[0].weight:0, reps: prevSets&&prevSets[0]?prevSets[0].reps:10, prevWeight: prevSets&&prevSets[0]?prevSets[0].weight:null }]
+      });
     }
-    const prevSets = last ? last.sets : null;
-    currentRoutineWorkout.exercises.push({
-      name,
-      sets: [{ set:1, weight: prevSets&&prevSets[0]?prevSets[0].weight:0, reps: prevSets&&prevSets[0]?prevSets[0].reps:10, prevWeight: prevSets&&prevSets[0]?prevSets[0].weight:null }],
-      isEquipment: !!eqMatch, eqKey: eqMatch?eqMatch.key:null
-    });
     // 카테고리 탭 새로고침
     const activeCat = ['하체','가슴','등','어깨','팔','코어','기구'].find(c => {
       const btn = document.getElementById('rwcat-' + c);
@@ -2533,8 +2562,26 @@
         ? { key: ex.eqKey }
         : (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : []).find(e => e.name === ex.name);
 
-      if (eqMatch) {
-        // 기구 운동 — workout_${key} 키로 저장
+      if (eqMatch && ex.isDualFront) {
+        // 듀얼머신 앞면
+        const storageKey = 'workout_dual_front_' + eqMatch.key + '_' + userId;
+        const records = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        const idx = records.findIndex(r => r.date === date);
+        if (idx >= 0) records[idx] = record; else records.unshift(record);
+        localStorage.setItem(storageKey, JSON.stringify(records));
+        const fbKey = ('dual_front_' + eqMatch.key).replace(/[\.\#\$\[\]]/g, '_');
+        firebase.database().ref('users/' + userId + '/workouts/' + date.replace(/-/g,'/') + '/' + fbKey).set({ name: ex.name, sets: mappedSets, savedAt, recordedBy: 'member' });
+      } else if (eqMatch && ex.isDualBack) {
+        // 듀얼머신 뒷면
+        const storageKey = 'workout_dual_back_' + eqMatch.key + '_' + userId;
+        const records = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        const idx = records.findIndex(r => r.date === date);
+        if (idx >= 0) records[idx] = record; else records.unshift(record);
+        localStorage.setItem(storageKey, JSON.stringify(records));
+        const fbKey = ('dual_back_' + eqMatch.key).replace(/[\.\#\$\[\]]/g, '_');
+        firebase.database().ref('users/' + userId + '/workouts/' + date.replace(/-/g,'/') + '/' + fbKey).set({ name: ex.name, sets: mappedSets, savedAt, recordedBy: 'member' });
+      } else if (eqMatch) {
+        // 일반 기구 — workout_${key} 키로 저장
         const storageKey = 'workout_' + eqMatch.key + '_' + userId;
         const records = JSON.parse(localStorage.getItem(storageKey) || '[]');
         const idx = records.findIndex(r => r.date === date);
