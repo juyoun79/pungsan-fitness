@@ -2195,7 +2195,7 @@
   }
 
   // ── 강사 루틴 지정 탭 ──────────────────────────────────────
-  let traineeRoutineEditId = null; // 수정 중인 루틴 ID
+  let traineeRoutineEditId = null;
 
   function renderTraineeRoutineTab() {
     const content = document.getElementById('trainee-tab-content');
@@ -2251,15 +2251,22 @@
     });
   }
 
-  // 루틴 만들기/수정 모달 열기
   function openTraineeRoutineCreate() {
     traineeRoutineEditId = null;
-    document.getElementById('trainee-routine-modal-title').textContent = '회원 루틴 만들기';
-    document.getElementById('trainee-routine-name-input').value = '';
-    document.getElementById('trainee-routine-ex-list').innerHTML = '';
-    document.getElementById('trainee-routine-ex-search-input').value = '';
-    document.getElementById('trainee-routine-ex-search-results').innerHTML = '';
-    document.getElementById('trainee-routine-modal').style.display = 'flex';
+    document.getElementById('tr-routine-create-title').textContent = '회원 루틴 만들기';
+    document.getElementById('tr-routine-edit-id').value = '';
+    document.getElementById('tr-routine-name-input').value = '';
+    document.getElementById('tr-routine-exercise-list').innerHTML = '';
+    document.getElementById('tr-routine-ex-search-input').value = '';
+    document.getElementById('tr-routine-ex-search-results').innerHTML = '';
+    ['하체','가슴','등','어깨','팔','코어','기구'].forEach(c => {
+      const btn = document.getElementById('trcat-' + c);
+      if (!btn) return;
+      btn.style.background = 'var(--bg)';
+      btn.style.color = 'var(--text-sub)';
+      btn.style.borderColor = 'var(--border)';
+    });
+    showScreen('screen-trainee-routine-create');
   }
 
   function openTraineeRoutineEdit(routineId) {
@@ -2268,82 +2275,148 @@
       const r = snap.val();
       if (!r) return;
       traineeRoutineEditId = routineId;
-      document.getElementById('trainee-routine-modal-title').textContent = '루틴 수정';
-      document.getElementById('trainee-routine-name-input').value = r.name || '';
-      document.getElementById('trainee-routine-ex-search-input').value = '';
-      document.getElementById('trainee-routine-ex-search-results').innerHTML = '';
-      renderTraineeRoutineExList(r.exercises || []);
-      document.getElementById('trainee-routine-modal').style.display = 'flex';
+      document.getElementById('tr-routine-create-title').textContent = '루틴 수정';
+      document.getElementById('tr-routine-edit-id').value = routineId;
+      document.getElementById('tr-routine-name-input').value = r.name || '';
+      document.getElementById('tr-routine-ex-search-input').value = '';
+      document.getElementById('tr-routine-ex-search-results').innerHTML = '';
+      ['하체','가슴','등','어깨','팔','코어','기구'].forEach(c => {
+        const btn = document.getElementById('trcat-' + c);
+        if (!btn) return;
+        btn.style.background = 'var(--bg)';
+        btn.style.color = 'var(--text-sub)';
+        btn.style.borderColor = 'var(--border)';
+      });
+      renderTRexList(r.exercises || []);
+      showScreen('screen-trainee-routine-create');
     });
   }
 
-  function closeTraineeRoutineModal() {
-    document.getElementById('trainee-routine-modal').style.display = 'none';
+  function closeTraineeRoutineCreate() {
+    showScreen('screen-trainee-detail');
+    switchTraineeTab('routine');
   }
 
-  // 운동 목록 렌더링
-  function renderTraineeRoutineExList(exercises) {
-    const container = document.getElementById('trainee-routine-ex-list');
+  function renderTRexList(exercises) {
+    const container = document.getElementById('tr-routine-exercise-list');
     if (!exercises || exercises.length === 0) { container.innerHTML = ''; return; }
     container.innerHTML = exercises.map((ex, i) => `
-      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
-        <div style="display:flex;flex-direction:column;gap:2px;">
-          <button onclick="moveTRex(${i},'up')" ${i===0?'disabled':''} style="background:${i===0?'var(--border)':'#ede9fe'};border:none;border-radius:5px;width:24px;height:22px;cursor:${i===0?'default':'pointer'};color:${i===0?'var(--text-hint)':'#7c3aed'};font-size:12px;display:flex;align-items:center;justify-content:center;padding:0;">▲</button>
-          <button onclick="moveTRex(${i},'down')" ${i===exercises.length-1?'disabled':''} style="background:${i===exercises.length-1?'var(--border)':'#ede9fe'};border:none;border-radius:5px;width:24px;height:22px;cursor:${i===exercises.length-1?'default':'pointer'};color:${i===exercises.length-1?'var(--text-hint)':'#7c3aed'};font-size:12px;display:flex;align-items:center;justify-content:center;padding:0;">▼</button>
+      <div id="tr-create-item-${i}"
+        ${ex.isDualFront ? 'data-is-dual-front="true"' : ''}
+        ${ex.isDualBack ? 'data-is-dual-back="true"' : ''}
+        ${ex.eqKey ? 'data-eq-key="' + ex.eqKey + '"' : ''}
+        style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:6px;">
+          <div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0;">
+            <button onclick="moveTRexItem(${i},\'up\')" ${i===0?'disabled':''} style="background:${i===0?'var(--border)':'#ede9fe'};border:none;border-radius:5px;width:24px;height:22px;cursor:${i===0?'default':'pointer'};color:${i===0?'var(--text-hint)':'#7c3aed'};font-size:12px;display:flex;align-items:center;justify-content:center;padding:0;">▲</button>
+            <button onclick="moveTRexItem(${i},\'down\')" ${i===exercises.length-1?'disabled':''} style="background:${i===exercises.length-1?'var(--border)':'#ede9fe'};border:none;border-radius:5px;width:24px;height:22px;cursor:${i===exercises.length-1?'default':'pointer'};color:${i===exercises.length-1?'var(--text-hint)':'#7c3aed'};font-size:12px;display:flex;align-items:center;justify-content:center;padding:0;">▼</button>
+          </div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);flex:1;">${i+1}. ${escapeHtml(ex.name)}</div>
+          <button onclick="removeTRexItem(${i})" style="background:#fee2e2;border:none;border-radius:6px;padding:4px 8px;font-size:11px;color:#ef4444;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;flex-shrink:0;">삭제</button>
         </div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">${escapeHtml(ex.name)}</div>
-          <div style="display:flex;gap:6px;">
-            <input type="number" value="${ex.sets||3}" min="1" max="99" placeholder="세트" style="width:48px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--card);color:var(--text);text-align:center;" class="tr-ex-sets">
-            <input type="number" value="${ex.weight||0}" min="0" placeholder="kg" style="width:52px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--card);color:var(--text);text-align:center;" class="tr-ex-weight">
-            <input type="number" value="${ex.reps||10}" min="1" max="999" placeholder="회" style="width:48px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--card);color:var(--text);text-align:center;" class="tr-ex-reps">
-            <span style="font-size:11px;color:var(--text-hint);align-self:center;">세트·kg·회</span>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+          <div style="text-align:center;">
+            <div style="font-size:10px;color:var(--text-hint);margin-bottom:3px;">세트</div>
+            <input type="number" min="1" max="20" value="${ex.sets||3}" id="trc-sets-${i}"
+              style="width:100%;box-sizing:border-box;padding:7px 4px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:\'Noto Sans KR\',sans-serif;background:var(--bg);"
+              onfocus="this.style.borderColor=\'#7c3aed\'" onblur="this.style.borderColor=\'var(--border)\'"/>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:10px;color:var(--text-hint);margin-bottom:3px;">기본 무게(kg)</div>
+            <input type="number" min="0" max="500" step="2.5" value="${ex.weight||0}" id="trc-weight-${i}"
+              style="width:100%;box-sizing:border-box;padding:7px 4px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:\'Noto Sans KR\',sans-serif;background:var(--bg);"
+              onfocus="this.style.borderColor=\'#7c3aed\'" onblur="this.style.borderColor=\'var(--border)\'"/>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:10px;color:var(--text-hint);margin-bottom:3px;">기본 횟수</div>
+            <input type="number" min="1" max="999" value="${ex.reps||10}" id="trc-reps-${i}"
+              style="width:100%;box-sizing:border-box;padding:7px 4px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:\'Noto Sans KR\',sans-serif;background:var(--bg);"
+              onfocus="this.style.borderColor=\'#7c3aed\'" onblur="this.style.borderColor=\'var(--border)\'"/>
           </div>
         </div>
-        <button onclick="removeTRex(${i})" style="background:#fee2e2;border:none;border-radius:6px;padding:5px 8px;font-size:13px;color:#ef4444;cursor:pointer;">✕</button>
-        <input type="hidden" class="tr-ex-name" value="${escapeHtml(ex.name)}">
       </div>`).join('');
   }
 
   function collectTRexItems() {
-    const items = [];
-    const rows = document.querySelectorAll('#trainee-routine-ex-list > div');
-    rows.forEach(row => {
-      const name = row.querySelector('.tr-ex-name')?.value || '';
-      const sets = parseInt(row.querySelector('.tr-ex-sets')?.value) || 3;
-      const weight = parseFloat(row.querySelector('.tr-ex-weight')?.value) || 0;
-      const reps = parseInt(row.querySelector('.tr-ex-reps')?.value) || 10;
-      if (name) items.push({ name, sets, weight, reps });
+    const container = document.getElementById('tr-routine-exercise-list');
+    const items = container.querySelectorAll('[id^="tr-create-item-"]');
+    const exercises = [];
+    items.forEach((item, i) => {
+      const nameEl = item.querySelector('div[style*="font-weight:700"]');
+      const name = nameEl ? nameEl.textContent.replace(/^\d+\.\s*/, '').trim() : '';
+      const sets = parseInt(document.getElementById('trc-sets-' + i)?.value) || 3;
+      const weight = parseFloat(document.getElementById('trc-weight-' + i)?.value) || 0;
+      const reps = parseInt(document.getElementById('trc-reps-' + i)?.value) || 10;
+      if (!name) return;
+      const ex = { name, sets, weight, reps };
+      if (item.dataset.isDualFront) ex.isDualFront = true;
+      if (item.dataset.isDualBack) ex.isDualBack = true;
+      if (item.dataset.eqKey) ex.eqKey = item.dataset.eqKey;
+      exercises.push(ex);
     });
-    return items;
+    return exercises;
   }
 
-  function moveTRex(idx, dir) {
+  function moveTRexItem(idx, dir) {
     const exercises = collectTRexItems();
     const target = dir === 'up' ? idx - 1 : idx + 1;
     if (target < 0 || target >= exercises.length) return;
     [exercises[idx], exercises[target]] = [exercises[target], exercises[idx]];
-    renderTraineeRoutineExList(exercises);
+    renderTRexList(exercises);
   }
 
-  function removeTRex(idx) {
+  function removeTRexItem(idx) {
     const exercises = collectTRexItems().filter((_, i) => i !== idx);
-    renderTraineeRoutineExList(exercises);
+    renderTRexList(exercises);
   }
 
-  function addTRexercise(name) {
-    const exercises = collectTRexItems();
-    if (exercises.find(e => e.name === name)) {
-      showToast('이미 추가된 운동이에요.', 'error'); return;
+  function selectTRCategory(cat) {
+    ['하체','가슴','등','어깨','팔','코어','기구'].forEach(c => {
+      const btn = document.getElementById('trcat-' + c);
+      if (!btn) return;
+      btn.style.background = 'var(--bg)';
+      btn.style.color = 'var(--text-sub)';
+      btn.style.borderColor = 'var(--border)';
+    });
+    const active = document.getElementById('trcat-' + cat);
+    if (active) { active.style.background = '#7c3aed'; active.style.color = 'white'; active.style.borderColor = '#7c3aed'; }
+    const input = document.getElementById('tr-routine-ex-search-input');
+    if (input) input.value = '';
+    const results = document.getElementById('tr-routine-ex-search-results');
+    const existing = collectTRexItems().map(e => e.name);
+    let items = [];
+    if (cat === '기구') {
+      items = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : [])
+        .map(e => ({ name: e.name, tag: e.muscles || '기구', type: 'eq' }));
+    } else {
+      const fwCats = { '하체':'하체', '가슴':'가슴', '등':'등', '어깨':'어깨', '팔':'팔', '코어':'코어복부' };
+      const catKey = fwCats[cat] || cat;
+      items = FW_EXERCISE_LIST
+        .filter(e => e.category === catKey || e.muscles === cat || matchesMuscle(e.muscles, cat))
+        .map(e => ({ name: e.name, tag: e.muscles || e.category, type: 'fw' }));
     }
-    exercises.push({ name, sets: 3, weight: 0, reps: 10 });
-    renderTraineeRoutineExList(exercises);
-    document.getElementById('trainee-routine-ex-search-input').value = '';
-    document.getElementById('trainee-routine-ex-search-results').innerHTML = '';
+    if (items.length === 0) { results.innerHTML = '<div style="padding:12px 14px;font-size:13px;color:var(--text-hint);">운동이 없어요</div>'; return; }
+    results.innerHTML = items.map(e => {
+      const isAdded = existing.includes(e.name);
+      const badgeStyle = e.type === 'fw' ? 'background:#ede9fe;color:#5b21b6;' : 'background:#dbeafe;color:#1e40af;';
+      const badgeText = e.type === 'fw' ? '프리' : '기구';
+      return '<div onclick="addTRexercise(\'' + e.name.replace(/'/g,"\\'") + '\')"'
+        + ' id="trcat-item-' + e.name.replace(/\s/g,'_') + '"'
+        + ' style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);' + (isAdded?'background:#f3e8ff;':'') + '"'
+        + ' onmouseover="this.style.background=\'#f3e8ff\'"'
+        + ' onmouseout="this.style.background=\'' + (isAdded?'#f3e8ff':'') + '\'">'
+        + '<div style="display:flex;align-items:center;gap:5px;min-width:0;">'
+        + (isAdded ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>')
+        + '<span style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + e.name + '</span>'
+        + '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;flex-shrink:0;' + badgeStyle + '">' + badgeText + '</span>'
+        + '</div>'
+        + '<span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;flex-shrink:0;">' + e.tag + '</span>'
+        + '</div>';
+    }).join('');
   }
 
   function searchTRexercise(q) {
-    const results = document.getElementById('trainee-routine-ex-search-results');
+    const results = document.getElementById('tr-routine-ex-search-results');
     if (!q.trim()) { results.innerHTML = ''; return; }
     const ql = q.toLowerCase();
     const fwItems = FW_EXERCISE_LIST.filter(e =>
@@ -2358,21 +2431,54 @@
     results.innerHTML = combined.slice(0, 20).map(e => {
       const isAdded = existing.includes(e.name);
       const badgeStyle = e.type === 'fw' ? 'background:#ede9fe;color:#5b21b6;' : 'background:#dbeafe;color:#1e40af;';
-      return `<div onclick="addTRexercise('${escapeHtml(e.name)}')"
-        style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);${isAdded?'background:#f3e8ff;':''}"
-        onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background='${isAdded?'#f3e8ff':''}'">
-        <div style="display:flex;align-items:center;gap:5px;">
-          <span style="font-size:13px;color:var(--text);">${escapeHtml(e.name)}</span>
-          <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;${badgeStyle}">${e.type==='fw'?'프리':'기구'}</span>
-        </div>
-        <span style="font-size:11px;color:var(--text-hint);">${escapeHtml(e.tag)}</span>
-      </div>`;
+      return '<div onclick="addTRexercise(\'' + e.name.replace(/'/g,"\\'") + '\')"'
+        + ' style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);' + (isAdded?'background:#f3e8ff;':'') + '"'
+        + ' onmouseover="this.style.background=\'#f3e8ff\'"'
+        + ' onmouseout="this.style.background=\'' + (isAdded?'#f3e8ff':'') + '\'">'
+        + '<div style="display:flex;align-items:center;gap:5px;">'
+        + (isAdded ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>')
+        + '<span style="font-size:13px;color:var(--text);">' + e.name + '</span>'
+        + '<span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;' + badgeStyle + '">' + (e.type==='fw'?'프리':'기구') + '</span>'
+        + '</div>'
+        + '<span style="font-size:11px;color:var(--text-hint);">' + e.tag + '</span>'
+        + '</div>';
     }).join('');
+  }
+
+  function addTRexercise(name) {
+    const existing = collectTRexItems();
+    const eqMatch = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : []).find(e => e.name === name);
+    if (eqMatch && typeof isDualEquipment === 'function' && isDualEquipment(eqMatch.key)) {
+      const info = getDualNames(eqMatch.key);
+      const frontName = info.front + ' (' + eqMatch.name + ')';
+      const backName = info.back + ' (' + eqMatch.name + ')';
+      if (existing.find(e => e.name === frontName)) {
+        renderTRexList(existing.filter(e => e.name !== frontName && e.name !== backName));
+      } else {
+        existing.push({ name: frontName, sets: 3, weight: 0, reps: 10, isDualFront: true, eqKey: eqMatch.key });
+        existing.push({ name: backName, sets: 3, weight: 0, reps: 10, isDualBack: true, eqKey: eqMatch.key });
+        renderTRexList(existing);
+      }
+    } else {
+      if (existing.find(e => e.name === name)) {
+        renderTRexList(existing.filter(e => e.name !== name));
+      } else {
+        existing.push({ name, sets: 3, weight: 0, reps: 10 });
+        renderTRexList(existing);
+      }
+    }
+    const activeCat = ['하체','가슴','등','어깨','팔','코어','기구'].find(c => {
+      const btn = document.getElementById('trcat-' + c);
+      return btn && btn.style.background === 'rgb(124, 58, 237)';
+    });
+    if (activeCat) selectTRCategory(activeCat);
+    const searchVal = document.getElementById('tr-routine-ex-search-input')?.value;
+    if (searchVal && searchVal.trim()) searchTRexercise(searchVal);
   }
 
   function saveTraineeRoutine() {
     const trainerId = localStorage.getItem('current_user');
-    const name = document.getElementById('trainee-routine-name-input').value.trim();
+    const name = document.getElementById('tr-routine-name-input').value.trim();
     if (!name) { showToast('루틴 이름을 입력해주세요!', 'error'); return; }
     const exercises = collectTRexItems();
     if (exercises.length === 0) { showToast('운동을 1개 이상 추가해주세요!', 'error'); return; }
@@ -2380,20 +2486,17 @@
     const routineId = traineeRoutineEditId || ('tr_' + Date.now());
     const data = { name, exercises, updatedAt: Date.now(), assignedBy: trainerId };
 
-    // 1) 강사 관리 경로에 저장
-    db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/assignedRoutines/' + routineId).set(data);
-
-    // 2) 강사 이름 가져와서 회원 루틴에도 저장
     db.ref('members/' + trainerId + '/name').once('value', nameSnap => {
       const trainerName = nameSnap.val() || '강사';
       const memberData = Object.assign({}, data, { assignedByName: trainerName, assignedAt: data.updatedAt });
       const memberRoutineId = 'trainer_' + trainerId.slice(-4) + '_' + routineId;
-      db.ref('users/' + currentTraineeId + '/routines/' + memberRoutineId).set(memberData, err => {
-        if (err) { showToast('저장 실패. 다시 시도해주세요.', 'error'); return; }
+      Promise.all([
+        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/assignedRoutines/' + routineId).set(data),
+        db.ref('users/' + currentTraineeId + '/routines/' + memberRoutineId).set(memberData)
+      ]).then(() => {
         showToast(traineeRoutineEditId ? '루틴이 수정됐어요! ✅' : '루틴이 만들어졌어요! 👨‍🏫', 'success');
-        closeTraineeRoutineModal();
-        renderTraineeRoutineTab();
-      });
+        closeTraineeRoutineCreate();
+      }).catch(() => showToast('저장 실패. 다시 시도해주세요.', 'error'));
     });
   }
 
