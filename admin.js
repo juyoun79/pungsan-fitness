@@ -2159,7 +2159,7 @@
   // 담당 회원 탭 전환
   function switchTraineeTab(tab) {
     currentTraineeTab = tab;
-    ['record', 'sign', 'memo', 'log'].forEach(t => {
+    ['record', 'sign', 'memo', 'log', 'routine'].forEach(t => {
       const btn = document.getElementById('trainee-tab-' + t);
       if (btn) {
         btn.style.background = t === tab ? 'var(--blue)' : 'var(--card)';
@@ -2189,8 +2189,126 @@
       });
     } else if (tab === 'log') {
       renderLogTab();
+    } else if (tab === 'routine') {
+      renderTraineeRoutineTab();
     }
   }
+
+  // ── 강사 루틴 지정 탭 ──────────────────────────────────────
+  function renderTraineeRoutineTab() {
+    const content = document.getElementById('trainee-tab-content');
+    if (!content || !currentTraineeId) return;
+    const trainerId = localStorage.getItem('current_user');
+    content.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
+
+    // 강사 루틴 목록 + 이미 지정된 루틴 목록 동시 로드
+    Promise.all([
+      db.ref('users/' + trainerId + '/routines').once('value'),
+      db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/assignedRoutines').once('value'),
+      db.ref('members/' + currentTraineeId + '/name').once('value')
+    ]).then(([trainerSnap, assignedSnap, nameSnap]) => {
+      const trainerRoutines = trainerSnap.val() || {};
+      const assignedMap = assignedSnap.val() || {};
+      const memberName = nameSnap.val() || currentTraineeId;
+
+      const trainerList = Object.entries(trainerRoutines).sort((a, b) => (b[1].updatedAt || 0) - (a[1].updatedAt || 0));
+
+      if (trainerList.length === 0) {
+        content.innerHTML = `
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;">
+            <div style="font-size:28px;margin-bottom:8px;">📋</div>
+            <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;">내 루틴이 없어요</div>
+            <div style="font-size:13px;color:var(--text-hint);">먼저 운동기록 탭에서 루틴을 만들어주세요</div>
+          </div>`;
+        return;
+      }
+
+      // 지정된 루틴 ID 목록
+      const assignedIds = Object.values(assignedMap).map(r => r.routineId).filter(Boolean);
+
+      let html = `<div style="font-size:13px;color:var(--text-hint);margin-bottom:12px;">내 루틴을 선택해서 <b style="color:var(--text);">${memberName}</b> 회원에게 지정하세요</div>`;
+
+      trainerList.forEach(([id, r]) => {
+        const isAssigned = assignedIds.includes(id);
+        const exNames = (r.exercises || []).map(e => e.name).join(' · ');
+        const count = (r.exercises || []).length;
+        html += `
+          <div style="background:var(--card);border:1.5px solid ${isAssigned ? '#7c3aed' : 'var(--border)'};border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <div style="font-size:15px;font-weight:700;color:var(--text);">${escapeHtml(r.name)}</div>
+                ${isAssigned ? '<span style="background:#ede9fe;color:#5b21b6;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">👨‍🏫 지정됨</span>' : ''}
+              </div>
+            </div>
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:10px;">${count}가지 운동 · ${escapeHtml(exNames)}</div>
+            ${isAssigned
+              ? `<button onclick="unassignRoutineFromTrainee('${id}')" style="width:100%;padding:10px;background:#fee2e2;border:none;border-radius:var(--radius-sm);color:#ef4444;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">지정 해제</button>`
+              : `<button onclick="assignRoutineToTrainee('${id}','${escapeHtml(r.name).replace(/'/g,"\\'")}',${count})" style="width:100%;padding:10px;background:#7c3aed;border:none;border-radius:var(--radius-sm);color:white;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">이 루틴 지정하기</button>`
+            }
+          </div>`;
+      });
+
+      content.innerHTML = html;
+    });
+  }
+
+  function assignRoutineToTrainee(routineId, routineName, exCount) {
+    if (!currentTraineeId) return;
+    const trainerId = localStorage.getItem('current_user');
+
+    // 루틴 전체 데이터 가져와서 회원에게 복사
+    db.ref('users/' + trainerId + '/routines/' + routineId).once('value', snap => {
+      const routineData = snap.val();
+      if (!routineData) return;
+
+      const assignKey = 'assigned_' + routineId;
+      const memberRoutineId = 'trainer_' + trainerId.slice(-4) + '_' + routineId;
+
+      // 1) 강사 → 담당회원 지정 기록
+      db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/assignedRoutines/' + assignKey).set({
+        routineId: routineId,
+        routineName: routineName,
+        assignedAt: Date.now(),
+        memberRoutineId: memberRoutineId
+      });
+
+      // 2) 회원 루틴 목록에 복사 (assignedBy 필드로 강사지정 표시)
+      const memberRoutineData = Object.assign({}, routineData, {
+        assignedBy: trainerId,
+        assignedByName: '',
+        assignedAt: Date.now(),
+        updatedAt: Date.now()
+      });
+
+      // 강사 이름 가져와서 함께 저장
+      db.ref('members/' + trainerId + '/name').once('value', nameSnap => {
+        memberRoutineData.assignedByName = nameSnap.val() || '강사';
+        db.ref('users/' + currentTraineeId + '/routines/' + memberRoutineId).set(memberRoutineData, err => {
+          if (err) { showToast('지정 실패. 다시 시도해주세요.', 'error'); return; }
+          showToast('루틴이 지정됐어요! 👨‍🏫', 'success');
+          renderTraineeRoutineTab();
+        });
+      });
+    });
+  }
+
+  function unassignRoutineFromTrainee(routineId) {
+    if (!currentTraineeId) return;
+    showConfirm('루틴 지정을 해제할까요?\n회원의 루틴 목록에서도 삭제됩니다.', () => {
+      const trainerId = localStorage.getItem('current_user');
+      const assignKey = 'assigned_' + routineId;
+      const memberRoutineId = 'trainer_' + trainerId.slice(-4) + '_' + routineId;
+
+      Promise.all([
+        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/assignedRoutines/' + assignKey).remove(),
+        db.ref('users/' + currentTraineeId + '/routines/' + memberRoutineId).remove()
+      ]).then(() => {
+        showToast('루틴 지정이 해제됐어요.', 'success');
+        renderTraineeRoutineTab();
+      });
+    });
+  }
+  // ── 강사 루틴 지정 탭 끝 ──────────────────────────────────
 
   function renderSignTab(content) {
     if (!content || !currentTraineeId) return;

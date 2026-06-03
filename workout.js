@@ -1851,15 +1851,21 @@
       container.innerHTML = routines.map(([id, r]) => {
         const exNames = (r.exercises || []).map(e => e.name).join(' · ');
         const count = (r.exercises || []).length;
-        return `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;">
+        const isAssigned = !!r.assignedBy; // 강사지정 루틴 여부
+        const assignedByName = r.assignedByName || '강사';
+        return `<div style="background:var(--card);border:1.5px solid ${isAssigned ? '#c4b5fd' : 'var(--border)'};border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <div style="font-size:16px;font-weight:700;color:var(--text);">${escapeHtml(r.name)}</div>
-            <div style="display:flex;gap:6px;">
+            <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
+              <div style="font-size:16px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(r.name)}</div>
+              ${isAssigned ? `<span style="background:#ede9fe;color:#5b21b6;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap;">👨‍🏫 ${escapeHtml(assignedByName)}</span>` : ''}
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0;">
               <button onclick="copyRoutine('${id}')" style="background:#ede9fe;border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;color:#5b21b6;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">복사</button>
-              <button onclick="openRoutineEdit('${id}')" style="background:#f3f4f6;border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
-              <button onclick="deleteRoutine('${id}')" style="background:#fee2e2;border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;color:#ef4444;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
+              ${!isAssigned ? `<button onclick="openRoutineEdit('${id}')" style="background:#f3f4f6;border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>` : ''}
+              ${!isAssigned ? `<button onclick="deleteRoutine('${id}')" style="background:#fee2e2;border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;color:#ef4444;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>` : ''}
             </div>
           </div>
+          ${isAssigned ? `<div style="font-size:11px;color:#7c3aed;margin-bottom:4px;">강사가 지정한 루틴이에요 · 복사해서 수정 가능해요</div>` : ''}
           <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;">${count}가지 운동 · ${escapeHtml(exNames)}</div>
           <button onclick="startRoutineWorkout('${id}')" style="width:100%;padding:10px;background:#7c3aed;border:none;border-radius:var(--radius-sm);color:white;font-size:14px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">이 루틴으로 운동 시작</button>
         </div>`;
