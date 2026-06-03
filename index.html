@@ -3040,6 +3040,30 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         지난 기록이 자동으로 채워졌어요. 오늘 무게·횟수로 수정 후 저장하세요.
       </div>
+
+      <!-- 휴식 타이머 설정 -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:12px;font-weight:700;color:var(--text-sub);">⏱ 세트 휴식시간</span>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <input type="number" id="rw-rest-min" placeholder="0" min="0" max="10" value="1"
+            style="width:44px;padding:5px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
+            onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='var(--border)'" />
+          <span style="font-size:12px;color:var(--text-sub);">분</span>
+          <input type="number" id="rw-rest-sec" placeholder="0" min="0" max="59" value="0"
+            style="width:44px;padding:5px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
+            onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='var(--border)'" />
+          <span style="font-size:12px;color:var(--text-sub);">초</span>
+        </div>
+        <span style="font-size:11px;color:var(--text-hint);">세트 완료 시 자동 시작</span>
+      </div>
+
+      <!-- 휴식 타이머 카운트다운 -->
+      <div id="rw-rest-timer-box" style="display:none;background:linear-gradient(135deg,#7c3aed,#5b21b6);border-radius:10px;padding:14px;margin-bottom:10px;text-align:center;">
+        <div style="font-size:12px;color:rgba(255,255,255,0.8);margin-bottom:4px;">다음 세트까지 휴식</div>
+        <div id="rw-rest-timer-count" style="font-size:36px;font-weight:700;color:white;font-variant-numeric:tabular-nums;">1:00</div>
+        <button onclick="skipRwRestTimer()" style="margin-top:8px;background:rgba(255,255,255,0.2);color:white;border:none;border-radius:8px;padding:6px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">건너뛰기</button>
+      </div>
+
       <div id="routine-workout-list"></div>
 
       <!-- 운동 추가 패널 -->

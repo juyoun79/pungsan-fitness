@@ -2306,6 +2306,7 @@
 
   function closeRoutineWorkout() {
     showConfirm('운동을 그만할까요?\n입력한 내용은 임시저장 돼요.', () => {
+      skipRwRestTimer();
       saveRoutineDraft();
       showScreen('screen-routine-list');
     });
@@ -2340,7 +2341,7 @@
         </div>
         ${ex.sets.map((s, si) => `
         <div style="display:grid;grid-template-columns:36px 1fr 1fr 36px;gap:4px;margin-bottom:6px;align-items:center;">
-          <div style="text-align:center;font-size:13px;font-weight:700;color:white;background:#7c3aed;border-radius:8px;height:38px;display:flex;align-items:center;justify-content:center;">${s.set}</div>
+          <div style="text-align:center;font-size:13px;font-weight:700;color:white;background:${s.done ? '#22c55e' : '#7c3aed'};border-radius:8px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;" onclick="toggleRwSetDone(${ei},${si})">${s.done ? '✓' : s.set}</div>
           <div style="position:relative;">
             <input type="number" min="0" max="500" step="2.5" value="${s.weight}"
               id="rw-weight-${ei}-${si}"
@@ -2360,6 +2361,23 @@
         `}
       </div>`;
     }).join('');
+  }
+
+  function toggleRwSetDone(exIdx, setIdx) {
+    if (!currentRoutineWorkout) return;
+    const s = currentRoutineWorkout.exercises[exIdx].sets[setIdx];
+    s.done = !s.done;
+    renderRoutineWorkoutList();
+    autoSaveRoutineDraft();
+    // 완료로 변경 시 타이머 시작
+    if (s.done) startRestTimer('rw-rest-timer-box', 'rw-rest-timer-count', 'rw-rest-min', 'rw-rest-sec');
+  }
+
+  function skipRwRestTimer() {
+    if (restTimerInterval) { clearInterval(restTimerInterval); restTimerInterval = null; }
+    stopRestAlarm(); releaseWakeLock();
+    const box = document.getElementById('rw-rest-timer-box');
+    if (box) box.style.display = 'none';
   }
 
   function toggleSkipRoutineExercise(exIdx) {
@@ -2549,6 +2567,7 @@
 
   // 루틴 운동 기록 저장
   function saveRoutineWorkout() {
+    skipRwRestTimer();
     if (!currentRoutineWorkout) return;
     const { exercises, routineName } = currentRoutineWorkout;
     const userId = localStorage.getItem('current_user');
