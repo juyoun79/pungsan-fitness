@@ -2028,7 +2028,11 @@
 
   // 카테고리 탭 선택
   function selectRoutineCategory(cat) {
-    // 탭 스타일 초기화
+    const active = document.getElementById('rcat-' + cat);
+    const results = document.getElementById('routine-ex-search-results');
+    const isActive = active && active.style.background === 'rgb(124, 58, 237)';
+
+    // 탭 스타일 전체 초기화
     ['하체','가슴','등','어깨','팔','코어','기구'].forEach(c => {
       const btn = document.getElementById('rcat-' + c);
       if (!btn) return;
@@ -2036,8 +2040,14 @@
       btn.style.color = 'var(--text-sub)';
       btn.style.borderColor = 'var(--border)';
     });
+
+    // 이미 활성 탭이면 목록 닫기
+    if (isActive) {
+      results.innerHTML = '';
+      return;
+    }
+
     // 선택 탭 활성화
-    const active = document.getElementById('rcat-' + cat);
     if (active) {
       active.style.background = '#7c3aed';
       active.style.color = 'white';
@@ -2047,7 +2057,6 @@
     const input = document.getElementById('routine-ex-search-input');
     if (input) input.value = '';
 
-    const results = document.getElementById('routine-ex-search-results');
     const existing = collectRoutineCreateItems().map(e => e.name);
 
     let items = [];
