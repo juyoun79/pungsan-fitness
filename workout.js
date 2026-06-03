@@ -1961,7 +1961,11 @@
     const container = document.getElementById('routine-exercise-list');
     if (!exercises || exercises.length === 0) { container.innerHTML = ''; return; }
     container.innerHTML = exercises.map((ex, i) => `
-      <div id="routine-create-item-${i}" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;">
+      <div id="routine-create-item-${i}"
+        ${ex.isDualFront ? 'data-is-dual-front="true"' : ''}
+        ${ex.isDualBack ? 'data-is-dual-back="true"' : ''}
+        ${ex.eqKey ? `data-eq-key="${ex.eqKey}"` : ''}
+        style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:6px;">
           <div style="display:flex;flex-direction:column;gap:3px;flex-shrink:0;">
             <button onclick="moveRoutineItem(${i},'up')" ${i === 0 ? 'disabled' : ''} style="background:${i === 0 ? 'var(--border)' : '#ede9fe'};border:none;border-radius:5px;width:24px;height:22px;cursor:${i === 0 ? 'default' : 'pointer'};color:${i === 0 ? 'var(--text-hint)' : '#7c3aed'};font-size:12px;display:flex;align-items:center;justify-content:center;padding:0;">▲</button>
@@ -2013,7 +2017,13 @@
       const sets = parseInt(document.getElementById('rc-sets-' + i)?.value) || 3;
       const weight = parseFloat(document.getElementById('rc-weight-' + i)?.value) || 0;
       const reps = parseInt(document.getElementById('rc-reps-' + i)?.value) || 10;
-      if (name) exercises.push({ name, sets, weight, reps });
+      if (!name) return;
+      const ex = { name, sets, weight, reps };
+      // 듀얼머신 정보 복원
+      if (item.dataset.isDualFront) ex.isDualFront = true;
+      if (item.dataset.isDualBack) ex.isDualBack = true;
+      if (item.dataset.eqKey) ex.eqKey = item.dataset.eqKey;
+      exercises.push(ex);
     });
     return exercises;
   }
@@ -2029,10 +2039,7 @@
 
   // 카테고리 탭 선택
   function selectRoutineCategory(cat) {
-    const active = document.getElementById('rcat-' + cat);
-    const results = document.getElementById('routine-ex-search-results');
-    const isActive = active && active.style.background === 'rgb(124, 58, 237)';
-    // 탭 스타일 전체 초기화
+    // 탭 스타일 초기화
     ['하체','가슴','등','어깨','팔','코어','기구'].forEach(c => {
       const btn = document.getElementById('rcat-' + c);
       if (!btn) return;
@@ -2040,9 +2047,8 @@
       btn.style.color = 'var(--text-sub)';
       btn.style.borderColor = 'var(--border)';
     });
-    // 이미 활성 탭이면 목록 닫기
-    if (isActive) { if (results) results.innerHTML = ''; return; }
     // 선택 탭 활성화
+    const active = document.getElementById('rcat-' + cat);
     if (active) {
       active.style.background = '#7c3aed';
       active.style.color = 'white';
@@ -2052,6 +2058,7 @@
     const input = document.getElementById('routine-ex-search-input');
     if (input) input.value = '';
 
+    const results = document.getElementById('routine-ex-search-results');
     const existing = collectRoutineCreateItems().map(e => e.name);
 
     let items = [];
