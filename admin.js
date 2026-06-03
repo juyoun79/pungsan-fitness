@@ -2195,56 +2195,55 @@
   }
 
   // ── 강사 루틴 지정 탭 ──────────────────────────────────────
+  let traineeRoutineEditId = null; // 수정 중인 루틴 ID
+
   function renderTraineeRoutineTab() {
     const content = document.getElementById('trainee-tab-content');
     if (!content || !currentTraineeId) return;
     const trainerId = localStorage.getItem('current_user');
     content.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
 
-    // 강사 루틴 목록 + 이미 지정된 루틴 목록 동시 로드
     Promise.all([
-      db.ref('users/' + trainerId + '/routines').once('value'),
       db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/assignedRoutines').once('value'),
       db.ref('members/' + currentTraineeId + '/name').once('value')
-    ]).then(([trainerSnap, assignedSnap, nameSnap]) => {
-      const trainerRoutines = trainerSnap.val() || {};
-      const assignedMap = assignedSnap.val() || {};
+    ]).then(([snap, nameSnap]) => {
+      const data = snap.val();
       const memberName = nameSnap.val() || currentTraineeId;
 
-      const trainerList = Object.entries(trainerRoutines).sort((a, b) => (b[1].updatedAt || 0) - (a[1].updatedAt || 0));
+      let html = `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div style="font-size:13px;color:var(--text-hint);"><b style="color:var(--text);">${escapeHtml(memberName)}</b> 회원 전용 루틴</div>
+          <button onclick="openTraineeRoutineCreate()" style="background:#7c3aed;border:none;border-radius:8px;padding:7px 14px;color:white;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">+ 새 루틴 만들기</button>
+        </div>`;
 
-      if (trainerList.length === 0) {
-        content.innerHTML = `
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;">
+      if (!data) {
+        html += `
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:28px 20px;text-align:center;">
             <div style="font-size:28px;margin-bottom:8px;">📋</div>
-            <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;">내 루틴이 없어요</div>
-            <div style="font-size:13px;color:var(--text-hint);">먼저 운동기록 탭에서 루틴을 만들어주세요</div>
+            <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;">지정된 루틴이 없어요</div>
+            <div style="font-size:13px;color:var(--text-hint);">새 루틴 만들기로 회원 전용 루틴을 만들어 주세요</div>
           </div>`;
+        content.innerHTML = html;
         return;
       }
 
-      // 지정된 루틴 ID 목록
-      const assignedIds = Object.values(assignedMap).map(r => r.routineId).filter(Boolean);
-
-      let html = `<div style="font-size:13px;color:var(--text-hint);margin-bottom:12px;">내 루틴을 선택해서 <b style="color:var(--text);">${memberName}</b> 회원에게 지정하세요</div>`;
-
-      trainerList.forEach(([id, r]) => {
-        const isAssigned = assignedIds.includes(id);
+      const list = Object.entries(data).sort((a, b) => (b[1].updatedAt || 0) - (a[1].updatedAt || 0));
+      list.forEach(([id, r]) => {
         const exNames = (r.exercises || []).map(e => e.name).join(' · ');
         const count = (r.exercises || []).length;
         html += `
-          <div style="background:var(--card);border:1.5px solid ${isAssigned ? '#7c3aed' : 'var(--border)'};border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;">
+          <div style="background:var(--card);border:1.5px solid #c4b5fd;border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-              <div style="display:flex;align-items:center;gap:6px;">
-                <div style="font-size:15px;font-weight:700;color:var(--text);">${escapeHtml(r.name)}</div>
-                ${isAssigned ? '<span style="background:#ede9fe;color:#5b21b6;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;">👨‍🏫 지정됨</span>' : ''}
+              <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:0;">
+                <div style="font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(r.name)}</div>
+                <span style="background:#ede9fe;color:#5b21b6;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap;">👨‍🏫 지정됨</span>
+              </div>
+              <div style="display:flex;gap:6px;flex-shrink:0;">
+                <button onclick="openTraineeRoutineEdit('${id}')" style="background:#f3f4f6;border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
+                <button onclick="deleteTraineeRoutine('${id}')" style="background:#fee2e2;border:none;border-radius:6px;padding:5px 10px;font-size:12px;font-weight:700;color:#ef4444;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
               </div>
             </div>
-            <div style="font-size:11px;color:var(--text-hint);margin-bottom:10px;">${count}가지 운동 · ${escapeHtml(exNames)}</div>
-            ${isAssigned
-              ? `<button onclick="unassignRoutineFromTrainee('${id}')" style="width:100%;padding:10px;background:#fee2e2;border:none;border-radius:var(--radius-sm);color:#ef4444;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">지정 해제</button>`
-              : `<button onclick="assignRoutineToTrainee('${id}','${escapeHtml(r.name).replace(/'/g,"\\'")}',${count})" style="width:100%;padding:10px;background:#7c3aed;border:none;border-radius:var(--radius-sm);color:white;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">이 루틴 지정하기</button>`
-            }
+            <div style="font-size:11px;color:var(--text-hint);">${count}가지 운동 · ${escapeHtml(exNames)}</div>
           </div>`;
       });
 
@@ -2252,58 +2251,161 @@
     });
   }
 
-  function assignRoutineToTrainee(routineId, routineName, exCount) {
-    if (!currentTraineeId) return;
+  // 루틴 만들기/수정 모달 열기
+  function openTraineeRoutineCreate() {
+    traineeRoutineEditId = null;
+    document.getElementById('trainee-routine-modal-title').textContent = '회원 루틴 만들기';
+    document.getElementById('trainee-routine-name-input').value = '';
+    document.getElementById('trainee-routine-ex-list').innerHTML = '';
+    document.getElementById('trainee-routine-ex-search-input').value = '';
+    document.getElementById('trainee-routine-ex-search-results').innerHTML = '';
+    document.getElementById('trainee-routine-modal').style.display = 'flex';
+  }
+
+  function openTraineeRoutineEdit(routineId) {
     const trainerId = localStorage.getItem('current_user');
+    db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/assignedRoutines/' + routineId).once('value', snap => {
+      const r = snap.val();
+      if (!r) return;
+      traineeRoutineEditId = routineId;
+      document.getElementById('trainee-routine-modal-title').textContent = '루틴 수정';
+      document.getElementById('trainee-routine-name-input').value = r.name || '';
+      document.getElementById('trainee-routine-ex-search-input').value = '';
+      document.getElementById('trainee-routine-ex-search-results').innerHTML = '';
+      renderTraineeRoutineExList(r.exercises || []);
+      document.getElementById('trainee-routine-modal').style.display = 'flex';
+    });
+  }
 
-    // 루틴 전체 데이터 가져와서 회원에게 복사
-    db.ref('users/' + trainerId + '/routines/' + routineId).once('value', snap => {
-      const routineData = snap.val();
-      if (!routineData) return;
+  function closeTraineeRoutineModal() {
+    document.getElementById('trainee-routine-modal').style.display = 'none';
+  }
 
-      const assignKey = 'assigned_' + routineId;
+  // 운동 목록 렌더링
+  function renderTraineeRoutineExList(exercises) {
+    const container = document.getElementById('trainee-routine-ex-list');
+    if (!exercises || exercises.length === 0) { container.innerHTML = ''; return; }
+    container.innerHTML = exercises.map((ex, i) => `
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <button onclick="moveTRex(${i},'up')" ${i===0?'disabled':''} style="background:${i===0?'var(--border)':'#ede9fe'};border:none;border-radius:5px;width:24px;height:22px;cursor:${i===0?'default':'pointer'};color:${i===0?'var(--text-hint)':'#7c3aed'};font-size:12px;display:flex;align-items:center;justify-content:center;padding:0;">▲</button>
+          <button onclick="moveTRex(${i},'down')" ${i===exercises.length-1?'disabled':''} style="background:${i===exercises.length-1?'var(--border)':'#ede9fe'};border:none;border-radius:5px;width:24px;height:22px;cursor:${i===exercises.length-1?'default':'pointer'};color:${i===exercises.length-1?'var(--text-hint)':'#7c3aed'};font-size:12px;display:flex;align-items:center;justify-content:center;padding:0;">▼</button>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">${escapeHtml(ex.name)}</div>
+          <div style="display:flex;gap:6px;">
+            <input type="number" value="${ex.sets||3}" min="1" max="99" placeholder="세트" style="width:48px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--card);color:var(--text);text-align:center;" class="tr-ex-sets">
+            <input type="number" value="${ex.weight||0}" min="0" placeholder="kg" style="width:52px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--card);color:var(--text);text-align:center;" class="tr-ex-weight">
+            <input type="number" value="${ex.reps||10}" min="1" max="999" placeholder="회" style="width:48px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--card);color:var(--text);text-align:center;" class="tr-ex-reps">
+            <span style="font-size:11px;color:var(--text-hint);align-self:center;">세트·kg·회</span>
+          </div>
+        </div>
+        <button onclick="removeTRex(${i})" style="background:#fee2e2;border:none;border-radius:6px;padding:5px 8px;font-size:13px;color:#ef4444;cursor:pointer;">✕</button>
+        <input type="hidden" class="tr-ex-name" value="${escapeHtml(ex.name)}">
+      </div>`).join('');
+  }
+
+  function collectTRexItems() {
+    const items = [];
+    const rows = document.querySelectorAll('#trainee-routine-ex-list > div');
+    rows.forEach(row => {
+      const name = row.querySelector('.tr-ex-name')?.value || '';
+      const sets = parseInt(row.querySelector('.tr-ex-sets')?.value) || 3;
+      const weight = parseFloat(row.querySelector('.tr-ex-weight')?.value) || 0;
+      const reps = parseInt(row.querySelector('.tr-ex-reps')?.value) || 10;
+      if (name) items.push({ name, sets, weight, reps });
+    });
+    return items;
+  }
+
+  function moveTRex(idx, dir) {
+    const exercises = collectTRexItems();
+    const target = dir === 'up' ? idx - 1 : idx + 1;
+    if (target < 0 || target >= exercises.length) return;
+    [exercises[idx], exercises[target]] = [exercises[target], exercises[idx]];
+    renderTraineeRoutineExList(exercises);
+  }
+
+  function removeTRex(idx) {
+    const exercises = collectTRexItems().filter((_, i) => i !== idx);
+    renderTraineeRoutineExList(exercises);
+  }
+
+  function addTRexercise(name) {
+    const exercises = collectTRexItems();
+    if (exercises.find(e => e.name === name)) {
+      showToast('이미 추가된 운동이에요.', 'error'); return;
+    }
+    exercises.push({ name, sets: 3, weight: 0, reps: 10 });
+    renderTraineeRoutineExList(exercises);
+    document.getElementById('trainee-routine-ex-search-input').value = '';
+    document.getElementById('trainee-routine-ex-search-results').innerHTML = '';
+  }
+
+  function searchTRexercise(q) {
+    const results = document.getElementById('trainee-routine-ex-search-results');
+    if (!q.trim()) { results.innerHTML = ''; return; }
+    const ql = q.toLowerCase();
+    const fwItems = FW_EXERCISE_LIST.filter(e =>
+      e.name.toLowerCase().includes(ql) || e.muscles.toLowerCase().includes(ql) || e.category.toLowerCase().includes(ql)
+    ).map(e => ({ name: e.name, tag: e.muscles || e.category, type: 'fw' }));
+    const eqItems = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : [])
+      .filter(e => e.name.toLowerCase().includes(ql) || matchesMuscle(e.muscles, q.trim()) || String(e.no) === q.trim())
+      .map(e => ({ name: e.name, tag: e.muscles || '기구', type: 'eq' }));
+    const combined = [...fwItems, ...eqItems];
+    if (combined.length === 0) { results.innerHTML = '<div style="padding:10px 14px;font-size:13px;color:var(--text-hint);">검색 결과가 없어요</div>'; return; }
+    const existing = collectTRexItems().map(e => e.name);
+    results.innerHTML = combined.slice(0, 20).map(e => {
+      const isAdded = existing.includes(e.name);
+      const badgeStyle = e.type === 'fw' ? 'background:#ede9fe;color:#5b21b6;' : 'background:#dbeafe;color:#1e40af;';
+      return `<div onclick="addTRexercise('${escapeHtml(e.name)}')"
+        style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);${isAdded?'background:#f3e8ff;':''}"
+        onmouseover="this.style.background='#f3e8ff'" onmouseout="this.style.background='${isAdded?'#f3e8ff':''}'">
+        <div style="display:flex;align-items:center;gap:5px;">
+          <span style="font-size:13px;color:var(--text);">${escapeHtml(e.name)}</span>
+          <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;${badgeStyle}">${e.type==='fw'?'프리':'기구'}</span>
+        </div>
+        <span style="font-size:11px;color:var(--text-hint);">${escapeHtml(e.tag)}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function saveTraineeRoutine() {
+    const trainerId = localStorage.getItem('current_user');
+    const name = document.getElementById('trainee-routine-name-input').value.trim();
+    if (!name) { showToast('루틴 이름을 입력해주세요!', 'error'); return; }
+    const exercises = collectTRexItems();
+    if (exercises.length === 0) { showToast('운동을 1개 이상 추가해주세요!', 'error'); return; }
+
+    const routineId = traineeRoutineEditId || ('tr_' + Date.now());
+    const data = { name, exercises, updatedAt: Date.now(), assignedBy: trainerId };
+
+    // 1) 강사 관리 경로에 저장
+    db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/assignedRoutines/' + routineId).set(data);
+
+    // 2) 강사 이름 가져와서 회원 루틴에도 저장
+    db.ref('members/' + trainerId + '/name').once('value', nameSnap => {
+      const trainerName = nameSnap.val() || '강사';
+      const memberData = Object.assign({}, data, { assignedByName: trainerName, assignedAt: data.updatedAt });
       const memberRoutineId = 'trainer_' + trainerId.slice(-4) + '_' + routineId;
-
-      // 1) 강사 → 담당회원 지정 기록
-      db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/assignedRoutines/' + assignKey).set({
-        routineId: routineId,
-        routineName: routineName,
-        assignedAt: Date.now(),
-        memberRoutineId: memberRoutineId
-      });
-
-      // 2) 회원 루틴 목록에 복사 (assignedBy 필드로 강사지정 표시)
-      const memberRoutineData = Object.assign({}, routineData, {
-        assignedBy: trainerId,
-        assignedByName: '',
-        assignedAt: Date.now(),
-        updatedAt: Date.now()
-      });
-
-      // 강사 이름 가져와서 함께 저장
-      db.ref('members/' + trainerId + '/name').once('value', nameSnap => {
-        memberRoutineData.assignedByName = nameSnap.val() || '강사';
-        db.ref('users/' + currentTraineeId + '/routines/' + memberRoutineId).set(memberRoutineData, err => {
-          if (err) { showToast('지정 실패. 다시 시도해주세요.', 'error'); return; }
-          showToast('루틴이 지정됐어요! 👨‍🏫', 'success');
-          renderTraineeRoutineTab();
-        });
+      db.ref('users/' + currentTraineeId + '/routines/' + memberRoutineId).set(memberData, err => {
+        if (err) { showToast('저장 실패. 다시 시도해주세요.', 'error'); return; }
+        showToast(traineeRoutineEditId ? '루틴이 수정됐어요! ✅' : '루틴이 만들어졌어요! 👨‍🏫', 'success');
+        closeTraineeRoutineModal();
+        renderTraineeRoutineTab();
       });
     });
   }
 
-  function unassignRoutineFromTrainee(routineId) {
-    if (!currentTraineeId) return;
-    showConfirm('루틴 지정을 해제할까요?\n회원의 루틴 목록에서도 삭제됩니다.', () => {
+  function deleteTraineeRoutine(routineId) {
+    showConfirm('이 루틴을 삭제할까요?\n회원의 루틴 목록에서도 삭제됩니다.', () => {
       const trainerId = localStorage.getItem('current_user');
-      const assignKey = 'assigned_' + routineId;
       const memberRoutineId = 'trainer_' + trainerId.slice(-4) + '_' + routineId;
-
       Promise.all([
-        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/assignedRoutines/' + assignKey).remove(),
+        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/assignedRoutines/' + routineId).remove(),
         db.ref('users/' + currentTraineeId + '/routines/' + memberRoutineId).remove()
       ]).then(() => {
-        showToast('루틴 지정이 해제됐어요.', 'success');
+        showToast('루틴이 삭제됐어요.', 'success');
         renderTraineeRoutineTab();
       });
     });
