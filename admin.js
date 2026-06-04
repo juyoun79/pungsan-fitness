@@ -4968,5 +4968,222 @@
       });
     });
   }
-  window.adminDeleteTrainee = adminDeleteTrainee;
+  // ── 강사 홈화면 데이터 로드 ──────────────────────────────
+  let thAttendChart = null;
+  let thRemainChart = null;
+  let thChartData = { attend: [], absent: [], remain0: [], remainLow: [], remainOk: [] };
 
+  function loadTrainerHome() {
+    const trainerId = localStorage.getItem('current_user');
+    if (!trainerId) return;
+
+    // 강사/회원 섹션 분기
+    const trainerSection = document.getElementById('trainer-home-section');
+    const memberSection = document.getElementById('member-home-section');
+    if (trainerSection) trainerSection.style.display = 'block';
+    if (memberSection) memberSection.style.display = 'none';
+
+    // 강사 이름
+    const nicknameEl = document.getElementById('home-nickname');
+    if (nicknameEl) {
+      const name = localStorage.getItem('nickname_' + trainerId) || '강사';
+      nicknameEl.textContent = name + '님';
+    }
+
+    // 오늘 스케줄 로드
+    loadTrainerHomeSchedule(trainerId);
+
+    // 담당 회원 현황 로드
+    loadTrainerHomeStats(trainerId);
+
+    // 공지사항
+    loadHomeNotices('trainer-notice-container');
+  }
+
+  function loadTrainerHomeSchedule(trainerId) {
+    const chips = document.getElementById('trainer-schedule-chips');
+    if (!chips) return;
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+    db.ref('trainers/' + trainerId + '/schedule').once('value', snap => {
+      const data = snap.val() || {};
+      const todayItems = [];
+      Object.entries(data).forEach(([key, val]) => {
+        if (key.startsWith(todayStr + '_') && val) {
+          const hour = key.split('_')[1];
+          todayItems.push({ hour: parseInt(hour), label: String(hour).padStart(2,'0') + ':00', content: val });
+        }
+      });
+      todayItems.sort((a, b) => a.hour - b.hour);
+      if (todayItems.length === 0) {
+        chips.innerHTML = '<div style="flex-shrink:0;color:var(--text-hint);font-size:13px;padding:6px 0;">오늘 스케줄이 없어요</div>';
+        return;
+      }
+      chips.innerHTML = todayItems.map(item => `
+        <div style="flex-shrink:0;background:#E6F1FB;border-radius:20px;padding:6px 12px;display:flex;align-items:center;gap:6px;">
+          <span style="font-size:11px;font-weight:700;color:#185FA5;">${item.label}</span>
+          <span style="font-size:11px;color:#0C447C;">${escapeHtml(item.content)}</span>
+        </div>`).join('');
+    });
+  }
+
+  function loadTrainerHomeStats(trainerId) {
+    db.ref('trainers/' + trainerId + '/trainees').once('value', snap => {
+      const data = snap.val() || {};
+      const now = new Date();
+      const thisMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+      const twoWeeksAgo = Date.now() - (14 * 24 * 60 * 60 * 1000);
+
+      let totalMembers = 0, newMembers = 0, reMembers = 0, totalRemain = 0;
+      let inactiveMembers = 0;
+      let monthLessons = 0;
+      let attend = [], absent = [], remain0 = [], remainLow = [], remainOk = [];
+
+      const memberIds = Object.keys(data);
+      totalMembers = memberIds.length;
+
+      // 각 회원 처리
+      const promises = memberIds.map(memberId => {
+        const info = data[memberId];
+        const remain = info.remain != null ? info.remain : 0;
+        totalRemain += remain;
+        if (remain === 0) remain0.push(info.name || memberId);
+        else if (remain <= 3) remainLow.push(info.name || memberId);
+        else remainOk.push(info.name || memberId);
+
+        // 신규/재등록
+        if (info.regDate && info.regDate.startsWith(thisMonth)) {
+          const regs = info.registrations ? Object.values(info.registrations) : [];
+          if (regs.length <= 1) newMembers++;
+          else reMembers++;
+        }
+
+        // 이번 달 수업 횟수 + 출석 여부 + 장기 미출석
+        return db.ref('trainers/' + trainerId + '/trainees/' + memberId + '/signs').once('value', sSnap => {
+          let hasThisMonth = false;
+          let lastSignTime = 0;
+          if (sSnap.exists()) {
+            sSnap.forEach(s => {
+              const sd = s.val();
+              if (sd && sd.date) {
+                if (sd.date.startsWith(thisMonth)) {
+                  monthLessons++;
+                  hasThisMonth = true;
+                }
+                const t = sd.savedAt || 0;
+                if (t > lastSignTime) lastSignTime = t;
+              }
+            });
+          }
+          if (hasThisMonth) attend.push(info.name || memberId);
+          else absent.push(info.name || memberId);
+          if (lastSignTime > 0 && lastSignTime < twoWeeksAgo) inactiveMembers++;
+        });
+      });
+
+      Promise.all(promises).then(() => {
+        // 카드 업데이트
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        set('th-total-members', totalMembers);
+        set('th-month-lessons', monthLessons);
+        set('th-new-members', newMembers);
+        set('th-re-members', reMembers);
+        set('th-total-remain', totalRemain);
+        set('th-inactive-members', inactiveMembers);
+        set('th-attend-count', attend.length);
+        set('th-absent-count', absent.length);
+        set('th-remain-0', remain0.length);
+        set('th-remain-low', remainLow.length);
+        set('th-remain-ok', remainOk.length);
+
+        // 차트 저장
+        thChartData = { attend, absent, remain0, remainLow, remainOk };
+
+        // 도넛 차트 렌더
+        renderTrainerHomeCharts(attend.length, absent.length, remain0.length, remainLow.length, remainOk.length);
+      });
+    });
+  }
+
+  function renderTrainerHomeCharts(attendCnt, absentCnt, r0, rLow, rOk) {
+    if (typeof Chart === 'undefined') {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';
+      s.onload = () => _drawTrainerCharts(attendCnt, absentCnt, r0, rLow, rOk);
+      document.head.appendChild(s);
+    } else {
+      _drawTrainerCharts(attendCnt, absentCnt, r0, rLow, rOk);
+    }
+  }
+
+  function _drawTrainerCharts(attendCnt, absentCnt, r0, rLow, rOk) {
+    const centerPlugin = {
+      id: 'thCenter',
+      afterDraw(chart) {
+        const { ctx, chartArea: { top, bottom, left, right } } = chart;
+        const cx = (left + right) / 2, cy = (top + bottom) / 2;
+        const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+        if (!total) return;
+        const pct = Math.round(chart.data.datasets[0].data[0] / total * 100);
+        ctx.save();
+        ctx.font = '700 13px sans-serif';
+        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-primary') || '#111';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(pct + '%', cx, cy);
+        ctx.restore();
+      }
+    };
+    if (!Chart.registry.plugins.get('thCenter')) Chart.register(centerPlugin);
+
+    const c1 = document.getElementById('th-chart-attend');
+    const c2 = document.getElementById('th-chart-remain');
+    if (!c1 || !c2) return;
+
+    if (thAttendChart) thAttendChart.destroy();
+    if (thRemainChart) thRemainChart.destroy();
+
+    thAttendChart = new Chart(c1, {
+      type: 'doughnut',
+      data: { datasets: [{ data: [attendCnt, absentCnt], backgroundColor: ['#378ADD', '#888780'], borderWidth: 0 }] },
+      options: { cutout: '68%', plugins: { legend: { display: false }, tooltip: { enabled: false } }, animation: { duration: 600 } }
+    });
+    thRemainChart = new Chart(c2, {
+      type: 'doughnut',
+      data: { datasets: [{ data: [r0, rLow, rOk], backgroundColor: ['#ef4444', '#f59e0b', '#22c55e'], borderWidth: 0 }] },
+      options: { cutout: '68%', plugins: { legend: { display: false }, tooltip: { enabled: false }, thCenter: false }, animation: { duration: 600 } }
+    });
+  }
+
+  function showTrainerChartDetail(type) {
+    let title = '', list = [];
+    if (type === 'attend') {
+      title = '이번 달 미출석 회원';
+      list = thChartData.absent;
+    } else if (type === 'remain') {
+      title = '잔여 횟수 현황';
+      const r0 = thChartData.remain0.map(n => `<span style="color:#ef4444;">⚠ ${escapeHtml(n)} (0회)</span>`);
+      const rLow = thChartData.remainLow.map(n => `<span style="color:#f59e0b;">! ${escapeHtml(n)} (1~3회)</span>`);
+      const rOk = thChartData.remainOk.map(n => `<span style="color:#22c55e;">✓ ${escapeHtml(n)}</span>`);
+      list = [...r0, ...rLow, ...rOk];
+    }
+    if (list.length === 0) { showToast('해당 회원이 없어요.', 'success'); return; }
+    const html = `
+      <div style="background:var(--card);border-radius:var(--radius);padding:16px;margin:8px 16px;">
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:12px;">${title}</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${list.map(item => `<div style="font-size:13px;padding:4px 0;border-bottom:1px solid var(--border);">${typeof item === 'string' && !item.includes('<span') ? escapeHtml(item) : item}</div>`).join('')}
+        </div>
+        <button onclick="this.closest('.th-detail-wrap').remove()" style="margin-top:12px;width:100%;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;cursor:pointer;color:var(--text);">닫기</button>
+      </div>`;
+    const wrap = document.createElement('div');
+    wrap.className = 'th-detail-wrap';
+    wrap.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:999;display:flex;align-items:center;justify-content:center;';
+    wrap.innerHTML = html;
+    wrap.onclick = e => { if (e.target === wrap) wrap.remove(); };
+    document.body.appendChild(wrap);
+  }
+
+  window.loadTrainerHome = loadTrainerHome;
+  window.showTrainerChartDetail = showTrainerChartDetail;
+  // ── 강사 홈화면 끝 ──────────────────────────────────────

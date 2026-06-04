@@ -553,18 +553,32 @@
     if (tab !== 'community') stopCommunityListener();
     if (tab === 'home') {
       showScreen('screen-home');
-      updateStats();
-      loadHomeNotices();
-      loadNotifications();
-      loadHomeWeightCard();
+      const uid = localStorage.getItem('current_user') || sessionStorage.getItem('session_user');
+      const role = localStorage.getItem('role_' + uid) || 'member';
+      if (role === 'trainer' || role === 'manager') {
+        const trainerSection = document.getElementById('trainer-home-section');
+        const memberSection = document.getElementById('member-home-section');
+        if (trainerSection) trainerSection.style.display = 'block';
+        if (memberSection) memberSection.style.display = 'none';
+        if (typeof loadTrainerHome === 'function') loadTrainerHome();
+      } else {
+        const trainerSection = document.getElementById('trainer-home-section');
+        const memberSection = document.getElementById('member-home-section');
+        if (trainerSection) trainerSection.style.display = 'none';
+        if (memberSection) memberSection.style.display = 'block';
+        updateStats();
+        loadHomeNotices();
+        loadNotifications();
+        loadHomeWeightCard();
+      }
       // 캐시된 알림 즉시 렌더링
       if (window._cachedNotifList) {
         setTimeout(() => _renderNotifToDOM(window._cachedNotifList), 50);
       }
       // 홈탭 이동 시 안 읽은 공지 팝업 표시
-      const uid = localStorage.getItem('current_user');
-      if (uid && typeof showNoticePopup === 'function') {
-        setTimeout(() => showNoticePopup(uid), 300);
+      const notifUid = localStorage.getItem('current_user');
+      if (notifUid && typeof showNoticePopup === 'function') {
+        setTimeout(() => showNoticePopup(notifUid), 300);
       }
     } else if (tab === 'attend') {
       openAttendance();

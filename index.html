@@ -451,6 +451,104 @@
 
     <div class="home-body" style="padding:12px 16px 0;">
 
+      <!-- 강사 홈 (강사/매니저 전용) -->
+      <div id="trainer-home-section" style="display:none;">
+
+        <!-- 오늘 스케줄 -->
+        <div class="section-title">오늘 스케줄</div>
+        <div id="trainer-schedule-chips" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:16px;scrollbar-width:none;-webkit-overflow-scrolling:touch;">
+          <div style="flex-shrink:0;color:var(--text-hint);font-size:13px;padding:6px 0;">불러오는 중...</div>
+        </div>
+
+        <!-- 담당 회원 현황 -->
+        <div class="section-title">담당 회원 현황</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">전체 담당 회원</div>
+            <div style="font-size:24px;font-weight:700;color:var(--text);" id="th-total-members">-</div>
+            <div style="font-size:10px;color:var(--text-hint);">명</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">이번 달 수업</div>
+            <div style="font-size:24px;font-weight:700;color:var(--text);" id="th-month-lessons">-</div>
+            <div style="font-size:10px;color:var(--text-hint);">회</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">이번 달 신규</div>
+            <div style="font-size:24px;font-weight:700;color:var(--text);" id="th-new-members">-</div>
+            <div style="font-size:10px;color:var(--text-hint);">명</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">이번 달 재등록</div>
+            <div style="font-size:24px;font-weight:700;color:var(--text);" id="th-re-members">-</div>
+            <div style="font-size:10px;color:var(--text-hint);">명</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">총 잔여 횟수</div>
+            <div style="font-size:24px;font-weight:700;color:var(--text);" id="th-total-remain">-</div>
+            <div style="font-size:10px;color:var(--text-hint);">회</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
+            <div style="font-size:11px;color:#ef4444;margin-bottom:4px;">장기 미출석 <span style="font-size:9px;">(2주↑)</span></div>
+            <div style="font-size:24px;font-weight:700;color:#ef4444;" id="th-inactive-members">-</div>
+            <div style="font-size:10px;color:#ef4444;">명</div>
+          </div>
+        </div>
+
+        <!-- 통계 차트 -->
+        <div class="section-title">통계</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+          <!-- 출석률 도넛 -->
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;cursor:pointer;" onclick="showTrainerChartDetail('attend')">
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:8px;">이번 달 출석률</div>
+            <canvas id="th-chart-attend" width="110" height="110" style="display:block;margin:0 auto;"></canvas>
+            <div style="margin-top:8px;">
+              <div style="display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:3px;">
+                <div style="width:8px;height:8px;border-radius:50%;background:#378ADD;flex-shrink:0;"></div>
+                <span style="font-size:10px;color:var(--text-hint);">출석 <span id="th-attend-count">-</span>명</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:center;gap:5px;">
+                <div style="width:8px;height:8px;border-radius:50%;background:#888780;flex-shrink:0;"></div>
+                <span style="font-size:10px;color:var(--text-hint);">미출석 <span id="th-absent-count">-</span>명</span>
+              </div>
+            </div>
+            <div style="font-size:10px;color:var(--text-hint);margin-top:6px;">눌러서 목록 보기</div>
+          </div>
+          <!-- 잔여횟수 도넛 -->
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;cursor:pointer;" onclick="showTrainerChartDetail('remain')">
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:8px;">잔여 횟수 현황</div>
+            <canvas id="th-chart-remain" width="110" height="110" style="display:block;margin:0 auto;"></canvas>
+            <div style="margin-top:8px;">
+              <div style="display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:3px;">
+                <div style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0;"></div>
+                <span style="font-size:10px;color:var(--text-hint);">재등록 <span id="th-remain-0">-</span>명</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:3px;">
+                <div style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0;"></div>
+                <span style="font-size:10px;color:var(--text-hint);">임박 <span id="th-remain-low">-</span>명</span>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:center;gap:5px;">
+                <div style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>
+                <span style="font-size:10px;color:var(--text-hint);">정상 <span id="th-remain-ok">-</span>명</span>
+              </div>
+            </div>
+            <div style="font-size:10px;color:var(--text-hint);margin-top:6px;">눌러서 목록 보기</div>
+          </div>
+        </div>
+
+        <!-- 공지사항 -->
+        <div class="section-title">공지사항</div>
+        <div class="notice-container" id="trainer-notice-container">
+          <div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>
+        </div>
+      </div>
+
+      <!-- 회원 홈 (회원 전용) -->
+      <div id="member-home-section">
+
+      <!-- 회원 홈 (회원 전용) -->
+      <div id="member-home-section">
+
       <!-- 오늘 현황 -->
       <div class="section-title">내 현황</div>
       <div class="stats-row">
@@ -478,6 +576,7 @@
         <div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>
       </div>
 
+    </div><!-- /member-home-section -->
     </div><!-- /home-body -->
 
   </div><!-- /screen-home -->
@@ -4738,9 +4837,21 @@
     const userId = localStorage.getItem('current_user');
     const displayName = localStorage.getItem('nickname_' + userId) || nickname;
     document.getElementById('home-nickname').textContent = displayName + '님';
-    if (typeof updateStats === 'function') updateStats();
-    loadHomeNotices();
-    loadHomeWeightCard();
+    const role = localStorage.getItem('role_' + userId) || 'member';
+    const isTrainer = role === 'trainer' || role === 'manager';
+    const trainerSection = document.getElementById('trainer-home-section');
+    const memberSection = document.getElementById('member-home-section');
+    if (isTrainer) {
+      if (trainerSection) trainerSection.style.display = 'block';
+      if (memberSection) memberSection.style.display = 'none';
+      if (typeof loadTrainerHome === 'function') loadTrainerHome();
+    } else {
+      if (trainerSection) trainerSection.style.display = 'none';
+      if (memberSection) memberSection.style.display = 'block';
+      if (typeof updateStats === 'function') updateStats();
+      loadHomeNotices();
+      loadHomeWeightCard();
+    }
     // 자동 쿠폰 조건 체크
     if (typeof checkAutoCoupons === 'function') checkAutoCoupons(localStorage.getItem('current_user'));
     // 미확인 쿠폰 체크 (로그인 시)
