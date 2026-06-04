@@ -4595,7 +4595,11 @@
         });
       } else {
         const list = [];
-        snap.forEach(child => list.push(child.val()));
+        snap.forEach(child => {
+          const val = child.val();
+          if (!val.key) val.key = child.key; // key 필드 없으면 Firebase 노드키로 보완
+          list.push(val);
+        });
         list.sort((a, b) => (a.no || 0) - (b.no || 0));
         renderAdminEquipmentList(list);
       }
@@ -4626,6 +4630,7 @@
   let _equipmentCache = {};
 
   function openEditEquipmentModal(key) {
+    if (!key) { showToast('기구 키가 없어요. 기구 목록을 다시 불러와주세요.', 'error'); return; }
     db.ref('equipment/' + key).once('value').then(snap => {
       if (!snap.exists()) return;
       const eq = snap.val();
