@@ -3079,7 +3079,7 @@
             const sd = s.val();
             if (sd && sd.date) {
               const parts = sd.date.split('-');
-              if (parseInt(parts[0]) === year && parseInt(parts[1]) === month && !sd.noShow) {
+              if (parseInt(parts[0]) === year && parseInt(parts[1]) === month) {
                 totalLessons++;
               }
             }
