@@ -2308,6 +2308,7 @@
     showConfirm('운동을 그만할까요?\n입력한 내용은 임시저장 돼요.', () => {
       skipRwRestTimer();
       saveRoutineDraft();
+      updateRoutineBanner();
       showScreen('screen-routine-list');
     });
   }
