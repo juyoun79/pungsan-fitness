@@ -3057,7 +3057,7 @@
           });
         });
       }
-      // lessons(서명받은 날) → lessonDays
+      // lessons(서명받은 날) → lessonDays (달력 표시용)
       if (lessonSnap.exists()) {
         lessonSnap.forEach(daySnap => {
           const d = daySnap.key;
@@ -3070,7 +3070,21 @@
         });
       }
 
-      const totalLessons = lessonDays.size;
+      // 총 수업 횟수 = 해당 월 서명 횟수 기준
+      const trainerId2 = localStorage.getItem('current_user');
+      db.ref('trainers/' + trainerId2 + '/trainees/' + traineeId + '/signs').once('value', signSnap => {
+        let totalLessons = 0;
+        if (signSnap.exists()) {
+          signSnap.forEach(s => {
+            const sd = s.val();
+            if (sd && sd.date) {
+              const parts = sd.date.split('-');
+              if (parseInt(parts[0]) === year && parseInt(parts[1]) === month && !sd.noShow) {
+                totalLessons++;
+              }
+            }
+          });
+        }
       const firstDay = new Date(year, month - 1, 1).getDay();
       const lastDate = new Date(year, month, 0).getDate();
       const today = new Date();
@@ -3169,6 +3183,7 @@
           renderTrainerDayDetail(trainerCalSelectedDate);
         }
       }
+      }); // signs 조회 끝
     });
   }
 
