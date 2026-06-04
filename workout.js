@@ -2349,7 +2349,7 @@
               style="width:100%;box-sizing:border-box;padding:8px 4px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:center;color:var(--text);outline:none;font-family:'Noto Sans KR',sans-serif;background:var(--bg);"
               onfocus="this.style.borderColor='#7c3aed'" onblur="this.style.borderColor='var(--border)'"
               oninput="autoSaveRoutineDraft()"/>
-            ${s.prevWeight !== null ? `<div style="position:absolute;top:-8px;right:4px;font-size:9px;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 4px;">저번 ${s.prevWeight}kg</div>` : ''}
+            ${s.prevWeight !== null ? `<div style="position:absolute;top:-8px;right:4px;font-size:9px;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 4px;">최근 ${s.prevWeight}kg</div>` : ''}
           </div>
           <input type="number" min="0" max="9999" value="${s.reps}"
             id="rw-reps-${ei}-${si}"
