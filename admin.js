@@ -4983,6 +4983,12 @@
     if (trainerSection) trainerSection.style.display = 'block';
     if (memberSection) memberSection.style.display = 'none';
 
+    // 강사에게 불필요한 카드 숨김
+    const weightCard = document.getElementById('home-weight-card');
+    const motivateCard = document.getElementById('home-motivate-card');
+    if (weightCard) weightCard.style.display = 'none';
+    if (motivateCard) motivateCard.style.display = 'none';
+
     // 강사 이름
     const nicknameEl = document.getElementById('home-nickname');
     if (nicknameEl) {
