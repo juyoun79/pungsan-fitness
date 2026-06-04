@@ -1672,9 +1672,11 @@
     });
   }
 
-  function loadHomeNotices() {
+  function loadHomeNotices(containerId) {
     db.ref('notices').once('value', snap => {
-      const container = document.querySelector('#screen-home .notice-container');
+      const container = containerId
+        ? document.getElementById(containerId)
+        : document.querySelector('#screen-home .notice-container');
       if (!container) return;
       const notices = [];
       snap.forEach(child => {
@@ -5038,6 +5040,7 @@
       const data = snap.val() || {};
       const now = new Date();
       const thisMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+      const thisMonthShort = now.getFullYear() + '-' + (now.getMonth()+1); // 0 없는 형식
       const twoWeeksAgo = Date.now() - (14 * 24 * 60 * 60 * 1000);
 
       let totalMembers = 0, newMembers = 0, reMembers = 0, totalRemain = 0;
@@ -5058,7 +5061,7 @@
         else remainOk.push(info.name || memberId);
 
         // 신규/재등록
-        if (info.regDate && info.regDate.startsWith(thisMonth)) {
+        if (info.regDate && (info.regDate.startsWith(thisMonth) || info.regDate.startsWith(thisMonthShort))) {
           const regs = info.registrations ? Object.values(info.registrations) : [];
           if (regs.length <= 1) newMembers++;
           else reMembers++;
@@ -5072,7 +5075,7 @@
             sSnap.forEach(s => {
               const sd = s.val();
               if (sd && sd.date) {
-                if (sd.date.startsWith(thisMonth)) {
+                if (sd.date.startsWith(thisMonth + '-') || sd.date.startsWith(thisMonthShort + '-') || sd.date === thisMonth || sd.date === thisMonthShort) {
                   monthLessons++;
                   hasThisMonth = true;
                 }
