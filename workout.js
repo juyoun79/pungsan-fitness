@@ -2310,6 +2310,7 @@
       saveRoutineDraft();
       updateRoutineBanner();
       showScreen('screen-routine-list');
+      checkRoutineDraft();
     });
   }
 
