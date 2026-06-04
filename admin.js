@@ -4683,7 +4683,7 @@
         loadAdminEquipmentList();
       });
     } else {
-      db.ref('equipment/' + key).update({ no, name, muscles, memo: memo || '' }).then(() => {
+      db.ref('equipment/' + key).update({ no, name, muscles, memo: memo || '', key: key }).then(() => {
         showToast('✅ 수정됐어요!', 'success');
         closeEquipmentModal();
         loadAdminEquipmentList();
