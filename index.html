@@ -3927,6 +3927,14 @@
     const weightCard  = document.getElementById('home-weight-card');
     const motivateCard = document.getElementById('home-motivate-card');
 
+    // 강사/매니저는 체중 카드, 오늘의 한마디 둘 다 숨김
+    const userRole = localStorage.getItem('role_' + userId) || 'member';
+    if (userRole === 'trainer' || userRole === 'manager') {
+      if (weightCard)   weightCard.style.display   = 'none';
+      if (motivateCard) motivateCard.style.display = 'none';
+      return;
+    }
+
     if (!weight) {
       // 신체정보 미입력 → 오늘의 한마디 카드 표시
       if (weightCard)   weightCard.style.display   = 'none';
@@ -4296,8 +4304,9 @@
   function closeWeightDetail() {
     const userId = localStorage.getItem('current_user');
     // 강사/매니저이면 출석 탭 → 관리 탭으로 교체
+    const role = localStorage.getItem('role_' + userId) || 'member';
     const attendTab = document.getElementById('tab-attend');
-    if (isTrainer) {
+    if (role === 'trainer' || role === 'manager') {
       if (attendTab) {
         attendTab.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>관리`;
         attendTab.onclick = function() { switchTab('trainer'); };
