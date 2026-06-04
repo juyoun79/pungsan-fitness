@@ -791,6 +791,22 @@
       const elTotal = document.getElementById('att-total'); if (elTotal) elTotal.textContent = total;
       const elMonth = document.getElementById('att-month'); if (elMonth) elMonth.textContent = month;
     });
+    // 수업 현황 (총 횟수 / 잔여 횟수)
+    db.ref('members/' + userId + '/trainerId').once('value', tSnap => {
+      const trainerId = tSnap.val();
+      const elPtTotal  = document.getElementById('att-pt-total');
+      const elPtRemain = document.getElementById('att-pt-remain');
+      if (!trainerId) {
+        if (elPtTotal)  elPtTotal.textContent  = '-';
+        if (elPtRemain) elPtRemain.textContent = '-';
+        return;
+      }
+      db.ref('trainers/' + trainerId + '/trainees/' + userId).once('value', snap => {
+        const d = snap.val();
+        if (elPtTotal)  elPtTotal.textContent  = d && d.total  != null ? d.total  : '-';
+        if (elPtRemain) elPtRemain.textContent = d && d.remain != null ? d.remain : '-';
+      });
+    });
     // 포인트는 updateStats()로 통일해서 전체 동기화
     if (typeof updateStats === 'function') updateStats();
     checkGpsStatus();

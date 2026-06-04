@@ -645,7 +645,8 @@
 
       Promise.all([
         db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/registrations/' + regKey).set(prevReg),
-        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId).update({ type, total: count, remain: newRemain, regDate: dateStr })
+        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId).update({ type, total: count, remain: newRemain, regDate: dateStr }),
+        db.ref('members/' + currentTraineeId + '/trainerId').set(trainerId)
       ]).then(() => {
         document.getElementById('trainee-card-type').textContent = type;
         refreshTraineeView(currentTraineeId);
@@ -1997,6 +1998,7 @@
         remain: total,
         addedAt: Date.now()
       }).then(() => {
+        db.ref('members/' + memberId + '/trainerId').set(trainerId);
         showToast(memberName + '님이 담당 회원으로 추가됐어요! 💪', 'success');
         closeAddTraineeMember();
         loadTrainerTab();
