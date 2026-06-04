@@ -4296,9 +4296,8 @@
   function closeWeightDetail() {
     const userId = localStorage.getItem('current_user');
     // 강사/매니저이면 출석 탭 → 관리 탭으로 교체
-    const role = localStorage.getItem('role_' + userId) || 'member';
     const attendTab = document.getElementById('tab-attend');
-    if (role === 'trainer' || role === 'manager') {
+    if (isTrainer) {
       if (attendTab) {
         attendTab.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>관리`;
         attendTab.onclick = function() { switchTab('trainer'); };
@@ -4866,9 +4865,8 @@
     const fwIndexCleaned = fwIndexRaw.map(entry => /u[0-9a-f]{4}/i.test(entry) ? entry.replace(/u([0-9a-f]{4})/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16))).replace(/_/g, ' ') : entry);
     localStorage.setItem(fwIndexKey, JSON.stringify([...new Set(fwIndexCleaned)]));
     // 강사/매니저이면 출석 탭 → 관리 탭으로 교체
-    const role = localStorage.getItem('role_' + userId) || 'member';
     const attendTab = document.getElementById('tab-attend');
-    if (role === 'trainer' || role === 'manager') {
+    if (isTrainer) {
       if (attendTab) {
         attendTab.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>관리`;
         attendTab.onclick = function() { switchTab('trainer'); };
