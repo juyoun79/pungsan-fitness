@@ -4907,7 +4907,7 @@
       setTimeout(() => _renderNotifToDOM(window._cachedNotifList), 50);
     }
     if (forceHome || lastTab === 'home') {
-      refreshMotivate();
+      if (!isTrainer) refreshMotivate();
       showScreen('screen-home');
     } else {
       switchTab(lastTab);
