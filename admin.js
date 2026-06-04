@@ -4685,13 +4685,13 @@
       db.ref('equipment/' + newKey).set({ no, name, muscles, memo: memo || '', key: newKey }).then(() => {
         showToast('✅ 기구가 추가됐어요!', 'success');
         closeEquipmentModal();
-        loadAdminEquipmentList();
+        syncEquipmentFromFirebase(() => loadAdminEquipmentList());
       });
     } else {
       db.ref('equipment/' + key).update({ no, name, muscles, memo: memo || '', key: key }).then(() => {
         showToast('✅ 수정됐어요!', 'success');
         closeEquipmentModal();
-        loadAdminEquipmentList();
+        syncEquipmentFromFirebase(() => loadAdminEquipmentList());
       });
     }
   }
@@ -4703,7 +4703,7 @@
       db.ref('equipment/' + key).remove().then(() => {
         showToast('삭제됐어요.', 'success');
         closeEquipmentModal();
-        loadAdminEquipmentList();
+        syncEquipmentFromFirebase(() => loadAdminEquipmentList());
       });
     });
   }
