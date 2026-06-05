@@ -498,18 +498,18 @@
         <!-- 통계 차트 -->
         <div class="section-title">통계</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-          <!-- 출석률 도넛 -->
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;cursor:pointer;" onclick="showTrainerChartDetail('attend')">
-            <div style="font-size:11px;color:var(--text-hint);margin-bottom:8px;">이번 달 출석률</div>
+          <!-- 재등록률 도넛 -->
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;cursor:pointer;" onclick="showTrainerChartDetail('rereg')">
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:8px;">이번 달 재등록률</div>
             <canvas id="th-chart-attend" width="110" height="110" style="display:block;margin:0 auto;"></canvas>
             <div style="margin-top:8px;">
               <div style="display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:3px;">
-                <div style="width:8px;height:8px;border-radius:50%;background:#378ADD;flex-shrink:0;"></div>
-                <span style="font-size:10px;color:var(--text-hint);">출석 <span id="th-attend-count">-</span>명</span>
+                <div style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>
+                <span style="font-size:10px;color:var(--text-hint);">재등록 <span id="th-rereg-done">-</span>명</span>
               </div>
               <div style="display:flex;align-items:center;justify-content:center;gap:5px;">
                 <div style="width:8px;height:8px;border-radius:50%;background:#888780;flex-shrink:0;"></div>
-                <span style="font-size:10px;color:var(--text-hint);">미출석 <span id="th-absent-count">-</span>명</span>
+                <span style="font-size:10px;color:var(--text-hint);">미재등록 <span id="th-rereg-not">-</span>명</span>
               </div>
             </div>
             <div style="font-size:10px;color:var(--text-hint);margin-top:6px;">눌러서 목록 보기</div>
