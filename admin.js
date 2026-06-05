@@ -5109,14 +5109,15 @@
         else if (remain <= 3) remainLow.push(info.name || memberId);
         else remainOk.push(info.name || memberId);
 
-        // 신규/재등록: registrations 노드에서 이번 달 기준으로 카운트
+        // 신규: addedAt 이번 달 기준
+        if (info.addedAt && isThisMonth(new Date(info.addedAt).toISOString().slice(0,10))) {
+          newMembers++;
+        }
+
+        // 재등록: registrations 이번 달 기준 (날짜 형식 두 가지 모두 처리)
         const regs = info.registrations ? Object.values(info.registrations) : [];
         const thisMonthRegs = regs.filter(r => r && r.date && isThisMonth(r.date));
-        if (thisMonthRegs.length > 0) {
-          const totalRegs = regs.length;
-          if (totalRegs <= 1) newMembers++;
-          else reMembers++;
-        }
+        if (thisMonthRegs.length > 0) reMembers++;
 
         // 이번 달 수업 횟수 + 출석 여부 + 장기 미출석
         return db.ref('trainers/' + trainerId + '/trainees/' + memberId + '/signs').once('value', sSnap => {
