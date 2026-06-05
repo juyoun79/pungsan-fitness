@@ -19,8 +19,10 @@
   function switchAdminTab(tabId) {
     document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.admin-side-tab').forEach(t => t.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
-    event.target.classList.add('active');
+    // 클릭된 버튼 활성화 (모바일 탭 or 사이드탭)
+    if (event && event.target) event.target.classList.add('active');
     if (tabId === 'tab-dashboard') loadAdminDashboard();
     if (tabId === 'tab-members') loadMemberList();
     if (tabId === 'tab-notice') loadNoticeListAdmin();
@@ -29,7 +31,6 @@
     if (tabId === 'tab-coupon') loadMemberSelectOptions();
     if (tabId === 'coupon-auto') loadAutoConditions();
     if (tabId === 'tab-equipment-admin') loadAdminEquipmentList();
-    // 강사관리 탭 벗어날 때 모든 리스너 해제
     if (tabId !== 'tab-trainer-admin') {
       if (_monthlyReportListener && _monthlyReportTrainerId) {
         db.ref('trainers/' + _monthlyReportTrainerId + '/trainees').off('value', _monthlyReportListener);
@@ -38,6 +39,41 @@
       stopMemberRemainListeners();
     }
   }
+
+  function toggleAdminLayout() {
+    const isPc = localStorage.getItem('admin_layout') === 'pc';
+    const newMode = isPc ? 'mobile' : 'pc';
+    localStorage.setItem('admin_layout', newMode);
+    applyAdminLayout(newMode);
+  }
+
+  function applyAdminLayout(mode) {
+    const mobileHeader = document.getElementById('admin-header-mobile');
+    const pcHeader = document.getElementById('admin-header-pc');
+    const mobileBody = document.getElementById('admin-mobile-body');
+    const pcLayout = document.getElementById('admin-pc-layout');
+    const pcBody = document.getElementById('admin-pc-body');
+
+    if (mode === 'pc') {
+      if (mobileHeader) mobileHeader.style.display = 'none';
+      if (pcHeader) pcHeader.style.display = 'flex';
+      if (mobileBody) mobileBody.style.display = 'none';
+      if (pcLayout) pcLayout.style.display = 'block';
+      // admin-body 콘텐츠를 pc-body로 이동
+      if (mobileBody && pcBody) pcBody.appendChild(mobileBody);
+      if (mobileBody) mobileBody.style.display = 'block';
+    } else {
+      if (mobileHeader) mobileHeader.style.display = 'block';
+      if (pcHeader) pcHeader.style.display = 'none';
+      if (pcLayout) pcLayout.style.display = 'none';
+      // admin-body를 원래 위치로 복귀
+      const screenAdmin = document.getElementById('screen-admin');
+      if (mobileBody && screenAdmin) screenAdmin.appendChild(mobileBody);
+      if (mobileBody) mobileBody.style.display = 'block';
+    }
+  }
+
+  window.toggleAdminLayout = toggleAdminLayout;
 
   // ── 관리자 강사 목록 관리 ──
   let editTrainerId = null;
@@ -1098,6 +1134,9 @@
 
   // ── 관리자 대시보드 ──
   function loadAdminDashboard() {
+    // 저장된 레이아웃 복원
+    const savedLayout = localStorage.getItem('admin_layout') || 'mobile';
+    if (savedLayout === 'pc') applyAdminLayout('pc');
     getMemberDB().then(members => {
       const memberList = Object.entries(members);
       document.getElementById('admin-total-members').textContent = memberList.length;

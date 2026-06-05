@@ -326,6 +326,9 @@
   .admin-tab.active { background:var(--blue); color:white; }
   .admin-body { padding:16px 16px var(--safe-pad); }
   .admin-section { display:none; }
+  .admin-side-tab { display:block; width:100%; text-align:left; padding:10px 12px; border:none; border-radius:8px; background:transparent; color:var(--text-sub); font-size:13px; font-weight:500; cursor:pointer; font-family:'Noto Sans KR',sans-serif; margin-bottom:2px; transition:all 0.15s; }
+  .admin-side-tab:hover { background:var(--bg); color:var(--text); }
+  .admin-side-tab.active { background:#E6F1FB; color:#185FA5; font-weight:700; }
   .admin-section.active { display:block; }
   #admin-post-list { max-height:none; overflow:visible; }
   .admin-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:12px; }
