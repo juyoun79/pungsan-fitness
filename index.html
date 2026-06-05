@@ -2054,6 +2054,78 @@
               </div>
             </div>
             <div id="report-summary" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;"></div>
+
+            <!-- 강사 통계 (강사 홈과 동일) -->
+            <div id="report-trainer-stats" style="display:none;margin-bottom:12px;">
+              <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:8px;">담당 회원 현황</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center;">
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">전체 담당</div>
+                  <div style="font-size:20px;font-weight:700;color:var(--text);" id="rpt-total-members">-</div>
+                  <div style="font-size:10px;color:var(--text-hint);">명</div>
+                </div>
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center;">
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">이번 달 수업</div>
+                  <div style="font-size:20px;font-weight:700;color:var(--text);" id="rpt-month-lessons">-</div>
+                  <div style="font-size:10px;color:var(--text-hint);">회</div>
+                </div>
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center;">
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">이번 달 신규</div>
+                  <div style="font-size:20px;font-weight:700;color:var(--text);" id="rpt-new-members">-</div>
+                  <div style="font-size:10px;color:var(--text-hint);">명</div>
+                </div>
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center;">
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">이번 달 재등록</div>
+                  <div style="font-size:20px;font-weight:700;color:var(--text);" id="rpt-re-members">-</div>
+                  <div style="font-size:10px;color:var(--text-hint);">명</div>
+                </div>
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center;">
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">총 잔여 횟수</div>
+                  <div style="font-size:20px;font-weight:700;color:var(--text);" id="rpt-total-remain">-</div>
+                  <div style="font-size:10px;color:var(--text-hint);">회</div>
+                </div>
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center;">
+                  <div style="font-size:11px;color:#ef4444;margin-bottom:3px;">장기 미출석 <span style="font-size:9px;">(2주↑)</span></div>
+                  <div style="font-size:20px;font-weight:700;color:#ef4444;" id="rpt-inactive-members">-</div>
+                  <div style="font-size:10px;color:#ef4444;">명</div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center;">
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">재등록률</div>
+                  <canvas id="rpt-chart-rereg" width="90" height="90" style="display:block;margin:0 auto;"></canvas>
+                  <div style="margin-top:6px;">
+                    <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:2px;">
+                      <div style="width:7px;height:7px;border-radius:50%;background:#22c55e;"></div>
+                      <span style="font-size:10px;color:var(--text-hint);">재등록 <span id="rpt-rereg-done">-</span>명</span>
+                    </div>
+                    <div style="display:flex;align-items:center;justify-content:center;gap:4px;">
+                      <div style="width:7px;height:7px;border-radius:50%;background:#888780;"></div>
+                      <span style="font-size:10px;color:var(--text-hint);">미재등록 <span id="rpt-rereg-not">-</span>명</span>
+                    </div>
+                  </div>
+                </div>
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center;">
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">잔여 현황</div>
+                  <canvas id="rpt-chart-remain" width="90" height="90" style="display:block;margin:0 auto;"></canvas>
+                  <div style="margin-top:6px;">
+                    <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:2px;">
+                      <div style="width:7px;height:7px;border-radius:50%;background:#ef4444;"></div>
+                      <span style="font-size:10px;color:var(--text-hint);">재등록 <span id="rpt-remain-0">-</span>명</span>
+                    </div>
+                    <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-bottom:2px;">
+                      <div style="width:7px;height:7px;border-radius:50%;background:#f59e0b;"></div>
+                      <span style="font-size:10px;color:var(--text-hint);">임박 <span id="rpt-remain-low">-</span>명</span>
+                    </div>
+                    <div style="display:flex;align-items:center;justify-content:center;gap:4px;">
+                      <div style="width:7px;height:7px;border-radius:50%;background:#22c55e;"></div>
+                      <span style="font-size:10px;color:var(--text-hint);">정상 <span id="rpt-remain-ok">-</span>명</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div id="report-members"></div>
           </div>
         </div>

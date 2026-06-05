@@ -478,6 +478,8 @@
     if (!trainerId) {
       summaryEl.innerHTML = '';
       membersEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">강사를 선택해주세요</div>';
+      const statsEl2 = document.getElementById('report-trainer-stats');
+      if (statsEl2) statsEl2.style.display = 'none';
       // 기존 리스너 해제
       if (_monthlyReportListener && _monthlyReportTrainerId) {
         db.ref('trainers/' + _monthlyReportTrainerId + '/trainees').off('value', _monthlyReportListener);
@@ -487,6 +489,13 @@
     }
     summaryEl.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text-hint);font-size:13px;grid-column:span 3;">불러오는 중...</div>';
     membersEl.innerHTML = '';
+
+    // 강사 통계 영역 표시 + 로드
+    const statsEl = document.getElementById('report-trainer-stats');
+    if (statsEl) {
+      statsEl.style.display = 'block';
+      loadReportTrainerStats(trainerId);
+    }
 
     const monthStr = reportYear + '-' + String(reportMonth).padStart(2,'0');
     const monthStrShort = reportYear + '-' + reportMonth + '-';
@@ -615,6 +624,74 @@
             ${m.logs.length > 0 ? '<div id="' + logBtnId + '" style="display:none;margin-top:8px;background:var(--bg);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.8;"><div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;font-weight:700;">수업일지</div>' + m.logs.map(l => '<div style="margin-bottom:4px;">' + l.date + ' ' + (l.savedAt||'') + '<br>' + l.content + '</div>').join('') + '</div>' : ''}
           </div>`;
         }).join('');
+      });
+    });
+  }
+
+  function loadReportTrainerStats(trainerId) {
+    // loadTrainerHomeStats와 동일한 로직, report- prefix ID 사용
+    db.ref('trainers/' + trainerId + '/trainees').once('value', snap => {
+      const data = snap.val() || {};
+      const now = new Date();
+      const thisMonthPad = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+      const thisMonthShort = now.getFullYear() + '-' + (now.getMonth()+1);
+      const twoWeeksAgo = Date.now() - (14 * 24 * 60 * 60 * 1000);
+      const isThisMonth = d => d && (d.startsWith(thisMonthPad+'-') || d.startsWith(thisMonthShort+'-') || d===thisMonthPad || d===thisMonthShort);
+
+      let totalMembers=0, newMembers=0, reMembers=0, totalRemain=0, inactiveMembers=0, monthLessons=0;
+      let remain0=[], remainLow=[], remainOk=[], expiredThisMonth=[], reRegThisMonth=[];
+      const memberIds = Object.keys(data);
+      totalMembers = memberIds.length;
+
+      const promises = memberIds.map(memberId => {
+        const info = data[memberId];
+        const remain = info.remain != null ? info.remain : 0;
+        totalRemain += remain;
+        if (remain === 0) remain0.push(info.name || memberId);
+        else if (remain <= 3) remainLow.push(info.name || memberId);
+        else remainOk.push(info.name || memberId);
+        if (info.addedAt && isThisMonth(new Date(info.addedAt).toISOString().slice(0,10))) newMembers++;
+        const regs = info.registrations ? Object.values(info.registrations) : [];
+        const thisMonthRegs = regs.filter(r => r && r.date && isThisMonth(r.date));
+        if (thisMonthRegs.length > 0) { reMembers++; reRegThisMonth.push(info.name || memberId); }
+        if (info.expiredAt && isThisMonth(info.expiredAt)) expiredThisMonth.push(info.name || memberId);
+        return db.ref('trainers/' + trainerId + '/trainees/' + memberId + '/signs').once('value', sSnap => {
+          let lastSignTime = 0;
+          if (sSnap.exists()) {
+            sSnap.forEach(s => {
+              const sd = s.val();
+              if (sd && sd.date && isThisMonth(sd.date)) monthLessons++;
+              const t = sd && sd.savedAt || 0;
+              if (t > lastSignTime) lastSignTime = t;
+            });
+          }
+          if (lastSignTime > 0 && lastSignTime < twoWeeksAgo) inactiveMembers++;
+        });
+      });
+
+      Promise.all(promises).then(() => {
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        set('rpt-total-members', totalMembers);
+        set('rpt-month-lessons', monthLessons);
+        set('rpt-new-members', newMembers);
+        set('rpt-re-members', reMembers);
+        set('rpt-total-remain', totalRemain);
+        set('rpt-inactive-members', inactiveMembers);
+        const reRegDone = reRegThisMonth.length;
+        const reRegNotDone = Math.max(0, expiredThisMonth.length - reRegDone);
+        set('rpt-rereg-done', reRegDone);
+        set('rpt-rereg-not', reRegNotDone);
+        set('rpt-remain-0', remain0.length);
+        set('rpt-remain-low', remainLow.length);
+        set('rpt-remain-ok', remainOk.length);
+
+        // 차트 렌더
+        if (typeof Chart !== 'undefined') {
+          const c1 = document.getElementById('rpt-chart-rereg');
+          const c2 = document.getElementById('rpt-chart-remain');
+          if (c1) { if (c1._chart) c1._chart.destroy(); c1._chart = new Chart(c1, { type:'doughnut', data:{ datasets:[{ data:[reRegDone, Math.max(reRegNotDone,0)], backgroundColor:['#22c55e','#888780'], borderWidth:0 }] }, options:{ cutout:'65%', plugins:{ legend:{display:false}, tooltip:{enabled:false} } } }); }
+          if (c2) { if (c2._chart) c2._chart.destroy(); c2._chart = new Chart(c2, { type:'doughnut', data:{ datasets:[{ data:[remain0.length, remainLow.length, remainOk.length], backgroundColor:['#ef4444','#f59e0b','#22c55e'], borderWidth:0 }] }, options:{ cutout:'65%', plugins:{ legend:{display:false}, tooltip:{enabled:false} } } }); }
+        }
       });
     });
   }
