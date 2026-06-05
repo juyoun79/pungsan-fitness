@@ -478,8 +478,8 @@
     if (!trainerId) {
       summaryEl.innerHTML = '';
       membersEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">강사를 선택해주세요</div>';
-      const statsEl2 = document.getElementById('report-trainer-stats');
-      if (statsEl2) statsEl2.style.display = 'none';
+      const statsEl0 = document.getElementById('report-trainer-stats');
+      if (statsEl0) statsEl0.style.display = 'none';
       // 기존 리스너 해제
       if (_monthlyReportListener && _monthlyReportTrainerId) {
         db.ref('trainers/' + _monthlyReportTrainerId + '/trainees').off('value', _monthlyReportListener);
@@ -489,13 +489,8 @@
     }
     summaryEl.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text-hint);font-size:13px;grid-column:span 3;">불러오는 중...</div>';
     membersEl.innerHTML = '';
-
-    // 강사 통계 영역 표시 + 로드
     const statsEl = document.getElementById('report-trainer-stats');
-    if (statsEl) {
-      statsEl.style.display = 'block';
-      loadReportTrainerStats(trainerId);
-    }
+    if (statsEl) { statsEl.style.display = 'block'; loadReportTrainerStats(trainerId); }
 
     const monthStr = reportYear + '-' + String(reportMonth).padStart(2,'0');
     const monthStrShort = reportYear + '-' + reportMonth + '-';
@@ -629,7 +624,6 @@
   }
 
   function loadReportTrainerStats(trainerId) {
-    // loadTrainerHomeStats와 동일한 로직, report- prefix ID 사용
     db.ref('trainers/' + trainerId + '/trainees').once('value', snap => {
       const data = snap.val() || {};
       const now = new Date();
@@ -661,7 +655,7 @@
             sSnap.forEach(s => {
               const sd = s.val();
               if (sd && sd.date && isThisMonth(sd.date)) monthLessons++;
-              const t = sd && sd.savedAt || 0;
+              const t = (sd && sd.savedAt) || 0;
               if (t > lastSignTime) lastSignTime = t;
             });
           }
@@ -685,12 +679,19 @@
         set('rpt-remain-low', remainLow.length);
         set('rpt-remain-ok', remainOk.length);
 
-        // 차트 렌더
-        if (typeof Chart !== 'undefined') {
+        const drawRptCharts = () => {
           const c1 = document.getElementById('rpt-chart-rereg');
           const c2 = document.getElementById('rpt-chart-remain');
-          if (c1) { if (c1._chart) c1._chart.destroy(); c1._chart = new Chart(c1, { type:'doughnut', data:{ datasets:[{ data:[reRegDone, Math.max(reRegNotDone,0)], backgroundColor:['#22c55e','#888780'], borderWidth:0 }] }, options:{ cutout:'65%', plugins:{ legend:{display:false}, tooltip:{enabled:false} } } }); }
-          if (c2) { if (c2._chart) c2._chart.destroy(); c2._chart = new Chart(c2, { type:'doughnut', data:{ datasets:[{ data:[remain0.length, remainLow.length, remainOk.length], backgroundColor:['#ef4444','#f59e0b','#22c55e'], borderWidth:0 }] }, options:{ cutout:'65%', plugins:{ legend:{display:false}, tooltip:{enabled:false} } } }); }
+          if (c1) { if (c1._chart) c1._chart.destroy(); c1._chart = new Chart(c1, { type:'doughnut', data:{ datasets:[{ data:[reRegDone||0, reRegNotDone||0], backgroundColor:['#22c55e','#888780'], borderWidth:0 }] }, options:{ cutout:'65%', plugins:{ legend:{display:false}, tooltip:{enabled:false} } } }); }
+          if (c2) { if (c2._chart) c2._chart.destroy(); c2._chart = new Chart(c2, { type:'doughnut', data:{ datasets:[{ data:[remain0.length||0, remainLow.length||0, remainOk.length||0], backgroundColor:['#ef4444','#f59e0b','#22c55e'], borderWidth:0 }] }, options:{ cutout:'65%', plugins:{ legend:{display:false}, tooltip:{enabled:false} } } }); }
+        };
+        if (typeof Chart !== 'undefined') {
+          drawRptCharts();
+        } else {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';
+          s.onload = drawRptCharts;
+          document.head.appendChild(s);
         }
       });
     });
