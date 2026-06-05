@@ -3,6 +3,66 @@
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
+// ── 앱 버전 (배포할 때마다 숫자 1씩 올려주세요) ──
+const APP_VERSION = '1.0.0';
+const CACHE_NAME  = 'pungsan-v' + APP_VERSION;
+
+// ── Network First 캐시 전략 ──
+// 항상 네트워크에서 최신 파일을 먼저 가져오고
+// 네트워크 실패 시에만 캐시 사용 (오프라인 대비)
+const CACHE_TARGETS = ['/', '/index.html', '/style.css', '/admin.js', '/workout.js', '/community.js', '/diet.js', '/messages.js', '/equipment.js', '/foods.js', '/manifest.json'];
+
+self.addEventListener('install', (event) => {
+  // 새 SW 즉시 활성화 (waiting 단계 건너뜀)
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(CACHE_TARGETS)).catch(() => {})
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    // 이전 버전 캐시 삭제
+    caches.keys().then(keys =>
+      Promise.all(
+        keys.filter(k => k.startsWith('pungsan-v') && k !== CACHE_NAME)
+            .map(k => caches.delete(k))
+      )
+    ).then(() => {
+      // 모든 열린 탭에 새 버전 알림
+      return self.clients.claim().then(() => {
+        return self.clients.matchAll({ type: 'window' }).then(clientList => {
+          clientList.forEach(client => {
+            client.postMessage({ type: 'SW_UPDATED', version: APP_VERSION });
+          });
+        });
+      });
+    })
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  // 같은 도메인 요청만 처리 (Firebase API 등 외부 요청 제외)
+  if (!url.origin.includes('pungsan-fitness') && !url.origin.includes('workers.dev')) return;
+  // API 요청은 캐시 안 함
+  if (url.pathname.startsWith('/api/')) return;
+
+  event.respondWith(
+    fetch(event.request).then(response => {
+      // 네트워크 성공 → 캐시 업데이트 후 반환
+      if (response && response.status === 200 && response.type === 'basic') {
+        const responseClone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone)).catch(() => {});
+      }
+      return response;
+    }).catch(() => {
+      // 네트워크 실패 → 캐시에서 반환
+      return caches.match(event.request);
+    })
+  );
+});
+
 firebase.initializeApp({
   apiKey: "AIzaSyBlp0SIVRO0SKZWGGa7OLyhnEZTnruMnH8",
   authDomain: "pungsan-fitness.firebaseapp.com",
@@ -16,11 +76,8 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 // ── 백그라운드 메시지 수신 ──
-// webpush.notification이 네이티브로 표시 → showNotification 호출 안 함 (중복 방지)
-// return으로 Promise 반환 → Firebase SDK가 완료까지 SW 유지 (중요!)
 messaging.onBackgroundMessage((payload) => {
   return self.registration.getNotifications().then(notifs => {
-    // webpush.notification이 먼저 표시되므로 notifs.length = 현재 알림 수 (새 것 포함)
     const count = notifs.length;
     if ('setAppBadge' in navigator) {
       return navigator.setAppBadge(Math.max(count, 1)).catch(() => {});
