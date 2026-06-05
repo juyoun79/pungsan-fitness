@@ -704,47 +704,47 @@
     <div style="padding:16px;overflow-y:auto;padding-bottom:80px;">
       <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;">
         <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">측정 날짜</div>
-        <input type="date" id="inbody-input-date" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:16px;">
+        <input type="date" id="inbody-input-date" style="display:block;width:100%;max-width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:16px;-webkit-appearance:none;appearance:none;">
         <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;">측정 수치 <span style="font-size:11px;font-weight:400;color:var(--text-hint);">(미입력 항목은 저장되지 않아요)</span></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
           <div>
             <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">체중</div>
             <div style="position:relative;">
-              <input type="number" id="ib-inp-weight" placeholder="0.0" step="0.1" min="0" style="width:100%;box-sizing:border-box;padding:9px 28px 9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
+              <input type="number" id="ib-inp-weight" placeholder="" step="0.1" min="0" style="width:100%;box-sizing:border-box;padding:9px 28px 9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
               <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text-hint);">kg</span>
             </div>
           </div>
           <div>
             <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">골격근량</div>
             <div style="position:relative;">
-              <input type="number" id="ib-inp-muscle" placeholder="0.0" step="0.1" min="0" style="width:100%;box-sizing:border-box;padding:9px 28px 9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
+              <input type="number" id="ib-inp-muscle" placeholder="" step="0.1" min="0" style="width:100%;box-sizing:border-box;padding:9px 28px 9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
               <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text-hint);">kg</span>
             </div>
           </div>
           <div>
             <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">체지방량</div>
             <div style="position:relative;">
-              <input type="number" id="ib-inp-fat" placeholder="0.0" step="0.1" min="0" style="width:100%;box-sizing:border-box;padding:9px 28px 9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
+              <input type="number" id="ib-inp-fat" placeholder="" step="0.1" min="0" style="width:100%;box-sizing:border-box;padding:9px 28px 9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
               <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text-hint);">kg</span>
             </div>
           </div>
           <div>
             <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">체지방률</div>
             <div style="position:relative;">
-              <input type="number" id="ib-inp-fatrate" placeholder="0.0" step="0.1" min="0" max="100" style="width:100%;box-sizing:border-box;padding:9px 28px 9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
+              <input type="number" id="ib-inp-fatrate" placeholder="" step="0.1" min="0" max="100" style="width:100%;box-sizing:border-box;padding:9px 28px 9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
               <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text-hint);">%</span>
             </div>
           </div>
           <div>
             <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">BMI</div>
             <div style="position:relative;">
-              <input type="number" id="ib-inp-bmi" placeholder="0.0" step="0.1" min="0" style="width:100%;box-sizing:border-box;padding:9px 28px 9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
+              <input type="number" id="ib-inp-bmi" placeholder="" step="0.1" min="0" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
             </div>
           </div>
           <div>
             <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">기초대사량</div>
             <div style="position:relative;">
-              <input type="number" id="ib-inp-bmr" placeholder="0" step="1" min="0" style="width:100%;box-sizing:border-box;padding:9px 36px 9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
+              <input type="number" id="ib-inp-bmr" placeholder="" step="1" min="0" style="width:100%;box-sizing:border-box;padding:9px 36px 9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
               <span style="position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--text-hint);">kcal</span>
             </div>
           </div>
