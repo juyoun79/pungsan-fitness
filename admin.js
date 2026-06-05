@@ -5039,30 +5039,40 @@
     db.ref('trainers/' + trainerId + '/trainees').once('value', snap => {
       const data = snap.val() || {};
       const now = new Date();
-      const thisMonth = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+      // 날짜 형식 두 가지 모두 처리 (2026-06 / 2026-6)
+      const thisMonthPad = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+      const thisMonthShort = now.getFullYear() + '-' + (now.getMonth()+1);
       const twoWeeksAgo = Date.now() - (14 * 24 * 60 * 60 * 1000);
 
+      const isThisMonth = (dateStr) => {
+        if (!dateStr) return false;
+        return dateStr.startsWith(thisMonthPad + '-') || dateStr.startsWith(thisMonthShort + '-')
+          || dateStr === thisMonthPad || dateStr === thisMonthShort;
+      };
+
       let totalMembers = 0, newMembers = 0, reMembers = 0, totalRemain = 0;
-      let inactiveMembers = 0;
-      let monthLessons = 0;
+      let inactiveMembers = 0, monthLessons = 0;
       let attend = [], absent = [], remain0 = [], remainLow = [], remainOk = [];
 
       const memberIds = Object.keys(data);
       totalMembers = memberIds.length;
 
-      // 각 회원 처리
       const promises = memberIds.map(memberId => {
         const info = data[memberId];
+
+        // 잔여 횟수 현황 (4회 이상 정상)
         const remain = info.remain != null ? info.remain : 0;
         totalRemain += remain;
         if (remain === 0) remain0.push(info.name || memberId);
         else if (remain <= 3) remainLow.push(info.name || memberId);
         else remainOk.push(info.name || memberId);
 
-        // 신규/재등록
-        if (info.regDate && info.regDate.startsWith(thisMonth)) {
-          const regs = info.registrations ? Object.values(info.registrations) : [];
-          if (regs.length <= 1) newMembers++;
+        // 신규/재등록: registrations 노드에서 이번 달 기준으로 카운트
+        const regs = info.registrations ? Object.values(info.registrations) : [];
+        const thisMonthRegs = regs.filter(r => r && r.date && isThisMonth(r.date));
+        if (thisMonthRegs.length > 0) {
+          const totalRegs = regs.length;
+          if (totalRegs <= 1) newMembers++;
           else reMembers++;
         }
 
@@ -5070,11 +5080,14 @@
         return db.ref('trainers/' + trainerId + '/trainees/' + memberId + '/signs').once('value', sSnap => {
           let hasThisMonth = false;
           let lastSignTime = 0;
+          let hasAnySigns = false;
+
           if (sSnap.exists()) {
+            hasAnySigns = true;
             sSnap.forEach(s => {
               const sd = s.val();
               if (sd && sd.date) {
-                if (sd.date.startsWith(thisMonth)) {
+                if (isThisMonth(sd.date)) {
                   monthLessons++;
                   hasThisMonth = true;
                 }
@@ -5083,14 +5096,19 @@
               }
             });
           }
-          if (hasThisMonth) attend.push(info.name || memberId);
-          else absent.push(info.name || memberId);
+
+          // 출석률: signs 기록 있는 회원만 대상
+          if (hasAnySigns) {
+            if (hasThisMonth) attend.push(info.name || memberId);
+            else absent.push(info.name || memberId);
+          }
+
+          // 장기 미출석: 한 번이라도 수업한 회원 중 2주 이상 안 온 회원
           if (lastSignTime > 0 && lastSignTime < twoWeeksAgo) inactiveMembers++;
         });
       });
 
       Promise.all(promises).then(() => {
-        // 카드 업데이트
         const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
         set('th-total-members', totalMembers);
         set('th-month-lessons', monthLessons);
@@ -5104,10 +5122,7 @@
         set('th-remain-low', remainLow.length);
         set('th-remain-ok', remainOk.length);
 
-        // 차트 저장
         thChartData = { attend, absent, remain0, remainLow, remainOk };
-
-        // 도넛 차트 렌더
         renderTrainerHomeCharts(attend.length, absent.length, remain0.length, remainLow.length, remainOk.length);
       });
     });
