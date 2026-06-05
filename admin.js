@@ -53,23 +53,26 @@
     const mobileBody = document.getElementById('admin-mobile-body');
     const pcLayout = document.getElementById('admin-pc-layout');
     const pcBody = document.getElementById('admin-pc-body');
+    const appEl = document.querySelector('.app');
 
     if (mode === 'pc') {
       if (mobileHeader) mobileHeader.style.display = 'none';
       if (pcHeader) pcHeader.style.display = 'flex';
       if (mobileBody) mobileBody.style.display = 'none';
       if (pcLayout) pcLayout.style.display = 'block';
-      // admin-body 콘텐츠를 pc-body로 이동
       if (mobileBody && pcBody) pcBody.appendChild(mobileBody);
       if (mobileBody) mobileBody.style.display = 'block';
+      // PC 모드: max-width 해제
+      if (appEl) { appEl.style.maxWidth = '100%'; appEl.style.width = '100%'; }
     } else {
       if (mobileHeader) mobileHeader.style.display = 'block';
       if (pcHeader) pcHeader.style.display = 'none';
       if (pcLayout) pcLayout.style.display = 'none';
-      // admin-body를 원래 위치로 복귀
       const screenAdmin = document.getElementById('screen-admin');
       if (mobileBody && screenAdmin) screenAdmin.appendChild(mobileBody);
       if (mobileBody) mobileBody.style.display = 'block';
+      // 모바일 모드: max-width 복원
+      if (appEl) { appEl.style.maxWidth = '430px'; appEl.style.width = ''; }
     }
   }
 
