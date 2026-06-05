@@ -5622,54 +5622,6 @@
       });
     }
 
-    // ── 업데이트 토스트 함수 ──
-    function showUpdateToast() {
-      // 이미 표시 중이면 중복 방지
-      if (document.getElementById('update-toast')) return;
-      const toast = document.createElement('div');
-      toast.id = 'update-toast';
-      toast.style.cssText = [
-        'position:fixed',
-        'bottom:80px',
-        'left:50%',
-        'transform:translateX(-50%)',
-        'background:#1a56db',
-        'color:white',
-        'padding:12px 20px',
-        'border-radius:12px',
-        'font-size:13px',
-        'font-weight:700',
-        'font-family:\'Noto Sans KR\',sans-serif',
-        'box-shadow:0 4px 20px rgba(0,0,0,0.25)',
-        'z-index:99999',
-        'display:flex',
-        'align-items:center',
-        'gap:10px',
-        'white-space:nowrap',
-        'animation:slideUp 0.3s ease'
-      ].join(';');
-      toast.innerHTML = `
-        <span>🔄 새 버전이 업데이트됐어요!</span>
-        <button onclick="applyUpdate()" style="background:white;color:#1a56db;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">적용하기</button>
-        <button onclick="document.getElementById('update-toast').remove()" style="background:rgba(255,255,255,0.2);color:white;border:none;border-radius:6px;padding:6px 8px;font-size:12px;cursor:pointer;">✕</button>
-      `;
-      document.body.appendChild(toast);
-    }
-
-    // ── 업데이트 적용 함수 ──
-    function applyUpdate() {
-      // 캐시 전체 삭제 후 새로고침
-      if ('caches' in window) {
-        caches.keys().then(keys => {
-          Promise.all(keys.map(k => caches.delete(k))).then(() => {
-            window.location.reload(true);
-          });
-        });
-      } else {
-        window.location.reload(true);
-      }
-    }
-
     // 슬라이드업 애니메이션
     if (!document.getElementById('update-toast-style')) {
       const style = document.createElement('style');
@@ -5794,6 +5746,31 @@
     }
     // userId 없으면 로그인 화면 (기본값 = screen-login이 active)
   });
+
+  // ── 업데이트 토스트 함수 (전역) ──
+  function showUpdateToast() {
+    if (document.getElementById('update-toast')) return;
+    const toast = document.createElement('div');
+    toast.id = 'update-toast';
+    toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1a56db;color:white;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:700;font-family:\'Noto Sans KR\',sans-serif;box-shadow:0 4px 20px rgba(0,0,0,0.25);z-index:99999;display:flex;align-items:center;gap:10px;white-space:nowrap;animation:slideUp 0.3s ease';
+    toast.innerHTML = '<span>🔄 새 버전이 업데이트됐어요!</span>'
+      + '<button onclick="applyUpdate()" style="background:white;color:#1a56db;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">적용하기</button>'
+      + '<button onclick="document.getElementById(\'update-toast\').remove()" style="background:rgba(255,255,255,0.2);color:white;border:none;border-radius:6px;padding:6px 8px;font-size:12px;cursor:pointer;">✕</button>';
+    document.body.appendChild(toast);
+  }
+
+  // ── 업데이트 적용 함수 (전역) ──
+  function applyUpdate() {
+    if ('caches' in window) {
+      caches.keys().then(keys => {
+        Promise.all(keys.map(k => caches.delete(k))).then(() => {
+          window.location.reload(true);
+        });
+      });
+    } else {
+      window.location.reload(true);
+    }
+  }
 </script>
 
   <!-- 강사 추가/수정 모달 -->
