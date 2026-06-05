@@ -462,35 +462,35 @@
 
         <!-- 담당 회원 현황 -->
         <div class="section-title">담당 회원 현황</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
-            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">전체 담당 회원</div>
-            <div style="font-size:24px;font-weight:700;color:var(--text);" id="th-total-members">-</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:16px;">
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:8px;text-align:center;">
+            <div style="font-size:10px;color:var(--text-hint);margin-bottom:3px;">전체 담당</div>
+            <div style="font-size:18px;font-weight:700;color:var(--text);" id="th-total-members">-</div>
             <div style="font-size:10px;color:var(--text-hint);">명</div>
           </div>
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
-            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">이번 달 수업</div>
-            <div style="font-size:24px;font-weight:700;color:var(--text);" id="th-month-lessons">-</div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:8px;text-align:center;">
+            <div style="font-size:10px;color:var(--text-hint);margin-bottom:3px;">이번달 수업</div>
+            <div style="font-size:18px;font-weight:700;color:var(--text);" id="th-month-lessons">-</div>
             <div style="font-size:10px;color:var(--text-hint);">회</div>
           </div>
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
-            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">이번 달 신규</div>
-            <div style="font-size:24px;font-weight:700;color:var(--text);" id="th-new-members">-</div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:8px;text-align:center;">
+            <div style="font-size:10px;color:var(--text-hint);margin-bottom:3px;">이번달 신규</div>
+            <div style="font-size:18px;font-weight:700;color:var(--text);" id="th-new-members">-</div>
             <div style="font-size:10px;color:var(--text-hint);">명</div>
           </div>
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
-            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">이번 달 재등록</div>
-            <div style="font-size:24px;font-weight:700;color:var(--text);" id="th-re-members">-</div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:8px;text-align:center;">
+            <div style="font-size:10px;color:var(--text-hint);margin-bottom:3px;">이번달 재등록</div>
+            <div style="font-size:18px;font-weight:700;color:var(--text);" id="th-re-members">-</div>
             <div style="font-size:10px;color:var(--text-hint);">명</div>
           </div>
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
-            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">총 잔여 횟수</div>
-            <div style="font-size:24px;font-weight:700;color:var(--text);" id="th-total-remain">-</div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:8px;text-align:center;">
+            <div style="font-size:10px;color:var(--text-hint);margin-bottom:3px;">총 잔여</div>
+            <div style="font-size:18px;font-weight:700;color:var(--text);" id="th-total-remain">-</div>
             <div style="font-size:10px;color:var(--text-hint);">회</div>
           </div>
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;">
-            <div style="font-size:11px;color:#ef4444;margin-bottom:4px;">장기 미출석 <span style="font-size:9px;">(2주↑)</span></div>
-            <div style="font-size:24px;font-weight:700;color:#ef4444;" id="th-inactive-members">-</div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:8px;text-align:center;">
+            <div style="font-size:10px;color:#ef4444;margin-bottom:3px;">장기미출석</div>
+            <div style="font-size:18px;font-weight:700;color:#ef4444;" id="th-inactive-members">-</div>
             <div style="font-size:10px;color:#ef4444;">명</div>
           </div>
         </div>
@@ -2058,35 +2058,35 @@
             <!-- 강사 통계 (강사 홈과 동일) -->
             <div id="report-trainer-stats" style="display:none;margin-bottom:12px;">
               <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:8px;">담당 회원 현황</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center;">
-                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">전체 담당</div>
-                  <div style="font-size:20px;font-weight:700;color:var(--text);" id="rpt-total-members">-</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;">
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:8px;text-align:center;">
+                  <div style="font-size:10px;color:var(--text-hint);margin-bottom:3px;">전체 담당</div>
+                  <div style="font-size:18px;font-weight:700;color:var(--text);" id="rpt-total-members">-</div>
                   <div style="font-size:10px;color:var(--text-hint);">명</div>
                 </div>
-                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center;">
-                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">이번 달 수업</div>
-                  <div style="font-size:20px;font-weight:700;color:var(--text);" id="rpt-month-lessons">-</div>
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:8px;text-align:center;">
+                  <div style="font-size:10px;color:var(--text-hint);margin-bottom:3px;">이번달 수업</div>
+                  <div style="font-size:18px;font-weight:700;color:var(--text);" id="rpt-month-lessons">-</div>
                   <div style="font-size:10px;color:var(--text-hint);">회</div>
                 </div>
-                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center;">
-                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">이번 달 신규</div>
-                  <div style="font-size:20px;font-weight:700;color:var(--text);" id="rpt-new-members">-</div>
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:8px;text-align:center;">
+                  <div style="font-size:10px;color:var(--text-hint);margin-bottom:3px;">이번달 신규</div>
+                  <div style="font-size:18px;font-weight:700;color:var(--text);" id="rpt-new-members">-</div>
                   <div style="font-size:10px;color:var(--text-hint);">명</div>
                 </div>
-                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center;">
-                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">이번 달 재등록</div>
-                  <div style="font-size:20px;font-weight:700;color:var(--text);" id="rpt-re-members">-</div>
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:8px;text-align:center;">
+                  <div style="font-size:10px;color:var(--text-hint);margin-bottom:3px;">이번달 재등록</div>
+                  <div style="font-size:18px;font-weight:700;color:var(--text);" id="rpt-re-members">-</div>
                   <div style="font-size:10px;color:var(--text-hint);">명</div>
                 </div>
-                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center;">
-                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">총 잔여 횟수</div>
-                  <div style="font-size:20px;font-weight:700;color:var(--text);" id="rpt-total-remain">-</div>
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:8px;text-align:center;">
+                  <div style="font-size:10px;color:var(--text-hint);margin-bottom:3px;">총 잔여</div>
+                  <div style="font-size:18px;font-weight:700;color:var(--text);" id="rpt-total-remain">-</div>
                   <div style="font-size:10px;color:var(--text-hint);">회</div>
                 </div>
-                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;text-align:center;">
-                  <div style="font-size:11px;color:#ef4444;margin-bottom:3px;">장기 미출석 <span style="font-size:9px;">(2주↑)</span></div>
-                  <div style="font-size:20px;font-weight:700;color:#ef4444;" id="rpt-inactive-members">-</div>
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:8px;text-align:center;">
+                  <div style="font-size:10px;color:#ef4444;margin-bottom:3px;">장기미출석</div>
+                  <div style="font-size:18px;font-weight:700;color:#ef4444;" id="rpt-inactive-members">-</div>
                   <div style="font-size:10px;color:#ef4444;">명</div>
                 </div>
               </div>
