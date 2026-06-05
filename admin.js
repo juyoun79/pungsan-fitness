@@ -2289,7 +2289,7 @@
   // 담당 회원 탭 전환
   function switchTraineeTab(tab) {
     currentTraineeTab = tab;
-    ['record', 'sign', 'memo', 'log', 'routine'].forEach(t => {
+    ['record', 'sign', 'memo', 'log', 'routine', 'inbody'].forEach(t => {
       const btn = document.getElementById('trainee-tab-' + t);
       if (btn) {
         btn.style.background = t === tab ? 'var(--blue)' : 'var(--card)';
@@ -2303,10 +2303,8 @@
     if (tab === 'record') {
       renderTrainerCal();
     } else if (tab === 'sign') {
-      // refreshTraineeView가 카드+서명탭 동시 업데이트
       refreshTraineeView(currentTraineeId);
     } else if (tab === 'memo') {
-      // 메모 표시
       const trainerId = localStorage.getItem('current_user');
       db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/memo').once('value', snap => {
         const memo = snap.val() || '';
@@ -2321,6 +2319,8 @@
       renderLogTab();
     } else if (tab === 'routine') {
       renderTraineeRoutineTab();
+    } else if (tab === 'inbody') {
+      renderTraineeInbodyTab();
     }
   }
 
@@ -2644,6 +2644,71 @@
     });
   }
   // ── 강사 루틴 지정 탭 끝 ──────────────────────────────────
+
+  // ── 강사 인바디 조회 탭 ──────────────────────────────────
+  function renderTraineeInbodyTab() {
+    const content = document.getElementById('trainee-tab-content');
+    if (!content || !currentTraineeId) return;
+    content.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
+
+    db.ref('users/' + currentTraineeId + '/inbody').once('value').then(snap => {
+      const data = snap.val();
+      if (!data) {
+        content.innerHTML = `
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:28px 20px;text-align:center;">
+            <div style="font-size:28px;margin-bottom:8px;">📊</div>
+            <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px;">인바디 기록이 없어요</div>
+            <div style="font-size:13px;color:var(--text-hint);">회원이 인바디 데이터를 입력하면 여기서 확인할 수 있어요</div>
+          </div>`;
+        return;
+      }
+
+      const list = Object.entries(data).sort((a, b) => b[0].localeCompare(a[0]));
+      const latest = list[0][1];
+      const prev = list.length > 1 ? list[1][1] : null;
+
+      // 상태 뱃지 계산
+      function getStatusBadge(val, min, max) {
+        if (val === null || val === undefined) return '';
+        if (val >= min && val <= max) return '<span style="font-size:10px;padding:2px 6px;background:#dcfce7;color:#15803d;border-radius:10px;font-weight:700;">✅ 표준</span>';
+        if (val < min) return '<span style="font-size:10px;padding:2px 6px;background:#fef9c3;color:#a16207;border-radius:10px;font-weight:700;">⚠️ 부족</span>';
+        return '<span style="font-size:10px;padding:2px 6px;background:#fee2e2;color:#b91c1c;border-radius:10px;font-weight:700;">⚠️ 주의</span>';
+      }
+      function chgText(cur, prv) {
+        if (prv === undefined || prv === null || cur === undefined || cur === null) return '';
+        const d = (cur - prv).toFixed(1);
+        if (d > 0) return '<span style="color:#ef4444;font-size:10px;">▲' + d + '</span>';
+        if (d < 0) return '<span style="color:#22c55e;font-size:10px;">▼' + Math.abs(d) + '</span>';
+        return '<span style="font-size:10px;color:#94a3b8;">-</span>';
+      }
+
+      let cards = '';
+      if (latest.weight !== undefined) cards += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-hint);">체중</span>${getStatusBadge(latest.weight,45,80)}</div><div style="font-size:17px;font-weight:700;color:var(--text);">${latest.weight}<span style="font-size:10px;color:var(--text-hint);font-weight:400;">kg</span></div><div>${chgText(latest.weight, prev?.weight)}</div></div>`;
+      if (latest.muscle !== undefined) cards += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-hint);">골격근량</span>${getStatusBadge(latest.muscle,18,28)}</div><div style="font-size:17px;font-weight:700;color:var(--text);">${latest.muscle}<span style="font-size:10px;color:var(--text-hint);font-weight:400;">kg</span></div><div>${chgText(latest.muscle, prev?.muscle)}</div></div>`;
+      if (latest.fatRate !== undefined) cards += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-hint);">체지방률</span>${getStatusBadge(latest.fatRate,10,28)}</div><div style="font-size:17px;font-weight:700;color:var(--text);">${latest.fatRate}<span style="font-size:10px;color:var(--text-hint);font-weight:400;">%</span></div><div>${chgText(latest.fatRate, prev?.fatRate)}</div></div>`;
+      if (latest.bmi !== undefined) cards += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-hint);">BMI</span>${getStatusBadge(latest.bmi,18.5,24.9)}</div><div style="font-size:17px;font-weight:700;color:var(--text);">${latest.bmi}</div><div>${chgText(latest.bmi, prev?.bmi)}</div></div>`;
+
+      let history = '';
+      list.forEach(([date, d]) => {
+        const parts = [];
+        if (d.weight !== undefined) parts.push(d.weight + 'kg');
+        if (d.fatRate !== undefined) parts.push('지방' + d.fatRate + '%');
+        if (d.muscle !== undefined) parts.push('근육' + d.muscle + 'kg');
+        history += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;">
+          <span style="font-size:12px;color:var(--text-hint);">${date}</span>
+          <span style="font-size:12px;color:var(--text);">${parts.join(' · ')}</span>
+        </div>`;
+      });
+
+      content.innerHTML = `
+        <div style="font-size:12px;color:var(--text-hint);margin-bottom:8px;">최근 측정: ${list[0][0]}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">${cards}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">측정 이력</div>
+        ${history}
+        <div style="font-size:11px;color:var(--text-hint);text-align:center;margin-top:8px;">회원 본인만 데이터를 입력/수정할 수 있어요</div>`;
+    });
+  }
+  // ── 강사 인바디 조회 탭 끝 ──────────────────────────────────
 
   function renderSignTab(content) {
     if (!content || !currentTraineeId) return;
@@ -4422,6 +4487,7 @@
       document.getElementById('pts-owunwan').value       = s.owunwan      ?? 10;
       document.getElementById('pts-attend').value        = s.attend       ?? 2;
       document.getElementById('pts-weight').value        = s.weightRecord ?? 1;
+      document.getElementById('pts-inbody').value        = s.inbodyRecord ?? 5;
       document.getElementById('pts-diet-text').value     = s.dietText     ?? 5;
       document.getElementById('pts-diet-photo').value    = s.dietPhoto    ?? 10;
       document.getElementById('pts-like').value          = s.like         ?? 1;
@@ -4436,6 +4502,7 @@
       owunwan:       parseInt(document.getElementById('pts-owunwan').value)    || 0,
       attend:        parseInt(document.getElementById('pts-attend').value)     || 0,
       weightRecord:  parseInt(document.getElementById('pts-weight').value)     || 0,
+      inbodyRecord:  parseInt(document.getElementById('pts-inbody').value)     || 0,
       dietText:      parseInt(document.getElementById('pts-diet-text').value)  || 0,
       dietPhoto:     parseInt(document.getElementById('pts-diet-photo').value) || 0,
       like:          parseInt(document.getElementById('pts-like').value)       || 0,

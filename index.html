@@ -411,29 +411,62 @@
 
       <!-- 체중 변화 카드 ⑤번 디자인: 파란 헤더 안 흰 카드 -->
       <div id="home-weight-card" style="display:none;background:white;border-radius:16px;padding:14px 16px;margin:0 0 0 0;position:relative;z-index:1;box-shadow:0 2px 12px rgba(0,0,0,0.10);">
-        <!-- 타이틀 -->
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <div style="font-size:13px;font-weight:700;color:#1e293b;">⚖️ 체중 변화</div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div style="font-size:11px;color:#94a3b8;" id="home-weight-range">최근 기록</div>
-            <button onclick="openWeightDetail()" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📊 전체보기</button>
+        <!-- 탭 (체중 / 인바디) -->
+        <div style="display:flex;gap:0;border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:12px;">
+          <button id="home-tab-weight" onclick="switchHomeBodyTab('weight')" style="flex:1;padding:7px 0;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--blue);color:white;">⚖️ 체중</button>
+          <button id="home-tab-inbody" onclick="switchHomeBodyTab('inbody')" style="flex:1;padding:7px 0;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:white;color:#64748b;">📊 인바디</button>
+        </div>
+
+        <!-- 체중 탭 내용 -->
+        <div id="home-weight-tab-content">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="font-size:13px;font-weight:700;color:#1e293b;">⚖️ 체중 변화</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="font-size:11px;color:#94a3b8;" id="home-weight-range">최근 기록</div>
+              <button onclick="openWeightDetail()" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📊 전체보기</button>
+            </div>
+          </div>
+          <canvas id="home-weight-graph" height="80" style="width:100%;display:block;cursor:pointer;" onclick="openWeightDetail()" title="터치하면 전체 기록 보기"></canvas>
+          <div id="home-weight-msg" style="font-size:12px;font-weight:600;margin:6px 0 8px;min-height:16px;"></div>
+          <div style="display:flex;align-items:center;gap:8px;background:#f8fafc;border-radius:10px;padding:8px 10px;border:1px solid #e2e8f0;">
+            <span style="font-size:12px;font-weight:600;color:#64748b;white-space:nowrap;flex-shrink:0;">오늘 체중</span>
+            <input type="number" id="home-weight-input" placeholder="0.0" min="20" max="200" step="0.1"
+              style="flex:1;min-width:0;background:white;border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 4px;font-size:15px;font-weight:700;color:#1e293b;text-align:center;outline:none;font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;"
+              onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='#e2e8f0'" />
+            <span style="font-size:12px;color:#94a3b8;font-weight:600;flex-shrink:0;">kg</span>
+            <button onclick="saveHomeWeight()"
+              style="flex-shrink:0;background:var(--blue);color:white;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">
+              기록
+            </button>
           </div>
         </div>
-        <!-- 그래프 캔버스 -->
-        <canvas id="home-weight-graph" height="80" style="width:100%;display:block;cursor:pointer;" onclick="openWeightDetail()" title="터치하면 전체 기록 보기"></canvas>
-        <!-- 목표 메시지 -->
-        <div id="home-weight-msg" style="font-size:12px;font-weight:600;margin:6px 0 8px;min-height:16px;"></div>
-        <!-- 오늘 체중 입력 - 완전히 카드 안에 포함 -->
-        <div style="display:flex;align-items:center;gap:8px;background:#f8fafc;border-radius:10px;padding:8px 10px;border:1px solid #e2e8f0;">
-          <span style="font-size:12px;font-weight:600;color:#64748b;white-space:nowrap;flex-shrink:0;">오늘 체중</span>
-          <input type="number" id="home-weight-input" placeholder="0.0" min="20" max="200" step="0.1"
-            style="flex:1;min-width:0;background:white;border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 4px;font-size:15px;font-weight:700;color:#1e293b;text-align:center;outline:none;font-family:'Noto Sans KR',sans-serif;box-sizing:border-box;"
-            onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='#e2e8f0'" />
-          <span style="font-size:12px;color:#94a3b8;font-weight:600;flex-shrink:0;">kg</span>
-          <button onclick="saveHomeWeight()"
-            style="flex-shrink:0;background:var(--blue);color:white;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">
-            기록
-          </button>
+
+        <!-- 인바디 탭 내용 -->
+        <div id="home-inbody-tab-content" style="display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-size:13px;font-weight:700;color:#1e293b;">📊 인바디 변화</div>
+            <button onclick="openInbodyDetail()" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📊 전체보기</button>
+          </div>
+          <!-- 최근 수치 미니 요약 -->
+          <div id="home-inbody-summary" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
+            <div style="background:#f0f4ff;border-radius:8px;padding:7px;text-align:center;">
+              <div style="font-size:9px;color:#1a56db;font-weight:700;">체지방률</div>
+              <div id="home-ib-fat-rate" style="font-size:14px;font-weight:700;color:#1e293b;">--</div>
+              <div id="home-ib-fat-rate-chg" style="font-size:9px;color:#94a3b8;">-</div>
+            </div>
+            <div style="background:#f0f4ff;border-radius:8px;padding:7px;text-align:center;">
+              <div style="font-size:9px;color:#1a56db;font-weight:700;">골격근량</div>
+              <div id="home-ib-muscle" style="font-size:14px;font-weight:700;color:#1e293b;">--</div>
+              <div id="home-ib-muscle-chg" style="font-size:9px;color:#94a3b8;">-</div>
+            </div>
+            <div style="background:#f0f4ff;border-radius:8px;padding:7px;text-align:center;">
+              <div style="font-size:9px;color:#1a56db;font-weight:700;">체중</div>
+              <div id="home-ib-weight" style="font-size:14px;font-weight:700;color:#1e293b;">--</div>
+              <div id="home-ib-weight-chg" style="font-size:9px;color:#94a3b8;">-</div>
+            </div>
+          </div>
+          <div id="home-inbody-msg" style="font-size:12px;font-weight:600;color:#1a56db;margin-bottom:10px;min-height:16px;"></div>
+          <button onclick="openInbodyDetail()" style="width:100%;padding:9px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 인바디 입력</button>
         </div>
       </div>
 
@@ -606,6 +639,121 @@
       <!-- 날짜별 목록 -->
       <div class="section-title">날짜별 기록</div>
       <div id="weight-detail-list"></div>
+    </div>
+  </div>
+
+  <!-- 인바디 전체보기 화면 -->
+  <div class="screen" id="screen-inbody-detail">
+    <div style="background:var(--card);padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;">
+      <button onclick="closeInbodyDetail()" style="background:none;border:none;cursor:pointer;padding:4px;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div style="font-size:17px;font-weight:700;color:var(--text);">📊 인바디 기록</div>
+    </div>
+    <div style="padding:16px;overflow-y:auto;padding-bottom:80px;">
+      <!-- 기간 필터 -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button onclick="setInbodyFilter(3)"  id="ibf-3"  style="flex:1;padding:8px;border:1.5px solid var(--blue);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--blue);color:white;">3개월</button>
+        <button onclick="setInbodyFilter(6)"  id="ibf-6"  style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">6개월</button>
+        <button onclick="setInbodyFilter(0)"  id="ibf-0"  style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">전체</button>
+      </div>
+      <!-- 동기부여 메시지 -->
+      <div id="inbody-detail-msg" style="display:none;background:#eff6ff;border-radius:10px;padding:10px 14px;margin-bottom:14px;border-left:3px solid #1a56db;">
+        <div id="inbody-detail-msg-text" style="font-size:12px;font-weight:700;color:#1e40af;"></div>
+      </div>
+      <!-- 상태 카드 4개 -->
+      <div id="inbody-status-cards" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;"></div>
+      <!-- 표준범위 막대 -->
+      <div id="inbody-range-bars" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px;display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);">표준범위 위치</div>
+          <div style="display:flex;gap:10px;font-size:10px;color:var(--text-hint);">
+            <span><span style="display:inline-block;width:10px;height:8px;background:#dcfce7;border-radius:2px;vertical-align:middle;margin-right:3px;"></span>표준구간</span>
+            <span><span style="display:inline-block;width:3px;height:10px;background:#1a56db;border-radius:2px;vertical-align:middle;margin-right:3px;"></span>내 수치</span>
+          </div>
+        </div>
+        <div id="inbody-range-content"></div>
+      </div>
+      <!-- 추이 그래프 -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);">변화 추이</div>
+          <div style="display:flex;gap:8px;font-size:10px;color:var(--text-hint);">
+            <span><span style="display:inline-block;width:8px;height:8px;background:#1a56db;border-radius:50%;margin-right:2px;vertical-align:middle;"></span>체중</span>
+            <span><span style="display:inline-block;width:8px;height:8px;background:#ef4444;border-radius:50%;margin-right:2px;vertical-align:middle;"></span>지방%</span>
+            <span><span style="display:inline-block;width:8px;height:8px;background:#22c55e;border-radius:50%;margin-right:2px;vertical-align:middle;"></span>근육</span>
+          </div>
+        </div>
+        <canvas id="inbody-detail-graph" height="160" style="width:100%;display:block;"></canvas>
+      </div>
+      <!-- 측정 이력 -->
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;">측정 이력</div>
+      <div id="inbody-detail-list"></div>
+      <button onclick="openInbodyInput()" style="width:100%;margin-top:12px;padding:14px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 인바디 데이터 입력</button>
+    </div>
+  </div>
+
+  <!-- 인바디 입력 화면 -->
+  <div class="screen" id="screen-inbody-input">
+    <div style="background:var(--card);padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;">
+      <button onclick="closeInbodyInput()" style="background:none;border:none;cursor:pointer;padding:4px;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div style="font-size:17px;font-weight:700;color:var(--text);">📊 인바디 데이터 입력</div>
+    </div>
+    <div style="padding:16px;overflow-y:auto;padding-bottom:80px;">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">측정 날짜</div>
+        <input type="date" id="inbody-input-date" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;">측정 수치 <span style="font-size:11px;font-weight:400;color:var(--text-hint);">(미입력 항목은 저장되지 않아요)</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+          <div>
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">체중</div>
+            <div style="position:relative;">
+              <input type="number" id="ib-inp-weight" placeholder="0.0" step="0.1" min="0" style="width:100%;box-sizing:border-box;padding:9px 28px 9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
+              <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text-hint);">kg</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">골격근량</div>
+            <div style="position:relative;">
+              <input type="number" id="ib-inp-muscle" placeholder="0.0" step="0.1" min="0" style="width:100%;box-sizing:border-box;padding:9px 28px 9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
+              <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text-hint);">kg</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">체지방량</div>
+            <div style="position:relative;">
+              <input type="number" id="ib-inp-fat" placeholder="0.0" step="0.1" min="0" style="width:100%;box-sizing:border-box;padding:9px 28px 9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
+              <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text-hint);">kg</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">체지방률</div>
+            <div style="position:relative;">
+              <input type="number" id="ib-inp-fatrate" placeholder="0.0" step="0.1" min="0" max="100" style="width:100%;box-sizing:border-box;padding:9px 28px 9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
+              <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text-hint);">%</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">BMI</div>
+            <div style="position:relative;">
+              <input type="number" id="ib-inp-bmi" placeholder="0.0" step="0.1" min="0" style="width:100%;box-sizing:border-box;padding:9px 28px 9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">기초대사량</div>
+            <div style="position:relative;">
+              <input type="number" id="ib-inp-bmr" placeholder="0" step="1" min="0" style="width:100%;box-sizing:border-box;padding:9px 36px 9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">
+              <span style="position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--text-hint);">kcal</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button onclick="closeInbodyInput()" style="flex:1;padding:12px;background:none;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-weight:700;color:var(--text-hint);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+          <button onclick="saveInbodyData()" style="flex:2;padding:12px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -2479,6 +2627,18 @@
                 </div>
               </div>
 
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);">
+                <div>
+                  <div style="font-size:14px;font-weight:600;color:var(--text);">📊 인바디 입력</div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">월 1회 적립</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <input id="pts-inbody" type="number" min="0" value="5" onchange="savePointSettings()"
+                    style="width:60px;padding:8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:16px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+                  <span style="font-size:13px;font-weight:600;color:var(--text-hint);">P</span>
+                </div>
+              </div>
+
               <div style="padding:12px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);">
                 <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">🥗 식단 게시물</div>
                 <div style="font-size:11px;color:var(--text-hint);margin-bottom:10px;">글/사진 여부에 따라 다른 포인트 지급</div>
@@ -3099,12 +3259,13 @@
       </div>
 
       <!-- 탭 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:6px;margin-bottom:16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr;gap:6px;margin-bottom:16px;">
         <button id="trainee-tab-record" onclick="switchTraineeTab('record')" style="padding:10px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;line-height:1.4;">수업<br>기록</button>
         <button id="trainee-tab-sign" onclick="switchTraineeTab('sign')" style="padding:10px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;line-height:1.4;">서명<br>기록</button>
         <button id="trainee-tab-memo" onclick="switchTraineeTab('memo')" style="padding:10px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;line-height:1.4;">회원<br>메모</button>
         <button id="trainee-tab-log" onclick="switchTraineeTab('log')" style="padding:10px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;line-height:1.4;">수업<br>일지</button>
         <button id="trainee-tab-routine" onclick="switchTraineeTab('routine')" style="padding:10px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;line-height:1.4;">운동<br>루틴</button>
+        <button id="trainee-tab-inbody" onclick="switchTraineeTab('inbody')" style="padding:10px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;line-height:1.4;">인바디<br>기록</button>
       </div>
 
       <!-- 탭 내용 -->
@@ -4409,7 +4570,6 @@
 
   function closeWeightDetail() {
     const userId = localStorage.getItem('current_user');
-    // 강사/매니저이면 출석 탭 → 관리 탭으로 교체
     const role = localStorage.getItem('role_' + userId) || 'member';
     const attendTab = document.getElementById('tab-attend');
     if (role === 'trainer' || role === 'manager') {
@@ -4423,9 +4583,376 @@
         attendTab.onclick = function() { switchTab('attend'); };
       }
     }
-    const lastTab = localStorage.getItem('last_tab_' + userId) || 'home';
     showScreen('screen-home');
   }
+
+  // ── 인바디 기능 ──────────────────────────────────────────
+  let inbodyFilter = 3;
+
+  function switchHomeBodyTab(tab) {
+    const weightTab = document.getElementById('home-tab-weight');
+    const inbodyTab = document.getElementById('home-tab-inbody');
+    const weightContent = document.getElementById('home-weight-tab-content');
+    const inbodyContent = document.getElementById('home-inbody-tab-content');
+    if (tab === 'weight') {
+      weightTab.style.background = 'var(--blue)'; weightTab.style.color = 'white';
+      inbodyTab.style.background = 'white'; inbodyTab.style.color = '#64748b';
+      weightContent.style.display = 'block';
+      inbodyContent.style.display = 'none';
+    } else {
+      inbodyTab.style.background = 'var(--blue)'; inbodyTab.style.color = 'white';
+      weightTab.style.background = 'white'; weightTab.style.color = '#64748b';
+      weightContent.style.display = 'none';
+      inbodyContent.style.display = 'block';
+      loadHomeInbodySummary();
+    }
+  }
+
+  function loadHomeInbodySummary() {
+    const userId = localStorage.getItem('current_user');
+    if (!userId) return;
+    db.ref('users/' + userId + '/inbody').orderByKey().limitToLast(2).once('value').then(snap => {
+      if (!snap.exists()) {
+        document.getElementById('home-inbody-msg').textContent = '아직 인바디 기록이 없어요. 첫 측정 후 입력해보세요!';
+        return;
+      }
+      const entries = [];
+      snap.forEach(c => entries.push({ date: c.key, ...c.val() }));
+      entries.sort((a, b) => b.date.localeCompare(a.date));
+      const latest = entries[0];
+      const prev = entries.length > 1 ? entries[1] : null;
+
+      function setMini(elVal, elChg, val, prevVal, unit) {
+        const v = document.getElementById(elVal);
+        const c = document.getElementById(elChg);
+        if (!v || !c) return;
+        if (val === undefined || val === null) { v.textContent = '--'; c.textContent = '-'; return; }
+        v.innerHTML = val + '<span style="font-size:9px;color:#94a3b8;">' + unit + '</span>';
+        if (prevVal !== undefined && prevVal !== null) {
+          const d = (val - prevVal).toFixed(1);
+          if (d > 0) { c.textContent = '▲' + d + unit; c.style.color = '#ef4444'; }
+          else if (d < 0) { c.textContent = '▼' + Math.abs(d) + unit; c.style.color = '#22c55e'; }
+          else { c.textContent = '-'; c.style.color = '#94a3b8'; }
+        } else { c.textContent = '-'; c.style.color = '#94a3b8'; }
+      }
+      setMini('home-ib-fat-rate', 'home-ib-fat-rate-chg', latest.fatRate, prev?.fatRate, '%');
+      setMini('home-ib-muscle',   'home-ib-muscle-chg',   latest.muscle,  prev?.muscle,  'kg');
+      setMini('home-ib-weight',   'home-ib-weight-chg',   latest.weight,  prev?.weight,  'kg');
+
+      // 동기부여 메시지
+      const msg = document.getElementById('home-inbody-msg');
+      if (latest.fatRate !== undefined && prev?.fatRate !== undefined && latest.fatRate < prev.fatRate) {
+        msg.textContent = '💪 지방 줄고 있어요! 완벽한 방향이에요!';
+      } else if (latest.muscle !== undefined && prev?.muscle !== undefined && latest.muscle > prev.muscle) {
+        msg.textContent = '💪 근육이 늘고 있어요! 잘 하고 계세요!';
+      } else {
+        msg.textContent = '📊 꾸준히 기록하면 변화가 보여요!';
+      }
+    });
+  }
+
+  function openInbodyDetail() {
+    showScreen('screen-inbody-detail');
+    inbodyFilter = 3;
+    _updateInbodyFilterBtns(3);
+    _renderInbodyDetail();
+  }
+
+  function closeInbodyDetail() {
+    showScreen('screen-home');
+  }
+
+  function openInbodyInput() {
+    // 오늘 날짜 기본값 설정
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+    const dateEl = document.getElementById('inbody-input-date');
+    if (dateEl) dateEl.value = todayStr;
+    // 입력값 초기화
+    ['ib-inp-weight','ib-inp-muscle','ib-inp-fat','ib-inp-fatrate','ib-inp-bmi','ib-inp-bmr'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    showScreen('screen-inbody-input');
+  }
+
+  function closeInbodyInput() {
+    showScreen('screen-inbody-detail');
+  }
+
+  function saveInbodyData() {
+    const userId = localStorage.getItem('current_user');
+    if (!userId) return;
+    const date = document.getElementById('inbody-input-date').value;
+    if (!date) { showToast('날짜를 선택해주세요.', 'error'); return; }
+
+    const fields = {
+      weight:  parseFloat(document.getElementById('ib-inp-weight').value),
+      muscle:  parseFloat(document.getElementById('ib-inp-muscle').value),
+      fat:     parseFloat(document.getElementById('ib-inp-fat').value),
+      fatRate: parseFloat(document.getElementById('ib-inp-fatrate').value),
+      bmi:     parseFloat(document.getElementById('ib-inp-bmi').value),
+      bmr:     parseFloat(document.getElementById('ib-inp-bmr').value),
+    };
+    // 입력된 항목만 저장
+    const data = { savedAt: Date.now() };
+    let hasData = false;
+    Object.entries(fields).forEach(([k, v]) => {
+      if (!isNaN(v) && v > 0) { data[k] = v; hasData = true; }
+    });
+    if (!hasData) { showToast('최소 1개 항목을 입력해주세요.', 'error'); return; }
+
+    db.ref('users/' + userId + '/inbody/' + date).set(data).then(() => {
+      // 포인트 적립 (월 1회)
+      const monthStr = date.substring(0, 7); // YYYY-MM
+      db.ref('users/' + userId + '/inbody_point_month').once('value').then(snap => {
+        if (snap.val() === monthStr) {
+          showToast('📊 인바디 저장 완료!', 'success');
+        } else {
+          db.ref('point_settings/inbodyRecord').once('value').then(ptSnap => {
+            const pts = ptSnap.val() ?? 5;
+            if (pts > 0) {
+              db.ref('users/' + userId + '/points').transaction(cur => (cur || 0) + pts).then(() => {
+                db.ref('users/' + userId + '/inbody_point_month').set(monthStr);
+                showToast('📊 인바디 저장 +' + pts + 'P 적립!', 'success');
+                if (typeof checkPointTierCoupons === 'function') checkPointTierCoupons(userId, 0);
+                if (typeof updateStats === 'function') updateStats();
+              });
+            } else {
+              showToast('📊 인바디 저장 완료!', 'success');
+            }
+          });
+        }
+      });
+      showScreen('screen-inbody-detail');
+      _renderInbodyDetail();
+      loadHomeInbodySummary();
+    }).catch(() => showToast('저장 중 오류가 발생했어요.', 'error'));
+  }
+
+  function setInbodyFilter(months) {
+    inbodyFilter = months;
+    _updateInbodyFilterBtns(months);
+    _renderInbodyDetail();
+  }
+
+  function _updateInbodyFilterBtns(months) {
+    [3, 6, 0].forEach(m => {
+      const btn = document.getElementById('ibf-' + m);
+      if (!btn) return;
+      btn.style.background = m === months ? 'var(--blue)' : 'var(--card)';
+      btn.style.color      = m === months ? 'white'       : 'var(--text)';
+      btn.style.borderColor= m === months ? 'var(--blue)' : 'var(--border)';
+    });
+  }
+
+  function _renderInbodyDetail() {
+    const userId = localStorage.getItem('current_user');
+    if (!userId) return;
+    db.ref('users/' + userId + '/inbody').once('value').then(snap => {
+      const listEl  = document.getElementById('inbody-detail-list');
+      const msgBox  = document.getElementById('inbody-detail-msg');
+      const msgText = document.getElementById('inbody-detail-msg-text');
+      const cards   = document.getElementById('inbody-status-cards');
+      const rangeEl = document.getElementById('inbody-range-bars');
+      const canvas  = document.getElementById('inbody-detail-graph');
+      if (!listEl) return;
+
+      if (!snap.exists()) {
+        listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);">인바디 기록이 없어요</div>';
+        if (cards) cards.innerHTML = '';
+        if (rangeEl) rangeEl.style.display = 'none';
+        if (msgBox) msgBox.style.display = 'none';
+        return;
+      }
+
+      let all = [];
+      snap.forEach(c => all.push({ date: c.key, ...c.val() }));
+      all.sort((a, b) => b.date.localeCompare(a.date));
+
+      // 기간 필터
+      let filtered = all;
+      if (inbodyFilter > 0) {
+        const cutoff = new Date();
+        cutoff.setMonth(cutoff.getMonth() - inbodyFilter);
+        const cutStr = cutoff.toISOString().substring(0, 10);
+        filtered = all.filter(e => e.date >= cutStr);
+      }
+      if (filtered.length === 0) filtered = all.slice(0, 1);
+
+      const latest = filtered[0];
+      const prev   = filtered.length > 1 ? filtered[1] : null;
+
+      // 회원 정보로 표준범위 계산
+      db.ref('users/' + userId + '/body').once('value').then(bodySnap => {
+        const body   = bodySnap.val() || {};
+        const gender = body.gender || 'female';
+        const age    = parseInt(body.age) || 30;
+        // 표준 체지방률 범위 (성별/나이 기반)
+        let fatMin, fatMax;
+        if (gender === 'male') { fatMin = 10; fatMax = age >= 60 ? 25 : 20; }
+        else { fatMin = 18; fatMax = age >= 60 ? 30 : 28; }
+        // 표준 BMI
+        const bmiMin = 18.5, bmiMax = 24.9;
+
+        // 상태 카드 렌더
+        function badge(val, min, max, lbl) {
+          if (val === undefined || val === null) return '';
+          if (val >= min && val <= max) return `<span style="font-size:10px;padding:2px 6px;background:#dcfce7;color:#15803d;border-radius:10px;font-weight:700;">✅ 표준</span>`;
+          return `<span style="font-size:10px;padding:2px 6px;background:#fee2e2;color:#b91c1c;border-radius:10px;font-weight:700;">⚠️ 주의</span>`;
+        }
+        function chg(cur, prv, unit) {
+          if (prv === undefined || prv === null || cur === undefined) return '';
+          const d = parseFloat((cur - prv).toFixed(1));
+          if (d > 0) return `<span style="font-size:10px;color:#ef4444;">▲${d}${unit}</span>`;
+          if (d < 0) return `<span style="font-size:10px;color:#22c55e;">▼${Math.abs(d)}${unit}</span>`;
+          return `<span style="font-size:10px;color:#94a3b8;">변화없음</span>`;
+        }
+
+        let cardHtml = '';
+        if (latest.weight  !== undefined) cardHtml += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-hint);">체중</span>${badge(latest.weight,45,80)}</div><div style="font-size:18px;font-weight:700;color:var(--text);">${latest.weight}<span style="font-size:10px;color:var(--text-hint);font-weight:400;">kg</span></div>${chg(latest.weight,prev?.weight,'kg')}<div style="font-size:10px;color:var(--text-hint);margin-top:2px;">표준 45~80kg</div></div>`;
+        if (latest.muscle  !== undefined) cardHtml += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-hint);">골격근량</span>${badge(latest.muscle,18,28)}</div><div style="font-size:18px;font-weight:700;color:var(--text);">${latest.muscle}<span style="font-size:10px;color:var(--text-hint);font-weight:400;">kg</span></div>${chg(latest.muscle,prev?.muscle,'kg')}<div style="font-size:10px;color:var(--text-hint);margin-top:2px;">표준 18~28kg</div></div>`;
+        if (latest.fatRate !== undefined) cardHtml += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-hint);">체지방률</span>${badge(latest.fatRate,fatMin,fatMax)}</div><div style="font-size:18px;font-weight:700;color:var(--text);">${latest.fatRate}<span style="font-size:10px;color:var(--text-hint);font-weight:400;">%</span></div>${chg(latest.fatRate,prev?.fatRate,'%')}<div style="font-size:10px;color:var(--text-hint);margin-top:2px;">표준 ${fatMin}~${fatMax}%</div></div>`;
+        if (latest.bmi     !== undefined) cardHtml += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-hint);">BMI</span>${badge(latest.bmi,bmiMin,bmiMax)}</div><div style="font-size:18px;font-weight:700;color:var(--text);">${latest.bmi}</div>${chg(latest.bmi,prev?.bmi,'')}<div style="font-size:10px;color:var(--text-hint);margin-top:2px;">표준 18.5~24.9</div></div>`;
+        if (cards) cards.innerHTML = cardHtml;
+
+        // 표준범위 막대
+        if (rangeEl && (latest.fatRate !== undefined || latest.bmi !== undefined)) {
+          rangeEl.style.display = 'block';
+          function makeBar(label, val, min, max, globalMin, globalMax, unit) {
+            if (val === undefined || val === null) return '';
+            const range = globalMax - globalMin;
+            const stdLeft  = ((min - globalMin) / range * 100).toFixed(1);
+            const stdWidth = ((max - min) / range * 100).toFixed(1);
+            const myPos    = Math.min(Math.max(((val - globalMin) / range * 100), 2), 98).toFixed(1);
+            const isGood   = val >= min && val <= max;
+            return `<div style="margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                <span style="font-size:11px;color:var(--text-hint);">${label}</span>
+                <span style="font-size:10px;padding:1px 6px;border-radius:8px;${isGood?'background:#dcfce7;color:#15803d;':'background:#fee2e2;color:#b91c1c;'}font-weight:700;">${val}${unit} — ${isGood?'표준':'범위 벗어남'}</span>
+              </div>
+              <div style="position:relative;height:12px;background:#f1f5f9;border-radius:6px;overflow:hidden;">
+                <div style="position:absolute;left:${stdLeft}%;width:${stdWidth}%;height:100%;background:#dcfce7;"></div>
+                <div style="position:absolute;left:${myPos}%;width:3px;height:100%;background:#1a56db;transform:translateX(-50%);border-radius:2px;"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-hint);margin-top:2px;">
+                <span>${globalMin}${unit}</span><span>${min}${unit}</span><span>${max}${unit}</span><span>${globalMax}${unit}</span>
+              </div>
+            </div>`;
+          }
+          let rangeHtml = '';
+          if (latest.fatRate !== undefined) rangeHtml += makeBar('체지방률', latest.fatRate, fatMin, fatMax, 5, 45, '%');
+          if (latest.bmi     !== undefined) rangeHtml += makeBar('BMI', latest.bmi, 18.5, 24.9, 14, 35, '');
+          if (latest.muscle  !== undefined) rangeHtml += makeBar('골격근량', latest.muscle, 18, 28, 10, 40, 'kg');
+          document.getElementById('inbody-range-content').innerHTML = rangeHtml;
+        }
+
+        // 동기부여 메시지
+        if (msgBox && msgText) {
+          msgBox.style.display = 'block';
+          if (prev && latest.fatRate !== undefined && prev.fatRate !== undefined && latest.fatRate < prev.fatRate) {
+            msgText.textContent = '💪 체지방이 줄고 있어요! 완벽한 방향이에요!';
+          } else if (prev && latest.muscle !== undefined && prev.muscle !== undefined && latest.muscle > prev.muscle) {
+            msgText.textContent = '💪 근육이 늘고 있어요! 잘 하고 계세요!';
+          } else if (latest.fatRate !== undefined && latest.fatRate > fatMax) {
+            const diff = (latest.fatRate - fatMax).toFixed(1);
+            msgText.textContent = '📊 체지방률 표준까지 ' + diff + '% 남았어요. 할 수 있어요!';
+          } else {
+            msgText.textContent = '📊 꾸준히 기록하면 변화가 보여요!';
+          }
+        }
+
+        // 추이 그래프 (canvas)
+        if (canvas && filtered.length >= 1) {
+          const chartData = [...filtered].reverse();
+          const ctx = canvas.getContext('2d');
+          const W = canvas.offsetWidth || 300;
+          const H = 160;
+          canvas.width  = W;
+          canvas.height = H;
+          ctx.clearRect(0, 0, W, H);
+
+          const pad = { l: 30, r: 20, t: 16, b: 28 };
+          const cW  = W - pad.l - pad.r;
+          const cH  = H - pad.t - pad.b;
+          const n   = chartData.length;
+
+          function xPos(i) { return pad.l + (n < 2 ? cW/2 : i / (n-1) * cW); }
+
+          function drawLine(key, color) {
+            const vals = chartData.map(e => e[key]).filter(v => v !== undefined);
+            if (vals.length < 1) return;
+            const min = Math.min(...vals) * 0.95;
+            const max = Math.max(...vals) * 1.05;
+            const range = max - min || 1;
+            function yPos(v) { return pad.t + cH - (v - min) / range * cH; }
+
+            // 표준범위 음영 (체지방률만)
+            if (key === 'fatRate') {
+              ctx.fillStyle = 'rgba(220,252,231,0.5)';
+              const yStdTop = pad.t + cH - (fatMax - min) / range * cH;
+              const yStdBot = pad.t + cH - (fatMin - min) / range * cH;
+              if (yStdTop < pad.t + cH && yStdBot > pad.t) {
+                ctx.fillRect(pad.l, Math.max(yStdTop, pad.t), cW, Math.min(yStdBot, pad.t + cH) - Math.max(yStdTop, pad.t));
+              }
+            }
+
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.lineJoin = 'round';
+            chartData.forEach((e, i) => {
+              if (e[key] === undefined) return;
+              const x = xPos(i), y = yPos(e[key]);
+              i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+            // 점
+            chartData.forEach((e, i) => {
+              if (e[key] === undefined) return;
+              ctx.beginPath();
+              ctx.arc(xPos(i), yPos(e[key]), 3, 0, Math.PI*2);
+              ctx.fillStyle = 'white';
+              ctx.fill();
+              ctx.strokeStyle = color;
+              ctx.lineWidth = 2;
+              ctx.stroke();
+            });
+          }
+
+          // x축 날짜 레이블
+          ctx.fillStyle = '#94a3b8';
+          ctx.font = '9px sans-serif';
+          ctx.textAlign = 'center';
+          chartData.forEach((e, i) => {
+            if (n <= 5 || i % Math.ceil(n/5) === 0) {
+              ctx.fillText(e.date.substring(5), xPos(i), H - 4);
+            }
+          });
+
+          drawLine('weight',  '#1a56db');
+          drawLine('fatRate', '#ef4444');
+          drawLine('muscle',  '#22c55e');
+        }
+
+        // 이력 목록
+        let listHtml = '';
+        filtered.forEach(e => {
+          const parts = [];
+          if (e.weight  !== undefined) parts.push(e.weight  + 'kg');
+          if (e.fatRate !== undefined) parts.push('지방' + e.fatRate + '%');
+          if (e.muscle  !== undefined) parts.push('근육' + e.muscle  + 'kg');
+          if (e.bmi     !== undefined) parts.push('BMI ' + e.bmi);
+          listHtml += `<div style="display:flex;justify-content:space-between;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:6px;">
+            <span style="font-size:12px;color:var(--text-hint);">${e.date}</span>
+            <span style="font-size:12px;color:var(--text);">${parts.join(' · ')}</span>
+          </div>`;
+        });
+        if (listEl) listEl.innerHTML = listHtml || '<div style="text-align:center;padding:16px;color:var(--text-hint);">해당 기간 기록이 없어요</div>';
+      });
+    });
+  }
+  // ── 인바디 기능 끝 ──────────────────────────────────────
 
   function setWeightFilter(days) {
     weightFilter = days;
