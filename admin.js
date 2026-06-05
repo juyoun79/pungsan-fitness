@@ -647,8 +647,11 @@
         if (info.addedAt && isThisMonth(new Date(info.addedAt).toISOString().slice(0,10))) newMembers++;
         const regs = info.registrations ? Object.values(info.registrations) : [];
         const thisMonthRegs = regs.filter(r => r && r.date && isThisMonth(r.date));
-        if (thisMonthRegs.length > 0) { reMembers++; reRegThisMonth.push(info.name || memberId); }
-        if (info.expiredAt && isThisMonth(info.expiredAt)) expiredThisMonth.push(info.name || memberId);
+        if (thisMonthRegs.length > 0) reMembers++;
+        const hasReRegThisMonth2 = thisMonthRegs.length > 0;
+        const hasExpiredThisMonth2 = info.expiredAt && isThisMonth(info.expiredAt);
+        if (hasReRegThisMonth2) reRegThisMonth.push(info.name || memberId);
+        if (hasExpiredThisMonth2 && !hasReRegThisMonth2) expiredThisMonth.push(info.name || memberId);
         return db.ref('trainers/' + trainerId + '/trainees/' + memberId + '/signs').once('value', sSnap => {
           let lastSignTime = 0;
           if (sSnap.exists()) {
@@ -672,7 +675,7 @@
         set('rpt-total-remain', totalRemain);
         set('rpt-inactive-members', inactiveMembers);
         const reRegDone = reRegThisMonth.length;
-        const reRegNotDone = Math.max(0, expiredThisMonth.length - reRegDone);
+        const reRegNotDone = expiredThisMonth.length; // 이미 미재등록만 들어있음
         set('rpt-rereg-done', reRegDone);
         set('rpt-rereg-not', reRegNotDone);
         set('rpt-remain-0', remain0.length);
@@ -5209,16 +5212,20 @@
         const thisMonthRegs = regs.filter(r => r && r.date && isThisMonth(r.date));
         if (thisMonthRegs.length > 0) reMembers++;
 
-        // 이번 달 만료 회원 (expiredAt 기준)
-        if (info.expiredAt && isThisMonth(info.expiredAt)) {
-          expiredThisMonth.push(info.name || memberId);
-        }
-
-        // 이번 달 만료 + 재등록 여부 (재등록률 계산)
-        const hasReRegThisMonth = thisMonthRegs.length > 0;
+        // 재등록률 계산용
+        // 분모: 이번 달 만료 OR 이번 달 재등록한 회원 (중복 제거)
+        // 분자: 이번 달 재등록한 회원
         const hasExpiredThisMonth = info.expiredAt && isThisMonth(info.expiredAt);
-        if (hasExpiredThisMonth || hasReRegThisMonth) {
-          if (hasReRegThisMonth) reRegThisMonth.push(info.name || memberId);
+        const hasReRegThisMonth = thisMonthRegs.length > 0;
+
+        // 조건1: 이번달 만료 → 이번달 재등록 ✅ 분모+분자
+        // 조건2: 전달 만료 → 이번달 재등록 ✅ 분모+분자 (expiredAt이 있고 재등록이 이번달)
+        // 조건3: 잔여 있는데 이번달 재등록 ✅ 분모+분자
+        if (hasReRegThisMonth) {
+          reRegThisMonth.push(info.name || memberId); // 분자
+        }
+        if (hasExpiredThisMonth && !hasReRegThisMonth) {
+          expiredThisMonth.push(info.name || memberId); // 분모만 (미재등록)
         }
 
         return db.ref('trainers/' + trainerId + '/trainees/' + memberId + '/signs').once('value', sSnap => {
@@ -5259,9 +5266,10 @@
         set('th-remain-ok', remainOk.length);
 
         // 재등록률 계산
-        const reRegTotal = expiredThisMonth.length + reMembers;
+        // 분자: 이번달 재등록한 회원 수
+        // 분모: 이번달 재등록한 회원 + 이번달 만료됐는데 미재등록 회원
         const reRegDone = reRegThisMonth.length;
-        const reRegNotDone = Math.max(0, expiredThisMonth.length - reRegDone);
+        const reRegNotDone = expiredThisMonth.length; // 이미 미재등록만 들어있음
         set('th-rereg-done', reRegDone);
         set('th-rereg-not', reRegNotDone);
 
