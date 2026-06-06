@@ -18,6 +18,17 @@ export default {
     }
 
     // 푸시알림 발송 API
+    // 버전 확인 API
+    if (url.pathname === '/api/version') {
+      return new Response(JSON.stringify({ version: '1.1.6' }), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      });
+    }
+
     if (url.pathname === '/api/notify' && request.method === 'POST') {
       return handleNotify(request, env);
     }

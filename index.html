@@ -5831,15 +5831,20 @@
         }
       });
 
-      // ── 앱 시작 시 SW에 버전 확인 요청 (iOS 대응) ──
-      // showUpdateToast 함수 선언 이후에 실행되도록 setTimeout 사용
+      // ── 앱 시작 시 서버 버전 확인 (fetch 방식 - 가장 확실) ──
       setTimeout(() => {
-        navigator.serviceWorker.ready.then(reg => {
-          if (reg.active) {
-            reg.active.postMessage({ type: 'GET_VERSION' });
-          }
-        }).catch(() => {});
-      }, 500);
+        fetch('/api/version?t=' + Date.now(), { cache: 'no-store' })
+          .then(r => r.json())
+          .then(data => {
+            const serverVer = data.version;
+            const localVer  = localStorage.getItem('app_version');
+            if (localVer && localVer !== serverVer) {
+              showUpdateToast();
+            }
+            localStorage.setItem('app_version', serverVer);
+          })
+          .catch(() => {});
+      }, 1000);
     }
 
     // 슬라이드업 애니메이션
