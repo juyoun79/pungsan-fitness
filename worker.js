@@ -20,7 +20,7 @@ export default {
     // 푸시알림 발송 API
     // 버전 확인 API
     if (url.pathname === '/api/version') {
-      return new Response(JSON.stringify({ version: '1.1.6' }), {
+      return new Response(JSON.stringify({ version: '1.1.8' }), {
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
