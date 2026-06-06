@@ -466,7 +466,7 @@
             </div>
           </div>
           <div id="home-inbody-msg" style="font-size:12px;font-weight:600;color:#1a56db;margin-bottom:10px;min-height:16px;"></div>
-          <button onclick="openInbodyDetail()" style="width:100%;padding:9px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 인바디 입력</button>
+          <button onclick="openInbodyInput()" style="width:100%;padding:9px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 인바디 입력</button>
         </div>
       </div>
 
@@ -3259,13 +3259,12 @@
       </div>
 
       <!-- 탭 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr;gap:6px;margin-bottom:16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:6px;margin-bottom:16px;">
         <button id="trainee-tab-record" onclick="switchTraineeTab('record')" style="padding:10px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;line-height:1.4;">수업<br>기록</button>
         <button id="trainee-tab-sign" onclick="switchTraineeTab('sign')" style="padding:10px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;line-height:1.4;">서명<br>기록</button>
-        <button id="trainee-tab-memo" onclick="switchTraineeTab('memo')" style="padding:10px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;line-height:1.4;">회원<br>메모</button>
+        <button id="trainee-tab-memo" onclick="switchTraineeTab('memo')" style="padding:10px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;line-height:1.4;">메모/<br>인바디</button>
         <button id="trainee-tab-log" onclick="switchTraineeTab('log')" style="padding:10px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;line-height:1.4;">수업<br>일지</button>
         <button id="trainee-tab-routine" onclick="switchTraineeTab('routine')" style="padding:10px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;line-height:1.4;">운동<br>루틴</button>
-        <button id="trainee-tab-inbody" onclick="switchTraineeTab('inbody')" style="padding:10px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;line-height:1.4;">인바디<br>기록</button>
       </div>
 
       <!-- 탭 내용 -->
