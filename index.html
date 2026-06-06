@@ -5832,11 +5832,14 @@
       });
 
       // ── 앱 시작 시 SW에 버전 확인 요청 (iOS 대응) ──
-      navigator.serviceWorker.ready.then(reg => {
-        if (reg.active) {
-          reg.active.postMessage({ type: 'GET_VERSION' });
-        }
-      }).catch(() => {});
+      // showUpdateToast 함수 선언 이후에 실행되도록 setTimeout 사용
+      setTimeout(() => {
+        navigator.serviceWorker.ready.then(reg => {
+          if (reg.active) {
+            reg.active.postMessage({ type: 'GET_VERSION' });
+          }
+        }).catch(() => {});
+      }, 500);
     }
 
     // 슬라이드업 애니메이션
