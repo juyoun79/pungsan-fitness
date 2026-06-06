@@ -447,26 +447,37 @@
             <div style="font-size:13px;font-weight:700;color:#1e293b;">📊 인바디 변화</div>
             <button onclick="openInbodyDetail()" style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📊 전체보기</button>
           </div>
-          <!-- 최근 수치 미니 요약 -->
-          <div id="home-inbody-summary" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;">
-            <div style="background:#f0f4ff;border-radius:8px;padding:7px;text-align:center;">
-              <div style="font-size:9px;color:#1a56db;font-weight:700;">체지방률</div>
-              <div id="home-ib-fat-rate" style="font-size:14px;font-weight:700;color:#1e293b;">--</div>
-              <div id="home-ib-fat-rate-chg" style="font-size:9px;color:#94a3b8;">-</div>
+          <!-- 최근 수치 미니 요약 4개 -->
+          <div id="home-inbody-summary" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-bottom:10px;">
+            <div style="background:#f0f4ff;border-radius:8px;padding:7px 4px;text-align:center;">
+              <div style="font-size:9px;color:#1a56db;font-weight:700;margin-bottom:2px;">체지방률</div>
+              <div id="home-ib-fat-rate" style="font-size:15px;font-weight:700;color:#1e293b;line-height:1.2;">--</div>
+              <div id="home-ib-fat-rate-chg" style="font-size:9px;color:#94a3b8;margin-top:2px;">-</div>
             </div>
-            <div style="background:#f0f4ff;border-radius:8px;padding:7px;text-align:center;">
-              <div style="font-size:9px;color:#1a56db;font-weight:700;">골격근량</div>
-              <div id="home-ib-muscle" style="font-size:14px;font-weight:700;color:#1e293b;">--</div>
-              <div id="home-ib-muscle-chg" style="font-size:9px;color:#94a3b8;">-</div>
+            <div style="background:#f0f4ff;border-radius:8px;padding:7px 4px;text-align:center;">
+              <div style="font-size:9px;color:#1a56db;font-weight:700;margin-bottom:2px;">골격근량</div>
+              <div id="home-ib-muscle" style="font-size:15px;font-weight:700;color:#1e293b;line-height:1.2;">--</div>
+              <div id="home-ib-muscle-chg" style="font-size:9px;color:#94a3b8;margin-top:2px;">-</div>
             </div>
-            <div style="background:#f0f4ff;border-radius:8px;padding:7px;text-align:center;">
-              <div style="font-size:9px;color:#1a56db;font-weight:700;">체중</div>
-              <div id="home-ib-weight" style="font-size:14px;font-weight:700;color:#1e293b;">--</div>
-              <div id="home-ib-weight-chg" style="font-size:9px;color:#94a3b8;">-</div>
+            <div style="background:#f0f4ff;border-radius:8px;padding:7px 4px;text-align:center;">
+              <div style="font-size:9px;color:#1a56db;font-weight:700;margin-bottom:2px;">체중</div>
+              <div id="home-ib-weight" style="font-size:15px;font-weight:700;color:#1e293b;line-height:1.2;">--</div>
+              <div id="home-ib-weight-chg" style="font-size:9px;color:#94a3b8;margin-top:2px;">-</div>
+            </div>
+            <!-- 신체발달점수 도넛 -->
+            <div style="background:#f0f4ff;border-radius:8px;padding:7px 4px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;" onclick="openInbodyDetail()">
+              <div style="font-size:9px;color:#1a56db;font-weight:700;margin-bottom:2px;">발달점수</div>
+              <svg id="home-ib-score-svg" width="36" height="36" viewBox="0 0 38 38">
+                <circle cx="19" cy="19" r="14" fill="none" stroke="#e2e8f0" stroke-width="5"/>
+                <circle id="home-ib-score-arc" cx="19" cy="19" r="14" fill="none" stroke="#94a3b8" stroke-width="5"
+                  stroke-dasharray="0 88" stroke-dashoffset="22" stroke-linecap="round"/>
+                <text id="home-ib-score-text" x="19" y="23" text-anchor="middle" font-size="9" font-weight="700" fill="#94a3b8">--</text>
+              </svg>
+              <div id="home-ib-score-grade" style="font-size:9px;color:#94a3b8;font-weight:700;margin-top:1px;">-</div>
             </div>
           </div>
           <div id="home-inbody-msg" style="font-size:12px;font-weight:600;color:#1a56db;margin-bottom:10px;min-height:16px;"></div>
-          <button onclick="openInbodyInput()" style="width:100%;padding:9px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 인바디 입력</button>
+          <button onclick="openInbodyInput('home')" style="width:100%;padding:9px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 인바디 입력</button>
         </div>
       </div>
 
@@ -662,7 +673,78 @@
       <div id="inbody-detail-msg" style="display:none;background:#eff6ff;border-radius:10px;padding:10px 14px;margin-bottom:14px;border-left:3px solid #1a56db;">
         <div id="inbody-detail-msg-text" style="font-size:12px;font-weight:700;color:#1e40af;"></div>
       </div>
-      <!-- 상태 카드 4개 -->
+
+      <!-- 신체발달점수 카드 -->
+      <div id="inbody-score-section" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);">💪 신체발달점수</div>
+          <div id="inbody-score-date" style="font-size:10px;color:var(--text-hint);"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+          <!-- 원형 게이지 -->
+          <div style="flex-shrink:0;">
+            <svg id="inbody-score-gauge" width="88" height="88" viewBox="0 0 90 90">
+              <circle cx="45" cy="45" r="36" fill="none" stroke="#f1f5f9" stroke-width="7"/>
+              <circle id="inbody-score-arc" cx="45" cy="45" r="36" fill="none" stroke="#94a3b8" stroke-width="7"
+                stroke-dasharray="0 226" stroke-dashoffset="56" stroke-linecap="round"/>
+              <text id="inbody-score-num" x="45" y="41" text-anchor="middle" font-size="22" font-weight="700" fill="#94a3b8">--</text>
+              <text x="45" y="54" text-anchor="middle" font-size="10" fill="#94a3b8">/ 100</text>
+            </svg>
+          </div>
+          <div style="flex:1;">
+            <div id="inbody-score-grade-badge" style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;margin-bottom:6px;background:#f1f5f9;color:#94a3b8;">-</div>
+            <div id="inbody-score-msg" style="font-size:12px;color:var(--text-hint);line-height:1.5;margin-bottom:6px;"></div>
+            <div id="inbody-score-chg" style="font-size:11px;color:var(--text-hint);"></div>
+          </div>
+        </div>
+        <!-- 등급 바 -->
+        <div style="display:flex;margin-bottom:6px;">
+          <div style="flex:1;text-align:center;font-size:8px;color:#dc2626;">🔴매우약함</div>
+          <div style="flex:1;text-align:center;font-size:8px;color:#ea580c;">🟠약함</div>
+          <div style="flex:1;text-align:center;font-size:8px;color:#ca8a04;">🟡보통</div>
+          <div style="flex:1;text-align:center;font-size:8px;color:#2563eb;">🔵강함</div>
+          <div style="flex:1;text-align:center;font-size:8px;color:#16a34a;">💚매우강함</div>
+        </div>
+        <div style="position:relative;height:10px;border-radius:6px;overflow:hidden;margin-bottom:5px;">
+          <div style="display:flex;height:100%;">
+            <div style="flex:1;background:#fee2e2;"></div>
+            <div style="flex:1;background:#fed7aa;"></div>
+            <div style="flex:1;background:#fef08a;"></div>
+            <div style="flex:1;background:#bfdbfe;"></div>
+            <div style="flex:1;background:#bbf7d0;"></div>
+          </div>
+          <div id="inbody-score-marker" style="position:absolute;top:-2px;left:0%;transform:translateX(-50%);width:4px;height:14px;background:#1e293b;border-radius:2px;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-hint);margin-bottom:12px;">
+          <span>0</span><span>60</span><span>70</span><span>80</span><span>90</span><span>100</span>
+        </div>
+        <!-- 세부 점수 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div style="background:var(--bg);border-radius:8px;padding:9px 11px;">
+            <div style="font-size:10px;color:var(--text-hint);margin-bottom:3px;">💪 근육 점수</div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+              <span id="inbody-muscle-score" style="font-size:16px;font-weight:700;color:#1a56db;">-</span>
+              <span style="font-size:10px;color:var(--text-hint);">점</span>
+            </div>
+            <div style="height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden;">
+              <div id="inbody-muscle-score-bar" style="height:100%;border-radius:2px;background:#1a56db;width:0%;"></div>
+            </div>
+            <div id="inbody-muscle-score-sub" style="font-size:10px;color:var(--text-hint);margin-top:3px;"></div>
+          </div>
+          <div style="background:var(--bg);border-radius:8px;padding:9px 11px;">
+            <div style="font-size:10px;color:var(--text-hint);margin-bottom:3px;">🔥 체지방 점수</div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+              <span id="inbody-fat-score" style="font-size:16px;font-weight:700;color:#ef4444;">-</span>
+              <span style="font-size:10px;color:var(--text-hint);">점</span>
+            </div>
+            <div style="height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden;">
+              <div id="inbody-fat-score-bar" style="height:100%;border-radius:2px;background:#ef4444;width:0%;"></div>
+            </div>
+            <div id="inbody-fat-score-sub" style="font-size:10px;color:var(--text-hint);margin-top:3px;"></div>
+          </div>
+        </div>
+      </div>
+
       <div id="inbody-status-cards" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;"></div>
       <!-- 표준범위 막대 -->
       <div id="inbody-range-bars" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px;display:none;">
@@ -733,6 +815,20 @@
 
       <div style="margin-top:14px;padding:10px 14px;background:#eff6ff;border-radius:10px;border-left:3px solid #1a56db;">
         <div style="font-size:11px;color:#1e40af;line-height:1.6;">💡 내 정보 탭에서 성별·나이·키·체중을 정확히 입력할수록 표준범위가 더 정확해져요!</div>
+      </div>
+
+      <!-- 신체발달점수 기준 -->
+      <div style="margin-top:14px;background:var(--bg);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">💪 신체발달점수</div>
+        <div style="font-size:12px;color:var(--text-hint);line-height:1.6;margin-bottom:8px;">골격근량과 체지방량을 표준값과 비교해 계산해요.<br><span style="color:var(--blue);">80점 기준 + 근육 초과 kg당 +1점 − 체지방 초과 kg당 −1.3점</span></div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:11px;">
+          <span style="color:#16a34a;font-weight:700;">💚 90~100점</span><span style="color:var(--text);">매우강함 — 완벽한 체성분</span>
+          <span style="color:#2563eb;font-weight:700;">🔵 80~89점</span><span style="color:var(--text);">강함 — 건강한 체성분</span>
+          <span style="color:#ca8a04;font-weight:700;">🟡 70~79점</span><span style="color:var(--text);">보통 — 개선 여지 있음</span>
+          <span style="color:#ea580c;font-weight:700;">🟠 60~69점</span><span style="color:var(--text);">약함 — 체성분 관리 필요</span>
+          <span style="color:#dc2626;font-weight:700;">🔴 60점 미만</span><span style="color:var(--text);">매우약함 — 적극적 관리 필요</span>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text-hint);">※ 골격근량과 체지방량 둘 다 입력 시 표시돼요</div>
       </div>
     </div>
   </div>
@@ -4697,6 +4793,9 @@
       setMini('home-ib-muscle',   'home-ib-muscle-chg',   latest.muscle,  prev?.muscle,  'kg');
       setMini('home-ib-weight',   'home-ib-weight-chg',   latest.weight,  prev?.weight,  'kg');
 
+      // 신체발달점수 도넛 업데이트
+      _updateHomeScoreDonut(latest);
+
       // 동기부여 메시지
       const msg = document.getElementById('home-inbody-msg');
       if (latest.fatRate !== undefined && prev?.fatRate !== undefined && latest.fatRate < prev.fatRate) {
@@ -4708,6 +4807,50 @@
       }
     });
   }
+
+  // ── 신체발달점수 계산 ──────────────────────────────────────
+  function calcInbodyScore(muscle, fat, height, gender) {
+    if (muscle === undefined || fat === undefined || !height) return null;
+    const h = height / 100;
+    const stdWeight  = h * h * (gender === 'male' ? 22 : 21);
+    const stdMuscle  = stdWeight * (gender === 'male' ? 0.45 : 0.37);
+    const stdFat     = stdWeight * (gender === 'male' ? 0.15 : 0.23);
+    const score = 80 + (muscle - stdMuscle) * 1.0 - (fat - stdFat) * 1.3;
+    return Math.min(100, Math.max(0, Math.round(score)));
+  }
+
+  function getScoreGrade(score) {
+    if (score === null) return { label: '-', color: '#94a3b8' };
+    if (score >= 90) return { label: '💚매우강함', color: '#16a34a' };
+    if (score >= 80) return { label: '🔵강함',    color: '#2563eb' };
+    if (score >= 70) return { label: '🟡보통',    color: '#ca8a04' };
+    if (score >= 60) return { label: '🟠약함',    color: '#ea580c' };
+    return              { label: '🔴매우약함',    color: '#dc2626' };
+  }
+
+  function _updateHomeScoreDonut(latest) {
+    const userId = localStorage.getItem('current_user');
+    const height = parseFloat(localStorage.getItem('body_height_' + userId)) || 0;
+    const gender = localStorage.getItem('body_gender_' + userId) || 'female';
+    const arc    = document.getElementById('home-ib-score-arc');
+    const txt    = document.getElementById('home-ib-score-text');
+    const grade  = document.getElementById('home-ib-score-grade');
+    if (!arc || !txt || !grade) return;
+
+    const score = calcInbodyScore(latest.muscle, latest.fat, height, gender);
+    if (score === null) return;
+
+    const g = getScoreGrade(score);
+    const circumference = 88;
+    const filled = (score / 100) * circumference;
+    arc.setAttribute('stroke-dasharray', filled + ' ' + circumference);
+    arc.setAttribute('stroke', g.color);
+    txt.textContent = score;
+    txt.setAttribute('fill', g.color);
+    grade.textContent = g.label;
+    grade.style.color = g.color;
+  }
+  // ── 신체발달점수 계산 끝 ──────────────────────────────────────
 
   function openInbodyDetail() {
     showScreen('screen-inbody-detail');
@@ -5020,6 +5163,90 @@
           } else {
             msgText.textContent = '📊 꾸준히 기록하면 변화가 보여요!';
           }
+        }
+
+        // ── 신체발달점수 카드 렌더링 ──
+        const scoreSection = document.getElementById('inbody-score-section');
+        if (scoreSection && latest.muscle !== undefined && latest.fat !== undefined) {
+          scoreSection.style.display = 'block';
+          const score     = calcInbodyScore(latest.muscle, latest.fat, height, gender);
+          const prevScore = (prev && prev.muscle !== undefined && prev.fat !== undefined)
+            ? calcInbodyScore(prev.muscle, prev.fat, height, gender) : null;
+          const g = getScoreGrade(score);
+
+          // 게이지 업데이트
+          const arc = document.getElementById('inbody-score-arc');
+          const num = document.getElementById('inbody-score-num');
+          if (arc && num) {
+            const filled = (score / 100) * 226;
+            arc.setAttribute('stroke-dasharray', filled + ' 226');
+            arc.setAttribute('stroke', g.color);
+            num.textContent = score;
+            num.setAttribute('fill', g.color);
+          }
+
+          // 등급 뱃지
+          const badge = document.getElementById('inbody-score-grade-badge');
+          if (badge) {
+            badge.textContent = g.label;
+            badge.style.background = g.color + '20';
+            badge.style.color = g.color;
+          }
+
+          // 마커 위치
+          const marker = document.getElementById('inbody-score-marker');
+          if (marker) marker.style.left = score + '%';
+
+          // 날짜
+          const dateEl = document.getElementById('inbody-score-date');
+          if (dateEl) dateEl.textContent = latest.date + ' 기준';
+
+          // 변화량
+          const chgEl = document.getElementById('inbody-score-chg');
+          if (chgEl) {
+            if (prevScore !== null) {
+              const diff = score - prevScore;
+              if (diff > 0) chgEl.innerHTML = '<span style="color:#16a34a;">▲ ' + diff + '점 올랐어요!</span>';
+              else if (diff < 0) chgEl.innerHTML = '<span style="color:#dc2626;">▼ ' + Math.abs(diff) + '점 내렸어요</span>';
+              else chgEl.innerHTML = '<span style="color:#94a3b8;">이전과 동일해요</span>';
+            } else {
+              chgEl.textContent = '첫 측정 — 다음 측정과 비교해요';
+            }
+          }
+
+          // 메시지
+          const scoreMsg = document.getElementById('inbody-score-msg');
+          if (scoreMsg) {
+            if (score >= 90) scoreMsg.textContent = '완벽한 체성분이에요!';
+            else if (score >= 80) scoreMsg.textContent = '건강한 몸 상태예요!';
+            else if (score >= 70) scoreMsg.textContent = '체성분 개선 여지가 있어요';
+            else if (score >= 60) scoreMsg.textContent = '체지방을 줄이는 게 최우선이에요';
+            else scoreMsg.textContent = '지금 당장 체성분 관리가 필요해요!';
+          }
+
+          // 세부 점수
+          const h2 = height / 100;
+          const stdW = h2 * h2 * (gender === 'male' ? 22 : 21);
+          const stdMuscle = stdW * (gender === 'male' ? 0.45 : 0.37);
+          const stdFat    = stdW * (gender === 'male' ? 0.15 : 0.23);
+          const muscleScore = parseFloat(((latest.muscle - stdMuscle) * 1.0).toFixed(1));
+          const fatScore    = parseFloat(((latest.fat    - stdFat)    * 1.3).toFixed(1));
+
+          const mScoreEl  = document.getElementById('inbody-muscle-score');
+          const mBarEl    = document.getElementById('inbody-muscle-score-bar');
+          const mSubEl    = document.getElementById('inbody-muscle-score-sub');
+          if (mScoreEl) { mScoreEl.textContent = (muscleScore >= 0 ? '+' : '') + muscleScore; mScoreEl.style.color = muscleScore >= 0 ? '#1a56db' : '#ef4444'; }
+          if (mBarEl)   { mBarEl.style.width = Math.min(100, Math.abs(muscleScore) * 5) + '%'; }
+          if (mSubEl)   { mSubEl.textContent = '표준 대비 ' + (muscleScore >= 0 ? '+' : '') + (latest.muscle - stdMuscle).toFixed(1) + 'kg'; }
+
+          const fScoreEl  = document.getElementById('inbody-fat-score');
+          const fBarEl    = document.getElementById('inbody-fat-score-bar');
+          const fSubEl    = document.getElementById('inbody-fat-score-sub');
+          if (fScoreEl) { fScoreEl.textContent = (fatScore > 0 ? '-' : '+') + Math.abs(fatScore); fScoreEl.style.color = fatScore > 0 ? '#ef4444' : '#16a34a'; }
+          if (fBarEl)   { fBarEl.style.width = Math.min(100, Math.abs(fatScore) * 3) + '%'; fBarEl.style.background = fatScore > 0 ? '#ef4444' : '#16a34a'; }
+          if (fSubEl)   { fSubEl.textContent = '표준 대비 ' + (latest.fat - stdFat > 0 ? '+' : '') + (latest.fat - stdFat).toFixed(1) + 'kg'; }
+        } else if (scoreSection) {
+          scoreSection.style.display = 'none';
         }
 
         // ── 추이 그래프 (canvas) ──

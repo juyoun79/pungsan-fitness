@@ -2471,6 +2471,30 @@
 
         subContent.innerHTML = `
           <div style="font-size:12px;color:var(--text-hint);margin-bottom:8px;">최근 측정: ${list[0][0]}</div>
+          ${(latest.muscle !== undefined && latest.fat !== undefined) ? (() => {
+            const h2 = height / 100;
+            const stdW = h2 * h2 * (gender === 'male' ? 22 : 21);
+            const stdMuscle = stdW * (gender === 'male' ? 0.45 : 0.37);
+            const stdFat    = stdW * (gender === 'male' ? 0.15 : 0.23);
+            const sc = Math.min(100, Math.max(0, Math.round(80 + (latest.muscle - stdMuscle) * 1.0 - (latest.fat - stdFat) * 1.3)));
+            const color = sc >= 90 ? '#16a34a' : sc >= 80 ? '#2563eb' : sc >= 70 ? '#ca8a04' : sc >= 60 ? '#ea580c' : '#dc2626';
+            const label = sc >= 90 ? '💚 매우강함' : sc >= 80 ? '🔵 강함' : sc >= 70 ? '🟡 보통' : sc >= 60 ? '🟠 약함' : '🔴 매우약함';
+            const filled = (sc / 100) * 226;
+            return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:12px;display:flex;align-items:center;gap:12px;">
+              <svg width="70" height="70" viewBox="0 0 90 90" style="flex-shrink:0;">
+                <circle cx="45" cy="45" r="36" fill="none" stroke="#f1f5f9" stroke-width="7"/>
+                <circle cx="45" cy="45" r="36" fill="none" stroke="${color}" stroke-width="7"
+                  stroke-dasharray="${filled} 226" stroke-dashoffset="56" stroke-linecap="round"/>
+                <text x="45" y="41" text-anchor="middle" font-size="20" font-weight="700" fill="${color}">${sc}</text>
+                <text x="45" y="54" text-anchor="middle" font-size="9" fill="#94a3b8">/ 100</text>
+              </svg>
+              <div>
+                <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">💪 신체발달점수</div>
+                <div style="font-size:16px;font-weight:700;color:${color};">${label}</div>
+                <div style="font-size:11px;color:var(--text-hint);margin-top:4px;">근육 ${(latest.muscle - stdMuscle > 0 ? '+' : '')}${(latest.muscle - stdMuscle).toFixed(1)}kg / 체지방 ${(latest.fat - stdFat > 0 ? '+' : '')}${(latest.fat - stdFat).toFixed(1)}kg</div>
+              </div>
+            </div>`;
+          })() : ''}
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">${cards || '<div style="grid-column:1/-1;text-align:center;color:var(--text-hint);font-size:13px;">수치 데이터가 없어요</div>'}</div>
           <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">측정 이력</div>
           ${history}
