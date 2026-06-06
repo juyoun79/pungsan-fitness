@@ -4,7 +4,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
 // ── 앱 버전 (배포할 때마다 숫자 1씩 올려주세요) ──
-const APP_VERSION = '1.0.7';
+const APP_VERSION = '1.1.2';
 const CACHE_NAME  = 'pungsan-v' + APP_VERSION;
 
 const CACHE_TARGETS = ['/index.html', '/style.css', '/admin.js', '/workout.js', '/community.js', '/diet.js', '/messages.js', '/equipment.js', '/manifest.json'];
@@ -76,8 +76,14 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+// ── 앱에서 버전 조회 요청 처리 ──
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.source.postMessage({ type: 'SW_VERSION', version: APP_VERSION });
+  }
+});
+
 firebase.initializeApp({
-  apiKey: "AIzaSyBlp0SIVRO0SKZWGGa7OLyhnEZTnruMnH8",
   authDomain: "pungsan-fitness.firebaseapp.com",
   databaseURL: "https://pungsan-fitness-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "pungsan-fitness",

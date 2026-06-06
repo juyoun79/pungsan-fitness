@@ -5802,23 +5802,38 @@
             const uid = localStorage.getItem('current_user');
             if (uid && typeof showNoticePopup === 'function') showNoticePopup(uid);
             if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
-            // 배지 캐시 초기화
             if ('caches' in window) caches.open('pungsan-badge-v1').then(c => c.put('/badge-count', new Response(JSON.stringify({ count: 0 }), { headers: { 'Content-Type': 'application/json' } }))).catch(() => {});
           }, 800);
         }
-        // 배지 카운트 동기화 (읽음 처리 후 배지 재조정)
         if (event.data.type === 'BADGE_COUNT') {
           window._badgeCount = event.data.count;
-          // 창 컨텍스트에서 setAppBadge 호출 (iOS에서 서비스워커보다 안정적)
           if ('setAppBadge' in navigator) {
             navigator.setAppBadge(event.data.count).catch(() => {});
           }
         }
-        // ── 새 버전 업데이트 감지 ──
+        // ── 새 버전 업데이트 감지 (갤럭시/백그라운드) ──
         if (event.data.type === 'SW_UPDATED') {
           showUpdateToast();
         }
+        // ── SW 버전 응답 수신 (iOS 앱 재시작 시) ──
+        if (event.data.type === 'SW_VERSION') {
+          const swVer  = event.data.version;
+          const appVer = localStorage.getItem('app_version');
+          if (appVer && appVer !== swVer) {
+            // 버전 다르면 토스트 표시
+            showUpdateToast();
+          }
+          // 현재 SW 버전 저장
+          localStorage.setItem('app_version', swVer);
+        }
       });
+
+      // ── 앱 시작 시 SW에 버전 확인 요청 (iOS 대응) ──
+      navigator.serviceWorker.ready.then(reg => {
+        if (reg.active) {
+          reg.active.postMessage({ type: 'GET_VERSION' });
+        }
+      }).catch(() => {});
     }
 
     // 슬라이드업 애니메이션
