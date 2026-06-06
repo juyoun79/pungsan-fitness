@@ -4408,8 +4408,8 @@
       msgEl.style.color = '#64748b';
     }
 
-    // 홈 그래프 렌더링
-    setTimeout(() => renderHomeWeightGraph(), 100);
+    // 홈 그래프 렌더링 (렌더링 완료 후 그리기 보장)
+    requestAnimationFrame(() => renderHomeWeightGraph());
   }
 
   // ── 홈에서 체중 기록 ──
@@ -4502,8 +4502,11 @@
     }
 
     const parent = canvas.parentElement;
-    const W = parent ? parent.clientWidth - 32 : 300;
+    const W = (parent && parent.clientWidth > 0) ? parent.clientWidth - 32 : 300;
     const H = 90;
+    // canvas 완전 초기화 (이전 그림 완전히 지우기)
+    canvas.width  = 0;
+    canvas.height = 0;
     canvas.width  = W;
     canvas.height = H;
 
