@@ -4949,6 +4949,7 @@
           if (latest.bmi     !== undefined) rangeHtml += makeBar('BMI',      latest.bmi,     bmiMin,     bmiMax,     14,         35,         '');
           if (latest.muscle  !== undefined) rangeHtml += makeBar('골격근량', latest.muscle,  muscleMin,  muscleMax,  parseFloat((muscleMin*0.6).toFixed(1)), parseFloat((muscleMax*1.4).toFixed(1)), 'kg');
           if (latest.fat     !== undefined) rangeHtml += makeBar('체지방량', latest.fat,     fatMin2,    fatMax2,    parseFloat((fatMin2*0.5).toFixed(1)),   parseFloat((fatMax2*1.5).toFixed(1)),   'kg');
+          if (latest.bmr     !== undefined) rangeHtml += makeBar('기초대사량', latest.bmr,   bmrMin,     bmrMax,     Math.round(bmrMin*0.8), Math.round(bmrMax*1.2), 'kcal');
           document.getElementById('inbody-range-content').innerHTML = rangeHtml;
         }
 
