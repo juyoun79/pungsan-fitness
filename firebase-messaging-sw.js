@@ -4,7 +4,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
 // ── 앱 버전 (배포할 때마다 숫자 1씩 올려주세요) ──
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.0.4';
 const CACHE_NAME  = 'pungsan-v' + APP_VERSION;
 
 // ── Network First 캐시 전략 ──

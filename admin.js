@@ -2393,43 +2393,89 @@
       const latest = list[0][1];
       const prev   = list.length > 1 ? list[1][1] : null;
 
-      function badge(val, min, max) {
-        if (val === undefined || val === null) return '';
-        if (val >= min && val <= max) return '<span style="font-size:10px;padding:2px 6px;background:#dcfce7;color:#15803d;border-radius:10px;font-weight:700;">✅ 표준</span>';
-        return '<span style="font-size:10px;padding:2px 6px;background:#fee2e2;color:#b91c1c;border-radius:10px;font-weight:700;">⚠️ 주의</span>';
-      }
-      function chg(cur, prv, unit) {
-        if (prv === undefined || prv === null || cur === undefined) return '';
-        const d = parseFloat((cur - prv).toFixed(1));
-        if (d > 0) return `<span style="font-size:10px;color:#ef4444;">▲${d}${unit}</span>`;
-        if (d < 0) return `<span style="font-size:10px;color:#22c55e;">▼${Math.abs(d)}${unit}</span>`;
-        return '<span style="font-size:10px;color:#94a3b8;">변화없음</span>';
-      }
+      // 회원 신체정보 불러와서 표준범위 계산
+      db.ref('users/' + currentTraineeId + '/body').once('value').then(bodySnap => {
+        const body    = bodySnap.val() || {};
+        const gender  = body.gender || 'female';
+        const age     = parseInt(body.age)      || 30;
+        const height  = parseFloat(body.height) || 165;
+        const bWeight = parseFloat(body.weight) || 60;
+        const hM      = height / 100;
 
-      let cards = '';
-      if (latest.weight  !== undefined) cards += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-hint);">체중</span>${badge(latest.weight,45,80)}</div><div style="font-size:17px;font-weight:700;color:var(--text);">${latest.weight}<span style="font-size:10px;color:var(--text-hint);font-weight:400;">kg</span></div>${chg(latest.weight,prev?.weight,'kg')}</div>`;
-      if (latest.muscle  !== undefined) cards += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-hint);">골격근량</span>${badge(latest.muscle,18,28)}</div><div style="font-size:17px;font-weight:700;color:var(--text);">${latest.muscle}<span style="font-size:10px;color:var(--text-hint);font-weight:400;">kg</span></div>${chg(latest.muscle,prev?.muscle,'kg')}</div>`;
-      if (latest.fatRate !== undefined) cards += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-hint);">체지방률</span>${badge(latest.fatRate,10,28)}</div><div style="font-size:17px;font-weight:700;color:var(--text);">${latest.fatRate}<span style="font-size:10px;color:var(--text-hint);font-weight:400;">%</span></div>${chg(latest.fatRate,prev?.fatRate,'%')}</div>`;
-      if (latest.bmi     !== undefined) cards += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;"><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:11px;color:var(--text-hint);">BMI</span>${badge(latest.bmi,18.5,24.9)}</div><div style="font-size:17px;font-weight:700;color:var(--text);">${latest.bmi}</div>${chg(latest.bmi,prev?.bmi,'')}</div>`;
+        const stdWeight  = hM * hM * (gender === 'male' ? 22 : 21);
+        const weightMin  = parseFloat((stdWeight * 0.9).toFixed(1));
+        const weightMax  = parseFloat((stdWeight * 1.1).toFixed(1));
+        const muscleMin  = parseFloat((bWeight * (gender === 'male' ? 0.40 : 0.32)).toFixed(1));
+        const muscleMax  = parseFloat((bWeight * (gender === 'male' ? 0.50 : 0.42)).toFixed(1));
+        const fatMin2    = parseFloat((bWeight * (gender === 'male' ? 0.10 : 0.18)).toFixed(1));
+        const fatMax2    = parseFloat((bWeight * (gender === 'male' ? 0.20 : 0.28)).toFixed(1));
+        let fatRateMin, fatRateMax;
+        if (gender === 'male') { fatRateMin = 10; fatRateMax = age >= 60 ? 25 : 20; }
+        else { fatRateMin = 18; fatRateMax = age >= 60 ? 30 : 28; }
+        const bmiMin = 18.5, bmiMax = 24.9;
+        let bmrStd;
+        if (gender === 'male') bmrStd = 88.4 + (13.4 * bWeight) + (4.8 * height) - (5.7 * age);
+        else bmrStd = 447.6 + (9.2 * bWeight) + (3.1 * height) - (4.3 * age);
+        const bmrMin = Math.round(bmrStd * 0.9);
+        const bmrMax = Math.round(bmrStd * 1.1);
 
-      let history = '';
-      list.forEach(([date, d]) => {
-        const parts = [];
-        if (d.weight  !== undefined) parts.push(d.weight + 'kg');
-        if (d.fatRate !== undefined) parts.push('지방' + d.fatRate + '%');
-        if (d.muscle  !== undefined) parts.push('근육' + d.muscle + 'kg');
-        history += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;">
-          <span style="font-size:12px;color:var(--text-hint);">${date}</span>
-          <span style="font-size:12px;color:var(--text);">${parts.join(' · ')}</span>
-        </div>`;
+        function badge(val, min, max) {
+          if (val === undefined || val === null) return '';
+          if (val >= min && val <= max) return '<span style="font-size:10px;padding:2px 6px;background:#dcfce7;color:#15803d;border-radius:10px;font-weight:700;">✅ 표준</span>';
+          return '<span style="font-size:10px;padding:2px 6px;background:#fee2e2;color:#b91c1c;border-radius:10px;font-weight:700;">⚠️ 주의</span>';
+        }
+        function chg(cur, prv, unit) {
+          if (prv === undefined || prv === null || cur === undefined) return '';
+          const d = parseFloat((cur - prv).toFixed(1));
+          if (d > 0) return `<span style="font-size:10px;color:#ef4444;">▲${d}${unit}</span>`;
+          if (d < 0) return `<span style="font-size:10px;color:#22c55e;">▼${Math.abs(d)}${unit}</span>`;
+          return '<span style="font-size:10px;color:#94a3b8;">변화없음</span>';
+        }
+        function card(label, val, unit, min, max, chgVal, chgUnit, rangeLabel) {
+          if (val === undefined || val === null) return '';
+          const unitHtml = unit === 'kg/m²'
+            ? `<span style="font-size:10px;color:var(--text-hint);font-weight:400;">kg/m<sup>2</sup></span>`
+            : `<span style="font-size:10px;color:var(--text-hint);font-weight:400;">${unit}</span>`;
+          return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+              <span style="font-size:11px;color:var(--text-hint);">${label}</span>${badge(val,min,max)}
+            </div>
+            <div style="font-size:17px;font-weight:700;color:var(--text);">${val}${unitHtml}</div>
+            ${chg(val, chgVal, chgUnit)}
+            <div style="font-size:10px;color:var(--text-hint);margin-top:2px;">표준 ${rangeLabel}</div>
+          </div>`;
+        }
+
+        let cards = '';
+        cards += card('체중',      latest.weight,  'kg',    weightMin,  weightMax,  prev?.weight,  'kg',  `${weightMin}~${weightMax}kg`);
+        cards += card('골격근량',  latest.muscle,  'kg',    muscleMin,  muscleMax,  prev?.muscle,  'kg',  `${muscleMin}~${muscleMax}kg`);
+        cards += card('체지방량',  latest.fat,     'kg',    fatMin2,    fatMax2,    prev?.fat,     'kg',  `${fatMin2}~${fatMax2}kg`);
+        cards += card('체지방률',  latest.fatRate, '%',     fatRateMin, fatRateMax, prev?.fatRate, '%',   `${fatRateMin}~${fatRateMax}%`);
+        cards += card('BMI',       latest.bmi,     'kg/m²', bmiMin,     bmiMax,     prev?.bmi,     '',    '18.5~24.9');
+        cards += card('기초대사량',latest.bmr,     'kcal',  bmrMin,     bmrMax,     prev?.bmr,     'kcal',`${bmrMin}~${bmrMax}kcal`);
+
+        let history = '';
+        list.forEach(([date, d]) => {
+          const parts = [];
+          if (d.weight  !== undefined) parts.push(d.weight + 'kg');
+          if (d.fat     !== undefined) parts.push('체지방' + d.fat + 'kg');
+          if (d.fatRate !== undefined) parts.push('지방' + d.fatRate + '%');
+          if (d.muscle  !== undefined) parts.push('근육' + d.muscle + 'kg');
+          if (d.bmi     !== undefined) parts.push('BMI ' + d.bmi);
+          if (d.bmr     !== undefined) parts.push('기초대사' + d.bmr + 'kcal');
+          history += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;">
+            <span style="font-size:12px;color:var(--text-hint);">${date}</span>
+            <span style="font-size:11px;color:var(--text);">${parts.join(' · ')}</span>
+          </div>`;
+        });
+
+        subContent.innerHTML = `
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:8px;">최근 측정: ${list[0][0]}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">${cards || '<div style="grid-column:1/-1;text-align:center;color:var(--text-hint);font-size:13px;">수치 데이터가 없어요</div>'}</div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">측정 이력</div>
+          ${history}
+          <div style="font-size:11px;color:var(--text-hint);text-align:center;margin-top:8px;">회원 본인만 데이터를 입력/수정할 수 있어요</div>`;
       });
-
-      subContent.innerHTML = `
-        <div style="font-size:12px;color:var(--text-hint);margin-bottom:8px;">최근 측정: ${list[0][0]}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">${cards || '<div style="grid-column:1/-1;text-align:center;color:var(--text-hint);font-size:13px;">수치 데이터가 없어요</div>'}</div>
-        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">측정 이력</div>
-        ${history}
-        <div style="font-size:11px;color:var(--text-hint);text-align:center;margin-top:8px;">회원 본인만 데이터를 입력/수정할 수 있어요</div>`;
     });
   }
   // ── 메모/인바디 서브탭 끝 ──────────────────────────────────
