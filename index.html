@@ -466,7 +466,7 @@
             </div>
           </div>
           <div id="home-inbody-msg" style="font-size:12px;font-weight:600;color:#1a56db;margin-bottom:10px;min-height:16px;"></div>
-          <button onclick="openInbodyInput('home')" style="width:100%;padding:9px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 인바디 입력</button>
+          <button onclick="openInbodyInput()" style="width:100%;padding:9px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 인바디 입력</button>
         </div>
       </div>
 
@@ -4613,7 +4613,18 @@
     if (!userId) return;
     db.ref('users/' + userId + '/inbody').orderByKey().limitToLast(2).once('value').then(snap => {
       if (!snap.exists()) {
-        document.getElementById('home-inbody-msg').textContent = '아직 인바디 기록이 없어요. 첫 측정 후 입력해보세요!';
+        // 메시지 표시
+        const msg = document.getElementById('home-inbody-msg');
+        if (msg) msg.textContent = '아직 인바디 기록이 없어요. 첫 측정 후 입력해보세요!';
+        // 수치 카드 -- 초기화
+        ['home-ib-fat-rate','home-ib-muscle','home-ib-weight'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = '--';
+        });
+        ['home-ib-fat-rate-chg','home-ib-muscle-chg','home-ib-weight-chg'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) { el.textContent = '-'; el.style.color = '#94a3b8'; }
+        });
         return;
       }
       const entries = [];
@@ -4664,15 +4675,14 @@
 
   // 수정 중인 날짜 저장 (null이면 신규)
   let _inbodyEditDate = null;
-  let _inbodyFrom = 'detail'; // 'home' 또는 'detail'
 
-  function openInbodyInput(from) {
+  function openInbodyInput() {
     _inbodyEditDate = null;
-    _inbodyFrom = from || 'detail'; // 'home' 또는 'detail'
     const today = new Date();
     const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
     const dateEl = document.getElementById('inbody-input-date');
     if (dateEl) { dateEl.value = todayStr; dateEl.disabled = false; }
+    // 제목 신규로
     const titleEl = document.getElementById('inbody-input-title');
     if (titleEl) titleEl.textContent = '📊 인바디 데이터 입력';
     ['ib-inp-weight','ib-inp-muscle','ib-inp-fat','ib-inp-fatrate','ib-inp-bmi','ib-inp-bmr'].forEach(id => {
@@ -4715,14 +4725,7 @@
   }
 
   function closeInbodyInput() {
-    if (_inbodyFrom === 'home') {
-      // 홈에서 진입했으면 → 전체보기 화면으로 이동 + 데이터 로드
-      openInbodyDetail();
-    } else {
-      // 전체보기에서 진입했으면 → 전체보기로 돌아가기
-      showScreen('screen-inbody-detail');
-      _renderInbodyDetail();
-    }
+    showScreen('screen-inbody-detail');
   }
 
   function saveInbodyData() {
