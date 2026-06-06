@@ -4,32 +4,31 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
 // ── 앱 버전 (배포할 때마다 숫자 1씩 올려주세요) ──
-const APP_VERSION = '1.0.4';
+const APP_VERSION = '1.0.5';
 const CACHE_NAME  = 'pungsan-v' + APP_VERSION;
 
-// ── Network First 캐시 전략 ──
-// 항상 네트워크에서 최신 파일을 먼저 가져오고
-// 네트워크 실패 시에만 캐시 사용 (오프라인 대비)
-const CACHE_TARGETS = ['/', '/index.html', '/style.css', '/admin.js', '/workout.js', '/community.js', '/diet.js', '/messages.js', '/equipment.js', '/foods.js', '/manifest.json'];
+const CACHE_TARGETS = ['/index.html', '/style.css', '/admin.js', '/workout.js', '/community.js', '/diet.js', '/messages.js', '/equipment.js', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
-  // 새 SW 즉시 활성화 (waiting 단계 건너뜀)
   self.skipWaiting();
+  // 캐시 사전 저장 (실패해도 SW 설치는 계속)
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(CACHE_TARGETS)).catch(() => {})
+    caches.open(CACHE_NAME).then(cache => {
+      return Promise.allSettled(
+        CACHE_TARGETS.map(url => cache.add(url).catch(() => {}))
+      );
+    }).catch(() => {})
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    // 이전 버전 캐시 삭제
     caches.keys().then(keys =>
       Promise.all(
         keys.filter(k => k.startsWith('pungsan-v') && k !== CACHE_NAME)
             .map(k => caches.delete(k))
       )
     ).then(() => {
-      // 모든 열린 탭에 새 버전 알림
       return self.clients.claim().then(() => {
         return self.clients.matchAll({ type: 'window' }).then(clientList => {
           clientList.forEach(client => {
@@ -37,28 +36,42 @@ self.addEventListener('activate', (event) => {
           });
         });
       });
-    })
+    }).catch(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  // 같은 도메인 요청만 처리 (Firebase API 등 외부 요청 제외)
+
+  // GET 요청만 처리
+  if (event.request.method !== 'GET') return;
+  // 같은 도메인만 처리
   if (!url.origin.includes('pungsan-fitness') && !url.origin.includes('workers.dev')) return;
-  // API 요청은 캐시 안 함
+  // API 요청 제외
   if (url.pathname.startsWith('/api/')) return;
+  // Firebase 등 외부 스크립트 제외
+  if (url.hostname !== location.hostname && !url.hostname.endsWith('workers.dev')) return;
 
   event.respondWith(
     fetch(event.request).then(response => {
-      // 네트워크 성공 → 캐시 업데이트 후 반환
-      if (response && response.status === 200 && response.type === 'basic') {
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone)).catch(() => {});
+      // 정상 응답이면 캐시에 저장
+      if (response && response.status === 200) {
+        try {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseClone).catch(() => {});
+          }).catch(() => {});
+        } catch(e) {}
       }
       return response;
     }).catch(() => {
       // 네트워크 실패 → 캐시에서 반환
-      return caches.match(event.request);
+      return caches.match(event.request).then(cached => {
+        return cached || new Response('오프라인 상태입니다. 인터넷 연결을 확인해주세요.', {
+          status: 503,
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+        });
+      });
     })
   );
 });
