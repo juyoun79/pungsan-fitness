@@ -648,7 +648,8 @@
       <button onclick="closeInbodyDetail()" style="background:none;border:none;cursor:pointer;padding:4px;">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
-      <div style="font-size:17px;font-weight:700;color:var(--text);">📊 인바디 기록</div>
+      <div style="font-size:17px;font-weight:700;color:var(--text);flex:1;">📊 인바디 기록</div>
+      <button onclick="showInbodyGuide()" style="background:var(--bg);border:1px solid var(--border);border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;font-weight:700;color:var(--text-hint);">ℹ️</button>
     </div>
     <div style="padding:16px;overflow-y:auto;padding-bottom:80px;">
       <!-- 기간 필터 -->
@@ -690,6 +691,49 @@
       <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;">측정 이력</div>
       <div id="inbody-detail-list"></div>
       <button onclick="openInbodyInput()" style="width:100%;margin-top:12px;padding:14px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 인바디 데이터 입력</button>
+    </div>
+  </div>
+
+  <!-- 인바디 표준범위 가이드 팝업 -->
+  <div id="inbody-guide-popup" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9000;align-items:flex-end;justify-content:center;">
+    <div style="background:var(--card);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px 20px 36px;max-height:85vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:16px;font-weight:700;color:var(--text);">📊 표준범위 계산 기준</div>
+        <button onclick="hideInbodyGuide()" style="background:var(--bg);border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
+      <div style="font-size:12px;color:var(--text-hint);margin-bottom:14px;line-height:1.6;">회원님의 신체정보(성별·나이·키·체중)를 기반으로 각 항목의 표준범위를 자동 계산해요.</div>
+
+      <!-- 항목별 기준 -->
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">⚖️ 체중</div>
+          <div style="font-size:12px;color:var(--text-hint);line-height:1.6;">키와 성별로 표준체중 계산 후 ±10% 범위<br><span style="color:var(--blue);">표준체중 = 키(m)² × (남성 22 / 여성 21)</span></div>
+        </div>
+        <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">💪 골격근량</div>
+          <div style="font-size:12px;color:var(--text-hint);line-height:1.6;">성별과 체중 기반<br><span style="color:var(--blue);">남성: 체중 × 40~50% / 여성: 체중 × 32~42%</span></div>
+        </div>
+        <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">🔥 체지방량</div>
+          <div style="font-size:12px;color:var(--text-hint);line-height:1.6;">성별과 체중 기반<br><span style="color:var(--blue);">남성: 체중 × 10~20% / 여성: 체중 × 18~28%</span></div>
+        </div>
+        <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">📉 체지방률</div>
+          <div style="font-size:12px;color:var(--text-hint);line-height:1.6;">성별과 나이 기반<br><span style="color:var(--blue);">남성: 10~20% / 여성: 18~28% (60세 이상 상한 +5%)</span></div>
+        </div>
+        <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">📐 BMI</div>
+          <div style="font-size:12px;color:var(--text-hint);line-height:1.6;">세계보건기구(WHO) 기준 고정값<br><span style="color:var(--blue);">정상범위: 18.5 ~ 24.9 kg/m²</span></div>
+        </div>
+        <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">⚡ 기초대사량</div>
+          <div style="font-size:12px;color:var(--text-hint);line-height:1.6;">체지방량 입력 시 → <span style="color:var(--blue);">Katch-McArdle 공식</span> (제지방량 기반, 더 정확)<br>미입력 시 → <span style="color:var(--blue);">해리스-베네딕트 공식</span> (성별·나이·키·체중 기반)<br>표준범위 = 계산값 ±10%</div>
+        </div>
+      </div>
+
+      <div style="margin-top:14px;padding:10px 14px;background:#eff6ff;border-radius:10px;border-left:3px solid #1a56db;">
+        <div style="font-size:11px;color:#1e40af;line-height:1.6;">💡 내 정보 탭에서 성별·나이·키·체중을 정확히 입력할수록 표준범위가 더 정확해져요!</div>
+      </div>
     </div>
   </div>
 
@@ -4871,10 +4915,17 @@
         // BMI: 고정
         const bmiMin = 18.5, bmiMax = 24.9;
 
-        // 기초대사량: 해리스-베네딕트 공식 (성별+나이+키+체중)
+        // 기초대사량: 체중+체지방량 있으면 Katch-McArdle / 없으면 해리스-베네딕트
         let bmrStd;
-        if (gender === 'male') bmrStd = 88.4 + (13.4 * bWeight) + (4.8 * height) - (5.7 * age);
-        else bmrStd = 447.6 + (9.2 * bWeight) + (3.1 * height) - (4.3 * age);
+        if (latest.weight !== undefined && latest.fat !== undefined) {
+          // Katch-McArdle: 제지방량 기반 (더 정확)
+          const lbm = latest.weight - latest.fat; // 제지방량
+          bmrStd = 370 + (21.6 * lbm);
+        } else {
+          // 해리스-베네딕트: 키/체중/나이/성별 기반
+          if (gender === 'male') bmrStd = 88.4 + (13.4 * bWeight) + (4.8 * height) - (5.7 * age);
+          else bmrStd = 447.6 + (9.2 * bWeight) + (3.1 * height) - (4.3 * age);
+        }
         const bmrMin = Math.round(bmrStd * 0.9);
         const bmrMax = Math.round(bmrStd * 1.1);
 
@@ -5091,6 +5142,16 @@
     });
   }
   // ── 인바디 기능 끝 ──────────────────────────────────────
+
+  function showInbodyGuide() {
+    const popup = document.getElementById('inbody-guide-popup');
+    if (popup) { popup.style.display = 'flex'; }
+  }
+
+  function hideInbodyGuide() {
+    const popup = document.getElementById('inbody-guide-popup');
+    if (popup) { popup.style.display = 'none'; }
+  }
 
   function setWeightFilter(days) {
     weightFilter = days;
