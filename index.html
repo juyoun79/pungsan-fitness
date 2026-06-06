@@ -699,7 +699,7 @@
       <button onclick="closeInbodyInput()" style="background:none;border:none;cursor:pointer;padding:4px;">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
-      <div style="font-size:17px;font-weight:700;color:var(--text);">📊 인바디 데이터 입력</div>
+      <div id="inbody-input-title" style="font-size:17px;font-weight:700;color:var(--text);">📊 인바디 데이터 입력</div>
     </div>
     <div style="padding:16px;overflow-y:auto;padding-bottom:80px;">
       <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;">
@@ -4661,18 +4661,55 @@
     showScreen('screen-home');
   }
 
+  // 수정 중인 날짜 저장 (null이면 신규)
+  let _inbodyEditDate = null;
+
   function openInbodyInput() {
-    // 오늘 날짜 기본값 설정
+    _inbodyEditDate = null;
     const today = new Date();
     const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
     const dateEl = document.getElementById('inbody-input-date');
-    if (dateEl) dateEl.value = todayStr;
-    // 입력값 초기화
+    if (dateEl) { dateEl.value = todayStr; dateEl.disabled = false; }
+    // 제목 신규로
+    const titleEl = document.getElementById('inbody-input-title');
+    if (titleEl) titleEl.textContent = '📊 인바디 데이터 입력';
     ['ib-inp-weight','ib-inp-muscle','ib-inp-fat','ib-inp-fatrate','ib-inp-bmi','ib-inp-bmr'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
     showScreen('screen-inbody-input');
+  }
+
+  function editInbodyData(encodedData) {
+    const d = JSON.parse(decodeURIComponent(encodedData));
+    _inbodyEditDate = d.date;
+    const dateEl = document.getElementById('inbody-input-date');
+    if (dateEl) { dateEl.value = d.date; dateEl.disabled = true; }
+    // 제목 수정으로
+    const titleEl = document.getElementById('inbody-input-title');
+    if (titleEl) titleEl.textContent = '📊 인바디 데이터 수정';
+    // 기존 값 채우기
+    const map = {
+      'ib-inp-weight': d.weight, 'ib-inp-muscle': d.muscle,
+      'ib-inp-fat': d.fat, 'ib-inp-fatrate': d.fatRate,
+      'ib-inp-bmi': d.bmi, 'ib-inp-bmr': d.bmr
+    };
+    Object.entries(map).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el) el.value = (val !== undefined && val !== null) ? val : '';
+    });
+    showScreen('screen-inbody-input');
+  }
+
+  function deleteInbodyData(date) {
+    const userId = localStorage.getItem('current_user');
+    if (!userId) return;
+    if (!confirm(date + ' 기록을 삭제할까요?')) return;
+    db.ref('users/' + userId + '/inbody/' + date).remove().then(() => {
+      showToast('🗑️ 삭제됐어요.', 'success');
+      _renderInbodyDetail();
+      loadHomeInbodySummary();
+    }).catch(() => showToast('삭제 중 오류가 발생했어요.', 'error'));
   }
 
   function closeInbodyInput() {
@@ -4682,7 +4719,7 @@
   function saveInbodyData() {
     const userId = localStorage.getItem('current_user');
     if (!userId) return;
-    const date = document.getElementById('inbody-input-date').value;
+    const date = _inbodyEditDate || document.getElementById('inbody-input-date').value;
     if (!date) { showToast('날짜를 선택해주세요.', 'error'); return; }
 
     const fields = {
@@ -4693,7 +4730,6 @@
       bmi:     parseFloat(document.getElementById('ib-inp-bmi').value),
       bmr:     parseFloat(document.getElementById('ib-inp-bmr').value),
     };
-    // 입력된 항목만 저장
     const data = { savedAt: Date.now() };
     let hasData = false;
     Object.entries(fields).forEach(([k, v]) => {
@@ -4701,31 +4737,41 @@
     });
     if (!hasData) { showToast('최소 1개 항목을 입력해주세요.', 'error'); return; }
 
+    const isEdit = !!_inbodyEditDate;
+
     db.ref('users/' + userId + '/inbody/' + date).set(data).then(() => {
-      // 포인트 적립 (월 1회)
-      const monthStr = date.substring(0, 7); // YYYY-MM
-      db.ref('users/' + userId + '/inbody_point_month').once('value').then(snap => {
-        if (snap.val() === monthStr) {
-          showToast('📊 인바디 저장 완료!', 'success');
-        } else {
-          db.ref('point_settings/inbodyRecord').once('value').then(ptSnap => {
-            const pts = ptSnap.val() ?? 5;
-            if (pts > 0) {
-              db.ref('users/' + userId + '/points').transaction(cur => (cur || 0) + pts).then(() => {
-                db.ref('users/' + userId + '/inbody_point_month').set(monthStr);
-                showToast('📊 인바디 저장 +' + pts + 'P 적립!', 'success');
-                if (typeof checkPointTierCoupons === 'function') checkPointTierCoupons(userId, 0);
-                if (typeof updateStats === 'function') updateStats();
-              });
-            } else {
-              showToast('📊 인바디 저장 완료!', 'success');
-            }
-          });
-        }
-      });
-      showScreen('screen-inbody-detail');
-      _renderInbodyDetail();
-      loadHomeInbodySummary();
+      if (isEdit) {
+        // 수정 모드 → 포인트 적립 없음
+        showToast('📊 인바디 수정 완료!', 'success');
+        showScreen('screen-inbody-detail');
+        _renderInbodyDetail();
+        loadHomeInbodySummary();
+      } else {
+        // 신규 입력 → 월 1회 포인트 적립
+        const monthStr = date.substring(0, 7);
+        db.ref('users/' + userId + '/inbody_point_month').once('value').then(snap => {
+          if (snap.val() === monthStr) {
+            showToast('📊 인바디 저장 완료!', 'success');
+          } else {
+            db.ref('point_settings/inbodyRecord').once('value').then(ptSnap => {
+              const pts = ptSnap.val() ?? 5;
+              if (pts > 0) {
+                db.ref('users/' + userId + '/points').transaction(cur => (cur || 0) + pts).then(() => {
+                  db.ref('users/' + userId + '/inbody_point_month').set(monthStr);
+                  showToast('📊 인바디 저장 +' + pts + 'P 적립!', 'success');
+                  if (typeof checkPointTierCoupons === 'function') checkPointTierCoupons(userId, 0);
+                  if (typeof updateStats === 'function') updateStats();
+                });
+              } else {
+                showToast('📊 인바디 저장 완료!', 'success');
+              }
+            });
+          }
+          showScreen('screen-inbody-detail');
+          _renderInbodyDetail();
+          loadHomeInbodySummary();
+        });
+      }
     }).catch(() => showToast('저장 중 오류가 발생했어요.', 'error'));
   }
 
@@ -5010,8 +5056,20 @@
           if (e.muscle  !== undefined) parts.push('근육' + e.muscle  + 'kg');
           if (e.bmi     !== undefined) parts.push('BMI ' + e.bmi);
           if (e.bmr     !== undefined) parts.push('기초대사' + e.bmr + 'kcal');
-          listHtml += `<div style="display:flex;justify-content:space-between;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:6px;">
-            <span style="font-size:12px;color:var(--text-hint);">${e.date}</span>
+          const dataJson = encodeURIComponent(JSON.stringify({
+            date: e.date, weight: e.weight, muscle: e.muscle, fat: e.fat,
+            fatRate: e.fatRate, bmi: e.bmi, bmr: e.bmr
+          }));
+          listHtml += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:6px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <span style="font-size:12px;font-weight:700;color:var(--text-hint);">${e.date}</span>
+              <div style="display:flex;gap:6px;">
+                <button onclick="editInbodyData('${encodeURIComponent(JSON.stringify({date:e.date,weight:e.weight,muscle:e.muscle,fat:e.fat,fatRate:e.fatRate,bmi:e.bmi,bmr:e.bmr}))}')"
+                  style="background:#E6F1FB;color:#185FA5;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 수정</button>
+                <button onclick="deleteInbodyData('${e.date}')"
+                  style="background:#fee2e2;color:#b91c1c;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑️ 삭제</button>
+              </div>
+            </div>
             <span style="font-size:12px;color:var(--text);">${parts.join(' · ')}</span>
           </div>`;
         });
