@@ -466,7 +466,7 @@
             </div>
           </div>
           <div id="home-inbody-msg" style="font-size:12px;font-weight:600;color:#1a56db;margin-bottom:10px;min-height:16px;"></div>
-          <button onclick="openInbodyInput()" style="width:100%;padding:9px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 인바디 입력</button>
+          <button onclick="openInbodyInput('home')" style="width:100%;padding:9px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 인바디 입력</button>
         </div>
       </div>
 
@@ -4664,14 +4664,15 @@
 
   // 수정 중인 날짜 저장 (null이면 신규)
   let _inbodyEditDate = null;
+  let _inbodyFrom = 'detail'; // 'home' 또는 'detail'
 
-  function openInbodyInput() {
+  function openInbodyInput(from) {
     _inbodyEditDate = null;
+    _inbodyFrom = from || 'detail'; // 'home' 또는 'detail'
     const today = new Date();
     const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
     const dateEl = document.getElementById('inbody-input-date');
     if (dateEl) { dateEl.value = todayStr; dateEl.disabled = false; }
-    // 제목 신규로
     const titleEl = document.getElementById('inbody-input-title');
     if (titleEl) titleEl.textContent = '📊 인바디 데이터 입력';
     ['ib-inp-weight','ib-inp-muscle','ib-inp-fat','ib-inp-fatrate','ib-inp-bmi','ib-inp-bmr'].forEach(id => {
@@ -4714,7 +4715,14 @@
   }
 
   function closeInbodyInput() {
-    showScreen('screen-inbody-detail');
+    if (_inbodyFrom === 'home') {
+      // 홈에서 진입했으면 → 전체보기 화면으로 이동 + 데이터 로드
+      openInbodyDetail();
+    } else {
+      // 전체보기에서 진입했으면 → 전체보기로 돌아가기
+      showScreen('screen-inbody-detail');
+      _renderInbodyDetail();
+    }
   }
 
   function saveInbodyData() {
