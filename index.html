@@ -1432,14 +1432,14 @@
         </div>
       </div>
 
-      <!-- 체중 -->
-      <div style="margin-bottom:16px;">
-        <label class="field-label">체중</label>
-        <div style="display:flex;align-items:center;gap:6px;margin-top:3px;">
-          <input type="number" id="edit-body-weight" placeholder="65" min="20" max="200" step="0.1"
-            style="flex:1;padding:11px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:18px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;"
-            onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
-          <span style="font-size:13px;font-weight:700;color:var(--text-sub);">kg</span>
+      <!-- 체중 (hidden - 홈화면에서 수정) -->
+      <input type="hidden" id="edit-body-weight" />
+      <!-- 체중 안내 -->
+      <div style="margin-bottom:16px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px;">⚖️</span>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#0369a1;">체중 수정은 홈화면에서</div>
+          <div style="font-size:12px;color:#0284c7;margin-top:2px;">홈 화면의 <b>오늘 체중</b> 입력란을 이용해주세요.</div>
         </div>
       </div>
 
@@ -4941,7 +4941,37 @@
 
     const isEdit = !!_inbodyEditDate;
 
+    // ── 인바디 체중 → weightHistory + body/weight 동기화 ──
+    function _syncInbodyWeight(inbodyDate, inbodyWeight) {
+      if (!inbodyWeight || inbodyWeight < 20) return; // 체중 미입력 시 동기화 안 함
+      // 1) 해당 날짜의 weightHistory에 동기화
+      db.ref('users/' + userId + '/weightHistory/' + inbodyDate).set(inbodyWeight);
+      // localStorage에도 반영
+      const key = 'weight_history_' + userId;
+      const history = JSON.parse(localStorage.getItem(key) || '[]');
+      const idx = history.findIndex(r => r.date === inbodyDate);
+      if (idx !== -1) history[idx].weight = inbodyWeight;
+      else history.push({ date: inbodyDate, weight: inbodyWeight });
+      localStorage.setItem(key, JSON.stringify(history));
+      // 2) 가장 최근 weightHistory 날짜 확인 후 body/weight 업데이트
+      db.ref('users/' + userId + '/weightHistory').orderByKey().limitToLast(1).once('value').then(snap => {
+        let latestDate = '';
+        snap.forEach(c => { latestDate = c.key; });
+        // 인바디 날짜가 가장 최근 날짜와 같거나 더 최신이면 body/weight 업데이트
+        if (inbodyDate >= latestDate) {
+          db.ref('users/' + userId + '/body/weight').set(inbodyWeight);
+          localStorage.setItem('body_weight_' + userId, String(inbodyWeight));
+          const wEl = document.getElementById('myinfo-weight');
+          if (wEl) wEl.textContent = inbodyWeight + 'kg';
+          loadHomeWeightCard();
+        }
+      });
+    }
+
     db.ref('users/' + userId + '/inbody/' + date).set(data).then(() => {
+      // 체중 동기화 실행
+      if (data.weight) _syncInbodyWeight(date, data.weight);
+
       if (isEdit) {
         // 수정 모드 → 포인트 적립 없음
         showToast('📊 인바디 수정 완료!', 'success');
@@ -5795,22 +5825,20 @@
     const gender = document.getElementById('edit-body-gender').value;
     const age    = parseInt(document.getElementById('edit-body-age').value) || 0;
     const height = parseFloat(document.getElementById('edit-body-height').value) || 0;
-    const weight = parseFloat(document.getElementById('edit-body-weight').value) || 0;
-    if (!age || age < 10)     { showToast('나이를 입력해주세요.', 'error'); return; }
+    // 체중은 홈화면에서만 수정 → 기존 저장값 유지
+    if (!age || age < 10)        { showToast('나이를 입력해주세요.', 'error'); return; }
     if (!height || height < 100) { showToast('키를 입력해주세요.', 'error'); return; }
-    if (!weight || weight < 20)  { showToast('체중을 입력해주세요.', 'error'); return; }
     const userId = localStorage.getItem('current_user');
+    const weight = parseFloat(localStorage.getItem('body_weight_' + userId)) || 0; // 기존 체중 유지
     localStorage.setItem('body_gender_' + userId, gender);
     localStorage.setItem('body_age_'    + userId, age);
     localStorage.setItem('body_height_' + userId, height);
-    localStorage.setItem('body_weight_' + userId, weight);
     // 목표 저장
     const goalType   = document.getElementById('edit-body-goal-type')?.value || 'diet';
     const goalWeight = parseFloat(document.getElementById('edit-body-goal-weight')?.value) || 0;
     localStorage.setItem('body_goal_type_'   + userId, goalType);
     if (goalWeight >= 20) localStorage.setItem('body_goal_weight_' + userId, goalWeight);
-    saveWeightHistory(userId, weight);
-    // Firebase 신체정보 수정 저장
+    // Firebase 신체정보 수정 저장 (체중은 기존값 유지, weightHistory 건드리지 않음)
     const birth = document.getElementById('body-birth') ? document.getElementById('body-birth').value.trim() : '';
     if (birth) {
       localStorage.setItem('body_birth_' + userId, birth);
