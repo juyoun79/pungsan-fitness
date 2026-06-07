@@ -1000,9 +1000,9 @@
   ══════════════════════════════ -->
   <div id="screen-challenge-detail" class="screen">
     <div id="challenge-detail-banner" style="padding:52px 20px 20px;">
-      <button onclick="showScreen('screen-challenge')" style="background:none;border:none;color:white;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:14px;font-weight:600;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;padding:0;">
+      <button onclick="showScreen('screen-community')" style="background:none;border:none;color:white;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:14px;font-weight:600;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;padding:0;">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        챌린지 목록
+        커뮤니티
       </button>
       <div id="challenge-detail-title" style="font-size:20px;font-weight:700;color:white;margin-bottom:4px;"></div>
       <div id="challenge-detail-desc" style="font-size:13px;color:rgba(255,255,255,0.85);margin-bottom:14px;"></div>
@@ -7352,8 +7352,7 @@ function _buildRewardHtml(c) {
 function joinChallenge(challengeId) {
   const userId = localStorage.getItem('current_user');
   const nick   = localStorage.getItem('nickname_' + userId) || '회원';
-  showConfirm('챌린지에 참여할까요?\n참여 후 취소는 불가능해요.', ok => {
-    if (!ok) return;
+  showConfirm('챌린지에 참여할까요?\n참여 후 취소는 불가능해요.', () => {
     db.ref('challenges/' + challengeId + '/participants/' + userId).set({
       joinedAt: Date.now(), score: 0, nickname: nick
     }).then(() => {
@@ -7839,12 +7838,10 @@ function joinChallenge(challengeId) {
   const userId = localStorage.getItem('current_user');
   const nick = localStorage.getItem('nickname_' + userId) || userId.slice(-4);
 
-  showConfirm('챌린지에 참여할까요?\n참여 후 취소는 불가능해요.', ok => {
-    if (!ok) return;
+  showConfirm('챌린지에 참여할까요?\n참여 후 취소는 불가능해요.', () => {
     const joinData = { joinedAt: Date.now(), score: 0, nickname: nick };
     db.ref('challenges/' + challengeId + '/participants/' + userId).set(joinData).then(() => {
       showToast('🏆 챌린지 참여 완료!', 'success');
-      // 참여 즉시 점수 계산
       _calcAndUpdateScore(challengeId, userId);
       loadChallengeDetail(challengeId);
     });
@@ -8168,8 +8165,7 @@ function loadAdminChallenges() {
 
 // ── 챌린지 종료 ──
 function endChallenge(challengeId) {
-  showConfirm('챌린지를 종료할까요?\n종료 후 랭킹이 확정돼요.', ok => {
-    if (!ok) return;
+  showConfirm('챌린지를 종료할까요?\n종료 후 랭킹이 확정돼요.', () => {
     db.ref('challenges/' + challengeId + '/status').set('ended').then(() => {
       showToast('✅ 챌린지가 종료됐어요!', 'success');
       loadAdminChallenges();
