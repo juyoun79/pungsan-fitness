@@ -60,6 +60,21 @@
     setTimeout(() => { if (toast.parentNode) toast.remove(); }, 3000);
   }
 
+  // ── 포인트 적립 + 히스토리 기록 헬퍼 ──
+  function addPointWithHistory(userId, pts, label) {
+    if (!pts || pts <= 0) return;
+    const today = new Date().toISOString().slice(0, 10);
+    db.ref('users/' + userId + '/points').transaction(cur => (cur || 0) + pts).then(result => {
+      const newPoints = result.snapshot.val() || 0;
+      const histKey = db.ref('users/' + userId + '/pointHistory').push().key;
+      db.ref('users/' + userId + '/pointHistory/' + histKey).set({
+        amount: pts, date: today, label: label || '적립'
+      });
+      if (typeof checkPointTierCoupons === 'function') checkPointTierCoupons(userId, newPoints);
+      if (typeof updateStats === 'function') updateStats();
+    });
+  }
+
   function showConfirm(msg, onConfirm, onCancel) {
     const existing = document.getElementById('app-confirm-modal');
     if (existing) existing.remove();
@@ -4739,16 +4754,9 @@
       db.ref('point_settings/weightRecord').once('value').then(ptSnap => {
         const pts = ptSnap.val() ?? 1;
         if (pts <= 0) return;
-        let newPoints = 0;
-        db.ref('users/' + userId + '/points').transaction(cur => {
-          newPoints = (cur || 0) + pts;
-          return newPoints;
-        }).then(() => {
-          db.ref('users/' + userId + '/weight_point_date').set(todayStr);
-          showToast('⚖️ 체중 기록 +' + pts + 'P 적립!', 'success');
-          if (typeof checkPointTierCoupons === 'function') checkPointTierCoupons(userId, newPoints);
-          if (typeof updateStats === 'function') updateStats();
-        });
+        db.ref('users/' + userId + '/weight_point_date').set(todayStr);
+        showToast('⚖️ 체중 기록 +' + pts + 'P 적립!', 'success');
+        addPointWithHistory(userId, pts, '체중 기록');
       });
     });
 
@@ -5197,12 +5205,9 @@
             db.ref('point_settings/inbodyRecord').once('value').then(ptSnap => {
               const pts = ptSnap.val() ?? 5;
               if (pts > 0) {
-                db.ref('users/' + userId + '/points').transaction(cur => (cur || 0) + pts).then(() => {
-                  db.ref('users/' + userId + '/inbody_point_month').set(monthStr);
+                db.ref('users/' + userId + '/inbody_point_month').set(monthStr);
                   showToast('📊 인바디 저장 +' + pts + 'P 적립!', 'success');
-                  if (typeof checkPointTierCoupons === 'function') checkPointTierCoupons(userId, 0);
-                  if (typeof updateStats === 'function') updateStats();
-                });
+                  addPointWithHistory(userId, pts, '인바디 기록');
               } else {
                 showToast('📊 인바디 저장 완료!', 'success');
               }
@@ -8224,6 +8229,12 @@ async function payChalllengeReward(challengeId) {
         const total  = ranked + allPts;
         if (total > 0) {
           await db.ref('users/' + uid + '/points').transaction(cur => (cur || 0) + total);
+          // 포인트 히스토리 기록
+          const today2 = new Date().toISOString().slice(0, 10);
+          const histKey = db.ref('users/' + uid + '/pointHistory').push().key;
+          await db.ref('users/' + uid + '/pointHistory/' + histKey).set({
+            amount: total, date: today2, label: '챌린지 보상'
+          });
           // 푸시 알림
           const rankLabel = isRanked ? `${rankNum}위 달성! ` : '';
           await sendPushToUser(uid, '🏆 챌린지 보상 도착!',

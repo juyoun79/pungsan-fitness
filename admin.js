@@ -1533,8 +1533,18 @@
         if (!newPt && newPt !== '0') return;
         if (isNaN(newPt)) { showToast('숫자만 입력해주세요.', 'error'); return; }
         const pt = parseInt(newPt);
+        const cur2 = parseInt(snap.val() || 0);
+        const diff = pt - cur2;
         // Firebase 저장
         db.ref('users/' + currentMemberPhone + '/points').set(pt).then(() => {
+          // 포인트 변경 내역 기록
+          if (diff !== 0) {
+            const today = new Date().toISOString().slice(0, 10);
+            const histKey = db.ref('users/' + currentMemberPhone + '/pointHistory').push().key;
+            db.ref('users/' + currentMemberPhone + '/pointHistory/' + histKey).set({
+              amount: diff, date: today, label: '관리자 지급'
+            });
+          }
           localStorage.setItem('points_' + currentMemberPhone, String(pt));
           const loggedIn = localStorage.getItem('current_user');
           if (loggedIn === currentMemberPhone && typeof updateStats === 'function') updateStats();

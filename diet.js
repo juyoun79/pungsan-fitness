@@ -978,13 +978,8 @@
         const ptSnap = await db.ref('point_settings/' + ptKey).once('value');
         const dietPts = ptSnap.val() ?? (photoURL ? 10 : 5);
         if (dietPts > 0) {
-          let newPoints = 0;
-          await db.ref('users/' + userId + '/points').transaction(cur => {
-            newPoints = (cur || 0) + dietPts;
-            return newPoints;
-          });
-          if (typeof checkPointTierCoupons === 'function') checkPointTierCoupons(userId, newPoints);
-          if (typeof updateStats === 'function') updateStats();
+          if (typeof addPointWithHistory === 'function') addPointWithHistory(userId, dietPts, '식단 기록');
+          else await db.ref('users/' + userId + '/points').transaction(cur => (cur || 0) + dietPts);
         }
       }
 

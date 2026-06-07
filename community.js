@@ -926,14 +926,8 @@
           db.ref('point_settings/like').once('value', ptSnap => {
             const likePts = ptSnap.val() ?? 1;
             if (likePts > 0) {
-              let newPoints = 0;
-              db.ref('users/' + post.authorId + '/points').transaction(cur => {
-                newPoints = (cur || 0) + likePts;
-                return newPoints;
-              }).then(() => {
-                if (typeof checkPointTierCoupons === 'function') checkPointTierCoupons(post.authorId, newPoints);
-                if (post.authorId === userId && typeof updateStats === 'function') updateStats();
-              });
+              if (typeof addPointWithHistory === 'function') addPointWithHistory(post.authorId, likePts, '좋아요');
+              else db.ref('users/' + post.authorId + '/points').transaction(cur => (cur || 0) + likePts);
             }
           });
           // 좋아요 알림 저장

@@ -967,14 +967,8 @@
       const pointEl = document.getElementById('attend-point-display');
       if (pointEl) pointEl.textContent = '+' + attendPts + 'P';
       document.getElementById('attend-complete-overlay').classList.add('active');
-      let newPoints = 0;
-      db.ref('users/' + userId + '/points').transaction(cur => {
-        newPoints = (cur || 0) + attendPts;
-        return newPoints;
-      }).then(() => {
-        if (typeof checkPointTierCoupons === 'function') checkPointTierCoupons(userId, newPoints);
-        updateStats();
-      });
+      if (typeof addPointWithHistory === 'function') addPointWithHistory(userId, attendPts, '출석');
+      else db.ref('users/' + userId + '/points').transaction(cur => (cur || 0) + attendPts).then(() => updateStats());
     });
   }
 
@@ -1274,13 +1268,8 @@
       await db.ref('users/' + userId + '/owunwan/' + today).set(true);
       const ptSnap = await db.ref('point_settings/owunwan').once('value');
       const owunwanPts = ptSnap.val() ?? 10;
-      let newPoints = 0;
-      await db.ref('users/' + userId + '/points').transaction(cur => {
-        newPoints = (cur || 0) + owunwanPts;
-        return newPoints;
-      });
-      if (typeof checkPointTierCoupons === 'function') checkPointTierCoupons(userId, newPoints);
-      updateStats();
+      if (typeof addPointWithHistory === 'function') addPointWithHistory(userId, owunwanPts, '오운완');
+      else await db.ref('users/' + userId + '/points').transaction(cur => (cur || 0) + owunwanPts).then(() => updateStats());
 
       closeOwunwanModal();
       showToast('오운완 게시물이 올라갔어요! 🔥\n+' + owunwanPts + 'P 포인트가 적립됐어요!', 'success');
