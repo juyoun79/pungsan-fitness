@@ -64,14 +64,18 @@
   function addPointWithHistory(userId, pts, label) {
     if (!pts || pts <= 0) return;
     const today = new Date().toISOString().slice(0, 10);
-    db.ref('users/' + userId + '/points').transaction(cur => (cur || 0) + pts).then(result => {
-      const newPoints = result.snapshot.val() || 0;
-      const histKey = db.ref('users/' + userId + '/pointHistory').push().key;
-      db.ref('users/' + userId + '/pointHistory/' + histKey).set({
-        amount: pts, date: today, label: label || '적립'
+    // 적립 전 포인트 먼저 읽기 → 구간 쿠폰 정확한 계산을 위해
+    db.ref('users/' + userId + '/points').once('value', prevSnap => {
+      const prevPoints = prevSnap.val() || 0;
+      db.ref('users/' + userId + '/points').transaction(cur => (cur || 0) + pts).then(result => {
+        const newPoints = result.snapshot.val() || 0;
+        const histKey = db.ref('users/' + userId + '/pointHistory').push().key;
+        db.ref('users/' + userId + '/pointHistory/' + histKey).set({
+          amount: pts, date: today, label: label || '적립'
+        });
+        if (typeof checkPointTierCoupons === 'function') checkPointTierCoupons(userId, newPoints, prevPoints);
+        if (typeof updateStats === 'function') updateStats();
       });
-      if (typeof checkPointTierCoupons === 'function') checkPointTierCoupons(userId, newPoints);
-      if (typeof updateStats === 'function') updateStats();
     });
   }
 

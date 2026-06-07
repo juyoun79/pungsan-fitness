@@ -4764,34 +4764,44 @@
   }
 
   // 포인트 달성 쿠폰 자동 발행 체크
-  function checkPointTierCoupons(userId, newPoints) {
-    db.ref('point_tiers').once('value', snap => {
-      if (!snap.exists()) return;
-      snap.forEach(child => {
-        const tier = child.val();
-        if (!tier.active) return;
-        const expireDays = 30;
-        const expireDate = new Date(); expireDate.setDate(expireDate.getDate() + expireDays);
-        const expire = expireDate.toISOString().slice(0,10);
+  function checkPointTierCoupons(userId, newPoints, prevPoints) {
+    function _check(prev) {
+      db.ref('point_tiers').once('value', snap => {
+        if (!snap.exists()) return;
+        snap.forEach(child => {
+          const tier = child.val();
+          if (!tier.active) return;
+          const expireDays = 30;
+          const expireDate = new Date(); expireDate.setDate(expireDate.getDate() + expireDays);
+          const expire = expireDate.toISOString().slice(0,10);
 
-        if (tier.type === 'repeat') {
-          // 반복형: 몇 번째 구간인지 계산
-          const prevCount = Math.floor((newPoints - 1) / tier.points);
-          const newCount  = Math.floor(newPoints / tier.points);
-          if (newCount > prevCount) {
-            issueCouponToUser(userId, tier, expire);
-          }
-        } else if (tier.type === 'once') {
-          // 1회형: 이전엔 미달, 지금 달성
-          db.ref('point_tier_issued/' + userId + '/' + child.key).once('value', flagSnap => {
-            if (!flagSnap.exists() && newPoints >= tier.points) {
+          if (tier.type === 'repeat') {
+            // 반복형: 실제 이전 포인트 기준으로 구간 횟수 계산 → 건너뛴 구간도 발행
+            const prevCount = Math.floor(prev / tier.points);
+            const newCount  = Math.floor(newPoints / tier.points);
+            const diff = newCount - prevCount;
+            for (let i = 0; i < diff; i++) {
               issueCouponToUser(userId, tier, expire);
-              db.ref('point_tier_issued/' + userId + '/' + child.key).set(true);
             }
-          });
-        }
+          } else if (tier.type === 'once') {
+            // 1회형: 이전엔 미달, 지금 달성
+            db.ref('point_tier_issued/' + userId + '/' + child.key).once('value', flagSnap => {
+              if (!flagSnap.exists() && newPoints >= tier.points) {
+                issueCouponToUser(userId, tier, expire);
+                db.ref('point_tier_issued/' + userId + '/' + child.key).set(true);
+              }
+            });
+          }
+        });
       });
-    });
+    }
+    if (prevPoints !== undefined) {
+      _check(prevPoints);
+    } else {
+      db.ref('users/' + userId + '/points').once('value', ptSnap => {
+        _check(ptSnap.val() || 0);
+      });
+    }
   }
 
   function issueCouponToUser(userId, tier, expire) {
