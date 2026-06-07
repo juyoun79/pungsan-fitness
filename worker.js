@@ -20,7 +20,7 @@ export default {
 
     // 버전 확인 API
     if (url.pathname === '/api/version') {
-      return new Response(JSON.stringify({ version: '1.2.7' }), {
+      return new Response(JSON.stringify({ version: '1.2.8' }), {
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
@@ -230,17 +230,30 @@ async function handleCronAutoClose(env) {
     if (!challenges) { console.log('Cron: 진행중 챌린지 없음'); return; }
 
     for (const [challengeId, c] of Object.entries(challenges)) {
-      // 종료일이 오늘보다 이전이면 자동 종료
-      if (c.endDate < today && c.status === 'ongoing') {
+      // 1) 점수 먼저 갱신 (종료 여부 무관하게 진행중 챌린지 전체)
+      if (c.participants) {
+        await _cronRefreshScores(env, challengeId, c, FIREBASE_DB);
+      }
+    }
+    console.log('Cron: 점수 갱신 완료');
+
+    // 갱신된 데이터로 다시 조회
+    const res2 = await fetch(`${FIREBASE_DB}/challenges.json?orderBy="status"&equalTo="ongoing"`, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const challenges2 = res2.ok ? await res2.json() : challenges;
+
+    for (const [challengeId, c] of Object.entries(challenges2 || challenges)) {
+      // 2) 종료일이 오늘 이하면 자동 종료
+      if (c.endDate <= today && c.status === 'ongoing') {
         console.log('Cron: 자동 종료 처리 -', c.name);
 
-        // 1) status → ended 업데이트
         await fetch(`${FIREBASE_DB}/challenges/${challengeId}/status.json`, {
           method: 'PUT',
           body: JSON.stringify('ended')
         });
 
-        // 2) 보상 미지급 상태면 자동 지급
+        // 3) 보상 미지급이면 자동 지급
         if (!c.rewardPaid && c.participants) {
           await _cronPayReward(env, challengeId, c, FIREBASE_DB, today);
         }
@@ -250,6 +263,62 @@ async function handleCronAutoClose(env) {
   } catch(err) {
     console.error('Cron 오류:', err.message);
   }
+}
+
+async function _cronRefreshScores(env, challengeId, c, FIREBASE_DB) {
+  const participants = c.participants || {};
+  const startDate = c.startDate || '';
+  const endDate = c.endDate || new Date().toISOString().slice(0, 10);
+  const INBODY_TYPES = ['fat_loss','muscle_gain','weight_loss','fitness_score','fat_rate'];
+
+  for (const [uid] of Object.entries(participants)) {
+    try {
+      let score = 0;
+      if (INBODY_TYPES.includes(c.type)) {
+        const snap = await fetch(`${FIREBASE_DB}/users/${uid}/inbody.json?orderByKey()&startAt="${startDate}"&endAt="${endDate}"`);
+        const inbodyData = snap.ok ? await snap.json() : null;
+        if (inbodyData) {
+          const entries = Object.entries(inbodyData).filter(([d]) => d >= startDate && d <= endDate).sort((a,b) => a[0].localeCompare(b[0]));
+          if (entries.length >= 2) {
+            const first = entries[0][1], last = entries[entries.length-1][1];
+            if (c.type === 'fat_loss')      score = Math.max(0, parseFloat(((first.fat||0)-(last.fat||0)).toFixed(1)));
+            else if (c.type === 'muscle_gain')   score = Math.max(0, parseFloat(((last.muscle||0)-(first.muscle||0)).toFixed(1)));
+            else if (c.type === 'weight_loss')   score = Math.max(0, parseFloat(((first.weight||0)-(last.weight||0)).toFixed(1)));
+            else if (c.type === 'fitness_score') score = Math.max(0, (last.fitnessScore||0)-(first.fitnessScore||0));
+            else if (c.type === 'fat_rate')      score = Math.max(0, parseFloat(((first.fatRate||0)-(last.fatRate||0)).toFixed(1)));
+          }
+        }
+      } else {
+        if (c.type === 'attendance') {
+          const snap = await fetch(`${FIREBASE_DB}/users/${uid}/attendance.json`);
+          const data = snap.ok ? await snap.json() : null;
+          if (data) score = Object.keys(data).filter(d => d >= startDate && d <= endDate).length;
+        } else if (c.type === 'workout') {
+          const snap = await fetch(`${FIREBASE_DB}/workouts/${uid}.json`);
+          const data = snap.ok ? await snap.json() : null;
+          if (data) score = Object.keys(data).filter(d => d >= startDate && d <= endDate).length;
+        } else if (c.type === 'diet') {
+          const snap = await fetch(`${FIREBASE_DB}/users/${uid}/diet.json`);
+          const data = snap.ok ? await snap.json() : null;
+          if (data) score = Object.keys(data).filter(d => d >= startDate && d <= endDate).length;
+        } else if (c.type === 'owunwan') {
+          const snap = await fetch(`${FIREBASE_DB}/users/${uid}/owunwan.json`);
+          const data = snap.ok ? await snap.json() : null;
+          if (data) score = Object.keys(data).filter(d => d >= startDate && d <= endDate).length;
+        } else if (c.type === 'points') {
+          const snap = await fetch(`${FIREBASE_DB}/users/${uid}/pointHistory.json`);
+          const data = snap.ok ? await snap.json() : null;
+          if (data) score = Object.values(data).filter(v => v && v.date >= startDate && v.date <= endDate && v.amount > 0).reduce((s,v) => s + v.amount, 0);
+        }
+      }
+      await fetch(`${FIREBASE_DB}/challenges/${challengeId}/participants/${uid}/score.json`, {
+        method: 'PUT', body: JSON.stringify(score)
+      });
+    } catch(e) {
+      console.error('Cron 점수 갱신 오류 uid:', uid, e.message);
+    }
+  }
+  console.log('Cron: 점수 갱신 완료 -', c.name);
 }
 
 async function _cronPayReward(env, challengeId, c, FIREBASE_DB, today) {
