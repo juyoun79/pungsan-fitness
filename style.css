@@ -369,6 +369,21 @@
     cursor:pointer;white-space:nowrap;font-family:'Noto Sans KR',sans-serif;transition:all 0.15s;
   }
   .cat-tab.active { background:var(--blue);color:white;border-color:var(--blue); }
+  .cat-tab-icon {
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+    padding:8px 4px;border:none;background:var(--card);cursor:pointer;
+    font-family:'Noto Sans KR',sans-serif;transition:all 0.15s;
+    border-bottom:2px solid transparent;
+  }
+  .cat-tab-icon.active { border-bottom:2px solid var(--blue);background:var(--blue-light); }
+  .cat-tab-emoji { font-size:20px;line-height:1; }
+  .cat-tab-label { font-size:11px;color:var(--text-sub);font-weight:600; }
+  .cat-tab-icon.active .cat-tab-label { color:var(--blue); }
+  .community-pin-card {
+    display:flex;align-items:center;justify-content:space-between;
+    padding:11px 16px;background:var(--card);border-bottom:1px solid var(--border);cursor:pointer;
+  }
+  .community-pin-card:active { background:var(--bg); }
   .cat-select {
     padding:7px 14px;border-radius:20px;border:1.5px solid var(--border);
     background:var(--bg);color:var(--text-sub);font-size:13px;font-weight:600;

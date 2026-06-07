@@ -20,7 +20,7 @@ export default {
 
     // 버전 확인 API
     if (url.pathname === '/api/version') {
-      return new Response(JSON.stringify({ version: '1.2.3' }), {
+      return new Response(JSON.stringify({ version: '1.2.4' }), {
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
@@ -258,10 +258,18 @@ async function _cronPayReward(env, challengeId, c, FIREBASE_DB, today) {
   const expEnd = c.couponExpireEnd || new Date(Date.now() + 30*86400000).toISOString().slice(0,10);
   const expStart = c.couponExpireStart || today;
 
-  // 점수 순 정렬
+  // 점수 순 정렬 + 동점자 순위 부여
   const sorted = Object.entries(participants)
     .map(([uid, data]) => ({ uid, ...data }))
     .sort((a, b) => (b.score||0) - (a.score||0));
+
+  let currentRank = 1;
+  sorted.forEach((entry, i) => {
+    if (i > 0 && (entry.score||0) < (sorted[i-1].score||0)) {
+      currentRank = i + 1;
+    }
+    entry.rank = currentRank;
+  });
 
   // FCM 액세스 토큰 (푸시 발송용)
   let accessToken = null;
@@ -273,7 +281,7 @@ async function _cronPayReward(env, challengeId, c, FIREBASE_DB, today) {
 
   for (let i = 0; i < sorted.length; i++) {
     const { uid } = sorted[i];
-    const rankNum  = i + 1;
+    const rankNum  = sorted[i].rank;
     const isRanked = rankNum <= rankCount;
 
     // FCM 토큰 조회
