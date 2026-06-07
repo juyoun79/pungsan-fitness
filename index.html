@@ -7257,11 +7257,8 @@ function _renderChallengeDetail(c, challengeId, userId, color, isOngoing, isJoin
       <div style="font-size:15px;font-weight:700;color:var(--text);">🏆 전체 랭킹</div>
       <div style="font-size:12px;color:var(--text-hint);">닉네임+수치 공개</div>
     </div>` +
-    `<div style="display:flex;align-items:center;justify-content:space-between;">
-      <div style="font-size:15px;font-weight:700;color:var(--text);">🏆 전체 랭킹</div>
-      <div style="font-size:12px;color:var(--text-hint);">닉네임+수치 공개</div>
-    </div>
-    <div style="font-size:11px;color:var(--text-hint);margin-top:2px;margin-bottom:4px;">🕛 순위와 점수는 매일 자정에 갱신돼요</div>` +
+    `<div style="font-size:15px;font-weight:700;color:var(--text);">🏆 전체 랭킹</div>
+    <div style="font-size:12px;color:#f97316;font-weight:600;margin-top:4px;margin-bottom:4px;">🕛 순위와 점수는 매일 자정에 갱신돼요</div>` +
     rankHtml + rewardHtml + adminBtn;
 }
 
@@ -7745,11 +7742,8 @@ function _renderChallengeDetail(c, challengeId, userId, color, isOngoing, isJoin
     </button>` : (c.rewardPaid ? `<div style="text-align:center;padding:10px;font-size:13px;color:var(--text-hint);">✅ 보상 지급 완료</div>` : '');
 
   body.innerHTML = myCardHtml +
-    `<div style="display:flex;align-items:center;justify-content:space-between;">
-      <div style="font-size:15px;font-weight:700;color:var(--text);">🏆 전체 랭킹</div>
-      <div style="font-size:12px;color:var(--text-hint);">닉네임+수치 공개</div>
-    </div>
-    <div style="font-size:11px;color:var(--text-hint);margin-top:2px;margin-bottom:4px;">🕛 순위와 점수는 매일 자정에 갱신돼요</div>` +
+    `<div style="font-size:15px;font-weight:700;color:var(--text);">🏆 전체 랭킹</div>
+    <div style="font-size:12px;color:#f97316;font-weight:600;margin-top:4px;margin-bottom:4px;">🕛 순위와 점수는 매일 자정에 갱신돼요</div>` +
     rankHtml + rewardHtml + adminRewardBtn;
 }
 
