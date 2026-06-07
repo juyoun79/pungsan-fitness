@@ -7972,14 +7972,17 @@ function _getRankGap(c, userId) {
 function openCreateChallengeModal(editId) {
   document.getElementById('challenge-edit-id').value = editId || '';
   document.getElementById('challenge-modal-title').textContent = editId ? '챌린지 수정' : '새 챌린지 만들기';
-  document.getElementById('challenge-name').value = '';
-  document.getElementById('challenge-type').value = 'fat_loss';
+  document.getElementById('challenge-name').value  = '';
+  document.getElementById('challenge-type').value  = 'fat_loss';
   document.getElementById('challenge-start').value = '';
-  document.getElementById('challenge-end').value = '';
-  document.getElementById('reward-p1').value = 500;
-  document.getElementById('reward-p2').value = 300;
-  document.getElementById('reward-p3').value = 200;
+  document.getElementById('challenge-end').value   = '';
+  document.getElementById('reward-rank-count').value = 3;
+  document.getElementById('reward-rank-count-label').textContent = '3위';
   document.getElementById('reward-p-all').value = 50;
+  document.getElementById('coupon-expire-start').value = '';
+  document.getElementById('coupon-expire-end').value   = '';
+  document.getElementById('reward-c-all').value = '';
+  _challengeRewardRankCount = 3;
   selectRewardType('point');
   onChallengeTypeChange();
 
@@ -7990,25 +7993,29 @@ function openCreateChallengeModal(editId) {
       document.getElementById('challenge-name').value  = c.name || '';
       document.getElementById('challenge-type').value  = c.type || 'fat_loss';
       document.getElementById('challenge-start').value = c.startDate || '';
-      document.getElementById('challenge-end').value   = c.endDate || '';
+      document.getElementById('challenge-end').value   = c.endDate   || '';
+      const rankCount = c.rewardRankCount || 3;
+      _challengeRewardRankCount = rankCount;
+      document.getElementById('reward-rank-count').value = rankCount;
+      document.getElementById('reward-rank-count-label').textContent = rankCount + '위';
       if (c.rewardType === 'coupon') {
         selectRewardType('coupon');
-        document.getElementById('reward-c1').value = c.rewardCoupons?.first  || '';
-        document.getElementById('reward-c2').value = c.rewardCoupons?.second || '';
-        document.getElementById('reward-c3').value = c.rewardCoupons?.third  || '';
+        _renderRewardRows('coupon', rankCount, null, c.rewardCoupons);
+        document.getElementById('coupon-expire-start').value = c.couponExpireStart || '';
+        document.getElementById('coupon-expire-end').value   = c.couponExpireEnd   || '';
+        document.getElementById('reward-c-all').value = c.rewardCoupons?.all || '';
       } else {
         selectRewardType('point');
-        document.getElementById('reward-p1').value    = c.rewardPoints?.first  || 500;
-        document.getElementById('reward-p2').value    = c.rewardPoints?.second || 300;
-        document.getElementById('reward-p3').value    = c.rewardPoints?.third  || 200;
-        document.getElementById('reward-p-all').value = c.rewardPoints?.all    || 50;
+        _renderRewardRows('point', rankCount, c.rewardPoints);
+        document.getElementById('reward-p-all').value = c.rewardPoints?.all || 50;
       }
       onChallengeTypeChange();
     });
+  } else {
+    _renderRewardRows('point', 3);
   }
 
-  const modal = document.getElementById('challenge-create-modal');
-  modal.style.display = 'flex';
+  document.getElementById('challenge-create-modal').style.display = 'flex';
 }
 
 function closeChallengeModal() {
@@ -8021,23 +8028,27 @@ function selectRewardType(type) {
   const couponBtn = document.getElementById('reward-type-coupon-btn');
   const pointSec  = document.getElementById('reward-point-section');
   const couponSec = document.getElementById('reward-coupon-section');
+  const activeStyle   = 'padding:10px;border:2px solid var(--blue);background:var(--blue-light);color:var(--blue);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
+  const inactiveStyle = 'padding:10px;border:2px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
   if (type === 'point') {
-    pointBtn.style.cssText  = 'padding:10px;border:2px solid var(--blue);background:var(--blue-light);color:var(--blue);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
-    couponBtn.style.cssText = 'padding:10px;border:2px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
-    pointSec.style.display  = 'block';
-    couponSec.style.display = 'none';
+    if (pointBtn)  pointBtn.style.cssText  = activeStyle;
+    if (couponBtn) couponBtn.style.cssText = inactiveStyle;
+    if (pointSec)  pointSec.style.display  = 'block';
+    if (couponSec) couponSec.style.display = 'none';
+    _renderRewardRows('point', _challengeRewardRankCount || 3);
   } else {
-    couponBtn.style.cssText = 'padding:10px;border:2px solid var(--blue);background:var(--blue-light);color:var(--blue);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
-    pointBtn.style.cssText  = 'padding:10px;border:2px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
-    couponSec.style.display = 'block';
-    pointSec.style.display  = 'none';
+    if (couponBtn) couponBtn.style.cssText = activeStyle;
+    if (pointBtn)  pointBtn.style.cssText  = inactiveStyle;
+    if (couponSec) couponSec.style.display = 'block';
+    if (pointSec)  pointSec.style.display  = 'none';
+    _renderRewardRows('coupon', _challengeRewardRankCount || 3);
   }
 }
 
 function onChallengeTypeChange() {
-  const type    = document.getElementById('challenge-type').value;
-  const notice  = document.getElementById('challenge-inbody-notice');
-  notice.style.display = CHALLENGE_INBODY_TYPES.includes(type) ? 'block' : 'none';
+  const type   = document.getElementById('challenge-type').value;
+  const notice = document.getElementById('challenge-inbody-notice');
+  if (notice) notice.style.display = CHALLENGE_INBODY_TYPES.includes(type) ? 'block' : 'none';
 }
 
 function saveChallenge() {
@@ -8046,43 +8057,49 @@ function saveChallenge() {
   const type      = document.getElementById('challenge-type').value;
   const startDate = document.getElementById('challenge-start').value;
   const endDate   = document.getElementById('challenge-end').value;
+  const rankCount = _challengeRewardRankCount || 3;
 
   if (!name)      { showToast('챌린지 이름을 입력해주세요.', 'error'); return; }
   if (!startDate) { showToast('시작일을 선택해주세요.', 'error'); return; }
   if (!endDate)   { showToast('종료일을 선택해주세요.', 'error'); return; }
   if (startDate >= endDate) { showToast('종료일은 시작일보다 늦어야 해요.', 'error'); return; }
 
-  const data = { name, type, startDate, endDate, status: 'ongoing', createdAt: Date.now() };
+  const data = { name, type, startDate, endDate, status: 'ongoing',
+                 rewardRankCount: rankCount, createdAt: Date.now() };
 
   if (_challengeRewardType === 'point') {
     data.rewardType = 'point';
-    data.rewardPoints = {
-      first:  parseInt(document.getElementById('reward-p1').value) || 0,
-      second: parseInt(document.getElementById('reward-p2').value) || 0,
-      third:  parseInt(document.getElementById('reward-p3').value) || 0,
-      all:    parseInt(document.getElementById('reward-p-all').value) || 0
-    };
+    const pts = { all: parseInt(document.getElementById('reward-p-all').value) || 0 };
+    for (let i = 1; i <= rankCount; i++) {
+      const el = document.getElementById('reward-p-' + i);
+      pts['rank' + i] = el ? (parseInt(el.value) || 0) : 0;
+    }
+    data.rewardPoints = pts;
   } else {
     data.rewardType = 'coupon';
-    data.rewardCoupons = {
-      first:  document.getElementById('reward-c1').value.trim(),
-      second: document.getElementById('reward-c2').value.trim(),
-      third:  document.getElementById('reward-c3').value.trim()
-    };
+    const coupons = { all: (document.getElementById('reward-c-all').value || '').trim() };
+    for (let i = 1; i <= rankCount; i++) {
+      const el = document.getElementById('reward-c-' + i);
+      coupons['rank' + i] = el ? el.value.trim() : '';
+    }
+    data.rewardCoupons    = coupons;
+    data.couponExpireStart = document.getElementById('coupon-expire-start').value || '';
+    data.couponExpireEnd   = document.getElementById('coupon-expire-end').value   || '';
   }
 
-  const ref = editId ?
-    db.ref('challenges/' + editId).update(data) :
-    db.ref('challenges').push(data);
+  const ref = editId
+    ? db.ref('challenges/' + editId).update(data)
+    : db.ref('challenges').push(data);
 
   ref.then(() => {
     closeChallengeModal();
     showToast(editId ? '✅ 챌린지가 수정됐어요!' : '✅ 챌린지가 생성됐어요!', 'success');
     loadAdminChallenges();
+  }).catch(err => {
+    showToast('저장 실패: ' + err.message, 'error');
   });
 }
 
-// ── 관리자: 챌린지 목록 ──
 function loadAdminChallenges() {
   db.ref('challenges').once('value', snap => {
     const all = [];
