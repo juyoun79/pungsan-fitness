@@ -8176,39 +8176,65 @@ async function refreshChallengeScores(challengeId) {
 async function payChalllengeReward(challengeId) {
   appConfirm('보상을 지급할까요?\n한 번 지급하면 취소할 수 없어요.', async ok => {
     if (!ok) return;
+    showToast('보상 지급 중...', 'info');
+
     const snap = await db.ref('challenges/' + challengeId).once('value');
     const c = snap.val();
     if (!c || !c.participants) { showToast('참여자가 없어요.', 'error'); return; }
 
+    const rankCount = c.rewardRankCount || 3;
     const sorted = Object.entries(c.participants)
-      .sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
+      .map(([uid, data]) => ({ uid, ...data }))
+      .sort((a, b) => (b.score || 0) - (a.score || 0));
 
-    const today = new Date().toISOString().slice(0, 10);
-    const expiry = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+    const today    = new Date().toISOString().slice(0, 10);
+    const expStart = c.couponExpireStart || today;
+    const expEnd   = c.couponExpireEnd   || new Date(Date.now() + 30*86400000).toISOString().slice(0,10);
 
     for (let i = 0; i < sorted.length; i++) {
-      const [uid] = sorted[i];
+      const { uid } = sorted[i];
+      const rankNum  = i + 1;
+      const isRanked = rankNum <= rankCount;
+
       if (c.rewardType === 'point') {
-        const pts = c.rewardPoints || {};
-        let reward = pts.all || 0;
-        if (i === 0) reward = (pts.first  || 0) + (pts.all || 0);
-        if (i === 1) reward = (pts.second || 0) + (pts.all || 0);
-        if (i === 2) reward = (pts.third  || 0) + (pts.all || 0);
-        if (reward > 0) {
-          await db.ref('users/' + uid + '/points').transaction(cur => (cur || 0) + reward);
+        const pts    = c.rewardPoints || {};
+        const ranked = isRanked ? (pts['rank' + rankNum] || 0) : 0;
+        const allPts = pts.all || 0;
+        const total  = ranked + allPts;
+        if (total > 0) {
+          await db.ref('users/' + uid + '/points').transaction(cur => (cur || 0) + total);
+          // 푸시 알림
+          const rankLabel = isRanked ? `${rankNum}위 달성! ` : '';
+          await sendPushToUser(uid, '🏆 챌린지 보상 도착!',
+            `"${c.name}" ${rankLabel}${total}P가 적립됐어요! 🎉`,
+            'coupon', { type: 'challenge_reward' });
         }
       } else {
-        const coupons = c.rewardCoupons || {};
-        let couponName = '';
-        if (i === 0) couponName = coupons.first;
-        if (i === 1) couponName = coupons.second;
-        if (i === 2) couponName = coupons.third;
+        const coupons    = c.rewardCoupons || {};
+        const couponName = isRanked ? (coupons['rank' + rankNum] || '') : '';
+        const allCoupon  = coupons.all || '';
+
         if (couponName) {
           const couponId = db.ref('users/' + uid + '/coupons').push().key;
           await db.ref('users/' + uid + '/coupons/' + couponId).set({
-            name: couponName, type: 'challenge', issuedAt: today,
-            expireAt: expiry, used: false
+            name: couponName, type: 'challenge',
+            issuedAt: today, expireAt: expEnd, startAt: expStart, used: false
           });
+          await sendPushToUser(uid, '🏆 챌린지 보상 도착!',
+            `"${c.name}" ${rankNum}위 보상 쿠폰이 도착했어요! 🎉`,
+            'coupon', { type: 'challenge_reward' });
+        }
+        if (allCoupon) {
+          const couponId2 = db.ref('users/' + uid + '/coupons').push().key;
+          await db.ref('users/' + uid + '/coupons/' + couponId2).set({
+            name: allCoupon, type: 'challenge',
+            issuedAt: today, expireAt: expEnd, startAt: expStart, used: false
+          });
+          if (!couponName) {
+            await sendPushToUser(uid, '🏆 챌린지 참여 감사 쿠폰!',
+              `"${c.name}" 참여 감사 쿠폰이 도착했어요!`,
+              'coupon', { type: 'challenge_reward' });
+          }
         }
       }
     }
