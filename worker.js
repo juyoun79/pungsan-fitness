@@ -20,7 +20,7 @@ export default {
 
     // 버전 확인 API
     if (url.pathname === '/api/version') {
-      return new Response(JSON.stringify({ version: '1.2.9' }), {
+      return new Response(JSON.stringify({ version: '1.3.0' }), {
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
@@ -363,7 +363,8 @@ async function _cronPayReward(env, challengeId, c, FIREBASE_DB, today) {
     if (c.rewardType === 'point') {
       const pts    = c.rewardPoints || {};
       const ranked = isRanked ? (pts['rank' + rankNum] || 0) : 0;
-      const allPts = pts.all || 0;
+      // 전원 보상은 순위 밖 참여자에게만 지급
+      const allPts = !isRanked ? (pts.all || 0) : 0;
       const total  = ranked + allPts;
       if (total > 0) {
         // 현재 포인트 조회 후 합산
@@ -371,6 +372,11 @@ async function _cronPayReward(env, challengeId, c, FIREBASE_DB, today) {
         const curPts = ptRes.ok ? (await ptRes.json() || 0) : 0;
         await fetch(`${FIREBASE_DB}/users/${uid}/points.json`, {
           method: 'PUT', body: JSON.stringify(curPts + total)
+        });
+        // 포인트 히스토리 기록
+        const histKey = '-' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+        await fetch(`${FIREBASE_DB}/users/${uid}/pointHistory/${histKey}.json`, {
+          method: 'PUT', body: JSON.stringify({ amount: total, date: today, label: '챌린지 보상' })
         });
         // 푸시 알림 발송
         if (fcmToken && accessToken) {
@@ -385,11 +391,11 @@ async function _cronPayReward(env, challengeId, c, FIREBASE_DB, today) {
     } else {
       const coupons    = c.rewardCoupons || {};
       const couponName = isRanked ? (coupons['rank' + rankNum] || '') : '';
-      const allCoupon  = coupons.all || '';
+      // 전원 쿠폰도 순위 밖 참여자에게만 지급
+      const allCoupon  = !isRanked ? (coupons.all || '') : '';
       const issuedAt   = today;
 
       if (couponName) {
-        // 쿠폰 키 생성 (Firebase push key 형태)
         const couponKey = '-' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
         await fetch(`${FIREBASE_DB}/users/${uid}/coupons/${couponKey}.json`, {
           method: 'PUT',

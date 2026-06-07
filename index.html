@@ -7335,7 +7335,7 @@ function _buildRewardHtml(c) {
     if (coupons.all) {
       rows += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;">
         <span style="font-size:16px;width:28px;text-align:center;">👏</span>
-        <span style="font-size:13px;color:var(--text-sub);flex:1;">참여 전원</span>
+        <span style="font-size:13px;color:var(--text-sub);flex:1;">순위 외 참여자</span>
         <span style="font-size:14px;font-weight:700;color:var(--blue);">${coupons.all}</span>
       </div>`;
     }
@@ -7352,11 +7352,13 @@ function _buildRewardHtml(c) {
         <span style="font-size:14px;font-weight:700;color:var(--blue);">+${val}P</span>
       </div>`;
     }
-    rows += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;">
-      <span style="font-size:16px;width:28px;text-align:center;">👏</span>
-      <span style="font-size:13px;color:var(--text-sub);flex:1;">참여 전원</span>
-      <span style="font-size:14px;font-weight:700;color:var(--blue);">+${pts.all || 0}P</span>
-    </div>`;
+    if ((pts.all || 0) > 0) {
+      rows += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;">
+        <span style="font-size:16px;width:28px;text-align:center;">👏</span>
+        <span style="font-size:13px;color:var(--text-sub);flex:1;">순위 외 참여자</span>
+        <span style="font-size:14px;font-weight:700;color:var(--blue);">+${pts.all}P</span>
+      </div>`;
+    }
   }
   return `<div style="font-size:15px;font-weight:700;color:var(--text);">🎁 보상 안내</div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:4px 16px;">${rows}</div>`;
@@ -7821,7 +7823,7 @@ function _buildRewardHtml(c) {
     if (coupons.all) {
       rows += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;">
         <span style="font-size:16px;width:28px;text-align:center;">👏</span>
-        <span style="font-size:13px;color:var(--text-sub);flex:1;">참여 전원</span>
+        <span style="font-size:13px;color:var(--text-sub);flex:1;">순위 외 참여자</span>
         <span style="font-size:14px;font-weight:700;color:var(--blue);">${coupons.all}</span>
       </div>`;
     }
@@ -7838,11 +7840,13 @@ function _buildRewardHtml(c) {
         <span style="font-size:14px;font-weight:700;color:var(--blue);">+${val}P</span>
       </div>`;
     }
-    rows += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;">
-      <span style="font-size:16px;width:28px;text-align:center;">👏</span>
-      <span style="font-size:13px;color:var(--text-sub);flex:1;">참여 전원</span>
-      <span style="font-size:14px;font-weight:700;color:var(--blue);">+${pts.all || 0}P</span>
-    </div>`;
+    if ((pts.all || 0) > 0) {
+      rows += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;">
+        <span style="font-size:16px;width:28px;text-align:center;">👏</span>
+        <span style="font-size:13px;color:var(--text-sub);flex:1;">순위 외 참여자</span>
+        <span style="font-size:14px;font-weight:700;color:var(--blue);">+${pts.all}P</span>
+      </div>`;
+    }
   }
   return `<div style="font-size:15px;font-weight:700;color:var(--text);">🎁 보상 안내</div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:4px 16px;">${rows}</div>`;
@@ -8235,7 +8239,8 @@ async function payChalllengeReward(challengeId) {
       if (c.rewardType === 'point') {
         const pts    = c.rewardPoints || {};
         const ranked = isRanked ? (pts['rank' + rankNum] || 0) : 0;
-        const allPts = pts.all || 0;
+        // 전원 보상은 순위 밖 참여자에게만 지급
+        const allPts = !isRanked ? (pts.all || 0) : 0;
         const total  = ranked + allPts;
         if (total > 0) {
           await db.ref('users/' + uid + '/points').transaction(cur => (cur || 0) + total);
@@ -8254,7 +8259,8 @@ async function payChalllengeReward(challengeId) {
       } else {
         const coupons    = c.rewardCoupons || {};
         const couponName = isRanked ? (coupons['rank' + rankNum] || '') : '';
-        const allCoupon  = coupons.all || '';
+        // 전원 쿠폰도 순위 밖 참여자에게만 지급
+        const allCoupon  = !isRanked ? (coupons.all || '') : '';
 
         if (couponName) {
           const couponId = db.ref('users/' + uid + '/coupons').push().key;
