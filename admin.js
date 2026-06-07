@@ -29,6 +29,7 @@
     if (tabId === 'tab-community-admin') loadAdminCommunityFeed('전체');
     if (tabId === 'tab-trainer-admin') loadAdminTrainerSchedule();
     if (tabId === 'tab-coupon') loadMemberSelectOptions();
+    if (tabId === 'tab-challenge-admin') loadAdminChallenges();
     if (tabId === 'coupon-auto') loadAutoConditions();
     if (tabId === 'tab-equipment-admin') loadAdminEquipmentList();
     if (tabId !== 'tab-trainer-admin') {

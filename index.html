@@ -947,6 +947,7 @@
       <button class="cat-tab" onclick="filterCommunity('식단')" id="cat-식단">🥗 식단</button>
       <button class="cat-tab" onclick="filterCommunity('운동팁')" id="cat-운동팁">📋 운동팁</button>
       <button class="cat-tab" onclick="filterCommunity('자유')" id="cat-자유">💬 자유</button>
+      <button class="cat-tab" onclick="openChallengeScreen()" id="cat-챌린지">🏆 챌린지</button>
     </div>
 
     <!-- 검색창 -->
@@ -971,6 +972,38 @@
     <!-- 피드 목록 -->
     <div id="community-feed" style="padding:12px 16px var(--safe-pad);"></div>
 
+  </div>
+
+  <!-- ══════════════════════════════
+       챌린지 목록 화면
+  ══════════════════════════════ -->
+  <div id="screen-challenge" class="screen">
+    <!-- 헤더 -->
+    <div style="background:var(--card);border-bottom:1px solid var(--border);padding:52px 20px 14px;position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:10px;">
+      <button class="back-btn" onclick="closeChallengeScreen()" style="margin-left:-8px;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div style="font-size:18px;font-weight:700;color:var(--text);">🏆 챌린지</div>
+    </div>
+    <div id="challenge-list-body" style="padding:14px 16px var(--safe-pad);display:flex;flex-direction:column;gap:12px;">
+      <div style="text-align:center;padding:40px 20px;color:var(--text-hint);font-size:14px;">불러오는 중...</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       챌린지 상세 화면
+  ══════════════════════════════ -->
+  <div id="screen-challenge-detail" class="screen">
+    <div id="challenge-detail-banner" style="padding:52px 20px 20px;">
+      <button onclick="showScreen('screen-challenge')" style="background:none;border:none;color:white;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:14px;font-weight:600;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;padding:0;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        챌린지 목록
+      </button>
+      <div id="challenge-detail-title" style="font-size:20px;font-weight:700;color:white;margin-bottom:4px;"></div>
+      <div id="challenge-detail-desc" style="font-size:13px;color:rgba(255,255,255,0.85);margin-bottom:14px;"></div>
+      <div id="challenge-detail-meta" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+    </div>
+    <div id="challenge-detail-body" style="padding:14px 16px var(--safe-pad);display:flex;flex-direction:column;gap:12px;"></div>
   </div>
 
   <!-- ══════════════════════════════
@@ -1078,6 +1111,158 @@
         <button onclick="closeEditBirth()" style="padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;color:var(--text);">취소</button>
         <button onclick="saveEditBirth()" style="padding:12px;background:var(--blue);border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;color:#fff;">저장</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       챌린지 생성/수정 모달
+  ══════════════════════════════ -->
+  <div id="challenge-create-modal" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,0.45);align-items:flex-end;justify-content:center;">
+    <div style="background:var(--card);border-radius:20px 20px 0 0;padding:24px 20px 40px;width:100%;max-width:430px;max-height:90vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <div id="challenge-modal-title" style="font-size:18px;font-weight:700;color:var(--text);">새 챌린지 만들기</div>
+        <button onclick="closeChallengeModal()" style="background:none;border:none;cursor:pointer;color:var(--text-hint);font-size:22px;line-height:1;">×</button>
+      </div>
+
+      <input type="hidden" id="challenge-edit-id" value="">
+
+      <!-- 챌린지 이름 -->
+      <div style="margin-bottom:14px;">
+        <label class="field-label">챌린지 이름</label>
+        <input type="text" id="challenge-name" placeholder="예) 6월 체지방 감소 챌린지"
+          style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
+          onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
+      </div>
+
+      <!-- 챌린지 종목 -->
+      <div style="margin-bottom:14px;">
+        <label class="field-label">종목</label>
+        <select id="challenge-type" onchange="onChallengeTypeChange()"
+          style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);">
+          <optgroup label="인바디 기반">
+            <option value="fat_loss">🔥 체지방 감소량 (kg)</option>
+            <option value="muscle_gain">💪 골격근량 증가량 (kg)</option>
+            <option value="weight_loss">⚖️ 체중 감소량 (kg)</option>
+            <option value="fitness_score">📈 신체발달점수 향상</option>
+            <option value="fat_rate">📉 체지방률 감소 (%)</option>
+          </optgroup>
+          <optgroup label="앱 활동 기반">
+            <option value="attendance">📅 이달 출석 횟수</option>
+            <option value="workout">🏋️ 이달 운동 기록 횟수</option>
+            <option value="diet">🥗 이달 식단 기록 횟수</option>
+            <option value="owunwan">💪 이달 오운완 횟수</option>
+            <option value="streak">🔥 연속 출석 최장 기록</option>
+            <option value="points">⭐ 이달 적립 포인트 합계</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <!-- 인바디 기반 안내 -->
+      <div id="challenge-inbody-notice" style="display:none;background:#fff7ed;border:1px solid #fed7aa;border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px;font-size:12px;color:#c2410c;line-height:1.6;">
+        📌 인바디 기반 챌린지는 챌린지 기간 내 인바디를 <b>2회 이상</b> 측정한 회원만 집계돼요.
+      </div>
+
+      <!-- 기간 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+        <div>
+          <label class="field-label">시작일</label>
+          <input type="date" id="challenge-start"
+            style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
+            onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
+        </div>
+        <div>
+          <label class="field-label">종료일</label>
+          <input type="date" id="challenge-end"
+            style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
+            onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
+        </div>
+      </div>
+
+      <!-- 보상 방식 -->
+      <div style="margin-bottom:14px;">
+        <label class="field-label">보상 방식</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">
+          <button id="reward-type-point-btn" onclick="selectRewardType('point')"
+            style="padding:10px;border:2px solid var(--blue);background:var(--blue-light);color:var(--blue);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+            ⭐ 포인트 지급
+          </button>
+          <button id="reward-type-coupon-btn" onclick="selectRewardType('coupon')"
+            style="padding:10px;border:2px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+            🎫 쿠폰 지급
+          </button>
+        </div>
+      </div>
+
+      <!-- 포인트 보상 설정 -->
+      <div id="reward-point-section" style="margin-bottom:14px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div>
+            <label class="field-label">🥇 1위</label>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <input type="number" id="reward-p1" value="500" min="0"
+                style="flex:1;padding:10px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
+              <span style="font-size:12px;color:var(--text-sub);">P</span>
+            </div>
+          </div>
+          <div>
+            <label class="field-label">🥈 2위</label>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <input type="number" id="reward-p2" value="300" min="0"
+                style="flex:1;padding:10px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
+              <span style="font-size:12px;color:var(--text-sub);">P</span>
+            </div>
+          </div>
+          <div>
+            <label class="field-label">🥉 3위</label>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <input type="number" id="reward-p3" value="200" min="0"
+                style="flex:1;padding:10px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
+              <span style="font-size:12px;color:var(--text-sub);">P</span>
+            </div>
+          </div>
+          <div>
+            <label class="field-label">👏 참여 전원</label>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <input type="number" id="reward-p-all" value="50" min="0"
+                style="flex:1;padding:10px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
+              <span style="font-size:12px;color:var(--text-sub);">P</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 쿠폰 보상 설정 -->
+      <div id="reward-coupon-section" style="display:none;margin-bottom:14px;">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div>
+            <label class="field-label">🥇 1위 쿠폰 이름</label>
+            <input type="text" id="reward-c1" placeholder="예) 1개월 무료 등록권"
+              style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
+              onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
+          </div>
+          <div>
+            <label class="field-label">🥈 2위 쿠폰 이름</label>
+            <input type="text" id="reward-c2" placeholder="예) PT 1회권"
+              style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
+              onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
+          </div>
+          <div>
+            <label class="field-label">🥉 3위 쿠폰 이름</label>
+            <input type="text" id="reward-c3" placeholder="예) 단백질 쉐이크 1개"
+              style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
+              onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
+          </div>
+        </div>
+      </div>
+
+      <button onclick="saveChallenge()"
+        style="width:100%;padding:14px;background:var(--blue);color:white;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+        저장하기
+      </button>
     </div>
   </div>
 
@@ -2169,6 +2354,7 @@
         <button class="admin-tab" onclick="switchAdminTab('tab-community-admin')">💬 커뮤니티</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-notice')">📢 공지</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-coupon')">🎫 쿠폰</button>
+        <button class="admin-tab" onclick="switchAdminTab('tab-challenge-admin')">🏆 챌린지</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-settings')">⚙️ 설정</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-equipment-admin')">🏋️ 기구</button>
       </div>
@@ -2197,6 +2383,7 @@
           <button class="admin-side-tab" onclick="switchAdminTab('tab-community-admin')">💬 커뮤니티</button>
           <button class="admin-side-tab" onclick="switchAdminTab('tab-notice')">📢 공지</button>
           <button class="admin-side-tab" onclick="switchAdminTab('tab-coupon')">🎫 쿠폰</button>
+          <button class="admin-side-tab" onclick="switchAdminTab('tab-challenge-admin')">🏆 챌린지</button>
           <button class="admin-side-tab" onclick="switchAdminTab('tab-settings')">⚙️ 설정</button>
           <button class="admin-side-tab" onclick="switchAdminTab('tab-equipment-admin')">🏋️ 기구</button>
         </div>
@@ -2864,6 +3051,32 @@
         </div>
 
       </div>
+      <div id="tab-challenge-admin" class="admin-section">
+        <div class="admin-card">
+          <div class="admin-card-title">🏆 챌린지 관리</div>
+          <button onclick="openCreateChallengeModal()" style="width:100%;padding:12px;background:var(--blue);color:white;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;justify-content:center;gap:6px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            새 챌린지 만들기
+          </button>
+        </div>
+
+        <!-- 진행중 챌린지 -->
+        <div class="admin-card" style="margin-top:0;">
+          <div class="admin-card-title">📌 진행중인 챌린지</div>
+          <div id="admin-challenge-ongoing">
+            <div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">진행중인 챌린지가 없어요</div>
+          </div>
+        </div>
+
+        <!-- 종료된 챌린지 -->
+        <div class="admin-card" style="margin-top:0;">
+          <div class="admin-card-title">📂 종료된 챌린지</div>
+          <div id="admin-challenge-ended">
+            <div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">종료된 챌린지가 없어요</div>
+          </div>
+        </div>
+      </div>
+
       <div id="tab-settings" class="admin-section">
         <div class="admin-card">
           <div class="admin-card-title">🔐 관리자 비밀번호 변경</div>
@@ -6821,6 +7034,716 @@ async function sendPushToAll(title, body, notifType, data) {
       console.log('✅ 푸시 발송 완료:', _result);
     }
   } catch(e) { console.log('전체 푸시 발송 실패:', e.message); }
+}
+// ══════════════════════════════════════════════
+//  챌린지 기능
+// ══════════════════════════════════════════════
+
+// 챌린지 종목 라벨
+const CHALLENGE_TYPE_LABELS = {
+  fat_loss:      '🔥 체지방 감소량',
+  muscle_gain:   '💪 골격근량 증가량',
+  weight_loss:   '⚖️ 체중 감소량',
+  fitness_score: '📈 신체발달점수 향상',
+  fat_rate:      '📉 체지방률 감소',
+  attendance:    '📅 이달 출석 횟수',
+  workout:       '🏋️ 이달 운동 기록 횟수',
+  diet:          '🥗 이달 식단 기록 횟수',
+  owunwan:       '💪 이달 오운완 횟수',
+  streak:        '🔥 연속 출석 최장 기록',
+  points:        '⭐ 이달 적립 포인트 합계'
+};
+const CHALLENGE_INBODY_TYPES = ['fat_loss','muscle_gain','weight_loss','fitness_score','fat_rate'];
+const CHALLENGE_COLORS = ['#1a6fd4','#7F77DD','#16a34a','#ea580c','#0891b2'];
+
+let _currentChallengeId = null;
+let _challengeRewardType = 'point';
+
+// ── 화면 전환 ──
+function openChallengeScreen() {
+  document.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('cat-챌린지').classList.add('active');
+  showScreen('screen-challenge');
+  loadChallengeList();
+}
+
+function closeChallengeScreen() {
+  showScreen('screen-community');
+  document.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('cat-전체').classList.add('active');
+  filterCommunity('전체');
+}
+
+// ── 챌린지 목록 로드 ──
+function loadChallengeList() {
+  const userId = localStorage.getItem('current_user');
+  const body = document.getElementById('challenge-list-body');
+  body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-hint);font-size:14px;">불러오는 중...</div>';
+
+  db.ref('challenges').orderByChild('status').once('value', snap => {
+    const challenges = [];
+    snap.forEach(c => { if (c.val()) challenges.push({ id: c.key, ...c.val() }); });
+
+    const ongoing = challenges.filter(c => c.status === 'ongoing');
+    const ended   = challenges.filter(c => c.status === 'ended');
+
+    if (ongoing.length === 0 && ended.length === 0) {
+      body.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text-hint);font-size:14px;">진행중인 챌린지가 없어요</div>';
+      return;
+    }
+
+    let html = '';
+
+    if (ongoing.length > 0) {
+      html += `<div style="font-size:15px;font-weight:700;color:var(--text);display:flex;align-items:center;justify-content:space-between;">
+        <span>진행중인 챌린지</span>
+        <span style="font-size:12px;color:var(--text-hint);background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:2px 10px;">${ongoing.length}개</span>
+      </div>`;
+      ongoing.forEach((c, i) => {
+        const color = CHALLENGE_COLORS[i % CHALLENGE_COLORS.length];
+        const dDay = _calcDDay(c.endDate);
+        html += _buildChallengeCard(c, color, dDay, userId);
+      });
+    }
+
+    if (ended.length > 0) {
+      html += `<div style="font-size:15px;font-weight:700;color:var(--text);margin-top:8px;">지난 챌린지</div>`;
+      ended.slice(0,5).forEach((c, i) => {
+        html += `<div onclick="openChallengeDetail('${c.id}')"
+          style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text);">${c.name}</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-top:2px;">${c.startDate} ~ ${c.endDate}</div>
+          </div>
+          <div style="font-size:12px;color:var(--text-hint);">결과보기 ›</div>
+        </div>`;
+      });
+    }
+
+    body.innerHTML = html;
+  });
+}
+
+function _buildChallengeCard(c, color, dDay, userId) {
+  const typeLabel = CHALLENGE_TYPE_LABELS[c.type] || c.type;
+  const isInbody = CHALLENGE_INBODY_TYPES.includes(c.type);
+  const participants = c.participants ? Object.keys(c.participants).length : 0;
+  const isJoined = c.participants && c.participants[userId];
+  const myScore = isJoined ? (c.participants[userId].score || 0) : null;
+  const myRank = isJoined ? _calcMyRank(c, userId) : null;
+
+  return `<div onclick="openChallengeDetail('${c.id}')"
+    style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;">
+    <div style="background:linear-gradient(135deg,${color},${color}cc);padding:16px;">
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <span style="background:rgba(255,255,255,0.25);color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">🔴 진행중</span>
+        <span style="background:rgba(255,255,255,0.2);color:white;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;">${dDay}</span>
+      </div>
+      <div style="font-size:16px;font-weight:700;color:white;margin-bottom:3px;">${c.name}</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.85);">${typeLabel}</div>
+    </div>
+    <div style="padding:12px 16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+        <div style="text-align:center;">
+          <div style="font-size:11px;color:var(--text-hint);margin-bottom:2px;">참여 회원</div>
+          <div style="font-size:14px;font-weight:700;color:${color};">${participants}명</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:11px;color:var(--text-hint);margin-bottom:2px;">내 순위</div>
+          <div style="font-size:14px;font-weight:700;color:${color};">${isJoined && myRank ? myRank + '위' : '-'}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:11px;color:var(--text-hint);margin-bottom:2px;">내 기록</div>
+          <div style="font-size:14px;font-weight:700;color:#16a34a;">${isJoined && myScore !== null ? _formatScore(myScore, c.type) : '-'}</div>
+        </div>
+      </div>
+      ${isJoined && myRank ? `<div style="background:var(--bg);border-radius:var(--radius-sm);padding:8px 12px;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:13px;font-weight:700;color:${color};">${myRank}위</span>
+        <span style="font-size:12px;color:var(--text-sub);flex:1;">${_getRankGap(c, userId)}</span>
+        <span style="font-size:13px;font-weight:700;color:#16a34a;">${_formatScore(myScore, c.type)}</span>
+      </div>` : `<div style="background:${color}15;border-radius:var(--radius-sm);padding:8px 12px;text-align:center;font-size:13px;font-weight:700;color:${color};">참여하기 →</div>`}
+    </div>
+  </div>`;
+}
+
+// ── 챌린지 상세 ──
+function openChallengeDetail(challengeId) {
+  _currentChallengeId = challengeId;
+  showScreen('screen-challenge-detail');
+  loadChallengeDetail(challengeId);
+}
+
+function loadChallengeDetail(challengeId) {
+  const userId = localStorage.getItem('current_user');
+  const colors = ['#1a6fd4','#7F77DD','#16a34a','#ea580c','#0891b2'];
+
+  db.ref('challenges/' + challengeId).once('value', snap => {
+    const c = snap.val();
+    if (!c) return;
+
+    const color = colors[0];
+    const isOngoing = c.status === 'ongoing';
+    const isJoined = c.participants && c.participants[userId];
+    const participants = c.participants ? Object.keys(c.participants).length : 0;
+    const dDay = _calcDDay(c.endDate);
+    const typeLabel = CHALLENGE_TYPE_LABELS[c.type] || c.type;
+
+    // 배너
+    document.getElementById('challenge-detail-banner').style.background =
+      `linear-gradient(135deg, ${color}, ${color}cc)`;
+    document.getElementById('challenge-detail-title').textContent = c.name;
+    document.getElementById('challenge-detail-desc').textContent = typeLabel;
+    document.getElementById('challenge-detail-meta').innerHTML = `
+      <span style="background:rgba(255,255,255,0.2);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:white;">참여 ${participants}명</span>
+      <span style="background:rgba(255,255,255,0.2);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:white;">${isOngoing ? dDay : '종료'}</span>
+      <span style="background:rgba(255,255,255,0.2);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:white;">🎁 ${c.rewardType === 'coupon' ? '쿠폰' : '포인트'} 보상</span>`;
+
+    // 내 현황 + 랭킹 + 보상 렌더링
+    _renderChallengeDetail(c, challengeId, userId, color, isOngoing, isJoined);
+  });
+}
+
+function _renderChallengeDetail(c, challengeId, userId, color, isOngoing, isJoined) {
+  const body = document.getElementById('challenge-detail-body');
+  const myScore = isJoined ? (c.participants[userId].score || 0) : null;
+  const myRank  = isJoined ? _calcMyRank(c, userId) : null;
+  const rankGap = isJoined ? _getRankGap(c, userId) : null;
+  const isInbody = CHALLENGE_INBODY_TYPES.includes(c.type);
+
+  // 내 현황 카드
+  let myCardHtml = '';
+  if (isJoined) {
+    myCardHtml = `<div style="background:${color}15;border:1.5px solid ${color};border-radius:var(--radius);padding:14px 16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:13px;font-weight:700;color:${color};">나의 현재 순위</div>
+        <div style="background:${color};color:white;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:700;">참여중</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+        <div style="background:white;border-radius:var(--radius-sm);padding:10px;text-align:center;">
+          <div style="font-size:11px;color:var(--text-hint);margin-bottom:2px;">현재 순위</div>
+          <div style="font-size:15px;font-weight:700;color:${color};">${myRank}위</div>
+        </div>
+        <div style="background:white;border-radius:var(--radius-sm);padding:10px;text-align:center;">
+          <div style="font-size:11px;color:var(--text-hint);margin-bottom:2px;">내 기록</div>
+          <div style="font-size:15px;font-weight:700;color:#16a34a;">${_formatScore(myScore, c.type)}</div>
+        </div>
+        <div style="background:white;border-radius:var(--radius-sm);padding:10px;text-align:center;">
+          <div style="font-size:11px;color:var(--text-hint);margin-bottom:2px;">1위까지</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text-sub);">${rankGap}</div>
+        </div>
+      </div>
+    </div>`;
+  } else if (isOngoing) {
+    myCardHtml = `<button onclick="joinChallenge('${challengeId}')"
+      style="width:100%;padding:14px;background:${color};color:white;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+      🏆 챌린지 참여하기
+    </button>
+    ${isInbody ? `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;color:#c2410c;line-height:1.6;">
+      📌 챌린지 기간 내 인바디를 2회 이상 측정해야 집계돼요.
+    </div>` : ''}`;
+  }
+
+  // 랭킹
+  const rankHtml = _buildRankingHtml(c, userId, color);
+
+  // 보상
+  const rewardHtml = _buildRewardHtml(c);
+
+  // 종료 시 보상 지급 버튼 (관리자)
+  const role = localStorage.getItem('role_' + userId);
+  const adminRewardBtn = (role === 'manager' && c.status === 'ended' && !c.rewardPaid) ?
+    `<button onclick="payChalllengeReward('${challengeId}')"
+      style="width:100%;padding:14px;background:#16a34a;color:white;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+      🎁 보상 지급하기
+    </button>` : (c.rewardPaid ? `<div style="text-align:center;padding:10px;font-size:13px;color:var(--text-hint);">✅ 보상 지급 완료</div>` : '');
+
+  body.innerHTML = myCardHtml +
+    `<div style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:15px;font-weight:700;color:var(--text);">🏆 전체 랭킹</div>
+      <div style="font-size:12px;color:var(--text-hint);">닉네임+수치 공개</div>
+    </div>` +
+    rankHtml + rewardHtml + adminRewardBtn;
+}
+
+function _buildRankingHtml(c, userId, color) {
+  if (!c.participants) {
+    return `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;color:var(--text-hint);font-size:13px;">아직 참여한 회원이 없어요</div>`;
+  }
+
+  const sorted = Object.entries(c.participants)
+    .map(([uid, data]) => ({ uid, ...data }))
+    .sort((a, b) => (b.score || 0) - (a.score || 0));
+
+  const top5 = sorted.slice(0, 5);
+  const myEntry = sorted.find(e => e.uid === userId);
+  const myRankNum = myEntry ? sorted.indexOf(myEntry) + 1 : null;
+
+  const medals = ['🥇', '🥈', '🥉'];
+  let rows = top5.map((entry, i) => {
+    const isMe = entry.uid === userId;
+    const rankDisplay = i < 3 ? medals[i] : String(i + 1);
+    const numStyle = i < 3 ?
+      ['background:#fef3c7;color:#b45309','background:#f1f5f9;color:#64748b','background:#fff7ed;color:#c2410c'][i] :
+      isMe ? `background:${color};color:white` : 'background:var(--bg);color:var(--text-sub)';
+    const avatarBg = ['#fef3c7','#e0f2fe','#fce7f3','#f0fdf4','#ede9fe'][i % 5];
+    const avatarColor = ['#b45309','#0369a1','#9d174d','#166534','#5b21b6'][i % 5];
+    const nick = entry.nickname || entry.uid.slice(-4);
+
+    return `<div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);gap:12px;${isMe ? 'background:#f8f9ff;' : ''}">
+      <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${i < 3 ? '16' : '13'}px;font-weight:700;flex-shrink:0;${numStyle};">${rankDisplay}</div>
+      <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:${avatarBg};color:${avatarColor};">${nick.slice(0,1)}</div>
+      <div style="flex:1;">
+        <div style="font-size:14px;font-weight:700;color:var(--text);">${nick}${isMe ? ' (나)' : ''}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:15px;font-weight:700;color:#16a34a;">${_formatScore(entry.score || 0, c.type)}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // 내가 5등 밖이면 내 순위 추가
+  if (myRankNum && myRankNum > 5 && myEntry) {
+    rows += `<div style="padding:4px 16px;text-align:center;font-size:11px;color:var(--text-hint);">• • •</div>
+    <div style="display:flex;align-items:center;padding:12px 16px;gap:12px;background:#f8f9ff;">
+      <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:${color};color:white;">${myRankNum}</div>
+      <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:#ede9fe;color:#5b21b6;">${(myEntry.nickname||'나').slice(0,1)}</div>
+      <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text);">${myEntry.nickname || '나'} (나)</div></div>
+      <div style="text-align:right;"><div style="font-size:15px;font-weight:700;color:#16a34a;">${_formatScore(myEntry.score || 0, c.type)}</div></div>
+    </div>`;
+  }
+
+  rows += `<div style="padding:10px 16px;text-align:center;font-size:12px;color:var(--text-hint);">참여 ${sorted.length}명 중 상위 5명 표시</div>`;
+
+  return `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">${rows}</div>`;
+}
+
+function _buildRewardHtml(c) {
+  let rows = '';
+  if (c.rewardType === 'coupon') {
+    const coupons = c.rewardCoupons || {};
+    rows = `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:18px;width:28px;text-align:center;">🥇</span>
+        <span style="font-size:13px;color:var(--text-sub);flex:1;">1위</span>
+        <span style="font-size:14px;font-weight:700;color:var(--blue);">${coupons.first || '-'}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:18px;width:28px;text-align:center;">🥈</span>
+        <span style="font-size:13px;color:var(--text-sub);flex:1;">2위</span>
+        <span style="font-size:14px;font-weight:700;color:var(--blue);">${coupons.second || '-'}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;">
+        <span style="font-size:18px;width:28px;text-align:center;">🥉</span>
+        <span style="font-size:13px;color:var(--text-sub);flex:1;">3위</span>
+        <span style="font-size:14px;font-weight:700;color:var(--blue);">${coupons.third || '-'}</span>
+      </div>`;
+  } else {
+    const pts = c.rewardPoints || {};
+    rows = `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:18px;width:28px;text-align:center;">🥇</span>
+        <span style="font-size:13px;color:var(--text-sub);flex:1;">1위</span>
+        <span style="font-size:14px;font-weight:700;color:var(--blue);">+${pts.first || 0}P</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:18px;width:28px;text-align:center;">🥈</span>
+        <span style="font-size:13px;color:var(--text-sub);flex:1;">2위</span>
+        <span style="font-size:14px;font-weight:700;color:var(--blue);">+${pts.second || 0}P</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:18px;width:28px;text-align:center;">🥉</span>
+        <span style="font-size:13px;color:var(--text-sub);flex:1;">3위</span>
+        <span style="font-size:14px;font-weight:700;color:var(--blue);">+${pts.third || 0}P</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;">
+        <span style="font-size:18px;width:28px;text-align:center;">👏</span>
+        <span style="font-size:13px;color:var(--text-sub);flex:1;">참여 전원</span>
+        <span style="font-size:14px;font-weight:700;color:var(--blue);">+${pts.all || 0}P</span>
+      </div>`;
+  }
+  return `<div style="font-size:15px;font-weight:700;color:var(--text);">🎁 보상 안내</div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:4px 16px;">${rows}</div>`;
+}
+
+// ── 챌린지 참여 ──
+function joinChallenge(challengeId) {
+  const userId = localStorage.getItem('current_user');
+  const nick = localStorage.getItem('nickname_' + userId) || userId.slice(-4);
+
+  appConfirm('챌린지에 참여할까요?\n참여 후 취소는 불가능해요.', ok => {
+    if (!ok) return;
+    const joinData = { joinedAt: Date.now(), score: 0, nickname: nick };
+    db.ref('challenges/' + challengeId + '/participants/' + userId).set(joinData).then(() => {
+      showToast('🏆 챌린지 참여 완료!', 'success');
+      // 참여 즉시 점수 계산
+      _calcAndUpdateScore(challengeId, userId);
+      loadChallengeDetail(challengeId);
+    });
+  });
+}
+
+// ── 점수 계산 ──
+async function _calcAndUpdateScore(challengeId, userId) {
+  const snap = await db.ref('challenges/' + challengeId).once('value');
+  const c = snap.val();
+  if (!c) return;
+
+  const score = await _getScore(c, userId);
+  await db.ref('challenges/' + challengeId + '/participants/' + userId + '/score').set(score);
+}
+
+async function _getScore(c, userId) {
+  const startDate = c.startDate;
+  const endDate   = c.endDate;
+
+  if (CHALLENGE_INBODY_TYPES.includes(c.type)) {
+    // 인바디 기반: 기간 내 첫↔마지막 비교
+    const snap = await db.ref('users/' + userId + '/inbody').orderByKey().once('value');
+    const entries = [];
+    snap.forEach(ch => {
+      if (ch.key >= startDate && ch.key <= endDate) entries.push({ date: ch.key, ...ch.val() });
+    });
+    if (entries.length < 2) return 0;
+    const first = entries[0];
+    const last  = entries[entries.length - 1];
+    switch(c.type) {
+      case 'fat_loss':      return Math.max(0, parseFloat(((first.fat || 0) - (last.fat || 0)).toFixed(1)));
+      case 'muscle_gain':   return Math.max(0, parseFloat(((last.muscle || 0) - (first.muscle || 0)).toFixed(1)));
+      case 'weight_loss':   return Math.max(0, parseFloat(((first.weight || 0) - (last.weight || 0)).toFixed(1)));
+      case 'fitness_score': return Math.max(0, (last.fitnessScore || 0) - (first.fitnessScore || 0));
+      case 'fat_rate':      return Math.max(0, parseFloat(((first.fatRate || 0) - (last.fatRate || 0)).toFixed(1)));
+    }
+  } else {
+    // 앱 활동 기반: 챌린지 시작일부터 소급 집계
+    switch(c.type) {
+      case 'attendance': {
+        const snap = await db.ref('users/' + userId + '/attendance').once('value');
+        let count = 0;
+        snap.forEach(ch => { if (ch.key >= startDate && ch.key <= endDate) count++; });
+        return count;
+      }
+      case 'workout': {
+        const snap = await db.ref('workouts/' + userId).once('value');
+        let count = 0;
+        snap.forEach(ch => { if (ch.key >= startDate && ch.key <= endDate) count++; });
+        return count;
+      }
+      case 'diet': {
+        const snap = await db.ref('users/' + userId + '/diet').once('value');
+        let count = 0;
+        snap.forEach(ch => { if (ch.key >= startDate && ch.key <= endDate) count++; });
+        return count;
+      }
+      case 'owunwan': {
+        const snap = await db.ref('users/' + userId + '/owunwan').once('value');
+        let count = 0;
+        snap.forEach(ch => { if (ch.key >= startDate && ch.key <= endDate) count++; });
+        return count;
+      }
+      case 'streak': {
+        const snap = await db.ref('users/' + userId + '/attendance').once('value');
+        const dates = [];
+        snap.forEach(ch => { if (ch.key >= startDate && ch.key <= endDate) dates.push(ch.key); });
+        return _calcStreak(dates);
+      }
+      case 'points': {
+        const snap = await db.ref('users/' + userId + '/pointHistory').once('value');
+        let total = 0;
+        snap.forEach(ch => {
+          const v = ch.val();
+          if (v && v.date >= startDate && v.date <= endDate && v.amount > 0) total += v.amount;
+        });
+        return total;
+      }
+    }
+  }
+  return 0;
+}
+
+function _calcStreak(dates) {
+  if (!dates.length) return 0;
+  dates.sort();
+  let maxStreak = 1, cur = 1;
+  for (let i = 1; i < dates.length; i++) {
+    const diff = (new Date(dates[i]) - new Date(dates[i-1])) / 86400000;
+    if (diff === 1) { cur++; maxStreak = Math.max(maxStreak, cur); }
+    else cur = 1;
+  }
+  return maxStreak;
+}
+
+// ── 유틸 함수 ──
+function _calcDDay(endDate) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const end   = new Date(endDate); end.setHours(0,0,0,0);
+  const diff  = Math.ceil((end - today) / 86400000);
+  return diff > 0 ? `D-${diff}` : diff === 0 ? 'D-Day' : '종료';
+}
+
+function _formatScore(score, type) {
+  if (!score && score !== 0) return '-';
+  switch(type) {
+    case 'fat_loss': case 'muscle_gain': case 'weight_loss': return `-${score}kg`;
+    case 'fat_rate': return `-${score}%`;
+    case 'fitness_score': return `+${score}점`;
+    case 'attendance': case 'workout': case 'diet': case 'owunwan': case 'streak': return `${score}회`;
+    case 'points': return `${score}P`;
+    default: return String(score);
+  }
+}
+
+function _calcMyRank(c, userId) {
+  if (!c.participants) return null;
+  const sorted = Object.entries(c.participants)
+    .sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
+  const idx = sorted.findIndex(([uid]) => uid === userId);
+  return idx >= 0 ? idx + 1 : null;
+}
+
+function _getRankGap(c, userId) {
+  if (!c.participants) return '-';
+  const sorted = Object.entries(c.participants)
+    .sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
+  const myIdx = sorted.findIndex(([uid]) => uid === userId);
+  if (myIdx <= 0) return '1위예요!';
+  const topScore = sorted[0][1].score || 0;
+  const myScore  = sorted[myIdx][1].score || 0;
+  const diff = topScore - myScore;
+  return `1위까지 ${_formatScore(diff, c.type)} 차이`;
+}
+
+// ── 관리자: 챌린지 만들기 모달 ──
+function openCreateChallengeModal(editId) {
+  document.getElementById('challenge-edit-id').value = editId || '';
+  document.getElementById('challenge-modal-title').textContent = editId ? '챌린지 수정' : '새 챌린지 만들기';
+  document.getElementById('challenge-name').value = '';
+  document.getElementById('challenge-type').value = 'fat_loss';
+  document.getElementById('challenge-start').value = '';
+  document.getElementById('challenge-end').value = '';
+  document.getElementById('reward-p1').value = 500;
+  document.getElementById('reward-p2').value = 300;
+  document.getElementById('reward-p3').value = 200;
+  document.getElementById('reward-p-all').value = 50;
+  selectRewardType('point');
+  onChallengeTypeChange();
+
+  if (editId) {
+    db.ref('challenges/' + editId).once('value', snap => {
+      const c = snap.val();
+      if (!c) return;
+      document.getElementById('challenge-name').value  = c.name || '';
+      document.getElementById('challenge-type').value  = c.type || 'fat_loss';
+      document.getElementById('challenge-start').value = c.startDate || '';
+      document.getElementById('challenge-end').value   = c.endDate || '';
+      if (c.rewardType === 'coupon') {
+        selectRewardType('coupon');
+        document.getElementById('reward-c1').value = c.rewardCoupons?.first  || '';
+        document.getElementById('reward-c2').value = c.rewardCoupons?.second || '';
+        document.getElementById('reward-c3').value = c.rewardCoupons?.third  || '';
+      } else {
+        selectRewardType('point');
+        document.getElementById('reward-p1').value    = c.rewardPoints?.first  || 500;
+        document.getElementById('reward-p2').value    = c.rewardPoints?.second || 300;
+        document.getElementById('reward-p3').value    = c.rewardPoints?.third  || 200;
+        document.getElementById('reward-p-all').value = c.rewardPoints?.all    || 50;
+      }
+      onChallengeTypeChange();
+    });
+  }
+
+  const modal = document.getElementById('challenge-create-modal');
+  modal.style.display = 'flex';
+}
+
+function closeChallengeModal() {
+  document.getElementById('challenge-create-modal').style.display = 'none';
+}
+
+function selectRewardType(type) {
+  _challengeRewardType = type;
+  const pointBtn  = document.getElementById('reward-type-point-btn');
+  const couponBtn = document.getElementById('reward-type-coupon-btn');
+  const pointSec  = document.getElementById('reward-point-section');
+  const couponSec = document.getElementById('reward-coupon-section');
+  if (type === 'point') {
+    pointBtn.style.cssText  = 'padding:10px;border:2px solid var(--blue);background:var(--blue-light);color:var(--blue);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
+    couponBtn.style.cssText = 'padding:10px;border:2px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
+    pointSec.style.display  = 'block';
+    couponSec.style.display = 'none';
+  } else {
+    couponBtn.style.cssText = 'padding:10px;border:2px solid var(--blue);background:var(--blue-light);color:var(--blue);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
+    pointBtn.style.cssText  = 'padding:10px;border:2px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
+    couponSec.style.display = 'block';
+    pointSec.style.display  = 'none';
+  }
+}
+
+function onChallengeTypeChange() {
+  const type    = document.getElementById('challenge-type').value;
+  const notice  = document.getElementById('challenge-inbody-notice');
+  notice.style.display = CHALLENGE_INBODY_TYPES.includes(type) ? 'block' : 'none';
+}
+
+function saveChallenge() {
+  const editId    = document.getElementById('challenge-edit-id').value;
+  const name      = document.getElementById('challenge-name').value.trim();
+  const type      = document.getElementById('challenge-type').value;
+  const startDate = document.getElementById('challenge-start').value;
+  const endDate   = document.getElementById('challenge-end').value;
+
+  if (!name)      { showToast('챌린지 이름을 입력해주세요.', 'error'); return; }
+  if (!startDate) { showToast('시작일을 선택해주세요.', 'error'); return; }
+  if (!endDate)   { showToast('종료일을 선택해주세요.', 'error'); return; }
+  if (startDate >= endDate) { showToast('종료일은 시작일보다 늦어야 해요.', 'error'); return; }
+
+  const data = { name, type, startDate, endDate, status: 'ongoing', createdAt: Date.now() };
+
+  if (_challengeRewardType === 'point') {
+    data.rewardType = 'point';
+    data.rewardPoints = {
+      first:  parseInt(document.getElementById('reward-p1').value) || 0,
+      second: parseInt(document.getElementById('reward-p2').value) || 0,
+      third:  parseInt(document.getElementById('reward-p3').value) || 0,
+      all:    parseInt(document.getElementById('reward-p-all').value) || 0
+    };
+  } else {
+    data.rewardType = 'coupon';
+    data.rewardCoupons = {
+      first:  document.getElementById('reward-c1').value.trim(),
+      second: document.getElementById('reward-c2').value.trim(),
+      third:  document.getElementById('reward-c3').value.trim()
+    };
+  }
+
+  const ref = editId ?
+    db.ref('challenges/' + editId).update(data) :
+    db.ref('challenges').push(data);
+
+  ref.then(() => {
+    closeChallengeModal();
+    showToast(editId ? '✅ 챌린지가 수정됐어요!' : '✅ 챌린지가 생성됐어요!', 'success');
+    loadAdminChallenges();
+  });
+}
+
+// ── 관리자: 챌린지 목록 ──
+function loadAdminChallenges() {
+  db.ref('challenges').once('value', snap => {
+    const all = [];
+    snap.forEach(c => { if (c.val()) all.push({ id: c.key, ...c.val() }); });
+
+    const ongoing = all.filter(c => c.status === 'ongoing');
+    const ended   = all.filter(c => c.status === 'ended');
+
+    const ongoingEl = document.getElementById('admin-challenge-ongoing');
+    const endedEl   = document.getElementById('admin-challenge-ended');
+    if (!ongoingEl || !endedEl) return;
+
+    if (ongoing.length === 0) {
+      ongoingEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">진행중인 챌린지가 없어요</div>';
+    } else {
+      ongoingEl.innerHTML = ongoing.map(c => `
+        <div style="background:var(--bg);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text);">${c.name}</div>
+              <div style="font-size:12px;color:var(--text-hint);margin-top:2px;">${c.startDate} ~ ${c.endDate} | 참여 ${c.participants ? Object.keys(c.participants).length : 0}명</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button onclick="openCreateChallengeModal('${c.id}')"
+              style="flex:1;padding:7px;background:var(--blue-light);color:var(--blue);border:1px solid var(--blue);border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
+            <button onclick="endChallenge('${c.id}')"
+              style="flex:1;padding:7px;background:#fef2f2;color:#ef4444;border:1px solid #fecaca;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">종료</button>
+            <button onclick="refreshChallengeScores('${c.id}')"
+              style="flex:1;padding:7px;background:var(--bg);color:var(--text-sub);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">점수갱신</button>
+          </div>
+        </div>`).join('');
+    }
+
+    if (ended.length === 0) {
+      endedEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">종료된 챌린지가 없어요</div>';
+    } else {
+      endedEl.innerHTML = ended.map(c => `
+        <div style="background:var(--bg);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text-sub);">${c.name}</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-top:2px;">${c.startDate} ~ ${c.endDate} ${c.rewardPaid ? '| ✅ 보상완료' : ''}</div>
+          </div>
+          ${!c.rewardPaid ? `<button onclick="payChalllengeReward('${c.id}')"
+            style="padding:6px 12px;background:#16a34a;color:white;border:none;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">보상지급</button>` : ''}
+        </div>`).join('');
+    }
+  });
+}
+
+// ── 챌린지 종료 ──
+function endChallenge(challengeId) {
+  appConfirm('챌린지를 종료할까요?\n종료 후 랭킹이 확정돼요.', ok => {
+    if (!ok) return;
+    db.ref('challenges/' + challengeId + '/status').set('ended').then(() => {
+      showToast('✅ 챌린지가 종료됐어요!', 'success');
+      loadAdminChallenges();
+    });
+  });
+}
+
+// ── 점수 일괄 갱신 (관리자) ──
+async function refreshChallengeScores(challengeId) {
+  showToast('점수를 갱신하는 중...', 'info');
+  const snap = await db.ref('challenges/' + challengeId).once('value');
+  const c = snap.val();
+  if (!c || !c.participants) { showToast('참여자가 없어요.', 'error'); return; }
+  const uids = Object.keys(c.participants);
+  await Promise.all(uids.map(uid => _calcAndUpdateScore(challengeId, uid)));
+  showToast('✅ 점수 갱신 완료!', 'success');
+}
+
+// ── 보상 지급 ──
+async function payChalllengeReward(challengeId) {
+  appConfirm('보상을 지급할까요?\n한 번 지급하면 취소할 수 없어요.', async ok => {
+    if (!ok) return;
+    const snap = await db.ref('challenges/' + challengeId).once('value');
+    const c = snap.val();
+    if (!c || !c.participants) { showToast('참여자가 없어요.', 'error'); return; }
+
+    const sorted = Object.entries(c.participants)
+      .sort((a, b) => (b[1].score || 0) - (a[1].score || 0));
+
+    const today = new Date().toISOString().slice(0, 10);
+    const expiry = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+
+    for (let i = 0; i < sorted.length; i++) {
+      const [uid] = sorted[i];
+      if (c.rewardType === 'point') {
+        const pts = c.rewardPoints || {};
+        let reward = pts.all || 0;
+        if (i === 0) reward = (pts.first  || 0) + (pts.all || 0);
+        if (i === 1) reward = (pts.second || 0) + (pts.all || 0);
+        if (i === 2) reward = (pts.third  || 0) + (pts.all || 0);
+        if (reward > 0) {
+          await db.ref('users/' + uid + '/points').transaction(cur => (cur || 0) + reward);
+        }
+      } else {
+        const coupons = c.rewardCoupons || {};
+        let couponName = '';
+        if (i === 0) couponName = coupons.first;
+        if (i === 1) couponName = coupons.second;
+        if (i === 2) couponName = coupons.third;
+        if (couponName) {
+          const couponId = db.ref('users/' + uid + '/coupons').push().key;
+          await db.ref('users/' + uid + '/coupons/' + couponId).set({
+            name: couponName, type: 'challenge', issuedAt: today,
+            expireAt: expiry, used: false
+          });
+        }
+      }
+    }
+
+    await db.ref('challenges/' + challengeId + '/rewardPaid').set(true);
+    showToast('🎉 보상 지급 완료!', 'success');
+    loadAdminChallenges();
+  });
 }
 </script>
 </body>
