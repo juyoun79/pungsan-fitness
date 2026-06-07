@@ -1026,6 +1026,7 @@
       <div id="challenge-detail-title" style="font-size:20px;font-weight:700;color:white;margin-bottom:4px;"></div>
       <div id="challenge-detail-desc" style="font-size:13px;color:rgba(255,255,255,0.85);margin-bottom:14px;"></div>
       <div id="challenge-detail-meta" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      <div id="challenge-detail-period" style="font-size:12px;color:rgba(255,255,255,0.85);margin-top:8px;"></div>
     </div>
     <div id="challenge-detail-body" style="padding:14px 16px var(--safe-pad);display:flex;flex-direction:column;gap:12px;"></div>
   </div>
@@ -2656,12 +2657,17 @@
       <!-- ── 커뮤니티 관리 탭 ── -->
       <div id="tab-community-admin" class="admin-section">
         <div style="max-width:500px;margin:0 auto;">
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
-          <button class="cat-tab active" id="admin-cat-전체" onclick="adminFilterCommunity('전체')">전체</button>
-          <button class="cat-tab" id="admin-cat-오운완" onclick="adminFilterCommunity('오운완')">💪 오운완</button>
-          <button class="cat-tab" id="admin-cat-운동팁" onclick="adminFilterCommunity('운동팁')">📋 운동팁</button>
-          <button class="cat-tab" id="admin-cat-식단" onclick="adminFilterCommunity('식단')">🥗 식단</button>
-          <button class="cat-tab" id="admin-cat-자유" onclick="adminFilterCommunity('자유')">💬 자유</button>
+        <div style="display:flex;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;">
+          <button class="cat-tab-icon active" id="admin-cat-전체" onclick="adminFilterCommunity('전체')"><span class="cat-tab-emoji">🏠</span><span class="cat-tab-label">전체</span></button>
+          <button class="cat-tab-icon" id="admin-cat-오운완" onclick="adminFilterCommunity('오운완')"><span class="cat-tab-emoji">💪</span><span class="cat-tab-label">오운완</span></button>
+          <button class="cat-tab-icon" id="admin-cat-운동팁" onclick="adminFilterCommunity('운동팁')"><span class="cat-tab-emoji">📋</span><span class="cat-tab-label">운동팁</span></button>
+          <button class="cat-tab-icon" id="admin-cat-식단" onclick="adminFilterCommunity('식단')"><span class="cat-tab-emoji">🥗</span><span class="cat-tab-label">식단</span></button>
+          <button class="cat-tab-icon" id="admin-cat-자유" onclick="adminFilterCommunity('자유')"><span class="cat-tab-emoji">💬</span><span class="cat-tab-label">자유</span></button>
+        </div>
+        <!-- 진행중 챌린지 고정 -->
+        <div id="admin-community-challenge-pins" style="display:none;margin-bottom:10px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-sub);padding:6px 0 4px;">🏆 진행중인 챌린지</div>
+          <div id="admin-community-challenge-pin-list"></div>
         </div>
         <!-- 검색창 -->
         <div style="position:relative;margin-bottom:12px;">
@@ -7192,6 +7198,8 @@ function loadChallengeDetail(challengeId) {
       <span style="background:rgba(255,255,255,0.2);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:white;">참여 ${participants}명</span>
       <span style="background:rgba(255,255,255,0.2);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:white;">${isOngoing ? _calcDDay(c.endDate) : '종료'}</span>
       <span style="background:rgba(255,255,255,0.2);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:white;">🎁 ${c.rewardType === 'coupon' ? '쿠폰' : '포인트'} 보상</span>`;
+    const periodEl = document.getElementById('challenge-detail-period');
+    if (periodEl) periodEl.textContent = `📅 ${c.startDate} ~ ${c.endDate}`;
 
     _renderChallengeDetail(c, challengeId, userId, color, isOngoing, isJoined);
   });
@@ -7285,6 +7293,20 @@ function _buildRankingHtml(c, userId, color) {
   const avatarBgs    = ['#fef3c7','#e0f2fe','#fce7f3','#f0fdf4','#ede9fe'];
   const avatarColors = ['#b45309','#0369a1','#9d174d','#166534','#5b21b6'];
 
+  // 관리자/강사 여부 확인
+  const curUserId = localStorage.getItem('current_user');
+  const curRole = localStorage.getItem('role_' + curUserId);
+  const isStaff = curRole === 'manager' || curRole === 'trainer';
+
+  function _getRankDisplayName(uid, nick, isMe) {
+    if (!isStaff) return nick + (isMe ? ' (나)' : '');
+    const realName = (window.memberCache && window.memberCache[uid]) || localStorage.getItem('name_' + uid) || '';
+    const last4 = uid ? uid.slice(-4) : '';
+    const hasNum = /\(\d{4}\)$/.test(realName);
+    const realStr = realName ? (hasNum ? realName : realName + '(' + last4 + ')') : '(' + last4 + ')';
+    return nick + ' ' + realStr + (isMe ? ' (나)' : '');
+  }
+
   let rows = top5.map((entry, i) => {
     const isMe    = entry.uid === userId;
     const rank    = entry.rank;
@@ -7294,21 +7316,23 @@ function _buildRankingHtml(c, userId, color) {
       : isMe ? `background:${color};color:white` : 'background:var(--bg);color:var(--text-sub)';
     const nick = entry.nickname || '회원';
     const rankLabel = medal || rank + '위';
+    const displayName = _getRankDisplayName(entry.uid, nick, isMe);
     return `<div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);gap:12px;${isMe ? 'background:#f8f9ff;' : ''}">
       <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${rank <= 3 ? '16' : '13'}px;font-weight:700;flex-shrink:0;${numStyle};">${rankLabel}</div>
       <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:${avatarBgs[i%5]};color:${avatarColors[i%5]};">${nick.slice(0,1)}</div>
-      <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text);">${nick}${isMe ? ' (나)' : ''}</div></div>
+      <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text);">${displayName}</div></div>
       <div style="text-align:right;"><div style="font-size:15px;font-weight:700;color:#16a34a;">${_formatScore(entry.score || 0, c.type)}</div></div>
     </div>`;
   }).join('');
 
   if (myRankNum && myRankNum > 5 && myEntry) {
     const nick = myEntry.nickname || '나';
+    const displayName = _getRankDisplayName(myEntry.uid, nick, true);
     rows += `<div style="padding:4px 16px;text-align:center;font-size:11px;color:var(--text-hint);">• • •</div>
     <div style="display:flex;align-items:center;padding:12px 16px;gap:12px;background:#f8f9ff;">
       <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:${color};color:white;">${myRankNum}위</div>
       <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:#ede9fe;color:#5b21b6;">${nick.slice(0,1)}</div>
-      <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text);">${nick} (나)</div></div>
+      <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text);">${displayName}</div></div>
       <div style="text-align:right;"><div style="font-size:15px;font-weight:700;color:#16a34a;">${_formatScore(myEntry.score || 0, c.type)}</div></div>
     </div>`;
   }
@@ -7681,6 +7705,8 @@ function loadChallengeDetail(challengeId) {
       <span style="background:rgba(255,255,255,0.2);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:white;">참여 ${participants}명</span>
       <span style="background:rgba(255,255,255,0.2);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:white;">${isOngoing ? dDay : '종료'}</span>
       <span style="background:rgba(255,255,255,0.2);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:white;">🎁 ${c.rewardType === 'coupon' ? '쿠폰' : '포인트'} 보상</span>`;
+    const periodEl2 = document.getElementById('challenge-detail-period');
+    if (periodEl2) periodEl2.textContent = `📅 ${c.startDate} ~ ${c.endDate}`;
 
     // 내 현황 + 랭킹 + 보상 렌더링
     _renderChallengeDetail(c, challengeId, userId, color, isOngoing, isJoined);
@@ -7770,6 +7796,20 @@ function _buildRankingHtml(c, userId, color) {
   const avatarBgs    = ['#fef3c7','#e0f2fe','#fce7f3','#f0fdf4','#ede9fe'];
   const avatarColors = ['#b45309','#0369a1','#9d174d','#166534','#5b21b6'];
 
+  // 관리자/강사 여부 확인
+  const curUserId = localStorage.getItem('current_user');
+  const curRole = localStorage.getItem('role_' + curUserId);
+  const isStaff = curRole === 'manager' || curRole === 'trainer';
+
+  function _getRankDisplayName(uid, nick, isMe) {
+    if (!isStaff) return nick + (isMe ? ' (나)' : '');
+    const realName = (window.memberCache && window.memberCache[uid]) || localStorage.getItem('name_' + uid) || '';
+    const last4 = uid ? uid.slice(-4) : '';
+    const hasNum = /\(\d{4}\)$/.test(realName);
+    const realStr = realName ? (hasNum ? realName : realName + '(' + last4 + ')') : '(' + last4 + ')';
+    return nick + ' ' + realStr + (isMe ? ' (나)' : '');
+  }
+
   let rows = top5.map((entry, i) => {
     const isMe    = entry.uid === userId;
     const rank    = entry.rank;
@@ -7779,21 +7819,23 @@ function _buildRankingHtml(c, userId, color) {
       : isMe ? `background:${color};color:white` : 'background:var(--bg);color:var(--text-sub)';
     const nick = entry.nickname || '회원';
     const rankLabel = medal || rank + '위';
+    const displayName = _getRankDisplayName(entry.uid, nick, isMe);
     return `<div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);gap:12px;${isMe ? 'background:#f8f9ff;' : ''}">
       <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${rank <= 3 ? '16' : '13'}px;font-weight:700;flex-shrink:0;${numStyle};">${rankLabel}</div>
       <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:${avatarBgs[i%5]};color:${avatarColors[i%5]};">${nick.slice(0,1)}</div>
-      <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text);">${nick}${isMe ? ' (나)' : ''}</div></div>
+      <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text);">${displayName}</div></div>
       <div style="text-align:right;"><div style="font-size:15px;font-weight:700;color:#16a34a;">${_formatScore(entry.score || 0, c.type)}</div></div>
     </div>`;
   }).join('');
 
   if (myRankNum && myRankNum > 5 && myEntry) {
     const nick = myEntry.nickname || '나';
+    const displayName = _getRankDisplayName(myEntry.uid, nick, true);
     rows += `<div style="padding:4px 16px;text-align:center;font-size:11px;color:var(--text-hint);">• • •</div>
     <div style="display:flex;align-items:center;padding:12px 16px;gap:12px;background:#f8f9ff;">
       <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:${color};color:white;">${myRankNum}위</div>
       <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:#ede9fe;color:#5b21b6;">${nick.slice(0,1)}</div>
-      <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text);">${nick} (나)</div></div>
+      <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text);">${displayName}</div></div>
       <div style="text-align:right;"><div style="font-size:15px;font-weight:700;color:#16a34a;">${_formatScore(myEntry.score || 0, c.type)}</div></div>
     </div>`;
   }

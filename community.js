@@ -335,6 +335,8 @@
     const feedEl = document.getElementById('admin-community-feed');
     if (!feedEl) return;
     feedEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">⏳ 불러오는 중...</div>';
+    // 관리자 커뮤니티 챌린지 핀 로드
+    loadAdminCommunityChallengePins();
 
     // 회원 + 강사 실명 모두 캐싱 후 게시물 로드
     Promise.all([
@@ -1296,6 +1298,45 @@ function loadCommunityChallengePins() {
           <div>
             <div style="font-size:13px;font-weight:700;color:var(--text);">${c.name}</div>
             <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">참여자 ${count}명 · 상위 ${c.rewardRankCount||3}명 보상</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:11px;background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:4px;font-weight:700;">${dDay}</span>
+          <span style="font-size:18px;color:var(--text-hint);">›</span>
+        </div>
+      </div>`;
+    }).join('');
+  });
+}
+
+
+// ── 관리자 커뮤니티 챌린지 고정 핀 ──
+function loadAdminCommunityChallengePins() {
+  const pinWrap = document.getElementById('admin-community-challenge-pins');
+  const pinList = document.getElementById('admin-community-challenge-pin-list');
+  if (!pinWrap || !pinList) return;
+
+  db.ref('challenges').orderByChild('status').equalTo('ongoing').once('value', snap => {
+    const data = snap.val();
+    if (!data) { pinWrap.style.display = 'none'; return; }
+    const challenges = Object.entries(data).map(([id, c]) => ({ id, ...c }));
+    if (challenges.length === 0) { pinWrap.style.display = 'none'; return; }
+    pinWrap.style.display = 'block';
+    pinList.innerHTML = challenges.map(c => {
+      const today = new Date().toISOString().slice(0, 10);
+      const end = c.endDate || '';
+      let dDay = '';
+      if (end) {
+        const diff = Math.ceil((new Date(end) - new Date(today)) / 86400000);
+        dDay = diff > 0 ? 'D-' + diff : diff === 0 ? 'D-Day' : '종료';
+      }
+      const count = c.participants ? Object.keys(c.participants).length : 0;
+      return `<div class="community-pin-card" onclick="openChallengeDetail('${c.id}')">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:20px;">🏆</span>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text);">${c.name}</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">참여자 ${count}명 · ${c.startDate} ~ ${c.endDate}</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
