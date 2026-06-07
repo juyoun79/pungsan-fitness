@@ -1,6 +1,7 @@
 // Cloudflare Worker
 // - 정적 파일 서빙 (기존 기능 유지)
 // - /api/notify : FCM 푸시알림 발송 API 추가
+// - scheduled : Cron 자동 챌린지 종료+보상 지급
 
 export default {
   async fetch(request, env) {
@@ -17,10 +18,9 @@ export default {
       });
     }
 
-    // 푸시알림 발송 API
     // 버전 확인 API
     if (url.pathname === '/api/version') {
-      return new Response(JSON.stringify({ version: '1.2.0' }), {
+      return new Response(JSON.stringify({ version: '1.2.1' }), {
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
@@ -29,19 +29,24 @@ export default {
       });
     }
 
+    // 푸시알림 발송 API
     if (url.pathname === '/api/notify' && request.method === 'POST') {
       return handleNotify(request, env);
     }
 
-    // 민감한 파일 접근 차단 (서비스 계정 키 등)
+    // 민감한 파일 접근 차단
     if (url.pathname.includes('adminsdk') ||
         url.pathname.includes('service-account') ||
         (url.pathname.endsWith('.json') && url.pathname !== '/manifest.json')) {
       return new Response('Not Found', { status: 404 });
     }
 
-    // 그 외 모든 요청: 정적 파일 서빙
     return env.ASSETS.fetch(request);
+  },
+
+  // ── Cron Trigger: 매일 한국시간 자정(UTC 15:00) 실행 ──
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(handleCronAutoClose(env));
   }
 };
 
@@ -207,4 +212,133 @@ function jsonRes(data, status = 200) {
       'Access-Control-Allow-Origin': '*'
     }
   });
+}
+
+// ── Cron: 종료일 지난 챌린지 자동 종료 + 보상 자동 지급 ──
+async function handleCronAutoClose(env) {
+  // Firebase REST API로 챌린지 데이터 조회
+  const FIREBASE_DB = 'https://pungsan-fitness-default-rtdb.asia-southeast1.firebasedatabase.app';
+  const today = new Date().toISOString().slice(0, 10);
+
+  try {
+    // 진행중 챌린지 전체 조회
+    const res = await fetch(`${FIREBASE_DB}/challenges.json?orderBy="status"&equalTo="ongoing"`, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) { console.error('Cron: Firebase 조회 실패'); return; }
+    const challenges = await res.json();
+    if (!challenges) { console.log('Cron: 진행중 챌린지 없음'); return; }
+
+    for (const [challengeId, c] of Object.entries(challenges)) {
+      // 종료일이 오늘보다 이전이면 자동 종료
+      if (c.endDate < today && c.status === 'ongoing') {
+        console.log('Cron: 자동 종료 처리 -', c.name);
+
+        // 1) status → ended 업데이트
+        await fetch(`${FIREBASE_DB}/challenges/${challengeId}/status.json`, {
+          method: 'PUT',
+          body: JSON.stringify('ended')
+        });
+
+        // 2) 보상 미지급 상태면 자동 지급
+        if (!c.rewardPaid && c.participants) {
+          await _cronPayReward(env, challengeId, c, FIREBASE_DB, today);
+        }
+      }
+    }
+    console.log('Cron: 자동 종료 처리 완료');
+  } catch(err) {
+    console.error('Cron 오류:', err.message);
+  }
+}
+
+async function _cronPayReward(env, challengeId, c, FIREBASE_DB, today) {
+  const rankCount  = c.rewardRankCount || 3;
+  const participants = c.participants || {};
+  const expEnd = c.couponExpireEnd || new Date(Date.now() + 30*86400000).toISOString().slice(0,10);
+  const expStart = c.couponExpireStart || today;
+
+  // 점수 순 정렬
+  const sorted = Object.entries(participants)
+    .map(([uid, data]) => ({ uid, ...data }))
+    .sort((a, b) => (b.score||0) - (a.score||0));
+
+  // FCM 액세스 토큰 (푸시 발송용)
+  let accessToken = null;
+  try {
+    accessToken = await getFCMAccessToken(env.FCM_PRIVATE_KEY, env.FCM_CLIENT_EMAIL);
+  } catch(e) {
+    console.error('Cron: FCM 토큰 발급 실패', e.message);
+  }
+
+  for (let i = 0; i < sorted.length; i++) {
+    const { uid } = sorted[i];
+    const rankNum  = i + 1;
+    const isRanked = rankNum <= rankCount;
+
+    // FCM 토큰 조회
+    let fcmToken = null;
+    if (accessToken) {
+      const tokenRes = await fetch(`${FIREBASE_DB}/fcm_tokens/${uid}.json`);
+      if (tokenRes.ok) fcmToken = await tokenRes.json();
+    }
+
+    if (c.rewardType === 'point') {
+      const pts    = c.rewardPoints || {};
+      const ranked = isRanked ? (pts['rank' + rankNum] || 0) : 0;
+      const allPts = pts.all || 0;
+      const total  = ranked + allPts;
+      if (total > 0) {
+        // 현재 포인트 조회 후 합산
+        const ptRes = await fetch(`${FIREBASE_DB}/users/${uid}/points.json`);
+        const curPts = ptRes.ok ? (await ptRes.json() || 0) : 0;
+        await fetch(`${FIREBASE_DB}/users/${uid}/points.json`, {
+          method: 'PUT', body: JSON.stringify(curPts + total)
+        });
+        // 푸시 알림 발송
+        if (fcmToken && accessToken) {
+          const rankLabel = isRanked ? `${rankNum}위 달성! ` : '';
+          await sendFCMMessage(accessToken, 'pungsan-fitness', fcmToken,
+            '🏆 챌린지 보상 도착!',
+            `"${c.name}" ${rankLabel}${total}P가 적립됐어요! 🎉`,
+            { type: 'challenge_reward' }
+          ).catch(() => {});
+        }
+      }
+    } else {
+      const coupons    = c.rewardCoupons || {};
+      const couponName = isRanked ? (coupons['rank' + rankNum] || '') : '';
+      const allCoupon  = coupons.all || '';
+      const issuedAt   = today;
+
+      if (couponName) {
+        // 쿠폰 키 생성 (Firebase push key 형태)
+        const couponKey = '-' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+        await fetch(`${FIREBASE_DB}/users/${uid}/coupons/${couponKey}.json`, {
+          method: 'PUT',
+          body: JSON.stringify({ name: couponName, type: 'challenge', issuedAt, expireAt: expEnd, startAt: expStart, used: false })
+        });
+        if (fcmToken && accessToken) {
+          await sendFCMMessage(accessToken, 'pungsan-fitness', fcmToken,
+            '🏆 챌린지 보상 도착!',
+            `"${c.name}" ${rankNum}위 보상 쿠폰이 도착했어요! 🎉`,
+            { type: 'challenge_reward' }
+          ).catch(() => {});
+        }
+      }
+      if (allCoupon) {
+        const couponKey2 = '-' + (Date.now()+1).toString(36) + Math.random().toString(36).slice(2,7);
+        await fetch(`${FIREBASE_DB}/users/${uid}/coupons/${couponKey2}.json`, {
+          method: 'PUT',
+          body: JSON.stringify({ name: allCoupon, type: 'challenge', issuedAt, expireAt: expEnd, startAt: expStart, used: false })
+        });
+      }
+    }
+  }
+
+  // rewardPaid 플래그 세팅
+  await fetch(`${FIREBASE_DB}/challenges/${challengeId}/rewardPaid.json`, {
+    method: 'PUT', body: JSON.stringify(true)
+  });
+  console.log('Cron: 보상 지급 완료 -', c.name);
 }
