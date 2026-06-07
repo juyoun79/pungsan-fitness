@@ -7368,7 +7368,7 @@ function _buildRewardHtml(c) {
 function joinChallenge(challengeId) {
   const userId = localStorage.getItem('current_user');
   const nick   = localStorage.getItem('nickname_' + userId) || '회원';
-  showConfirm('챌린지에 참여할까요?\n참여 후 취소는 불가능해요.', () => {
+  showConfirm('완벽하지 않아도 괜찮아요 😊\n참여하는 것만으로도 이미 대단해요!', () => {
     db.ref('challenges/' + challengeId + '/participants/' + userId).set({
       joinedAt: Date.now(), score: 0, nickname: nick
     }).then(() => {
@@ -7857,7 +7857,7 @@ function joinChallenge(challengeId) {
   const userId = localStorage.getItem('current_user');
   const nick = localStorage.getItem('nickname_' + userId) || userId.slice(-4);
 
-  showConfirm('챌린지에 참여할까요?\n참여 후 취소는 불가능해요.', () => {
+  showConfirm('완벽하지 않아도 괜찮아요 😊\n참여하는 것만으로도 이미 대단해요!', () => {
     const joinData = { joinedAt: Date.now(), score: 0, nickname: nick };
     db.ref('challenges/' + challengeId + '/participants/' + userId).set(joinData).then(() => {
       showToast('🏆 챌린지 참여 완료!', 'success');
