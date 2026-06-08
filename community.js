@@ -1296,13 +1296,13 @@ function loadCommunityChallengePins() {
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:20px;">🏆</span>
           <div>
-            <div style="font-size:13px;font-weight:700;color:var(--text);">${c.name}</div>
-            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">참여자 ${count}명 · 상위 ${c.rewardRankCount||3}명 보상</div>
+            <div style="font-size:13px;font-weight:700;color:#92400e;">${c.name}</div>
+            <div style="font-size:11px;color:#b45309;margin-top:2px;">참여자 ${count}명 · 상위 ${c.rewardRankCount||3}명 보상</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
-          <span style="font-size:11px;background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:4px;font-weight:700;">${dDay}</span>
-          <span style="font-size:18px;color:var(--text-hint);">›</span>
+          <span style="font-size:11px;background:#fef3c7;color:#854d0e;padding:2px 8px;border-radius:4px;font-weight:700;">${dDay}</span>
+          <span style="font-size:18px;color:#b45309;">›</span>
         </div>
       </div>`;
     }).join('');
@@ -1336,13 +1336,13 @@ function loadAdminCommunityChallengePins() {
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:20px;">🏆</span>
           <div>
-            <div style="font-size:13px;font-weight:700;color:var(--text);">${c.name}</div>
-            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">참여자 ${count}명 · ${c.startDate} ~ ${c.endDate}</div>
+            <div style="font-size:13px;font-weight:700;color:#92400e;">${c.name}</div>
+            <div style="font-size:11px;color:#b45309;margin-top:2px;">참여자 ${count}명 · ${c.startDate} ~ ${c.endDate}</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
-          <span style="font-size:11px;background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:4px;font-weight:700;">${dDay}</span>
-          <span style="font-size:18px;color:var(--text-hint);">›</span>
+          <span style="font-size:11px;background:#fef3c7;color:#854d0e;padding:2px 8px;border-radius:4px;font-weight:700;">${dDay}</span>
+          <span style="font-size:18px;color:#b45309;">›</span>
         </div>
       </div>`;
     }).join('');

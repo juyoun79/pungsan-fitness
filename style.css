@@ -381,9 +381,10 @@
   .cat-tab-icon.active .cat-tab-label { color:var(--blue); }
   .community-pin-card {
     display:flex;align-items:center;justify-content:space-between;
-    padding:11px 16px;background:var(--card);border-bottom:1px solid var(--border);cursor:pointer;
+    padding:11px 16px 11px 13px;background:#fffbeb;border-bottom:1px solid var(--border);
+    border-left:3px solid #f59e0b;cursor:pointer;
   }
-  .community-pin-card:active { background:var(--bg); }
+  .community-pin-card:active { background:#fef3c7; }
   .cat-select {
     padding:7px 14px;border-radius:20px;border:1.5px solid var(--border);
     background:var(--bg);color:var(--text-sub);font-size:13px;font-weight:600;
