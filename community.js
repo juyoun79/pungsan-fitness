@@ -1331,7 +1331,8 @@ function loadAdminCommunityChallengePins() {
         dDay = diff > 0 ? 'D-' + diff : diff === 0 ? 'D-Day' : '종료';
       }
       const count = c.participants ? Object.keys(c.participants).length : 0;
-      return `<div class="community-pin-card" onclick="openChallengeDetail('${c.id}')">
+      // 관리자는 관리자 챌린지 탭으로 이동
+      return `<div class="community-pin-card" onclick="switchAdminTab('tab-challenge-admin')">
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:20px;">🏆</span>
           <div>
