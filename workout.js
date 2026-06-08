@@ -1594,8 +1594,54 @@
   }
   function formatTime(savedAt) { if (!savedAt) return ''; return savedAt; }
 
+  function selectFwCategory(cat) {
+    const active = document.getElementById('fwcat-' + cat);
+    const isActive = active && active.dataset.active === 'true';
+    ['하체','가슴','등','어깨','팔','코어'].forEach(c => {
+      const btn = document.getElementById('fwcat-' + c);
+      if (!btn) return;
+      btn.style.background = 'var(--bg)';
+      btn.style.color = 'var(--text-sub)';
+      btn.style.borderColor = 'var(--border)';
+      btn.dataset.active = 'false';
+    });
+    const resultEl = document.getElementById('fw-search-results');
+    if (isActive) { resultEl.style.display = 'none'; resultEl.innerHTML = ''; return; }
+    if (active) {
+      active.style.background = '#1a6fd4';
+      active.style.color = 'white';
+      active.style.borderColor = '#1a6fd4';
+      active.dataset.active = 'true';
+    }
+    // 검색창 초기화
+    const input = document.getElementById('fw-name');
+    if (input) input.value = '';
+    // 해당 부위 프리웨이트 목록 표시
+    const fwCats = { '하체':'하체', '가슴':'가슴', '등':'등', '어깨':'어깨', '팔':'팔', '코어':'코어복부' };
+    const catKey = fwCats[cat] || cat;
+    const items = FW_EXERCISE_LIST.filter(e => e.category === catKey || e.muscles === cat || matchesMuscle(e.muscles, cat));
+    if (items.length === 0) {
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = '<div style="padding:12px 14px;font-size:13px;color:var(--text-hint);">운동이 없어요</div>';
+      return;
+    }
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = items.map(e =>
+      `<div onclick="selectFwExercise('${e.name}')" style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);" onmouseover="this.style.background='var(--blue-light)'" onmouseout="this.style.background=''"><span style="font-size:14px;color:var(--text);">${e.name}</span><span style="font-size:11px;color:var(--text-hint);background:var(--bg);padding:2px 8px;border-radius:10px;">${e.category}</span></div>`
+    ).join('');
+  }
+
   function searchFwExercise(query) {
     const resultEl = document.getElementById('fw-search-results');
+    // 검색 시 카테고리 탭 비활성화
+    ['하체','가슴','등','어깨','팔','코어'].forEach(c => {
+      const btn = document.getElementById('fwcat-' + c);
+      if (!btn) return;
+      btn.style.background = 'var(--bg)';
+      btn.style.color = 'var(--text-sub)';
+      btn.style.borderColor = 'var(--border)';
+      btn.dataset.active = 'false';
+    });
     if (!query || query.trim() === '') { resultEl.style.display = 'none'; return; }
     const q = query.trim().toLowerCase();
     const filtered = FW_EXERCISE_LIST.filter(e => e.name.toLowerCase().includes(q) || e.muscles.toLowerCase().includes(q) || e.category.toLowerCase().includes(q));
@@ -1607,6 +1653,15 @@
   function selectFwExercise(name) {
     document.getElementById('fw-name').value = name;
     document.getElementById('fw-search-results').style.display = 'none';
+    // 카테고리 탭 초기화
+    ['하체','가슴','등','어깨','팔','코어'].forEach(c => {
+      const btn = document.getElementById('fwcat-' + c);
+      if (!btn) return;
+      btn.style.background = 'var(--bg)';
+      btn.style.color = 'var(--text-sub)';
+      btn.style.borderColor = 'var(--border)';
+      btn.dataset.active = 'false';
+    });
     loadFwPrevRecords(name);
   }
 
@@ -1620,7 +1675,20 @@
     container.innerHTML = records.map(r => `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><div style="font-size:14px;font-weight:700;color:var(--text);">${r.dateLabel}</div><div style="display:flex;align-items:center;gap:8px;"><div style="font-size:12px;color:var(--text-hint);">${r.savedAt||''}</div><button onclick="openEditWorkoutModal('${safeKey}','${r.date}')" style="background:#f59e0b18;color:#d97706;border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button></div></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:${r.memo ? '10px' : '0'};">${r.sets.map(s => `<div style="background:#f59e0b18;border-radius:8px;padding:8px;text-align:center;"><div style="font-size:11px;color:#d97706;margin-bottom:2px;">${s.set}세트</div><div style="font-size:14px;font-weight:700;color:var(--text);">${s.weight > 0 ? s.weight+'kg' : '-'} × ${s.reps}회</div></div>`).join('')}</div>${r.memo ? `<div style="font-size:13px;color:var(--text-sub);background:var(--bg);border-radius:8px;padding:8px 10px;">📝 ${r.memo}</div>` : ''}</div>`).join('');
   }
   function openFreeweightModal() {
-    fwSetCount = 0; document.getElementById('fw-set-list').innerHTML = ''; document.getElementById('fw-name').value = ''; document.getElementById('fw-memo').value = ''; document.getElementById('fw-search-results').style.display = 'none';
+    fwSetCount = 0;
+    document.getElementById('fw-set-list').innerHTML = '';
+    document.getElementById('fw-name').value = '';
+    document.getElementById('fw-memo').value = '';
+    document.getElementById('fw-search-results').style.display = 'none';
+    // 카테고리 탭 초기화
+    ['하체','가슴','등','어깨','팔','코어'].forEach(c => {
+      const btn = document.getElementById('fwcat-' + c);
+      if (!btn) return;
+      btn.style.background = 'var(--bg)';
+      btn.style.color = 'var(--text-sub)';
+      btn.style.borderColor = 'var(--border)';
+      btn.dataset.active = 'false';
+    });
     addFwSet(); showScreen('screen-freeweight');
   }
 

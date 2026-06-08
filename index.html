@@ -3877,6 +3877,15 @@
           onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"
           oninput="searchFwExercise(this.value)" autocomplete="off" />
       </div>
+      <!-- 부위별 카테고리 탭 -->
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px;">
+        <button id="fwcat-하체" onclick="selectFwCategory('하체')" style="padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid var(--border);background:var(--bg);color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;" data-active="false">하체</button>
+        <button id="fwcat-가슴" onclick="selectFwCategory('가슴')" style="padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid var(--border);background:var(--bg);color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;" data-active="false">가슴</button>
+        <button id="fwcat-등" onclick="selectFwCategory('등')" style="padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid var(--border);background:var(--bg);color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;" data-active="false">등</button>
+        <button id="fwcat-어깨" onclick="selectFwCategory('어깨')" style="padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid var(--border);background:var(--bg);color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;" data-active="false">어깨</button>
+        <button id="fwcat-팔" onclick="selectFwCategory('팔')" style="padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid var(--border);background:var(--bg);color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;" data-active="false">팔</button>
+        <button id="fwcat-코어" onclick="selectFwCategory('코어')" style="padding:5px 10px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid var(--border);background:var(--bg);color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;" data-active="false">코어</button>
+      </div>
       <!-- 검색 결과 목록 -->
       <div id="fw-search-results" style="display:none;margin-bottom:12px;background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius-sm);max-height:200px;overflow-y:auto;"></div>
 
