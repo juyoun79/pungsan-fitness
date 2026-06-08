@@ -8191,9 +8191,24 @@ function openAdminChallengeDetailOverlay(challengeId) {
   overlay.classList.add('active');
   body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-hint);font-size:14px;">불러오는 중...</div>';
 
-  // 챌린지 상세 로드 (회원용 함수 재활용)
+  // memberCache 먼저 로드 후 챌린지 상세 렌더링
   const userId = localStorage.getItem('current_user');
-  db.ref('challenges/' + challengeId).once('value', snap => {
+  Promise.all([
+    db.ref('members').once('value'),
+    db.ref('users').once('value'),
+    db.ref('challenges/' + challengeId).once('value')
+  ]).then(([memberSnap, userSnap, snap]) => {
+    // memberCache 갱신
+    if (!window.memberCache) window.memberCache = {};
+    memberSnap.forEach(child => {
+      window.memberCache[child.key] = child.val().name || '';
+    });
+    userSnap.forEach(child => {
+      const role = child.val().role;
+      if ((role === 'trainer' || role === 'manager') && !window.memberCache[child.key]) {
+        window.memberCache[child.key] = child.val().name || '';
+      }
+    });
     const c = snap.val();
     if (!c) { body.innerHTML = '<div style="text-align:center;padding:40px;">불러오기 실패</div>'; return; }
 
@@ -8238,6 +8253,8 @@ function openAdminChallengeDetailOverlay(challengeId) {
           ${_buildRewardHtml(c)}
         </div>
       </div>`;
+  }).catch(() => {
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">불러오기 실패</div>';
   });
 }
 
