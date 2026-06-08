@@ -1292,7 +1292,9 @@ function loadCommunityChallengePins() {
       const end = c.endDate || '';
       const isEnded = c.status === 'ended';
       let dDay = '';
-      if (end) {
+      if (isEnded) {
+        dDay = '종료';
+      } else if (end) {
         const diff = Math.ceil((new Date(end) - new Date(today)) / 86400000);
         dDay = diff > 0 ? 'D-' + diff : diff === 0 ? 'D-Day' : '종료';
       }
