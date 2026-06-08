@@ -5369,7 +5369,7 @@
         return;
       }
       chips.innerHTML = todayItems.map(item => `
-        <div onclick="showSchedule();" style="flex-shrink:0;background:#E6F1FB;border-radius:20px;padding:6px 12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <div style="flex-shrink:0;background:#E6F1FB;border-radius:20px;padding:6px 12px;display:flex;align-items:center;gap:6px;">
           <span style="font-size:11px;font-weight:700;color:#185FA5;">${item.label}</span>
           <span style="font-size:11px;color:#0C447C;">${escapeHtml(item.content)}</span>
         </div>`).join('');
