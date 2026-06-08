@@ -8268,14 +8268,48 @@ function loadAdminChallenges() {
     if (ongoing.length === 0) {
       ongoingEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">진행중인 챌린지가 없어요</div>';
     } else {
-      ongoingEl.innerHTML = ongoing.map(c => `
+      ongoingEl.innerHTML = ongoing.map(c => {
+        const participants = c.participants ? Object.keys(c.participants).length : 0;
+        const sorted = c.participants
+          ? Object.entries(c.participants).map(([uid, d]) => ({ uid, ...d })).sort((a, b) => (b.score||0) - (a.score||0))
+          : [];
+        const MEDALS = ['🥇','🥈','🥉'];
+        let rankHtml = '';
+        if (sorted.length === 0) {
+          rankHtml = '<div style="font-size:12px;color:var(--text-hint);padding:6px 0;">아직 참여한 회원이 없어요</div>';
+        } else {
+          let curRank = 1;
+          sorted.forEach((e, i) => {
+            if (i > 0 && (e.score||0) < (sorted[i-1].score||0)) curRank = i + 1;
+            e.rank = curRank;
+          });
+          rankHtml = sorted.slice(0, 5).map((e, i) => {
+            const medal = e.rank <= 3 ? MEDALS[e.rank-1] : e.rank + '위';
+            const curRole = localStorage.getItem('role_' + localStorage.getItem('current_user'));
+            const isStaff = curRole === 'manager' || curRole === 'trainer';
+            const realName = isStaff ? ((window.memberCache && window.memberCache[e.uid]) || localStorage.getItem('name_' + e.uid) || '') : '';
+            const last4 = e.uid ? e.uid.slice(-4) : '';
+            const realStr = isStaff ? (realName ? realName + '(' + last4 + ')' : '(' + last4 + ')') : '';
+            const nick = (e.nickname || '회원') + (realStr ? ' ' + realStr : '');
+            return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
+              <span style="font-size:14px;width:24px;text-align:center;">${medal}</span>
+              <span style="font-size:13px;color:var(--text);flex:1;">${nick}</span>
+              <span style="font-size:13px;font-weight:700;color:#16a34a;">${e.score || 0}</span>
+            </div>`;
+          }).join('');
+          if (sorted.length > 5) {
+            rankHtml += `<div style="font-size:11px;color:var(--text-hint);text-align:center;padding:4px 0;">외 ${sorted.length - 5}명</div>`;
+          }
+        }
+        return `
         <div style="background:var(--bg);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
             <div>
               <div style="font-size:14px;font-weight:700;color:var(--text);">${c.name}</div>
-              <div style="font-size:12px;color:var(--text-hint);margin-top:2px;">${c.startDate} ~ ${c.endDate} | 참여 ${c.participants ? Object.keys(c.participants).length : 0}명</div>
+              <div style="font-size:12px;color:var(--text-hint);margin-top:2px;">${c.startDate} ~ ${c.endDate} | 참여 ${participants}명</div>
             </div>
           </div>
+          <div style="margin-bottom:10px;">${rankHtml}</div>
           <div style="display:flex;gap:6px;">
             <button onclick="openCreateChallengeModal('${c.id}')"
               style="flex:1;padding:7px;background:var(--blue-light);color:var(--blue);border:1px solid var(--blue);border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
@@ -8284,7 +8318,8 @@ function loadAdminChallenges() {
             <button onclick="refreshChallengeScores('${c.id}')"
               style="flex:1;padding:7px;background:var(--bg);color:var(--text-sub);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">점수갱신</button>
           </div>
-        </div>`).join('');
+        </div>`;
+      }).join('');
     }
 
     if (ended.length === 0) {
