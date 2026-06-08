@@ -2050,6 +2050,8 @@
 
   // 카테고리 탭 선택
   function selectRoutineCategory(cat) {
+    const active = document.getElementById('rcat-' + cat);
+    const isActive = active && active.dataset.active === 'true';
     // 탭 스타일 초기화
     ['하체','가슴','등','어깨','팔','코어','기구'].forEach(c => {
       const btn = document.getElementById('rcat-' + c);
@@ -2057,19 +2059,22 @@
       btn.style.background = 'var(--bg)';
       btn.style.color = 'var(--text-sub)';
       btn.style.borderColor = 'var(--border)';
+      btn.dataset.active = 'false';
     });
+    // 토글: 이미 활성 탭이면 목록 닫기
+    const results = document.getElementById('routine-ex-search-results');
+    if (isActive) { if (results) results.innerHTML = ''; return; }
     // 선택 탭 활성화
-    const active = document.getElementById('rcat-' + cat);
     if (active) {
       active.style.background = '#7c3aed';
       active.style.color = 'white';
       active.style.borderColor = '#7c3aed';
+      active.dataset.active = 'true';
     }
     // 검색창 초기화
     const input = document.getElementById('routine-ex-search-input');
     if (input) input.value = '';
 
-    const results = document.getElementById('routine-ex-search-results');
     const existing = collectRoutineCreateItems().map(e => e.name);
 
     let items = [];
@@ -2188,7 +2193,7 @@
     // 현재 활성 카테고리 탭 새로고침
     const activeCat = ['하체','가슴','등','어깨','팔','코어','기구'].find(c => {
       const btn = document.getElementById('rcat-' + c);
-      return btn && btn.style.background === 'rgb(124, 58, 237)';
+      return btn && btn.dataset.active === 'true';
     });
     if (activeCat) selectRoutineCategory(activeCat);
     const searchVal = document.getElementById('routine-ex-search-input')?.value;
@@ -2432,16 +2437,17 @@
   function selectRoutineWorkoutCategory(cat) {
     const active = document.getElementById('rwcat-' + cat);
     const results = document.getElementById('routine-workout-ex-search-results');
-    const isActive = active && active.style.background === 'rgb(124, 58, 237)';
+    const isActive = active && active.dataset.active === 'true';
     ['하체','가슴','등','어깨','팔','코어','기구'].forEach(c => {
       const btn = document.getElementById('rwcat-' + c);
       if (!btn) return;
       btn.style.background = 'var(--bg)';
       btn.style.color = 'var(--text-sub)';
       btn.style.borderColor = 'var(--border)';
+      btn.dataset.active = 'false';
     });
     if (isActive) { results.innerHTML = ''; return; }
-    if (active) { active.style.background = '#7c3aed'; active.style.color = 'white'; active.style.borderColor = '#7c3aed'; }
+    if (active) { active.style.background = '#7c3aed'; active.style.color = 'white'; active.style.borderColor = '#7c3aed'; active.dataset.active = 'true'; }
     const input = document.getElementById('routine-workout-ex-search-input');
     if (input) input.value = '';
     const existing = (currentRoutineWorkout ? currentRoutineWorkout.exercises : []).map(e => e.name);
@@ -2539,7 +2545,7 @@
     // 카테고리 탭 새로고침
     const activeCat = ['하체','가슴','등','어깨','팔','코어','기구'].find(c => {
       const btn = document.getElementById('rwcat-' + c);
-      return btn && btn.style.background === 'rgb(124, 58, 237)';
+      return btn && btn.dataset.active === 'true';
     });
     if (activeCat) selectRoutineWorkoutCategory(activeCat);
     const searchVal = document.getElementById('routine-workout-ex-search-input')?.value;
