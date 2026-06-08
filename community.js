@@ -352,7 +352,7 @@
       // 강사/매니저 (users DB에서)
       userSnap.forEach(child => {
         const role = child.val().role;
-        if ((role === 'trainer' || role === 'manager') && !window.memberCache[child.key]) {
+        if ((role === 'trainer' || role === 'manager' || role === 'admin') && !window.memberCache[child.key]) {
           window.memberCache[child.key] = child.val().name || '';
           localStorage.setItem('role_' + child.key, role);
         }
@@ -548,7 +548,7 @@
     // 강사/매니저가 'attend'를 직접 호출해도 'trainer'로 저장
     if (userId && userId !== ADMIN_ID) {
       const savedRole = localStorage.getItem('role_' + userId) || 'member';
-      const saveTab = (tab === 'attend' && (savedRole === 'trainer' || savedRole === 'manager')) ? 'trainer' : tab;
+      const saveTab = (tab === 'attend' && (savedRole === 'trainer' || savedRole === 'manager' || savedRole === 'admin')) ? 'trainer' : tab;
       localStorage.setItem('last_tab_' + userId, saveTab);
     }
     // 커뮤니티 탭 벗어나면 리스너 해제
@@ -557,7 +557,7 @@
       showScreen('screen-home');
       const uid = localStorage.getItem('current_user') || sessionStorage.getItem('session_user');
       const role = localStorage.getItem('role_' + uid) || 'member';
-      if (role === 'trainer' || role === 'manager') {
+      if (role === 'trainer' || role === 'manager' || role === 'admin') {
         const trainerSection = document.getElementById('trainer-home-section');
         const memberSection = document.getElementById('member-home-section');
         if (trainerSection) trainerSection.style.display = 'block';
@@ -658,7 +658,7 @@
   function showAuthorInfo(authorId) {
     const realName = localStorage.getItem('name_' + authorId) || authorId;
     const role = localStorage.getItem('role_' + authorId);
-    const isStaff = role === 'trainer' || role === 'manager';
+    const isStaff = role === 'trainer' || role === 'manager' || role === 'admin';
     showToast((isStaff ? '[직원] ' : '') + realName, 'info');
   }
 
@@ -756,7 +756,7 @@
 
     // 관리자/강사일 때 회원 실명 미리 캐싱 완료 후 피드 로드
     const curRole = localStorage.getItem('role_' + userId);
-    const isStaff = curRole === 'trainer' || curRole === 'manager';
+    const isStaff = curRole === 'trainer' || curRole === 'manager' || curRole === 'admin';
     if (isAdmin || isStaff) {
       // memberCache가 이미 있으면 재사용, 없으면 Firebase에서 로드
       if (window.memberCache && Object.keys(window.memberCache).length > 0) {
@@ -773,7 +773,7 @@
           });
           userSnap.forEach(child => {
             const role = child.val().role;
-            if ((role === 'trainer' || role === 'manager') && !window.memberCache[child.key]) {
+            if ((role === 'trainer' || role === 'manager' || role === 'admin') && !window.memberCache[child.key]) {
               window.memberCache[child.key] = child.val().name || '';
               localStorage.setItem('role_' + child.key, role);
             }
@@ -815,9 +815,9 @@
     const safePreview = escapeHtml((post.content || '').replace(/\n/g,' ')).substring(0,50);
     const canDelete = post.authorId === userId || isAdmin;
     const authorRole = localStorage.getItem('role_' + post.authorId);
-    const isAuthorStaff = authorRole === 'trainer' || authorRole === 'manager';
+    const isAuthorStaff = authorRole === 'trainer' || authorRole === 'manager' || authorRole === 'admin';
     const curRole = localStorage.getItem('role_' + userId);
-    const isAdminOrStaff = isAdmin || curRole === 'trainer' || curRole === 'manager';
+    const isAdminOrStaff = isAdmin || curRole === 'trainer' || curRole === 'manager' || curRole === 'admin';
     // 관리자 실명 표시 - memberCache 또는 localStorage에서 읽기
     const realNameStr = (window.memberCache && window.memberCache[post.authorId]) || localStorage.getItem('name_' + post.authorId) || '';
     // 강사/관리자: 실명(뒤4자리) 항상 표시
