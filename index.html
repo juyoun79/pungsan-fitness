@@ -7318,7 +7318,7 @@ function _buildRankingHtml(c, userId, color) {
   // 관리자/강사 여부 확인
   const curUserId = localStorage.getItem('current_user');
   const curRole = localStorage.getItem('role_' + curUserId);
-  const isStaff = curRole === 'manager' || curRole === 'admin' || curRole === 'trainer';
+  const isStaff = window._adminRankOverlay || curRole === 'manager' || curRole === 'admin' || curRole === 'trainer';
 
   function _getRankDisplayName(uid, nick, isMe) {
     if (!isStaff) return nick + (isMe ? ' (나)' : '');
@@ -7832,7 +7832,7 @@ function _buildRankingHtml(c, userId, color) {
   // 관리자/강사 여부 확인
   const curUserId = localStorage.getItem('current_user');
   const curRole = localStorage.getItem('role_' + curUserId);
-  const isStaff = curRole === 'manager' || curRole === 'admin' || curRole === 'trainer';
+  const isStaff = window._adminRankOverlay || curRole === 'manager' || curRole === 'admin' || curRole === 'trainer';
 
   function _getRankDisplayName(uid, nick, isMe) {
     if (!isStaff) return nick + (isMe ? ' (나)' : '');
@@ -8211,6 +8211,7 @@ function openAdminChallengeDetailOverlay(challengeId) {
   const commTab = document.getElementById('tab-community-admin');
   if (commTab) commTab.classList.remove('active');
   overlay.classList.add('active');
+  window._adminRankOverlay = true; // 관리자 오버레이 플래그
   body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-hint);font-size:14px;">불러오는 중...</div>';
 
   // memberCache 먼저 로드 후 챌린지 상세 렌더링
@@ -8281,6 +8282,7 @@ function openAdminChallengeDetailOverlay(challengeId) {
 }
 
 function closeAdminChallengeDetailOverlay() {
+  window._adminRankOverlay = false;
   const overlay = document.getElementById('admin-challenge-detail-overlay');
   if (overlay) overlay.classList.remove('active');
   // 커뮤니티 탭 복귀
@@ -8326,11 +8328,11 @@ function loadAdminChallenges() {
           });
           rankHtml = sorted.slice(0, 5).map((e, i) => {
             const medal = e.rank <= 3 ? MEDALS[e.rank-1] : e.rank + '위';
-            const _adminActive2 = document.getElementById('screen-admin') && document.getElementById('screen-admin').classList.contains('active');
-            const realName = _adminActive2 ? ((window.memberCache && window.memberCache[e.uid]) || localStorage.getItem('name_' + e.uid) || '') : '';
+            const curRole = localStorage.getItem('role_' + localStorage.getItem('current_user'));
+            const isStaff = window._adminRankOverlay || curRole === 'manager' || curRole === 'admin' || curRole === 'trainer';
+            const realName = isStaff ? ((window.memberCache && window.memberCache[e.uid]) || localStorage.getItem('name_' + e.uid) || '') : '';
             const last4 = e.uid ? e.uid.slice(-4) : '';
-            const hasNum2 = /\(\d{4}\)$/.test(realName);
-            const realStr = _adminActive2 ? (realName ? (hasNum2 ? realName : realName + '(' + last4 + ')') : '(' + last4 + ')') : '';
+            const realStr = isStaff ? (realName ? realName + '(' + last4 + ')' : '(' + last4 + ')') : '';
             const nick = (e.nickname || '회원') + (realStr ? ' ' + realStr : '');
             return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
               <span style="font-size:14px;width:24px;text-align:center;">${medal}</span>
