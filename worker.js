@@ -20,7 +20,7 @@ export default {
 
     // 버전 확인 API
     if (url.pathname === '/api/version') {
-      return new Response(JSON.stringify({ version: '1.5.4' }), {
+      return new Response(JSON.stringify({ version: '1.5.5' }), {
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
@@ -32,6 +32,14 @@ export default {
     // 푸시알림 발송 API
     if (url.pathname === '/api/notify' && request.method === 'POST') {
       return handleNotify(request, env);
+    }
+
+    // Cron 수동 트리거 (테스트용)
+    if (url.pathname === '/api/cron-test' && request.method === 'POST') {
+      await handleCronAutoClose(env);
+      return new Response(JSON.stringify({ success: true, message: 'Cron 실행 완료' }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
     }
 
     // 민감한 파일 접근 차단
@@ -218,16 +226,27 @@ function jsonRes(data, status = 200) {
 async function handleCronAutoClose(env) {
   // Firebase REST API로 챌린지 데이터 조회
   const FIREBASE_DB = 'https://pungsan-fitness-default-rtdb.asia-southeast1.firebasedatabase.app';
-  const today = new Date().toISOString().slice(0, 10);
+  // KST 기준 오늘 날짜 (UTC+9)
+  const now = new Date();
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const today = kst.toISOString().slice(0, 10);
+  console.log('Cron: 실행 시작, KST today =', today);
 
   try {
-    // 진행중 챌린지 전체 조회
-    const res = await fetch(`${FIREBASE_DB}/challenges.json?orderBy="status"&equalTo="ongoing"`, {
+    // 전체 챌린지 조회 후 JS에서 ongoing 필터링 (인덱스 불필요)
+    const res = await fetch(`${FIREBASE_DB}/challenges.json`, {
       headers: { 'Content-Type': 'application/json' }
     });
-    if (!res.ok) { console.error('Cron: Firebase 조회 실패'); return; }
-    const challenges = await res.json();
-    if (!challenges) { console.log('Cron: 진행중 챌린지 없음'); return; }
+    if (!res.ok) { console.error('Cron: Firebase 조회 실패', res.status); return; }
+    const allChallenges = await res.json();
+    if (!allChallenges) { console.log('Cron: 챌린지 없음'); return; }
+
+    // ongoing 챌린지만 필터링
+    const challenges = Object.fromEntries(
+      Object.entries(allChallenges).filter(([, c]) => c.status === 'ongoing')
+    );
+    if (Object.keys(challenges).length === 0) { console.log('Cron: 진행중 챌린지 없음'); return; }
+    console.log('Cron: 진행중 챌린지', Object.keys(challenges).length, '개');
 
     for (const [challengeId, c] of Object.entries(challenges)) {
       // 1) 점수 먼저 갱신 (종료 여부 무관하게 진행중 챌린지 전체)
@@ -237,19 +256,23 @@ async function handleCronAutoClose(env) {
     }
     console.log('Cron: 점수 갱신 완료');
 
-    // 갱신된 데이터로 다시 조회
-    const res2 = await fetch(`${FIREBASE_DB}/challenges.json?orderBy="status"&equalTo="ongoing"`, {
+    // 갱신된 데이터로 다시 전체 조회
+    const res2 = await fetch(`${FIREBASE_DB}/challenges.json`, {
       headers: { 'Content-Type': 'application/json' }
     });
-    const challenges2 = res2.ok ? await res2.json() : challenges;
+    const allChallenges2 = res2.ok ? await res2.json() : allChallenges;
+    const challenges2 = Object.fromEntries(
+      Object.entries(allChallenges2 || allChallenges).filter(([, c]) => c.status === 'ongoing')
+    );
 
-    for (const [challengeId, c] of Object.entries(challenges2 || challenges)) {
+    for (const [challengeId, c] of Object.entries(challenges2)) {
       // 2) 종료일이 오늘 이하면 자동 종료
-      if (c.endDate <= today && c.status === 'ongoing') {
-        console.log('Cron: 자동 종료 처리 -', c.name);
+      if (c.endDate <= today) {
+        console.log('Cron: 자동 종료 처리 -', c.name, '/ endDate:', c.endDate, '/ today:', today);
 
         await fetch(`${FIREBASE_DB}/challenges/${challengeId}/status.json`, {
           method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify('ended')
         });
 
@@ -261,7 +284,7 @@ async function handleCronAutoClose(env) {
     }
     console.log('Cron: 자동 종료 처리 완료');
   } catch(err) {
-    console.error('Cron 오류:', err.message);
+    console.error('Cron 오류:', err.message, err.stack);
   }
 }
 
