@@ -6399,13 +6399,13 @@
           // members에 있어도 users에서 강사/매니저 역할 재확인 (두 곳에 모두 있는 경우 대비)
           db.ref('users/' + userId).once('value').then(userSnap => {
             const userRole = userSnap.exists() ? (userSnap.val().role || 'member') : 'member';
-            const finalRole = (userRole === 'trainer' || userRole === 'manager') ? userRole : memberRole;
+            const finalRole = (userRole === 'trainer' || userRole === 'manager' || userRole === 'admin') ? userRole : memberRole;
             localStorage.setItem('role_' + userId, finalRole);
             const hasBodyInfo = localStorage.getItem('body_weight_' + userId);
             if (!hasBodyInfo) {
               showScreen('screen-nickname');
             } else {
-              const isTrainerRole = finalRole === 'trainer' || finalRole === 'manager';
+              const isTrainerRole = finalRole === 'trainer' || finalRole === 'manager' || finalRole === 'admin';
               goHome(nickname, isTrainerRole ? true : false);
             }
           }).catch(() => {
@@ -6430,7 +6430,7 @@
                 showScreen('screen-nickname');
               } else {
                 // 강사/매니저는 자동로그인 시 항상 홈으로 (탭 복원 버그 방지)
-                const isTrainerRole = role === 'trainer' || role === 'manager';
+                const isTrainerRole = role === 'trainer' || role === 'manager' || role === 'admin';
                 goHome(nickname, isTrainerRole ? true : false);
               }
             } else {
