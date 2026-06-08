@@ -518,7 +518,10 @@
       <div id="trainer-home-section" style="display:none;">
 
         <!-- 오늘 스케줄 -->
-        <div class="section-title">오늘 스케줄</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div class="section-title" style="margin-bottom:0;">오늘 스케줄</div>
+          <button onclick="showSchedule()" style="background:var(--blue-light);color:var(--blue);border:1px solid var(--blue);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">스케줄표 보기 ›</button>
+        </div>
         <div id="trainer-schedule-chips" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:16px;scrollbar-width:none;-webkit-overflow-scrolling:touch;">
           <div style="flex-shrink:0;color:var(--text-hint);font-size:13px;padding:6px 0;">불러오는 중...</div>
         </div>
