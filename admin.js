@@ -2692,18 +2692,21 @@
   }
 
   function selectTRCategory(cat) {
+    const active = document.getElementById('trcat-' + cat);
+    const isActive = active && active.dataset.active === 'true';
     ['하체','가슴','등','어깨','팔','코어','기구'].forEach(c => {
       const btn = document.getElementById('trcat-' + c);
       if (!btn) return;
       btn.style.background = 'var(--bg)';
       btn.style.color = 'var(--text-sub)';
       btn.style.borderColor = 'var(--border)';
+      btn.dataset.active = 'false';
     });
-    const active = document.getElementById('trcat-' + cat);
-    if (active) { active.style.background = '#7c3aed'; active.style.color = 'white'; active.style.borderColor = '#7c3aed'; }
+    const results = document.getElementById('tr-routine-ex-search-results');
+    if (isActive) { if (results) results.innerHTML = ''; return; }
+    if (active) { active.style.background = '#7c3aed'; active.style.color = 'white'; active.style.borderColor = '#7c3aed'; active.dataset.active = 'true'; }
     const input = document.getElementById('tr-routine-ex-search-input');
     if (input) input.value = '';
-    const results = document.getElementById('tr-routine-ex-search-results');
     const existing = collectTRexItems().map(e => e.name);
     let items = [];
     if (cat === '기구') {
