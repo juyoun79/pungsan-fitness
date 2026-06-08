@@ -7274,10 +7274,6 @@ function _renderChallengeDetail(c, challengeId, userId, color, isOngoing, isJoin
   }
 
   body.innerHTML = myCardHtml +
-    `<div style="display:flex;align-items:center;justify-content:space-between;">
-      <div style="font-size:15px;font-weight:700;color:var(--text);">🏆 전체 랭킹</div>
-      <div style="font-size:12px;color:var(--text-hint);">닉네임+수치 공개</div>
-    </div>` +
     `<div style="font-size:15px;font-weight:700;color:var(--text);">🏆 전체 랭킹</div>
     <div style="font-size:12px;color:#f97316;font-weight:600;margin-top:4px;margin-bottom:4px;">🕛 순위와 점수는 매일 자정에 갱신돼요</div>` +
     rankHtml + rewardHtml + adminBtn;
@@ -7315,10 +7311,12 @@ function _buildRankingHtml(c, userId, color) {
   const avatarBgs    = ['#fef3c7','#e0f2fe','#fce7f3','#f0fdf4','#ede9fe'];
   const avatarColors = ['#b45309','#0369a1','#9d174d','#166534','#5b21b6'];
 
-  // 관리자/강사 여부 확인
+  // 관리자/강사 여부 확인 - role 또는 관리자모드 화면으로 판단
   const curUserId = localStorage.getItem('current_user');
   const curRole = localStorage.getItem('role_' + curUserId);
-  const isStaff = curRole === 'manager' || curRole === 'admin' || curRole === 'trainer';
+  const adminScreen = document.getElementById('screen-admin');
+  const isAdminMode = adminScreen && adminScreen.classList.contains('active');
+  const isStaff = isAdminMode || curRole === 'manager' || curRole === 'admin' || curRole === 'trainer';
 
   function _getRankDisplayName(uid, nick, isMe) {
     if (!isStaff) return nick + (isMe ? ' (나)' : '');
@@ -7829,10 +7827,12 @@ function _buildRankingHtml(c, userId, color) {
   const avatarBgs    = ['#fef3c7','#e0f2fe','#fce7f3','#f0fdf4','#ede9fe'];
   const avatarColors = ['#b45309','#0369a1','#9d174d','#166534','#5b21b6'];
 
-  // 관리자/강사 여부 확인
+  // 관리자/강사 여부 확인 - role 또는 관리자모드 화면으로 판단
   const curUserId = localStorage.getItem('current_user');
   const curRole = localStorage.getItem('role_' + curUserId);
-  const isStaff = curRole === 'manager' || curRole === 'admin' || curRole === 'trainer';
+  const adminScreen = document.getElementById('screen-admin');
+  const isAdminMode = adminScreen && adminScreen.classList.contains('active');
+  const isStaff = isAdminMode || curRole === 'manager' || curRole === 'admin' || curRole === 'trainer';
 
   function _getRankDisplayName(uid, nick, isMe) {
     if (!isStaff) return nick + (isMe ? ' (나)' : '');
