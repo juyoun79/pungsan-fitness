@@ -17,6 +17,9 @@
 
   // ── 관리자 탭 전환 ──
   function switchAdminTab(tabId) {
+    // 챌린지 상세 오버레이 먼저 숨기기
+    const overlay = document.getElementById('admin-challenge-detail-overlay');
+    if (overlay) overlay.style.display = 'none';
     document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.admin-side-tab').forEach(t => t.classList.remove('active'));
