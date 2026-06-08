@@ -1277,6 +1277,7 @@ function loadCommunityChallengePins() {
 
     const today = new Date().toISOString().slice(0, 10);
     const challenges = Object.entries(data).map(([id, c]) => ({ id, ...c })).filter(c => {
+      if (c.hidden) return false; // 숨긴 챌린지 제외
       if (c.status === 'ongoing') return true;
       // 종료 후 7일 이내인 챌린지도 표시
       if (c.status === 'ended' && c.endDate) {

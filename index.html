@@ -8457,8 +8457,10 @@ function loadAdminChallenges() {
           <div style="display:flex;gap:6px;">
             ${!c.rewardPaid ? `<button onclick="payChalllengeReward('${c.id}')"
               style="flex:1;padding:7px;background:#16a34a;color:white;border:none;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">보상지급</button>` : ''}
+            <button onclick="hideChallenge('${c.id}')"
+              style="flex:1;padding:7px;background:#f3f4f6;color:#6b7280;border:1px solid #d1d5db;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">숨기기</button>
             <button onclick="deleteChallenge('${c.id}', '${c.name}')"
-              style="flex:1;padding:7px;background:#fef2f2;color:#ef4444;border:1px solid #fecaca;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
+              style="flex:1;padding:7px;background:#fef2f2;color:#ef4444;border:1px solid #fecaca;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">완전삭제</button>
           </div>
         </div>`;
       }).join('');
@@ -8482,6 +8484,18 @@ function endChallenge(challengeId) {
       showToast('✅ 챌린지가 종료됐어요!', 'success');
       loadAdminChallenges();
     });
+  });
+}
+
+// ── 챌린지 숨기기 (회원앱에서만 숨김, 관리자는 계속 볼 수 있음) ──
+function hideChallenge(challengeId) {
+  showConfirm('회원 앱에서 이 챌린지를 숨길까요?\n관리자 탭에서는 계속 볼 수 있어요.', () => {
+    db.ref('challenges/' + challengeId + '/hidden').set(true).then(() => {
+      showToast('✅ 회원 앱에서 숨겼어요.', 'success');
+      loadAdminChallenges();
+      loadCommunityChallengePins();
+      loadAdminCommunityChallengePins();
+    }).catch(() => showToast('숨기기 실패. 다시 시도해주세요.', 'error'));
   });
 }
 
