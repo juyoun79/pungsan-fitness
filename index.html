@@ -7321,12 +7321,12 @@ function _buildRankingHtml(c, userId, color) {
   const isStaff = window._adminRankOverlay || curRole === 'manager' || curRole === 'admin' || curRole === 'trainer';
 
   function _getRankDisplayName(uid, nick, isMe) {
-    if (!isStaff) return nick + (isMe ? ' (나)' : '');
+    if (!isStaff) return `<span style="font-size:14px;font-weight:700;color:var(--text);">${nick}</span>${isMe ? ' <span style="font-size:11px;color:var(--text-hint);">(나)</span>' : ''}`;
     const realName = (window.memberCache && window.memberCache[uid]) || localStorage.getItem('name_' + uid) || '';
     const last4 = uid ? uid.slice(-4) : '';
     const hasNum = /\(\d{4}\)$/.test(realName);
     const realStr = realName ? (hasNum ? realName : realName + '(' + last4 + ')') : '(' + last4 + ')';
-    return nick + ' ' + realStr + (isMe ? ' (나)' : '');
+    return `<span style="font-size:14px;font-weight:700;color:var(--text);">${nick}</span>${realStr ? ` <span style="font-size:11px;font-weight:400;color:var(--text-hint);">${escapeHtml(realStr)}</span>` : ''}${isMe ? ' <span style="font-size:11px;color:var(--text-hint);">(나)</span>' : ''}`;
   }
 
   let rows = top5.map((entry, i) => {
@@ -7342,7 +7342,7 @@ function _buildRankingHtml(c, userId, color) {
     return `<div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);gap:12px;${isMe ? 'background:#f8f9ff;' : ''}">
       <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${rank <= 3 ? '16' : '13'}px;font-weight:700;flex-shrink:0;${numStyle};">${rankLabel}</div>
       <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:${avatarBgs[i%5]};color:${avatarColors[i%5]};">${nick.slice(0,1)}</div>
-      <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text);">${displayName}</div></div>
+      <div style="flex:1;line-height:1.4;">${displayName}</div>
       <div style="text-align:right;"><div style="font-size:15px;font-weight:700;color:#16a34a;">${_formatScore(entry.score || 0, c.type)}</div></div>
     </div>`;
   }).join('');
@@ -7354,7 +7354,7 @@ function _buildRankingHtml(c, userId, color) {
     <div style="display:flex;align-items:center;padding:12px 16px;gap:12px;background:#f8f9ff;">
       <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:${color};color:white;">${myRankNum}위</div>
       <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:#ede9fe;color:#5b21b6;">${nick.slice(0,1)}</div>
-      <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text);">${displayName}</div></div>
+      <div style="flex:1;line-height:1.4;">${displayName}</div>
       <div style="text-align:right;"><div style="font-size:15px;font-weight:700;color:#16a34a;">${_formatScore(myEntry.score || 0, c.type)}</div></div>
     </div>`;
   }
@@ -7835,12 +7835,12 @@ function _buildRankingHtml(c, userId, color) {
   const isStaff = window._adminRankOverlay || curRole === 'manager' || curRole === 'admin' || curRole === 'trainer';
 
   function _getRankDisplayName(uid, nick, isMe) {
-    if (!isStaff) return nick + (isMe ? ' (나)' : '');
+    if (!isStaff) return `<span style="font-size:14px;font-weight:700;color:var(--text);">${nick}</span>${isMe ? ' <span style="font-size:11px;color:var(--text-hint);">(나)</span>' : ''}`;
     const realName = (window.memberCache && window.memberCache[uid]) || localStorage.getItem('name_' + uid) || '';
     const last4 = uid ? uid.slice(-4) : '';
     const hasNum = /\(\d{4}\)$/.test(realName);
     const realStr = realName ? (hasNum ? realName : realName + '(' + last4 + ')') : '(' + last4 + ')';
-    return nick + ' ' + realStr + (isMe ? ' (나)' : '');
+    return `<span style="font-size:14px;font-weight:700;color:var(--text);">${nick}</span>${realStr ? ` <span style="font-size:11px;font-weight:400;color:var(--text-hint);">${escapeHtml(realStr)}</span>` : ''}${isMe ? ' <span style="font-size:11px;color:var(--text-hint);">(나)</span>' : ''}`;
   }
 
   let rows = top5.map((entry, i) => {
@@ -7856,7 +7856,7 @@ function _buildRankingHtml(c, userId, color) {
     return `<div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);gap:12px;${isMe ? 'background:#f8f9ff;' : ''}">
       <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:${rank <= 3 ? '16' : '13'}px;font-weight:700;flex-shrink:0;${numStyle};">${rankLabel}</div>
       <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:${avatarBgs[i%5]};color:${avatarColors[i%5]};">${nick.slice(0,1)}</div>
-      <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text);">${displayName}</div></div>
+      <div style="flex:1;line-height:1.4;">${displayName}</div>
       <div style="text-align:right;"><div style="font-size:15px;font-weight:700;color:#16a34a;">${_formatScore(entry.score || 0, c.type)}</div></div>
     </div>`;
   }).join('');
@@ -7868,7 +7868,7 @@ function _buildRankingHtml(c, userId, color) {
     <div style="display:flex;align-items:center;padding:12px 16px;gap:12px;background:#f8f9ff;">
       <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:${color};color:white;">${myRankNum}위</div>
       <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:#ede9fe;color:#5b21b6;">${nick.slice(0,1)}</div>
-      <div style="flex:1;"><div style="font-size:14px;font-weight:700;color:var(--text);">${displayName}</div></div>
+      <div style="flex:1;line-height:1.4;">${displayName}</div>
       <div style="text-align:right;"><div style="font-size:15px;font-weight:700;color:#16a34a;">${_formatScore(myEntry.score || 0, c.type)}</div></div>
     </div>`;
   }
