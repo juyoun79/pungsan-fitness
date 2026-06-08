@@ -7190,37 +7190,8 @@ function openChallengeDetail(challengeId) {
   loadChallengeDetail(challengeId);
 }
 
-// ── memberCache 로드 헬퍼 (챌린지 상세용) ──
-function _ensureMemberCache(callback) {
-  if (window.memberCache && Object.keys(window.memberCache).length > 0) {
-    callback();
-    return;
-  }
-  Promise.all([
-    db.ref('members').once('value'),
-    db.ref('users').once('value')
-  ]).then(([memberSnap, userSnap]) => {
-    window.memberCache = {};
-    memberSnap.forEach(child => {
-      window.memberCache[child.key] = child.val().name || '';
-      if (child.val().role) localStorage.setItem('role_' + child.key, child.val().role);
-    });
-    userSnap.forEach(child => {
-      const role = child.val().role;
-      if (role) {
-        localStorage.setItem('role_' + child.key, role);
-        if (!window.memberCache[child.key]) {
-          window.memberCache[child.key] = child.val().name || '';
-        }
-      }
-    });
-    callback();
-  });
-}
-
 function loadChallengeDetail(challengeId) {
   const userId = localStorage.getItem('current_user');
-  _ensureMemberCache(() => {
   db.ref('challenges/' + challengeId).once('value', snap => {
     const c = snap.val();
     if (!c) return;
@@ -7243,10 +7214,11 @@ function loadChallengeDetail(challengeId) {
 
     _renderChallengeDetail(c, challengeId, userId, color, isOngoing, isJoined);
   });
-  }); // _ensureMemberCache
 }
 
 function _renderChallengeDetail(c, challengeId, userId, color, isOngoing, isJoined) {
+  // memberCache 보장 (관리자/강사 실명 표시용)
+  const _doRender = () => {
   const body    = document.getElementById('challenge-detail-body');
   const myScore = isJoined ? (c.participants[userId].score || 0) : null;
   const myRank  = isJoined ? _calcMyRank(c, userId) : null;
@@ -7309,6 +7281,15 @@ function _renderChallengeDetail(c, challengeId, userId, color, isOngoing, isJoin
     `<div style="font-size:15px;font-weight:700;color:var(--text);">🏆 전체 랭킹</div>
     <div style="font-size:12px;color:#f97316;font-weight:600;margin-top:4px;margin-bottom:4px;">🕛 순위와 점수는 매일 자정에 갱신돼요</div>` +
     rankHtml + rewardHtml + adminBtn;
+  }; // _doRender
+  if (!window.memberCache || Object.keys(window.memberCache).length === 0) {
+    Promise.all([db.ref('members').once('value'), db.ref('users').once('value')]).then(([ms, us]) => {
+      window.memberCache = {};
+      ms.forEach(c2 => { window.memberCache[c2.key] = c2.val().name || ''; if (c2.val().role) localStorage.setItem('role_' + c2.key, c2.val().role); });
+      us.forEach(c2 => { const r = c2.val().role; if (r) { localStorage.setItem('role_' + c2.key, r); if (!window.memberCache[c2.key]) window.memberCache[c2.key] = c2.val().name || ''; } });
+      _doRender();
+    });
+  } else { _doRender(); }
 }
 
 function _buildRankingHtml(c, userId, color) {
@@ -7726,7 +7707,6 @@ function loadChallengeDetail(challengeId) {
   const userId = localStorage.getItem('current_user');
   const colors = ['#1a6fd4','#7F77DD','#16a34a','#ea580c','#0891b2'];
 
-  _ensureMemberCache(() => {
   db.ref('challenges/' + challengeId).once('value', snap => {
     const c = snap.val();
     if (!c) return;
@@ -7753,10 +7733,11 @@ function loadChallengeDetail(challengeId) {
     // 내 현황 + 랭킹 + 보상 렌더링
     _renderChallengeDetail(c, challengeId, userId, color, isOngoing, isJoined);
   });
-  }); // _ensureMemberCache
 }
 
 function _renderChallengeDetail(c, challengeId, userId, color, isOngoing, isJoined) {
+  // memberCache 보장 (관리자/강사 실명 표시용)
+  const _doRender = () => {
   const body = document.getElementById('challenge-detail-body');
   const myScore = isJoined ? (c.participants[userId].score || 0) : null;
   const myRank  = isJoined ? _calcMyRank(c, userId) : null;
@@ -7814,6 +7795,15 @@ function _renderChallengeDetail(c, challengeId, userId, color, isOngoing, isJoin
     `<div style="font-size:15px;font-weight:700;color:var(--text);">🏆 전체 랭킹</div>
     <div style="font-size:12px;color:#f97316;font-weight:600;margin-top:4px;margin-bottom:4px;">🕛 순위와 점수는 매일 자정에 갱신돼요</div>` +
     rankHtml + rewardHtml + adminRewardBtn;
+  }; // _doRender
+  if (!window.memberCache || Object.keys(window.memberCache).length === 0) {
+    Promise.all([db.ref('members').once('value'), db.ref('users').once('value')]).then(([ms, us]) => {
+      window.memberCache = {};
+      ms.forEach(c2 => { window.memberCache[c2.key] = c2.val().name || ''; if (c2.val().role) localStorage.setItem('role_' + c2.key, c2.val().role); });
+      us.forEach(c2 => { const r = c2.val().role; if (r) { localStorage.setItem('role_' + c2.key, r); if (!window.memberCache[c2.key]) window.memberCache[c2.key] = c2.val().name || ''; } });
+      _doRender();
+    });
+  } else { _doRender(); }
 }
 
 function _buildRankingHtml(c, userId, color) {
@@ -8225,8 +8215,22 @@ function openAdminChallengeDetailOverlay(challengeId) {
 
   // memberCache 먼저 로드 후 챌린지 상세 렌더링
   const userId = localStorage.getItem('current_user');
-  _ensureMemberCache(() => {
-    db.ref('challenges/' + challengeId).once('value', snap => {
+  Promise.all([
+    db.ref('members').once('value'),
+    db.ref('users').once('value'),
+    db.ref('challenges/' + challengeId).once('value')
+  ]).then(([memberSnap, userSnap, snap]) => {
+    // memberCache 갱신
+    if (!window.memberCache) window.memberCache = {};
+    memberSnap.forEach(child => {
+      window.memberCache[child.key] = child.val().name || '';
+    });
+    userSnap.forEach(child => {
+      const role = child.val().role;
+      if ((role === 'trainer' || role === 'manager' || role === 'admin') && !window.memberCache[child.key]) {
+        window.memberCache[child.key] = child.val().name || '';
+      }
+    });
     const c = snap.val();
     if (!c) { body.innerHTML = '<div style="text-align:center;padding:40px;">불러오기 실패</div>'; return; }
 
@@ -8271,8 +8275,9 @@ function openAdminChallengeDetailOverlay(challengeId) {
           ${_buildRewardHtml(c)}
         </div>
       </div>`;
-    }); // db.ref
-  }); // _ensureMemberCache
+  }).catch(() => {
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:#ef4444;">불러오기 실패</div>';
+  });
 }
 
 function closeAdminChallengeDetailOverlay() {
