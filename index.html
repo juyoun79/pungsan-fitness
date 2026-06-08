@@ -8414,15 +8414,54 @@ function loadAdminChallenges() {
     if (ended.length === 0) {
       endedEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">종료된 챌린지가 없어요</div>';
     } else {
-      endedEl.innerHTML = ended.map(c => `
-        <div style="background:var(--bg);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <div style="font-size:14px;font-weight:700;color:var(--text-sub);">${c.name}</div>
-            <div style="font-size:12px;color:var(--text-hint);margin-top:2px;">${c.startDate} ~ ${c.endDate} ${c.rewardPaid ? '| ✅ 보상완료' : ''}</div>
+      endedEl.innerHTML = ended.map(c => {
+        const participants = c.participants ? Object.keys(c.participants).length : 0;
+        const sorted = c.participants
+          ? Object.entries(c.participants).map(([uid, d]) => ({ uid, ...d })).sort((a, b) => (b.score||0) - (a.score||0))
+          : [];
+        const MEDALS = ['🥇','🥈','🥉'];
+        let rankHtml = '';
+        if (sorted.length === 0) {
+          rankHtml = '<div style="font-size:12px;color:var(--text-hint);padding:6px 0;">참여한 회원이 없어요</div>';
+        } else {
+          let curRank = 1;
+          sorted.forEach((e, i) => {
+            if (i > 0 && (e.score||0) < (sorted[i-1].score||0)) curRank = i + 1;
+            e.rank = curRank;
+          });
+          rankHtml = sorted.slice(0, 5).map((e) => {
+            const medal = e.rank <= 3 ? MEDALS[e.rank-1] : e.rank + '위';
+            const realName = (window.memberCache && window.memberCache[e.uid]) || localStorage.getItem('name_' + e.uid) || '';
+            const last4 = e.uid ? e.uid.slice(-4) : '';
+            const _hasNum = /\(\d{4}\)$/.test(realName);
+            const realStr = realName ? (_hasNum ? realName : realName + '(' + last4 + ')') : '(' + last4 + ')';
+            const nick = (e.nickname || '회원') + ' ' + realStr;
+            return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
+              <span style="font-size:14px;width:24px;text-align:center;">${medal}</span>
+              <span style="font-size:13px;color:var(--text);flex:1;">${nick}</span>
+              <span style="font-size:13px;font-weight:700;color:#16a34a;">${_formatScore ? _formatScore(e.score||0, c.type) : (e.score||0)}</span>
+            </div>`;
+          }).join('');
+          if (sorted.length > 5) rankHtml += `<div style="font-size:11px;color:var(--text-hint);text-align:center;padding:4px 0;">외 ${sorted.length-5}명</div>`;
+        }
+        return `
+        <div style="background:var(--bg);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;border-left:3px solid #d1d5db;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text-sub);">${c.name}</div>
+              <div style="font-size:12px;color:var(--text-hint);margin-top:2px;">${c.startDate} ~ ${c.endDate} · 참여 ${participants}명 ${c.rewardPaid ? '| ✅ 보상완료' : ''}</div>
+            </div>
+            <span style="font-size:11px;background:#e5e7eb;color:#6b7280;padding:2px 8px;border-radius:4px;font-weight:700;flex-shrink:0;">종료</span>
           </div>
-          ${!c.rewardPaid ? `<button onclick="payChalllengeReward('${c.id}')"
-            style="padding:6px 12px;background:#16a34a;color:white;border:none;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">보상지급</button>` : ''}
-        </div>`).join('');
+          <div style="margin-bottom:10px;">${rankHtml}</div>
+          <div style="display:flex;gap:6px;">
+            ${!c.rewardPaid ? `<button onclick="payChalllengeReward('${c.id}')"
+              style="flex:1;padding:7px;background:#16a34a;color:white;border:none;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">보상지급</button>` : ''}
+            <button onclick="deleteChallenge('${c.id}', '${c.name}')"
+              style="flex:1;padding:7px;background:#fef2f2;color:#ef4444;border:1px solid #fecaca;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
+          </div>
+        </div>`;
+      }).join('');
     }
   });
   }; // _loadChallenges
@@ -8443,6 +8482,18 @@ function endChallenge(challengeId) {
       showToast('✅ 챌린지가 종료됐어요!', 'success');
       loadAdminChallenges();
     });
+  });
+}
+
+// ── 챌린지 삭제 (관리자) ──
+function deleteChallenge(challengeId, name) {
+  showConfirm('챌린지를 삭제할까요?\n"' + name + '"\n삭제 후 복구할 수 없어요.', () => {
+    db.ref('challenges/' + challengeId).remove().then(() => {
+      showToast('🗑️ 챌린지가 삭제됐어요.', 'success');
+      loadAdminChallenges();
+      loadCommunityChallengePins();
+      loadAdminCommunityChallengePins();
+    }).catch(() => showToast('삭제 실패. 다시 시도해주세요.', 'error'));
   });
 }
 

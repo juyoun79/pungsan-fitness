@@ -1271,38 +1271,53 @@ function loadCommunityChallengePins() {
   const pinList = document.getElementById('community-challenge-pin-list');
   if (!pinWrap || !pinList) return;
 
-  db.ref('challenges').orderByChild('status').equalTo('ongoing').once('value', snap => {
+  db.ref('challenges').once('value', snap => {
     const data = snap.val();
-    if (!data) {
-      pinWrap.style.display = 'none';
-      return;
-    }
-    const challenges = Object.entries(data).map(([id, c]) => ({ id, ...c }));
-    if (challenges.length === 0) {
-      pinWrap.style.display = 'none';
-      return;
-    }
+    if (!data) { pinWrap.style.display = 'none'; return; }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const challenges = Object.entries(data).map(([id, c]) => ({ id, ...c })).filter(c => {
+      if (c.status === 'ongoing') return true;
+      // 종료 후 7일 이내인 챌린지도 표시
+      if (c.status === 'ended' && c.endDate) {
+        const daysSinceEnd = Math.floor((new Date(today) - new Date(c.endDate)) / 86400000);
+        return daysSinceEnd <= 7;
+      }
+      return false;
+    });
+
+    if (challenges.length === 0) { pinWrap.style.display = 'none'; return; }
     pinWrap.style.display = 'block';
     pinList.innerHTML = challenges.map(c => {
-      const today = new Date().toISOString().slice(0, 10);
       const end = c.endDate || '';
+      const isEnded = c.status === 'ended';
       let dDay = '';
       if (end) {
         const diff = Math.ceil((new Date(end) - new Date(today)) / 86400000);
         dDay = diff > 0 ? 'D-' + diff : diff === 0 ? 'D-Day' : '종료';
       }
       const count = c.participants ? Object.keys(c.participants).length : 0;
-      return `<div class="community-pin-card" onclick="openChallengeDetail('${c.id}')">
+      // 종료된 챌린지는 회색톤 스타일
+      const cardStyle = isEnded
+        ? 'display:flex;align-items:center;justify-content:space-between;padding:11px 16px 11px 13px;background:#f3f4f6;border-bottom:1px solid var(--border);border-left:3px solid #9ca3af;cursor:pointer;'
+        : '';
+      const nameColor = isEnded ? '#6b7280' : '#92400e';
+      const subColor = isEnded ? '#9ca3af' : '#b45309';
+      const arrowColor = isEnded ? '#9ca3af' : '#b45309';
+      const badgeBg = isEnded ? '#e5e7eb' : '#fef3c7';
+      const badgeColor = isEnded ? '#6b7280' : '#854d0e';
+      const icon = isEnded ? '🏁' : '🏆';
+      return `<div class="${isEnded ? '' : 'community-pin-card'}" style="${cardStyle}" onclick="openChallengeDetail('${c.id}')">
         <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:20px;">🏆</span>
+          <span style="font-size:20px;">${icon}</span>
           <div>
-            <div style="font-size:13px;font-weight:700;color:#92400e;">${c.name}</div>
-            <div style="font-size:11px;color:#b45309;margin-top:2px;">참여자 ${count}명 · 상위 ${c.rewardRankCount||3}명 보상</div>
+            <div style="font-size:13px;font-weight:700;color:${nameColor};">${c.name}</div>
+            <div style="font-size:11px;color:${subColor};margin-top:2px;">${isEnded ? '챌린지 종료 · 결과 확인하기' : '참여자 ' + count + '명 · 상위 ' + (c.rewardRankCount||3) + '명 보상'}</div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
-          <span style="font-size:11px;background:#fef3c7;color:#854d0e;padding:2px 8px;border-radius:4px;font-weight:700;">${dDay}</span>
-          <span style="font-size:18px;color:#b45309;">›</span>
+          <span style="font-size:11px;background:${badgeBg};color:${badgeColor};padding:2px 8px;border-radius:4px;font-weight:700;">${dDay}</span>
+          <span style="font-size:18px;color:${arrowColor};">›</span>
         </div>
       </div>`;
     }).join('');
