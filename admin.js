@@ -5836,6 +5836,10 @@ async function _kioskCheckIn(phone) {
       });
     }
     const nick = localStorage.getItem('nickname_' + phone) || member.name;
+    // 푸시알림 발송
+    if (typeof sendPushToUser === 'function') {
+      sendPushToUser(phone, '✅ 출석 완료!', nick + '님 출석이 확인됐어요! +' + pts + 'P 적립', 'attend', { type: 'attend' });
+    }
     _kioskShowResult('success', nick + '님', '출석 완료! 포인트 +' + pts + 'P 적립', member.name.slice(0, 1));
   } catch(e) {
     _kioskShowResult('fail', '오류가 발생했어요', '다시 시도해주세요');
