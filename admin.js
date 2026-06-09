@@ -5724,3 +5724,153 @@
   window.loadTrainerHome = loadTrainerHome;
   window.showTrainerChartDetail = showTrainerChartDetail;
   // ── 강사 홈화면 끝 ──────────────────────────────────────
+
+// ── 키오스크 출석 ──────────────────────────────────────
+let _kioskInput = '';
+
+function openKiosk() {
+  _kioskInput = '';
+  _kioskUpdateDots();
+  document.getElementById('kiosk-input-area').style.display = 'block';
+  document.getElementById('kiosk-result-area').style.display = 'none';
+  document.getElementById('kiosk-result-area').innerHTML = '';
+  // 관리자 탭바 숨기기
+  const tabRow = document.querySelector('.admin-tab-row');
+  const pcHeader = document.getElementById('admin-header-pc');
+  if (tabRow) tabRow.style.display = 'none';
+  if (pcHeader) pcHeader.style.display = 'none';
+  // 키오스크 화면 표시
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const kiosk = document.getElementById('screen-kiosk');
+  kiosk.style.display = 'flex';
+  kiosk.classList.add('active');
+}
+
+function exitKiosk() {
+  showConfirmKiosk('관리자 비밀번호를 입력하세요', async (pw) => {
+    if (!pw) return;
+    const adminId = localStorage.getItem('current_user');
+    try {
+      const snap = await db.ref('members/' + adminId).once('value');
+      const data = snap.val();
+      if (data && data.password === pw) {
+        // 탭바 복원
+        const tabRow = document.querySelector('.admin-tab-row');
+        const pcHeader = document.getElementById('admin-header-pc');
+        if (tabRow) tabRow.style.display = '';
+        if (pcHeader) pcHeader.style.display = '';
+        // 관리자 화면으로 복귀
+        document.getElementById('screen-kiosk').style.display = 'none';
+        document.getElementById('screen-kiosk').classList.remove('active');
+        showScreen('screen-admin');
+      } else {
+        showToast('비밀번호가 틀렸어요.', 'error');
+      }
+    } catch(e) {
+      showToast('확인 중 오류가 발생했어요.', 'error');
+    }
+  });
+}
+
+function showConfirmKiosk(msg, cb) {
+  const pw = prompt(msg);
+  if (pw !== null) cb(pw);
+}
+
+function _kioskUpdateDots() {
+  for (let i = 0; i < 8; i++) {
+    const el = document.getElementById('kd' + i);
+    if (el) el.className = 'kd' + (i < _kioskInput.length ? ' filled' : '');
+  }
+}
+
+async function kioskPress(k) {
+  if (k === 'del') {
+    _kioskInput = _kioskInput.slice(0, -1);
+    _kioskUpdateDots();
+  } else if (k === 'ok') {
+    if (_kioskInput.length !== 8) {
+      showToast('8자리를 모두 입력해주세요.', 'error');
+      return;
+    }
+    await _kioskCheckIn('010' + _kioskInput);
+  } else if (_kioskInput.length < 8) {
+    _kioskInput += k;
+    _kioskUpdateDots();
+    // 8자리 입력 완료 시 자동 확인
+    if (_kioskInput.length === 8) {
+      setTimeout(() => _kioskCheckIn('010' + _kioskInput), 200);
+    }
+  }
+}
+
+async function _kioskCheckIn(phone) {
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    // 회원 존재 확인
+    const memberSnap = await db.ref('members/' + phone).once('value');
+    const member = memberSnap.val();
+    if (!member) {
+      _kioskShowResult('fail', '등록되지 않은 번호예요', '직원에게 문의해주세요');
+      return;
+    }
+    // 오늘 출석 여부 확인
+    const attSnap = await db.ref('users/' + phone + '/attendance/' + today).once('value');
+    if (attSnap.exists()) {
+      _kioskShowResult('already', '오늘 이미 출석했어요', member.name + '님은 이미 출석하셨어요');
+      return;
+    }
+    // 출석 저장
+    await db.ref('users/' + phone + '/attendance/' + today).set(true);
+    // 포인트 적립
+    const pts = member.attendPoint || 2;
+    if (typeof addUserPoints === 'function') {
+      addUserPoints(phone, pts, '출석');
+    } else {
+      const ptsSnap = await db.ref('users/' + phone + '/points').once('value');
+      const cur = ptsSnap.val() || 0;
+      await db.ref('users/' + phone + '/points').set(cur + pts);
+      const histKey = db.ref('users/' + phone + '/pointHistory').push().key;
+      await db.ref('users/' + phone + '/pointHistory/' + histKey).set({
+        amount: pts, date: today, reason: '출석', balance: cur + pts, createdAt: Date.now()
+      });
+    }
+    const nick = localStorage.getItem('nickname_' + phone) || member.name;
+    _kioskShowResult('success', nick + '님', '출석 완료! 포인트 +' + pts + 'P 적립', member.name.slice(0, 1));
+  } catch(e) {
+    _kioskShowResult('fail', '오류가 발생했어요', '다시 시도해주세요');
+  }
+}
+
+function _kioskShowResult(type, msg1, msg2, initial) {
+  document.getElementById('kiosk-input-area').style.display = 'none';
+  const el = document.getElementById('kiosk-result-area');
+  el.style.display = 'block';
+  if (type === 'success') {
+    el.innerHTML = `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:14px;padding:28px 20px;text-align:center;">
+      <div style="width:64px;height:64px;background:#1a6fd4;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:white;margin:0 auto 14px;">${escapeHtml(initial||'?')}</div>
+      <div style="font-size:22px;font-weight:700;color:#15803d;margin-bottom:6px;">${escapeHtml(msg1)}</div>
+      <div style="font-size:15px;color:#16a34a;margin-bottom:10px;">${escapeHtml(msg2)}</div>
+    </div>`;
+  } else if (type === 'already') {
+    el.innerHTML = `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:14px;padding:28px 20px;text-align:center;">
+      <div style="font-size:36px;margin-bottom:10px;">✅</div>
+      <div style="font-size:18px;font-weight:700;color:#854d0e;margin-bottom:6px;">${escapeHtml(msg1)}</div>
+      <div style="font-size:13px;color:#92400e;">${escapeHtml(msg2)}</div>
+    </div>`;
+  } else {
+    el.innerHTML = `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:14px;padding:28px 20px;text-align:center;">
+      <div style="font-size:36px;margin-bottom:10px;">❌</div>
+      <div style="font-size:18px;font-weight:700;color:#A32D2D;margin-bottom:6px;">${escapeHtml(msg1)}</div>
+      <div style="font-size:13px;color:#ef4444;">${escapeHtml(msg2)}</div>
+    </div>`;
+  }
+  // 3초 후 초기화
+  setTimeout(() => {
+    _kioskInput = '';
+    _kioskUpdateDots();
+    document.getElementById('kiosk-input-area').style.display = 'block';
+    el.style.display = 'none';
+    el.innerHTML = '';
+  }, 3000);
+}

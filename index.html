@@ -2349,6 +2349,47 @@
   <!-- ══════════════════════════════
        관리자 화면
   ══════════════════════════════ -->
+  <!-- 키오스크 화면 -->
+  <div id="screen-kiosk" class="screen" style="display:none;background:#f0f4fa;">
+    <div id="kiosk-wrap" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 20px;">
+      <div style="text-align:center;margin-bottom:20px;">
+        <div style="width:48px;height:48px;background:#1a6fd4;border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5h11M6.5 17.5h11M4 12h16M2 9h3M19 9h3M2 15h3M19 15h3"/></svg>
+        </div>
+        <div style="font-size:17px;font-weight:700;color:#1558aa;">풍산휘트니스@기구필라테스</div>
+        <div style="font-size:13px;color:#4a7fd4;margin-top:2px;">출석 체크</div>
+      </div>
+      <div id="kiosk-input-area" style="width:100%;max-width:320px;">
+        <div style="background:white;border:1.5px solid #1a6fd4;border-radius:14px;padding:16px 20px;text-align:center;margin-bottom:16px;">
+          <div style="font-size:12px;color:#4a7fd4;margin-bottom:10px;">전화번호 뒷 8자리를 입력하세요</div>
+          <div id="kiosk-dots" style="display:flex;justify-content:center;align-items:center;gap:6px;min-height:32px;">
+            <div class="kd" id="kd0"></div><div class="kd" id="kd1"></div><div class="kd" id="kd2"></div><div class="kd" id="kd3"></div>
+            <div style="width:14px;height:2px;background:#d1ddf0;border-radius:2px;"></div>
+            <div class="kd" id="kd4"></div><div class="kd" id="kd5"></div><div class="kd" id="kd6"></div><div class="kd" id="kd7"></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;">
+          <button class="kiosk-key" onclick="kioskPress('1')">1</button>
+          <button class="kiosk-key" onclick="kioskPress('2')">2</button>
+          <button class="kiosk-key" onclick="kioskPress('3')">3</button>
+          <button class="kiosk-key" onclick="kioskPress('4')">4</button>
+          <button class="kiosk-key" onclick="kioskPress('5')">5</button>
+          <button class="kiosk-key" onclick="kioskPress('6')">6</button>
+          <button class="kiosk-key" onclick="kioskPress('7')">7</button>
+          <button class="kiosk-key" onclick="kioskPress('8')">8</button>
+          <button class="kiosk-key" onclick="kioskPress('9')">9</button>
+          <button class="kiosk-key kiosk-key-del" onclick="kioskPress('del')">지우기</button>
+          <button class="kiosk-key" onclick="kioskPress('0')" style="grid-column:2;">0</button>
+          <button class="kiosk-key kiosk-key-confirm" onclick="kioskPress('ok')">확인</button>
+        </div>
+      </div>
+      <div id="kiosk-result-area" style="display:none;width:100%;max-width:320px;"></div>
+      <div style="margin-top:20px;text-align:center;">
+        <button onclick="exitKiosk()" style="background:none;border:none;font-size:12px;color:#9ab0cc;cursor:pointer;text-decoration:underline;font-family:'Noto Sans KR',sans-serif;">관리자 모드로 돌아가기</button>
+      </div>
+    </div>
+  </div>
+
   <div id="screen-admin" class="screen">
     <!-- 모바일 모드 헤더 -->
     <div class="admin-header" id="admin-header-mobile">
@@ -2373,6 +2414,7 @@
         <button class="admin-tab" onclick="switchAdminTab('tab-challenge-admin')">🏆 챌린지</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-settings')">⚙️ 설정</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-equipment-admin')">🏋️ 기구</button>
+        <button class="admin-tab" onclick="openKiosk()">⌨️ 키오스크</button>
       </div>
     </div>
 
