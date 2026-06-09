@@ -4416,7 +4416,7 @@
           const c = couponSnap.val();
           const couponId = couponSnap.key;
           if (c.type === 'point_shop') {
-            count++;
+            if (!c.used) count++;
             if (c.used) {
               html += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;opacity:0.6;">
                 <div style="padding:14px 16px;border-left:4px solid #9ca3af;">
