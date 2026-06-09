@@ -3076,11 +3076,12 @@
                 <input type="text" id="shop-item-name" placeholder="상품명 (예: 프로틴음료)" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);" />
                 <input type="number" id="shop-item-point" placeholder="포인트" min="1" style="width:90px;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);" />
               </div>
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
                 <span style="font-size:12px;color:var(--text-hint);white-space:nowrap;">사용기한</span>
-                <input type="number" id="shop-item-expire-days" placeholder="일 (예: 7)" min="1" style="width:90px;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);" />
-                <span style="font-size:12px;color:var(--text-hint);">일 이내 (비워두면 기한 없음)</span>
+                <input type="number" id="shop-item-expire-days" placeholder="예: 7" min="1" style="width:70px;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);" />
+                <span style="font-size:12px;color:var(--text-hint);white-space:nowrap;">일 이내</span>
               </div>
+              <div style="font-size:11px;color:var(--text-hint);margin-bottom:8px;">※ 비워두면 기한 없음</div>
               <button onclick="addPointShopItem()" style="width:100%;padding:10px;background:#7c3aed;color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 상품 추가</button>
             </div>
           </div>
