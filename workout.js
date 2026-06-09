@@ -593,7 +593,7 @@
     if (innerSets.length > 0) {
       const sets = innerSets.map((s, i) => ({ set: i+1, weight: parseFloat(s.weight)||0, reps: parseInt(s.reps)||0 }));
       const vol = sets.reduce((a, s) => a + s.weight * s.reps, 0);
-      const kcal = calcKcalByMET(5.0, sets.length * 3, vol);
+      const kcal = 0;
       const record = { date, dateLabel, sets, memo, kcal, savedAt, name: dNames ? dNames.front : eqKey };
       if (isTrainerMode) record.recordedBy = 'trainer';
       if (!isTrainerMode) {
@@ -609,7 +609,7 @@
     if (outerSets.length > 0) {
       const sets = outerSets.map((s, i) => ({ set: i+1, weight: parseFloat(s.weight)||0, reps: parseInt(s.reps)||0 }));
       const vol = sets.reduce((a, s) => a + s.weight * s.reps, 0);
-      const kcal = calcKcalByMET(5.0, sets.length * 3, vol);
+      const kcal = 0;
       const record = { date, dateLabel, sets, memo, kcal, savedAt, name: dNames ? dNames.back : eqKey };
       if (isTrainerMode) record.recordedBy = 'trainer';
       if (!isTrainerMode) {
@@ -659,7 +659,7 @@
     const dateParts = date.split('-');
     const dateLabel = dateParts[0] + '년 ' + dateParts[1] + '월 ' + dateParts[2] + '일';
     const workoutVol = sets.reduce((s, r) => s + r.weight * r.reps, 0);
-    const kcal = calcKcalByMET(5.0, sets.length * 3, workoutVol);
+    const kcal = 0;
     const record = { date, dateLabel, sets, memo, kcal, savedAt: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0') };
     if (isTrainerMode) record.recordedBy = 'trainer';
     if (!isTrainerMode) {
@@ -1727,7 +1727,7 @@
     const dateParts = date.split('-');
     const dateLabel = dateParts[0] + '년 ' + dateParts[1] + '월 ' + dateParts[2] + '일';
     const totalVolFw = sets.reduce((s, r) => s + r.weight * r.reps, 0);
-    const kcal = calcKcalByMET(5.0, sets.length * 3, totalVolFw);
+    const kcal = 0;
     const record = { date, dateLabel, sets, memo, kcal, savedAt: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0') };
     if (isTrainerMode) record.recordedBy = 'trainer';
     const fwFirebaseKey = name.replace(/\s+/g, '_');
