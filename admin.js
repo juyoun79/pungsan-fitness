@@ -4147,6 +4147,7 @@
     if (tabId === 'coupon-list') loadAdminCouponList();
     if (tabId === 'coupon-auto') loadAutoConditions();
     if (tabId === 'coupon-points') loadPointSettings();
+    if (tabId === 'coupon-shop') loadPointShopItems();
   }
 
   function toggleCouponValueLabel() {
@@ -4343,46 +4344,96 @@
     const listEl = document.getElementById('my-coupon-list');
     const countEl = document.getElementById('my-coupon-count');
     listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);">불러오는 중...</div>';
-    db.ref('coupons/' + userId).once('value', snap => {
-      if (!snap.exists() || !snap.val()) {
-        listEl.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-hint);font-size:14px;">보유한 쿠폰이 없어요 🎫</div>';
-        if (countEl) countEl.style.display = 'none';
-        return;
-      }
+    // 일반 쿠폰 + 포인트 쿠폰 동시 로드
+    Promise.all([
+      db.ref('coupons/' + userId).once('value'),
+      db.ref('users/' + userId + '/coupons').once('value')
+    ]).then(([couponSnap, pointCouponSnap]) => {
       let count = 0;
       let html = '';
-      snap.forEach(couponSnap => {
-        const c = couponSnap.val();
-        const couponId = couponSnap.key;
-        const typeLabel = c.type === 'free' ? `무료 이용 ${c.value}회 추가` : c.type === 'discount' ? `${c.value}% 할인` : c.type === 'extend' ? `${c.value}일 연장` : c.type === 'drink' ? '☕ 음료 1잔' : c.type === 'americano' ? '☕ 아메리카노 1잔' : c.value;
-        const borderColor = c.type === 'free' ? '#7F77DD' : c.type === 'discount' ? '#1D9E75' : '#D97706';
-        count++;
-        html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
-          <div style="padding:14px 16px;border-left:4px solid ${borderColor};">
-            <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">${c.name}</div>
-            <div style="font-size:13px;color:var(--text-sub);margin-bottom:4px;">${typeLabel}</div>
-            ${c.memo ? `<div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">${c.memo}</div>` : ''}
-            <div style="font-size:12px;color:var(--text-hint);">~ ${c.expire}까지</div>
-          </div>
-          <div style="padding:12px 16px;background:var(--bg);border-top:1px solid var(--border);">
-            <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;text-align:center;">관리자에게 이 화면을 보여주세요</div>
-            <button onclick="memberUseCoupon('${userId}','${couponId}')"
-              style="width:100%;padding:11px;background:#E24B4A;border:none;border-radius:var(--radius-sm);color:white;font-size:14px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
-              ✅ 사용하기 (관리자가 눌러주세요)
-            </button>
-          </div>
-        </div>`;
-      });
+      // 일반 쿠폰
+      if (couponSnap.exists() && couponSnap.val()) {
+        couponSnap.forEach(couponSnap => {
+          const c = couponSnap.val();
+          const couponId = couponSnap.key;
+          const typeLabel = c.type === 'free' ? `무료 이용 ${c.value}회 추가` : c.type === 'discount' ? `${c.value}% 할인` : c.type === 'extend' ? `${c.value}일 연장` : c.type === 'drink' ? '☕ 음료 1잔' : c.type === 'americano' ? '☕ 아메리카노 1잔' : c.value;
+          const borderColor = c.type === 'free' ? '#7F77DD' : c.type === 'discount' ? '#1D9E75' : '#D97706';
+          count++;
+          html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
+            <div style="padding:14px 16px;border-left:4px solid ${borderColor};">
+              <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">${c.name}</div>
+              <div style="font-size:13px;color:var(--text-sub);margin-bottom:4px;">${typeLabel}</div>
+              ${c.memo ? `<div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">${c.memo}</div>` : ''}
+              <div style="font-size:12px;color:var(--text-hint);">~ ${c.expire}까지</div>
+            </div>
+            <div style="padding:12px 16px;background:var(--bg);border-top:1px solid var(--border);">
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;text-align:center;">관리자에게 이 화면을 보여주세요</div>
+              <button onclick="memberUseCoupon('${userId}','${couponId}')"
+                style="width:100%;padding:11px;background:#E24B4A;border:none;border-radius:var(--radius-sm);color:white;font-size:14px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+                ✅ 사용하기 (관리자가 눌러주세요)
+              </button>
+            </div>
+          </div>`;
+        });
+      }
+      // 포인트 쿠폰
+      if (pointCouponSnap.exists() && pointCouponSnap.val()) {
+        pointCouponSnap.forEach(pcSnap => {
+          const c = pcSnap.val();
+          const couponId = pcSnap.key;
+          if (c.type !== 'point_shop') return;
+          count++;
+          if (c.used) {
+            html += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;opacity:0.6;">
+              <div style="padding:14px 16px;border-left:4px solid #9ca3af;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                  <div style="font-size:15px;font-weight:700;color:var(--text-sub);">${escapeHtml(c.name)}</div>
+                  <span style="font-size:10px;background:#e5e7eb;color:#6b7280;padding:2px 7px;border-radius:10px;font-weight:700;">사용완료</span>
+                </div>
+                <div style="font-size:12px;color:var(--text-hint);">${c.point}P 사용 · ${c.usedAt || c.issuedAt}</div>
+              </div>
+            </div>`;
+          } else {
+            html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
+              <div style="padding:14px 16px;border-left:4px solid #d97706;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                  <div style="font-size:15px;font-weight:700;color:var(--text);">${escapeHtml(c.name)}</div>
+                  <span style="font-size:10px;background:#fef3c7;color:#854d0e;padding:2px 7px;border-radius:10px;font-weight:700;">포인트쿠폰</span>
+                </div>
+                <div style="font-size:12px;color:var(--text-hint);">발행일 ${c.issuedAt} · ${c.point}P 사용</div>
+              </div>
+              <div style="padding:12px 16px;background:var(--bg);border-top:1px solid var(--border);">
+                <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;text-align:center;">직원에게 이 화면을 보여주세요</div>
+                <button onclick="usePointCoupon('${userId}','${couponId}')"
+                  style="width:100%;padding:11px;background:#d97706;border:none;border-radius:var(--radius-sm);color:white;font-size:14px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+                  ✅ 사용하기 (직원이 눌러주세요)
+                </button>
+              </div>
+            </div>`;
+          }
+        });
+      }
+      if (count === 0) html = '<div style="text-align:center;padding:40px 20px;color:var(--text-hint);font-size:14px;">보유한 쿠폰이 없어요 🎫</div>';
       listEl.innerHTML = html;
-      if (countEl) { countEl.textContent = count + '장'; countEl.style.display = 'inline'; }
+      if (countEl) { if (count > 0) { countEl.textContent = count + '장'; countEl.style.display = 'inline'; } else countEl.style.display = 'none'; }
     });
   }
 
   function memberUseCoupon(userId, couponId) {
     showConfirm('쿠폰을 사용할까요?\n사용 후에는 되돌릴 수 없어요.', () => {
       db.ref('coupons/' + userId + '/' + couponId).remove().then(() => {
-      showToast('쿠폰이 사용됐어요! ✅', 'success');
-      loadMyCoupons();
+        showToast('쿠폰이 사용됐어요! ✅', 'success');
+        loadMyCoupons();
+      });
+    });
+  }
+
+  function usePointCoupon(userId, couponId) {
+    showConfirm('포인트 쿠폰을 사용할까요?\n사용 후에는 되돌릴 수 없어요.', () => {
+      const today = new Date().toISOString().slice(0, 10);
+      db.ref('users/' + userId + '/coupons/' + couponId).update({ used: true, usedAt: today }).then(() => {
+        showToast('쿠폰이 사용됐어요! ✅', 'success');
+        loadMyCoupons();
       });
     });
   }
@@ -4609,6 +4660,49 @@
 
 
   // ── 포인트 설정 ──
+
+  // ── 포인트 상점 관리 ──
+  function loadPointShopItems() {
+    const listEl = document.getElementById('point-shop-list');
+    if (!listEl) return;
+    db.ref('point_shop').once('value', snap => {
+      const data = snap.val();
+      if (!data) { listEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">등록된 상품이 없어요</div>'; return; }
+      listEl.innerHTML = Object.entries(data).map(([id, item]) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--bg);border-radius:var(--radius-sm);margin-bottom:8px;border:1px solid var(--border);">
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text);">${escapeHtml(item.name)}</div>
+            <div style="font-size:12px;color:var(--blue);margin-top:2px;">${item.point}P 차감</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="deletePointShopItem('${id}')" style="padding:5px 10px;background:#fee2e2;color:#ef4444;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
+          </div>
+        </div>`).join('');
+    });
+  }
+
+  function addPointShopItem() {
+    const name = document.getElementById('shop-item-name').value.trim();
+    const point = parseInt(document.getElementById('shop-item-point').value);
+    if (!name) { showToast('상품명을 입력해주세요.', 'error'); return; }
+    if (!point || point <= 0) { showToast('포인트를 입력해주세요.', 'error'); return; }
+    const key = db.ref('point_shop').push().key;
+    db.ref('point_shop/' + key).set({ name, point }).then(() => {
+      showToast('✅ 상품이 추가됐어요!', 'success');
+      document.getElementById('shop-item-name').value = '';
+      document.getElementById('shop-item-point').value = '';
+      loadPointShopItems();
+    });
+  }
+
+  function deletePointShopItem(id) {
+    showConfirm('이 상품을 삭제할까요?', () => {
+      db.ref('point_shop/' + id).remove().then(() => {
+        showToast('🗑️ 상품이 삭제됐어요.', 'success');
+        loadPointShopItems();
+      });
+    });
+  }
 
   function loadPointSettings() {
     db.ref('point_settings').once('value', snap => {

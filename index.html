@@ -1081,10 +1081,10 @@
           <div class="stat-value" id="myinfo-attend">0</div>
           <div class="stat-unit" style="font-size:12px;">일</div>
         </div>
-        <div class="stat-card" style="text-align:center;">
+        <div class="stat-card" style="text-align:center;cursor:pointer;" onclick="openPointShopScreen()">
           <div class="stat-label">포인트</div>
           <div class="stat-value" id="myinfo-points">0</div>
-          <div class="stat-unit" style="font-size:12px;">P</div>
+          <div class="stat-unit" style="font-size:12px;">P ›</div>
         </div>
         <div class="stat-card" style="text-align:center;">
           <div class="stat-label">게시글</div>
@@ -2694,6 +2694,7 @@
           <button class="coupon-sub-tab" onclick="switchCouponTab('coupon-auto')" style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg);color:var(--text-sub);font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">자동 조건</button>
           <button class="coupon-sub-tab" onclick="switchCouponTab('coupon-points')" style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg);color:var(--text-sub);font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">포인트 설정</button>
           <button class="coupon-sub-tab" onclick="switchCouponTab('coupon-list')" style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg);color:var(--text-sub);font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">발행 목록</button>
+          <button class="coupon-sub-tab" id="coupon-tab-shop" onclick="switchCouponTab('coupon-shop')" style="padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg);color:var(--text-sub);font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">포인트 상점</button>
         </div>
 
         <!-- 수동 발행 -->
@@ -3064,6 +3065,22 @@
         </div>
 
         <!-- 발행 목록 -->
+        <div id="coupon-shop" class="coupon-section" style="display:none;">
+          <div class="admin-card">
+            <div class="admin-card-title">⭐ 포인트 상점 관리</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:16px;">회원이 포인트로 교환할 수 있는 상품을 등록해요.</div>
+            <div id="point-shop-list"></div>
+            <div style="border:1px dashed var(--border);border-radius:var(--radius-sm);padding:14px;margin-top:8px;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">새 상품 추가</div>
+              <div style="display:flex;gap:8px;margin-bottom:8px;">
+                <input type="text" id="shop-item-name" placeholder="상품명 (예: 프로틴음료)" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);" />
+                <input type="number" id="shop-item-point" placeholder="포인트" min="1" style="width:90px;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);" />
+              </div>
+              <button onclick="addPointShopItem()" style="width:100%;padding:10px;background:#7c3aed;color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 상품 추가</button>
+            </div>
+          </div>
+        </div>
+
         <div id="coupon-list" class="coupon-section" style="display:none;">
           <div class="admin-card">
             <div class="admin-card-title">📋 발행된 쿠폰 목록</div>
@@ -3855,6 +3872,26 @@
         </div>
         <div id="routine-workout-ex-search-results" style="max-height:220px;overflow-y:auto;"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- 포인트 상점 화면 -->
+  <div class="screen" id="screen-point-shop">
+    <div class="screen-header">
+      <button class="back-btn" onclick="showScreen('screen-myinfo')">‹</button>
+      <div style="font-size:17px;font-weight:700;color:var(--text);">⭐ 포인트</div>
+    </div>
+    <div style="padding:16px;">
+      <div style="background:var(--blue);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;color:white;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:13px;opacity:0.85;margin-bottom:4px;">보유 포인트</div>
+          <div style="font-size:28px;font-weight:700;" id="point-shop-balance">0P</div>
+        </div>
+      </div>
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:10px;">포인트 상점</div>
+      <div id="point-shop-items" style="margin-bottom:20px;"></div>
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:10px;">포인트 내역</div>
+      <div id="point-shop-history"></div>
     </div>
   </div>
 
@@ -5903,6 +5940,80 @@
           showScreen('screen-nickname');
         }
       });
+    });
+  }
+
+  // ── 포인트 상점 화면 ──
+  async function openPointShopScreen() {
+    const userId = localStorage.getItem('current_user');
+    showScreen('screen-point-shop');
+    // 포인트 잔액
+    const ptsSnap = await db.ref('users/' + userId + '/points').once('value');
+    const pts = ptsSnap.val() || 0;
+    const balEl = document.getElementById('point-shop-balance');
+    if (balEl) balEl.textContent = pts.toLocaleString() + 'P';
+    // 상품 목록
+    const shopSnap = await db.ref('point_shop').once('value');
+    const shopData = shopSnap.val();
+    const itemsEl = document.getElementById('point-shop-items');
+    if (!shopData) {
+      itemsEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">등록된 상품이 없어요</div>';
+    } else {
+      itemsEl.innerHTML = Object.entries(shopData).map(([id, item]) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;">
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text);">${escapeHtml(item.name)}</div>
+            <div style="font-size:12px;color:var(--blue);margin-top:2px;">${item.point}P 차감</div>
+          </div>
+          <button onclick="issuePointCoupon('${id}','${escapeHtml(item.name)}',${item.point})"
+            style="padding:8px 14px;background:var(--blue);color:white;border:none;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">쿠폰 받기</button>
+        </div>`).join('');
+    }
+    // 포인트 내역
+    const histSnap = await db.ref('users/' + userId + '/pointHistory').once('value');
+    const histData = histSnap.val();
+    const histEl = document.getElementById('point-shop-history');
+    if (!histData) {
+      histEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">내역이 없어요</div>';
+    } else {
+      const items = Object.values(histData).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 20);
+      histEl.innerHTML = items.map(h => {
+        const isPlus = (h.amount || 0) > 0;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+          <div>
+            <div style="font-size:13px;color:var(--text);">${escapeHtml(h.reason || h.type || '포인트')}</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${h.date || ''}</div>
+          </div>
+          <div style="font-size:14px;font-weight:700;color:${isPlus ? '#16a34a' : '#ef4444'};">${isPlus ? '+' : ''}${h.amount}P</div>
+        </div>`;
+      }).join('');
+    }
+  }
+
+  async function issuePointCoupon(shopId, name, point) {
+    const userId = localStorage.getItem('current_user');
+    // 포인트 확인
+    const ptsSnap = await db.ref('users/' + userId + '/points').once('value');
+    const curPts = ptsSnap.val() || 0;
+    if (curPts < point) { showToast('포인트가 부족해요!', 'error'); return; }
+    showConfirm(name + ' 쿠폰을 받을까요?\n' + point + 'P가 차감돼요.', async () => {
+      const now = new Date();
+      const today = now.toISOString().slice(0, 10);
+      // 포인트 차감
+      await db.ref('users/' + userId + '/points').set(curPts - point);
+      // 포인트 내역 저장
+      const histKey = db.ref('users/' + userId + '/pointHistory').push().key;
+      await db.ref('users/' + userId + '/pointHistory/' + histKey).set({
+        type: 'shop', reason: name + ' 쿠폰 발행', amount: -point, date: today, createdAt: Date.now()
+      });
+      // 쿠폰 발행
+      const couponKey = db.ref('users/' + userId + '/coupons').push().key;
+      await db.ref('users/' + userId + '/coupons/' + couponKey).set({
+        type: 'point_shop', name: name, point: point, shopId: shopId,
+        issuedAt: today, used: false, createdAt: Date.now()
+      });
+      showToast('🎉 쿠폰이 발행됐어요! 쿠폰 탭에서 확인하세요.', 'success');
+      openPointShopScreen();
     });
   }
 
