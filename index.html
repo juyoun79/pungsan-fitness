@@ -6011,8 +6011,8 @@
         type: 'shop', reason: name + ' 쿠폰 발행', amount: -point, balance: curPts - point, date: today, createdAt: Date.now()
       });
       // 쿠폰 발행
-      const couponKey = db.ref('users/' + userId + '/coupons').push().key;
-      await db.ref('users/' + userId + '/coupons/' + couponKey).set({
+      const couponKey = db.ref('coupons/' + userId).push().key;
+      await db.ref('coupons/' + userId + '/' + couponKey).set({
         type: 'point_shop', name: name, point: point, shopId: shopId,
         issuedAt: today, used: false, createdAt: Date.now()
       });

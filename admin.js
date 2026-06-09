@@ -4294,9 +4294,48 @@
       let html = '';
       snap.forEach(memberSnap => {
         const memberId = memberSnap.key;
+        const memberName = localStorage.getItem('name_' + memberId) || memberId;
         memberSnap.forEach(couponSnap => {
           const c = couponSnap.val();
           const couponId = couponSnap.key;
+          // 포인트 쿠폰
+          if (c.type === 'point_shop') {
+            if (c.used) {
+              html += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;opacity:0.6;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                  <span style="font-size:14px;font-weight:700;color:var(--text-sub);">${escapeHtml(c.name)}</span>
+                  <span style="background:#e5e7eb;color:#6b7280;font-size:11px;padding:3px 8px;border-radius:10px;font-weight:600;">사용완료</span>
+                </div>
+                <div style="font-size:12px;color:var(--text-hint);margin-bottom:2px;">회원: ${memberName}</div>
+                <div style="font-size:12px;color:var(--text-hint);margin-bottom:8px;">발행일: ${c.issuedAt} · 사용일: ${c.usedAt || '-'}</div>
+                <button onclick="adminDeleteCoupon('${memberId}','${couponId}')"
+                  style="width:100%;padding:9px;background:#fef2f2;color:#ef4444;border:1px solid #fecaca;border-radius:var(--radius-sm);font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+                  🗑 삭제
+                </button>
+              </div>`;
+            } else {
+              html += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                  <span style="font-size:14px;font-weight:700;color:var(--text);">${escapeHtml(c.name)}</span>
+                  <span style="background:#fef3c7;color:#854d0e;font-size:11px;padding:3px 8px;border-radius:10px;font-weight:600;">포인트쿠폰</span>
+                </div>
+                <div style="font-size:12px;color:var(--text-hint);margin-bottom:2px;">회원: ${memberName}</div>
+                <div style="font-size:12px;color:var(--text-hint);margin-bottom:8px;">발행일: ${c.issuedAt} · ${c.point}P</div>
+                <div style="display:flex;gap:8px;">
+                  <button onclick="adminUsePointCoupon('${memberId}','${couponId}')"
+                    style="flex:1;padding:9px;background:#d97706;border:none;border-radius:var(--radius-sm);color:white;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+                    ✅ 사용 처리
+                  </button>
+                  <button onclick="adminDeleteCoupon('${memberId}','${couponId}')"
+                    style="padding:9px 14px;background:#fef2f2;color:#ef4444;border:1px solid #fecaca;border-radius:var(--radius-sm);font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+                    🗑
+                  </button>
+                </div>
+              </div>`;
+            }
+            return;
+          }
+          // 일반 쿠폰
           if (c.used) return;
           const typeLabel = c.type === 'free' ? `무료 ${c.value}회` : c.type === 'discount' ? `${c.value}% 할인` : c.type === 'extend' ? `${c.value}일 연장` : c.type === 'drink' ? '음료 쿠폰' : c.type === 'americano' ? '아메리카노 쿠폰' : c.value;
           const badgeColor = c.type === 'free' ? '#E1F5EE;color:#0F6E56' : c.type === 'discount' ? '#EEEDFE;color:#3C3489' : c.type === 'drink' ? '#FEF3C7;color:#92400E' : c.type === 'americano' ? '#FEF3C7;color:#92400E' : '#E6F1FB;color:#185FA5';
@@ -4305,13 +4344,19 @@
               <span style="font-size:14px;font-weight:700;color:var(--text);">${c.name}</span>
               <span style="background:${badgeColor};font-size:11px;padding:3px 8px;border-radius:10px;font-weight:600;">${typeLabel}</span>
             </div>
-            <div style="font-size:12px;color:var(--text-hint);margin-bottom:2px;">회원: ${memberId}</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:2px;">회원: ${memberName}</div>
             <div style="font-size:12px;color:var(--text-hint);margin-bottom:8px;">유효기간: ~${c.expire}</div>
             ${c.memo ? `<div style="font-size:12px;color:var(--text-sub);margin-bottom:8px;">메모: ${c.memo}</div>` : ''}
-            <button onclick="adminUseCoupon('${memberId}','${couponId}')"
-              style="width:100%;padding:9px;background:#E24B4A;border:none;border-radius:var(--radius-sm);color:white;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
-              ✅ 사용 처리
-            </button>
+            <div style="display:flex;gap:8px;">
+              <button onclick="adminUseCoupon('${memberId}','${couponId}')"
+                style="flex:1;padding:9px;background:#E24B4A;border:none;border-radius:var(--radius-sm);color:white;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+                ✅ 사용 처리
+              </button>
+              <button onclick="adminDeleteCoupon('${memberId}','${couponId}')"
+                style="padding:9px 14px;background:#fef2f2;color:#ef4444;border:1px solid #fecaca;border-radius:var(--radius-sm);font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+                🗑
+              </button>
+            </div>
           </div>`;
         });
       });
@@ -4321,9 +4366,27 @@
 
   function adminUseCoupon(memberId, couponId) {
     showConfirm('쿠폰을 사용 처리할까요?', () => {
+      db.ref('coupons/' + memberId + '/' + couponId).update({ used: true, usedAt: new Date().toISOString().slice(0, 10) }).then(() => {
+        showToast('사용 처리 완료! ✅', 'success');
+        loadAdminCouponList();
+      });
+    });
+  }
+
+  function adminUsePointCoupon(memberId, couponId) {
+    showConfirm('포인트 쿠폰을 사용 처리할까요?', () => {
+      db.ref('coupons/' + memberId + '/' + couponId).update({ used: true, usedAt: new Date().toISOString().slice(0, 10) }).then(() => {
+        showToast('사용 처리 완료! ✅', 'success');
+        loadAdminCouponList();
+      });
+    });
+  }
+
+  function adminDeleteCoupon(memberId, couponId) {
+    showConfirm('쿠폰을 삭제할까요?\n삭제 후 복구할 수 없어요.', () => {
       db.ref('coupons/' + memberId + '/' + couponId).remove().then(() => {
-      showToast('사용 처리 완료! ✅', 'success');
-      loadAdminCouponList();
+        showToast('🗑️ 쿠폰이 삭제됐어요.', 'success');
+        loadAdminCouponList();
       });
     });
   }
@@ -4345,68 +4408,59 @@
     const countEl = document.getElementById('my-coupon-count');
     listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);">불러오는 중...</div>';
     // 일반 쿠폰 + 포인트 쿠폰 동시 로드
-    Promise.all([
-      db.ref('coupons/' + userId).once('value'),
-      db.ref('users/' + userId + '/coupons').once('value')
-    ]).then(([couponSnap, pointCouponSnap]) => {
+    db.ref('coupons/' + userId).once('value').then(snap => {
       let count = 0;
       let html = '';
-      // 일반 쿠폰
-      if (couponSnap.exists() && couponSnap.val()) {
-        couponSnap.forEach(couponSnap => {
+      if (snap.exists() && snap.val()) {
+        snap.forEach(couponSnap => {
           const c = couponSnap.val();
           const couponId = couponSnap.key;
-          const typeLabel = c.type === 'free' ? `무료 이용 ${c.value}회 추가` : c.type === 'discount' ? `${c.value}% 할인` : c.type === 'extend' ? `${c.value}일 연장` : c.type === 'drink' ? '☕ 음료 1잔' : c.type === 'americano' ? '☕ 아메리카노 1잔' : c.value;
-          const borderColor = c.type === 'free' ? '#7F77DD' : c.type === 'discount' ? '#1D9E75' : '#D97706';
-          count++;
-          html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
-            <div style="padding:14px 16px;border-left:4px solid ${borderColor};">
-              <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">${c.name}</div>
-              <div style="font-size:13px;color:var(--text-sub);margin-bottom:4px;">${typeLabel}</div>
-              ${c.memo ? `<div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">${c.memo}</div>` : ''}
-              <div style="font-size:12px;color:var(--text-hint);">~ ${c.expire}까지</div>
-            </div>
-            <div style="padding:12px 16px;background:var(--bg);border-top:1px solid var(--border);">
-              <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;text-align:center;">관리자에게 이 화면을 보여주세요</div>
-              <button onclick="memberUseCoupon('${userId}','${couponId}')"
-                style="width:100%;padding:11px;background:#E24B4A;border:none;border-radius:var(--radius-sm);color:white;font-size:14px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
-                ✅ 사용하기 (관리자가 눌러주세요)
-              </button>
-            </div>
-          </div>`;
-        });
-      }
-      // 포인트 쿠폰
-      if (pointCouponSnap.exists() && pointCouponSnap.val()) {
-        pointCouponSnap.forEach(pcSnap => {
-          const c = pcSnap.val();
-          const couponId = pcSnap.key;
-          if (c.type !== 'point_shop') return;
-          count++;
-          if (c.used) {
-            html += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;opacity:0.6;">
-              <div style="padding:14px 16px;border-left:4px solid #9ca3af;">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                  <div style="font-size:15px;font-weight:700;color:var(--text-sub);">${escapeHtml(c.name)}</div>
-                  <span style="font-size:10px;background:#e5e7eb;color:#6b7280;padding:2px 7px;border-radius:10px;font-weight:700;">사용완료</span>
+          if (c.type === 'point_shop') {
+            count++;
+            if (c.used) {
+              html += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;opacity:0.6;">
+                <div style="padding:14px 16px;border-left:4px solid #9ca3af;">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                    <div style="font-size:15px;font-weight:700;color:var(--text-sub);">${escapeHtml(c.name)}</div>
+                    <span style="font-size:10px;background:#e5e7eb;color:#6b7280;padding:2px 7px;border-radius:10px;font-weight:700;">사용완료</span>
+                  </div>
+                  <div style="font-size:12px;color:var(--text-hint);">${c.point}P 사용 · ${c.usedAt || c.issuedAt}</div>
                 </div>
-                <div style="font-size:12px;color:var(--text-hint);">${c.point}P 사용 · ${c.usedAt || c.issuedAt}</div>
-              </div>
-            </div>`;
+              </div>`;
+            } else {
+              html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
+                <div style="padding:14px 16px;border-left:4px solid #d97706;">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                    <div style="font-size:15px;font-weight:700;color:var(--text);">${escapeHtml(c.name)}</div>
+                    <span style="font-size:10px;background:#fef3c7;color:#854d0e;padding:2px 7px;border-radius:10px;font-weight:700;">포인트쿠폰</span>
+                  </div>
+                  <div style="font-size:12px;color:var(--text-hint);">발행일 ${c.issuedAt} · ${c.point}P 사용</div>
+                </div>
+                <div style="padding:12px 16px;background:var(--bg);border-top:1px solid var(--border);">
+                  <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;text-align:center;">직원에게 이 화면을 보여주세요</div>
+                  <button onclick="usePointCoupon('${userId}','${couponId}')"
+                    style="width:100%;padding:11px;background:#d97706;border:none;border-radius:var(--radius-sm);color:white;font-size:14px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+                    ✅ 사용하기 (직원이 눌러주세요)
+                  </button>
+                </div>
+              </div>`;
+            }
           } else {
+            const typeLabel = c.type === 'free' ? `무료 이용 ${c.value}회 추가` : c.type === 'discount' ? `${c.value}% 할인` : c.type === 'extend' ? `${c.value}일 연장` : c.type === 'drink' ? '☕ 음료 1잔' : c.type === 'americano' ? '☕ 아메리카노 1잔' : c.value;
+            const borderColor = c.type === 'free' ? '#7F77DD' : c.type === 'discount' ? '#1D9E75' : '#D97706';
+            count++;
             html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
-              <div style="padding:14px 16px;border-left:4px solid #d97706;">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                  <div style="font-size:15px;font-weight:700;color:var(--text);">${escapeHtml(c.name)}</div>
-                  <span style="font-size:10px;background:#fef3c7;color:#854d0e;padding:2px 7px;border-radius:10px;font-weight:700;">포인트쿠폰</span>
-                </div>
-                <div style="font-size:12px;color:var(--text-hint);">발행일 ${c.issuedAt} · ${c.point}P 사용</div>
+              <div style="padding:14px 16px;border-left:4px solid ${borderColor};">
+                <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">${c.name}</div>
+                <div style="font-size:13px;color:var(--text-sub);margin-bottom:4px;">${typeLabel}</div>
+                ${c.memo ? `<div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">${c.memo}</div>` : ''}
+                <div style="font-size:12px;color:var(--text-hint);">~ ${c.expire}까지</div>
               </div>
               <div style="padding:12px 16px;background:var(--bg);border-top:1px solid var(--border);">
-                <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;text-align:center;">직원에게 이 화면을 보여주세요</div>
-                <button onclick="usePointCoupon('${userId}','${couponId}')"
-                  style="width:100%;padding:11px;background:#d97706;border:none;border-radius:var(--radius-sm);color:white;font-size:14px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
-                  ✅ 사용하기 (직원이 눌러주세요)
+                <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;text-align:center;">관리자에게 이 화면을 보여주세요</div>
+                <button onclick="memberUseCoupon('${userId}','${couponId}')"
+                  style="width:100%;padding:11px;background:#E24B4A;border:none;border-radius:var(--radius-sm);color:white;font-size:14px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+                  ✅ 사용하기 (관리자가 눌러주세요)
                 </button>
               </div>
             </div>`;
@@ -4431,7 +4485,7 @@
   function usePointCoupon(userId, couponId) {
     showConfirm('포인트 쿠폰을 사용할까요?\n사용 후에는 되돌릴 수 없어요.', () => {
       const today = new Date().toISOString().slice(0, 10);
-      db.ref('users/' + userId + '/coupons/' + couponId).update({ used: true, usedAt: today }).then(() => {
+      db.ref('coupons/' + userId + '/' + couponId).update({ used: true, usedAt: today }).then(() => {
         showToast('쿠폰이 사용됐어요! ✅', 'success');
         loadMyCoupons();
       });
