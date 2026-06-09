@@ -71,7 +71,7 @@
         const newPoints = result.snapshot.val() || 0;
         const histKey = db.ref('users/' + userId + '/pointHistory').push().key;
         db.ref('users/' + userId + '/pointHistory/' + histKey).set({
-          amount: pts, date: today, label: label || '적립'
+          amount: pts, date: today, reason: label || '포인트 적립', balance: newPoints, createdAt: Date.now()
         });
         if (typeof checkPointTierCoupons === 'function') checkPointTierCoupons(userId, newPoints, prevPoints);
         if (typeof updateStats === 'function') updateStats();
@@ -3878,7 +3878,9 @@
   <!-- 포인트 상점 화면 -->
   <div class="screen" id="screen-point-shop">
     <div class="screen-header">
-      <button class="back-btn" onclick="showScreen('screen-myinfo')">‹</button>
+      <button class="back-btn" onclick="showScreen('screen-myinfo')" style="margin-left:-8px;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
       <div style="font-size:17px;font-weight:700;color:var(--text);">⭐ 포인트</div>
     </div>
     <div style="padding:16px;">
@@ -5976,13 +5978,15 @@
     if (!histData) {
       histEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">내역이 없어요</div>';
     } else {
-      const items = Object.values(histData).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 20);
+      const items = Object.values(histData).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 30);
       histEl.innerHTML = items.map(h => {
         const isPlus = (h.amount || 0) > 0;
+        const reasonText = h.reason || h.label || (isPlus ? '포인트 적립' : '포인트 차감');
+        const balanceText = h.balance != null ? `잔액 ${h.balance.toLocaleString()}P` : '';
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
           <div>
-            <div style="font-size:13px;color:var(--text);">${escapeHtml(h.reason || h.type || '포인트')}</div>
-            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${h.date || ''}</div>
+            <div style="font-size:13px;font-weight:500;color:var(--text);">${escapeHtml(reasonText)}</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${h.date || ''} ${balanceText ? '· ' + balanceText : ''}</div>
           </div>
           <div style="font-size:14px;font-weight:700;color:${isPlus ? '#16a34a' : '#ef4444'};">${isPlus ? '+' : ''}${h.amount}P</div>
         </div>`;
@@ -6004,7 +6008,7 @@
       // 포인트 내역 저장
       const histKey = db.ref('users/' + userId + '/pointHistory').push().key;
       await db.ref('users/' + userId + '/pointHistory/' + histKey).set({
-        type: 'shop', reason: name + ' 쿠폰 발행', amount: -point, date: today, createdAt: Date.now()
+        type: 'shop', reason: name + ' 쿠폰 발행', amount: -point, balance: curPts - point, date: today, createdAt: Date.now()
       });
       // 쿠폰 발행
       const couponKey = db.ref('users/' + userId + '/coupons').push().key;
@@ -8677,8 +8681,9 @@ async function payChalllengeReward(challengeId) {
           // 포인트 히스토리 기록
           const today2 = new Date().toISOString().slice(0, 10);
           const histKey = db.ref('users/' + uid + '/pointHistory').push().key;
+          const curPtsSnap2 = await db.ref('users/' + uid + '/points').once('value');
           await db.ref('users/' + uid + '/pointHistory/' + histKey).set({
-            amount: total, date: today2, label: '챌린지 보상'
+            amount: total, date: today2, reason: '챌린지 보상', balance: curPtsSnap2.val() || 0, createdAt: Date.now()
           });
           // 푸시 알림
           const rankLabel = isRanked ? `${rankNum}위 달성! ` : '';
