@@ -129,6 +129,37 @@
   }
 
   // 2. 실시간 알림 리스너 시작 (로그인 시 1번만 등록)
+  // ── 쿠폰 배지 실시간 리스너 ──
+  let _couponBadgeRef = null;
+  let _couponBadgeListener = null;
+
+  function startCouponBadgeListener(userId) {
+    if (!userId) return;
+    // 기존 리스너 해제
+    if (_couponBadgeRef && _couponBadgeListener) {
+      _couponBadgeRef.off('value', _couponBadgeListener);
+    }
+    _couponBadgeRef = db.ref('coupons/' + userId);
+    _couponBadgeListener = _couponBadgeRef.on('value', snap => {
+      let count = 0;
+      if (snap.exists() && snap.val()) {
+        snap.forEach(child => {
+          const c = child.val();
+          if (!c.used) count++;
+        });
+      }
+      const countEl = document.getElementById('my-coupon-count');
+      if (countEl) {
+        if (count > 0) {
+          countEl.textContent = count + '장';
+          countEl.style.display = 'inline';
+        } else {
+          countEl.style.display = 'none';
+        }
+      }
+    });
+  }
+
   function startNotifListener() {
     const userId = localStorage.getItem('current_user');
     if (!userId || userId === ADMIN_ID) return;
