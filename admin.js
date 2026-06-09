@@ -5749,11 +5749,11 @@ function openKiosk() {
 function exitKiosk() {
   showConfirmKiosk('관리자 비밀번호를 입력하세요', async (pw) => {
     if (!pw) return;
-    const adminId = localStorage.getItem('current_user');
     try {
-      const snap = await db.ref('members/' + adminId).once('value');
-      const data = snap.val();
-      if (data && data.password === pw) {
+      // 관리자 비밀번호는 admin_config/pw 경로에 저장
+      const snap = await db.ref('admin_config/pw').once('value');
+      const adminPw = snap.val() || 'admin123';
+      if (pw === adminPw) {
         // 탭바 복원
         const tabRow = document.querySelector('.admin-tab-row');
         const pcHeader = document.getElementById('admin-header-pc');
