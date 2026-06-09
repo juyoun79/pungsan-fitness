@@ -1314,6 +1314,11 @@
         </button>
         <div style="font-size:18px;font-weight:700;color:var(--text);">🎫 내 쿠폰</div>
       </div>
+      <!-- 탭 -->
+      <div style="display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--card);">
+        <button id="coupon-tab-active" onclick="switchMyCouponTab('active')" style="flex:1;padding:12px;font-size:14px;font-weight:700;border:none;border-bottom:2px solid #7F77DD;color:#7F77DD;background:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">보유 쿠폰</button>
+        <button id="coupon-tab-used" onclick="switchMyCouponTab('used')" style="flex:1;padding:12px;font-size:14px;font-weight:700;border:none;border-bottom:2px solid transparent;color:var(--text-hint);background:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">사용 내역</button>
+      </div>
       <div style="padding:20px;">
         <div id="my-coupon-list"><div style="text-align:center;padding:40px 20px;color:var(--text-hint);font-size:14px;">보유한 쿠폰이 없어요</div></div>
       </div>
@@ -3133,6 +3138,10 @@
         <div id="coupon-list" class="coupon-section" style="display:none;">
           <div class="admin-card">
             <div class="admin-card-title">📋 발행된 쿠폰 목록</div>
+            <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:12px;">
+              <button id="admin-coupon-tab-active" onclick="switchAdminCouponListTab('active')" style="flex:1;padding:10px;font-size:13px;font-weight:700;border:none;border-bottom:2px solid #7F77DD;color:#7F77DD;background:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">미사용</button>
+              <button id="admin-coupon-tab-used" onclick="switchAdminCouponListTab('used')" style="flex:1;padding:10px;font-size:13px;font-weight:700;border:none;border-bottom:2px solid transparent;color:var(--text-hint);background:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">사용완료</button>
+            </div>
             <div id="admin-coupon-list"><div class="empty-state">발행된 쿠폰이 없어요</div></div>
           </div>
         </div>

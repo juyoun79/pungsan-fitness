@@ -4144,7 +4144,7 @@
     event.target.style.background = '#7F77DD';
     event.target.style.color = '#fff';
     event.target.style.borderColor = '#7F77DD';
-    if (tabId === 'coupon-list') loadAdminCouponList();
+    if (tabId === 'coupon-list') { switchAdminCouponListTab('active'); }
     if (tabId === 'coupon-auto') loadAutoConditions();
     if (tabId === 'coupon-points') loadPointSettings();
     if (tabId === 'coupon-shop') loadPointShopItems();
@@ -4286,7 +4286,21 @@
     document.getElementById('coupon-member-select').style.display = 'none';
   }
 
-  function loadAdminCouponList() {
+  function switchAdminCouponListTab(tab) {
+    const activeBtn = document.getElementById('admin-coupon-tab-active');
+    const usedBtn = document.getElementById('admin-coupon-tab-used');
+    if (activeBtn) {
+      activeBtn.style.borderBottomColor = tab === 'active' ? '#7F77DD' : 'transparent';
+      activeBtn.style.color = tab === 'active' ? '#7F77DD' : 'var(--text-hint)';
+    }
+    if (usedBtn) {
+      usedBtn.style.borderBottomColor = tab === 'used' ? '#7F77DD' : 'transparent';
+      usedBtn.style.color = tab === 'used' ? '#7F77DD' : 'var(--text-hint)';
+    }
+    loadAdminCouponList(tab);
+  }
+
+  function loadAdminCouponList(tab = 'active') {
     const listEl = document.getElementById('admin-coupon-list');
     listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);">불러오는 중...</div>';
     db.ref('coupons').once('value', snap => {
@@ -4298,13 +4312,17 @@
         memberSnap.forEach(couponSnap => {
           const c = couponSnap.val();
           const couponId = couponSnap.key;
-          // 포인트 쿠폰
+          const isUsed = c.used === true;
+          // 탭 필터링
+          if (tab === 'active' && isUsed) return;
+          if (tab === 'used' && !isUsed) return;
+
           if (c.type === 'point_shop') {
-            if (c.used) {
-              html += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;opacity:0.6;">
+            if (isUsed) {
+              html += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
                   <span style="font-size:14px;font-weight:700;color:var(--text-sub);">${escapeHtml(c.name)}</span>
-                  <span style="background:#e5e7eb;color:#6b7280;font-size:11px;padding:3px 8px;border-radius:10px;font-weight:600;">사용완료</span>
+                  <span style="background:#fef3c7;color:#854d0e;font-size:11px;padding:3px 8px;border-radius:10px;font-weight:600;">포인트쿠폰</span>
                 </div>
                 <div style="font-size:12px;color:var(--text-hint);margin-bottom:2px;">회원: ${memberName}</div>
                 <div style="font-size:12px;color:var(--text-hint);margin-bottom:8px;">발행일: ${c.issuedAt} · 사용일: ${c.usedAt || '-'}</div>
@@ -4336,31 +4354,46 @@
             return;
           }
           // 일반 쿠폰
-          if (c.used) return;
           const typeLabel = c.type === 'free' ? `무료 ${c.value}회` : c.type === 'discount' ? `${c.value}% 할인` : c.type === 'extend' ? `${c.value}일 연장` : c.type === 'drink' ? '음료 쿠폰' : c.type === 'americano' ? '아메리카노 쿠폰' : c.value;
           const badgeColor = c.type === 'free' ? '#E1F5EE;color:#0F6E56' : c.type === 'discount' ? '#EEEDFE;color:#3C3489' : c.type === 'drink' ? '#FEF3C7;color:#92400E' : c.type === 'americano' ? '#FEF3C7;color:#92400E' : '#E6F1FB;color:#185FA5';
-          html += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-              <span style="font-size:14px;font-weight:700;color:var(--text);">${c.name}</span>
-              <span style="background:${badgeColor};font-size:11px;padding:3px 8px;border-radius:10px;font-weight:600;">${typeLabel}</span>
-            </div>
-            <div style="font-size:12px;color:var(--text-hint);margin-bottom:2px;">회원: ${memberName}</div>
-            <div style="font-size:12px;color:var(--text-hint);margin-bottom:8px;">유효기간: ~${c.expire}</div>
-            ${c.memo ? `<div style="font-size:12px;color:var(--text-sub);margin-bottom:8px;">메모: ${c.memo}</div>` : ''}
-            <div style="display:flex;gap:8px;">
-              <button onclick="adminUseCoupon('${memberId}','${couponId}')"
-                style="flex:1;padding:9px;background:#E24B4A;border:none;border-radius:var(--radius-sm);color:white;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
-                ✅ 사용 처리
-              </button>
+          if (isUsed) {
+            html += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <span style="font-size:14px;font-weight:700;color:var(--text-sub);">${c.name}</span>
+                <span style="background:${badgeColor};font-size:11px;padding:3px 8px;border-radius:10px;font-weight:600;">${typeLabel}</span>
+              </div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:2px;">회원: ${memberName}</div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:8px;">사용일: ${c.usedAt || '-'}</div>
               <button onclick="adminDeleteCoupon('${memberId}','${couponId}')"
-                style="padding:9px 14px;background:#fef2f2;color:#ef4444;border:1px solid #fecaca;border-radius:var(--radius-sm);font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
-                🗑
+                style="width:100%;padding:9px;background:#fef2f2;color:#ef4444;border:1px solid #fecaca;border-radius:var(--radius-sm);font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+                🗑 삭제
               </button>
-            </div>
-          </div>`;
+            </div>`;
+          } else {
+            html += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <span style="font-size:14px;font-weight:700;color:var(--text);">${c.name}</span>
+                <span style="background:${badgeColor};font-size:11px;padding:3px 8px;border-radius:10px;font-weight:600;">${typeLabel}</span>
+              </div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:2px;">회원: ${memberName}</div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:8px;">유효기간: ~${c.expire}</div>
+              ${c.memo ? `<div style="font-size:12px;color:var(--text-sub);margin-bottom:8px;">메모: ${c.memo}</div>` : ''}
+              <div style="display:flex;gap:8px;">
+                <button onclick="adminUseCoupon('${memberId}','${couponId}')"
+                  style="flex:1;padding:9px;background:#E24B4A;border:none;border-radius:var(--radius-sm);color:white;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+                  ✅ 사용 처리
+                </button>
+                <button onclick="adminDeleteCoupon('${memberId}','${couponId}')"
+                  style="padding:9px 14px;background:#fef2f2;color:#ef4444;border:1px solid #fecaca;border-radius:var(--radius-sm);font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+                  🗑
+                </button>
+              </div>
+            </div>`;
+          }
         });
       });
-      listEl.innerHTML = html || '<div class="empty-state">발행된 쿠폰이 없어요</div>';
+      const emptyMsg = tab === 'active' ? '발행된 쿠폰이 없어요' : '사용완료 쿠폰이 없어요';
+      listEl.innerHTML = html || `<div class="empty-state">${emptyMsg}</div>`;
     });
   }
 
@@ -4393,21 +4426,34 @@
   // 회원 내 쿠폰
   function openMyCoupons() {
     document.getElementById('my-coupon-modal').style.display = 'block';
-    loadMyCoupons();
+    switchMyCouponTab('active');
     // 쿠폰 확인 시 배지 초기화
     if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
+  }
+
+  function switchMyCouponTab(tab) {
+    const activeBtn = document.getElementById('coupon-tab-active');
+    const usedBtn = document.getElementById('coupon-tab-used');
+    if (activeBtn) {
+      activeBtn.style.borderBottomColor = tab === 'active' ? '#7F77DD' : 'transparent';
+      activeBtn.style.color = tab === 'active' ? '#7F77DD' : 'var(--text-hint)';
+    }
+    if (usedBtn) {
+      usedBtn.style.borderBottomColor = tab === 'used' ? '#7F77DD' : 'transparent';
+      usedBtn.style.color = tab === 'used' ? '#7F77DD' : 'var(--text-hint)';
+    }
+    loadMyCoupons(tab);
   }
 
   function closeMyCoupons() {
     document.getElementById('my-coupon-modal').style.display = 'none';
   }
 
-  function loadMyCoupons() {
+  function loadMyCoupons(tab = 'active') {
     const userId = localStorage.getItem('current_user');
     const listEl = document.getElementById('my-coupon-list');
     const countEl = document.getElementById('my-coupon-count');
     listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);">불러오는 중...</div>';
-    // 일반 쿠폰 + 포인트 쿠폰 동시 로드
     db.ref('coupons/' + userId).once('value').then(snap => {
       let count = 0;
       let html = '';
@@ -4415,16 +4461,21 @@
         snap.forEach(couponSnap => {
           const c = couponSnap.val();
           const couponId = couponSnap.key;
+          const isUsed = c.used === true;
+          // 탭에 따라 필터링
+          if (tab === 'active' && isUsed) return;
+          if (tab === 'used' && !isUsed) return;
+
           if (c.type === 'point_shop') {
-            if (!c.used) count++;
-            if (c.used) {
-              html += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;opacity:0.6;">
+            if (!isUsed) count++;
+            if (isUsed) {
+              html += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
                 <div style="padding:14px 16px;border-left:4px solid #9ca3af;">
                   <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
                     <div style="font-size:15px;font-weight:700;color:var(--text-sub);">${escapeHtml(c.name)}</div>
-                    <span style="font-size:10px;background:#e5e7eb;color:#6b7280;padding:2px 7px;border-radius:10px;font-weight:700;">사용완료</span>
+                    <span style="font-size:10px;background:#e5e7eb;color:#6b7280;padding:2px 7px;border-radius:10px;font-weight:700;">포인트쿠폰</span>
                   </div>
-                  <div style="font-size:12px;color:var(--text-hint);">${c.point}P 사용 · ${c.usedAt || c.issuedAt}</div>
+                  <div style="font-size:12px;color:var(--text-hint);">${c.point}P · 사용일 ${c.usedAt || c.issuedAt}</div>
                 </div>
               </div>`;
             } else {
@@ -4448,26 +4499,36 @@
           } else {
             const typeLabel = c.type === 'free' ? `무료 이용 ${c.value}회 추가` : c.type === 'discount' ? `${c.value}% 할인` : c.type === 'extend' ? `${c.value}일 연장` : c.type === 'drink' ? '☕ 음료 1잔' : c.type === 'americano' ? '☕ 아메리카노 1잔' : c.value;
             const borderColor = c.type === 'free' ? '#7F77DD' : c.type === 'discount' ? '#1D9E75' : '#D97706';
-            count++;
-            html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
-              <div style="padding:14px 16px;border-left:4px solid ${borderColor};">
-                <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">${c.name}</div>
-                <div style="font-size:13px;color:var(--text-sub);margin-bottom:4px;">${typeLabel}</div>
-                ${c.memo ? `<div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">${c.memo}</div>` : ''}
-                <div style="font-size:12px;color:var(--text-hint);">~ ${c.expire}까지</div>
-              </div>
-              <div style="padding:12px 16px;background:var(--bg);border-top:1px solid var(--border);">
-                <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;text-align:center;">관리자에게 이 화면을 보여주세요</div>
-                <button onclick="memberUseCoupon('${userId}','${couponId}')"
-                  style="width:100%;padding:11px;background:#E24B4A;border:none;border-radius:var(--radius-sm);color:white;font-size:14px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
-                  ✅ 사용하기 (관리자가 눌러주세요)
-                </button>
-              </div>
-            </div>`;
+            if (!isUsed) count++;
+            if (isUsed) {
+              html += `<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
+                <div style="padding:14px 16px;border-left:4px solid #9ca3af;">
+                  <div style="font-size:15px;font-weight:700;color:var(--text-sub);margin-bottom:4px;">${c.name}</div>
+                  <div style="font-size:12px;color:var(--text-hint);">사용일 ${c.usedAt || '-'}</div>
+                </div>
+              </div>`;
+            } else {
+              html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;">
+                <div style="padding:14px 16px;border-left:4px solid ${borderColor};">
+                  <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">${c.name}</div>
+                  <div style="font-size:13px;color:var(--text-sub);margin-bottom:4px;">${typeLabel}</div>
+                  ${c.memo ? `<div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">${c.memo}</div>` : ''}
+                  <div style="font-size:12px;color:var(--text-hint);">~ ${c.expire}까지</div>
+                </div>
+                <div style="padding:12px 16px;background:var(--bg);border-top:1px solid var(--border);">
+                  <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;text-align:center;">관리자에게 이 화면을 보여주세요</div>
+                  <button onclick="memberUseCoupon('${userId}','${couponId}')"
+                    style="width:100%;padding:11px;background:#E24B4A;border:none;border-radius:var(--radius-sm);color:white;font-size:14px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
+                    ✅ 사용하기 (관리자가 눌러주세요)
+                  </button>
+                </div>
+              </div>`;
+            }
           }
         });
       }
-      if (count === 0) html = '<div style="text-align:center;padding:40px 20px;color:var(--text-hint);font-size:14px;">보유한 쿠폰이 없어요 🎫</div>';
+      const emptyMsg = tab === 'active' ? '보유한 쿠폰이 없어요 🎫' : '사용 내역이 없어요';
+      if (!html) html = `<div style="text-align:center;padding:40px 20px;color:var(--text-hint);font-size:14px;">${emptyMsg}</div>`;
       listEl.innerHTML = html;
       if (countEl) { if (count > 0) { countEl.textContent = count + '장'; countEl.style.display = 'inline'; } else countEl.style.display = 'none'; }
     });
@@ -4475,7 +4536,8 @@
 
   function memberUseCoupon(userId, couponId) {
     showConfirm('쿠폰을 사용할까요?\n사용 후에는 되돌릴 수 없어요.', () => {
-      db.ref('coupons/' + userId + '/' + couponId).remove().then(() => {
+      const today = new Date().toISOString().slice(0, 10);
+      db.ref('coupons/' + userId + '/' + couponId).update({ used: true, usedAt: today }).then(() => {
         showToast('쿠폰이 사용됐어요! ✅', 'success');
         loadMyCoupons();
       });
