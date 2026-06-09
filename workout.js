@@ -785,11 +785,27 @@
   function loadAttendanceStats(userId) {
     const now = new Date();
     const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
+    const today = now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate();
     db.ref('users/' + userId + '/attendance').once('value', snap => {
       let total = 0, month = 0;
-      snap.forEach(child => { total++; if (child.key.startsWith(monthPrefix)) month++; });
+      let todayDone = false;
+      snap.forEach(child => {
+        total++;
+        if (child.key.startsWith(monthPrefix)) month++;
+        if (child.key === today) todayDone = true;
+      });
       const elTotal = document.getElementById('att-total'); if (elTotal) elTotal.textContent = total;
       const elMonth = document.getElementById('att-month'); if (elMonth) elMonth.textContent = month;
+      // 오늘 출석 배지 업데이트
+      const badge = document.getElementById('att-today-badge');
+      const dot = document.getElementById('att-today-dot');
+      if (badge && todayDone) {
+        badge.textContent = '완료';
+        badge.style.background = '#f0fdf4';
+        badge.style.color = '#15803d';
+        badge.style.borderColor = '#86efac';
+      }
+      if (dot && todayDone) dot.style.background = '#22c55e';
     });
     // 수업 현황 (총 횟수 / 잔여 횟수)
     db.ref('members/' + userId + '/trainerId').once('value', tSnap => {
