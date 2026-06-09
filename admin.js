@@ -4320,7 +4320,7 @@
                   <span style="background:#fef3c7;color:#854d0e;font-size:11px;padding:3px 8px;border-radius:10px;font-weight:600;">포인트쿠폰</span>
                 </div>
                 <div style="font-size:12px;color:var(--text-hint);margin-bottom:2px;">회원: ${memberName}</div>
-                <div style="font-size:12px;color:var(--text-hint);margin-bottom:8px;">발행일: ${c.issuedAt} · ${c.point}P</div>
+                <div style="font-size:12px;color:var(--text-hint);margin-bottom:8px;">발행일: ${c.issuedAt}${c.expire ? " · ~" + c.expire + "까지" : " · 기한없음"} · ${c.point}P</div>
                 <div style="display:flex;gap:8px;">
                   <button onclick="adminUsePointCoupon('${memberId}','${couponId}')"
                     style="flex:1;padding:9px;background:#d97706;border:none;border-radius:var(--radius-sm);color:white;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">
@@ -4434,7 +4434,7 @@
                     <div style="font-size:15px;font-weight:700;color:var(--text);">${escapeHtml(c.name)}</div>
                     <span style="font-size:10px;background:#fef3c7;color:#854d0e;padding:2px 7px;border-radius:10px;font-weight:700;">포인트쿠폰</span>
                   </div>
-                  <div style="font-size:12px;color:var(--text-hint);">발행일 ${c.issuedAt} · ${c.point}P 사용</div>
+                  <div style="font-size:12px;color:var(--text-hint);">발행일 ${c.issuedAt}${c.expire ? " · ~" + c.expire + "까지" : " · 기한없음"} · ${c.point}P</div>
                 </div>
                 <div style="padding:12px 16px;background:var(--bg);border-top:1px solid var(--border);">
                   <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;text-align:center;">직원에게 이 화면을 보여주세요</div>
@@ -4722,29 +4722,36 @@
     db.ref('point_shop').once('value', snap => {
       const data = snap.val();
       if (!data) { listEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">등록된 상품이 없어요</div>'; return; }
-      listEl.innerHTML = Object.entries(data).map(([id, item]) => `
+      listEl.innerHTML = Object.entries(data).map(([id, item]) => {
+        const expireText = item.expireDays ? `발행 후 ${item.expireDays}일 이내` : '기한 없음';
+        return `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--bg);border-radius:var(--radius-sm);margin-bottom:8px;border:1px solid var(--border);">
           <div>
             <div style="font-size:14px;font-weight:700;color:var(--text);">${escapeHtml(item.name)}</div>
-            <div style="font-size:12px;color:var(--blue);margin-top:2px;">${item.point}P 차감</div>
+            <div style="font-size:12px;color:var(--blue);margin-top:2px;">${item.point}P 차감 · ${expireText}</div>
           </div>
           <div style="display:flex;gap:8px;">
             <button onclick="deletePointShopItem('${id}')" style="padding:5px 10px;background:#fee2e2;color:#ef4444;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
           </div>
-        </div>`).join('');
+        </div>`;
+      }).join('');
     });
   }
 
   function addPointShopItem() {
     const name = document.getElementById('shop-item-name').value.trim();
     const point = parseInt(document.getElementById('shop-item-point').value);
+    const expireDays = parseInt(document.getElementById('shop-item-expire-days').value) || 0;
     if (!name) { showToast('상품명을 입력해주세요.', 'error'); return; }
     if (!point || point <= 0) { showToast('포인트를 입력해주세요.', 'error'); return; }
     const key = db.ref('point_shop').push().key;
-    db.ref('point_shop/' + key).set({ name, point }).then(() => {
+    const item = { name, point };
+    if (expireDays > 0) item.expireDays = expireDays;
+    db.ref('point_shop/' + key).set(item).then(() => {
       showToast('✅ 상품이 추가됐어요!', 'success');
       document.getElementById('shop-item-name').value = '';
       document.getElementById('shop-item-point').value = '';
+      document.getElementById('shop-item-expire-days').value = '';
       loadPointShopItems();
     });
   }

@@ -3076,6 +3076,11 @@
                 <input type="text" id="shop-item-name" placeholder="상품명 (예: 프로틴음료)" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);" />
                 <input type="number" id="shop-item-point" placeholder="포인트" min="1" style="width:90px;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);" />
               </div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <span style="font-size:12px;color:var(--text-hint);white-space:nowrap;">사용기한</span>
+                <input type="number" id="shop-item-expire-days" placeholder="일 (예: 7)" min="1" style="width:90px;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);" />
+                <span style="font-size:12px;color:var(--text-hint);">일 이내 (비워두면 기한 없음)</span>
+              </div>
               <button onclick="addPointShopItem()" style="width:100%;padding:10px;background:#7c3aed;color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 상품 추가</button>
             </div>
           </div>
@@ -5961,15 +5966,19 @@
     if (!shopData) {
       itemsEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">등록된 상품이 없어요</div>';
     } else {
-      itemsEl.innerHTML = Object.entries(shopData).map(([id, item]) => `
+      itemsEl.innerHTML = Object.entries(shopData).map(([id, item]) => {
+        const expireText = item.expireDays ? `발행 후 ${item.expireDays}일 이내 사용` : '기한 없음';
+        return `
         <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;">
           <div>
             <div style="font-size:14px;font-weight:700;color:var(--text);">${escapeHtml(item.name)}</div>
             <div style="font-size:12px;color:var(--blue);margin-top:2px;">${item.point}P 차감</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${expireText}</div>
           </div>
-          <button onclick="issuePointCoupon('${id}','${escapeHtml(item.name)}',${item.point})"
+          <button onclick="issuePointCoupon('${id}','${escapeHtml(item.name)}',${item.point},${item.expireDays||0})"
             style="padding:8px 14px;background:var(--blue);color:white;border:none;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">쿠폰 받기</button>
-        </div>`).join('');
+        </div>`;
+      }).join('');
     }
     // 포인트 내역
     const histSnap = await db.ref('users/' + userId + '/pointHistory').once('value');
@@ -5994,15 +6003,23 @@
     }
   }
 
-  async function issuePointCoupon(shopId, name, point) {
+  async function issuePointCoupon(shopId, name, point, expireDays) {
     const userId = localStorage.getItem('current_user');
     // 포인트 확인
     const ptsSnap = await db.ref('users/' + userId + '/points').once('value');
     const curPts = ptsSnap.val() || 0;
     if (curPts < point) { showToast('포인트가 부족해요!', 'error'); return; }
-    showConfirm(name + ' 쿠폰을 받을까요?\n' + point + 'P가 차감돼요.', async () => {
-      const now = new Date();
-      const today = now.toISOString().slice(0, 10);
+    // 만료일 계산
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    let expireDate = null;
+    if (expireDays > 0) {
+      const exp = new Date(now);
+      exp.setDate(exp.getDate() + expireDays);
+      expireDate = exp.toISOString().slice(0, 10);
+    }
+    const expireMsg = expireDate ? `\n사용기한: ~${expireDate}` : '';
+    showConfirm(name + ' 쿠폰을 받을까요?\n' + point + 'P가 차감돼요.' + expireMsg, async () => {
       // 포인트 차감
       await db.ref('users/' + userId + '/points').set(curPts - point);
       // 포인트 내역 저장
@@ -6012,10 +6029,12 @@
       });
       // 쿠폰 발행
       const couponKey = db.ref('coupons/' + userId).push().key;
-      await db.ref('coupons/' + userId + '/' + couponKey).set({
+      const couponData = {
         type: 'point_shop', name: name, point: point, shopId: shopId,
         issuedAt: today, used: false, createdAt: Date.now()
-      });
+      };
+      if (expireDate) couponData.expire = expireDate;
+      await db.ref('coupons/' + userId + '/' + couponKey).set(couponData);
       showToast('🎉 쿠폰이 발행됐어요! 쿠폰 탭에서 확인하세요.', 'success');
       openPointShopScreen();
     });
