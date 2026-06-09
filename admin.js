@@ -5798,14 +5798,15 @@ async function kioskPress(k) {
     _kioskInput += k;
     _kioskUpdateDots();
     // 8자리 입력 완료 시 자동 확인
-    if (_kioskInput.length === 8) {
-      setTimeout(() => _kioskCheckIn('010' + _kioskInput), 200);
-    }
+
   }
 }
 
 async function _kioskCheckIn(phone) {
-  const today = new Date().toISOString().slice(0, 10);
+  // getToday()와 동일한 unpadded 형식 사용 (예: 2026-6-9)
+  const _d = new Date();
+  const today = _d.getFullYear() + '-' + (_d.getMonth()+1) + '-' + _d.getDate();
+  const todayPadded = _d.toISOString().slice(0, 10); // pointHistory용
   try {
     // 회원 존재 확인
     const memberSnap = await db.ref('members/' + phone).once('value');
@@ -5832,7 +5833,7 @@ async function _kioskCheckIn(phone) {
       await db.ref('users/' + phone + '/points').set(cur + pts);
       const histKey = db.ref('users/' + phone + '/pointHistory').push().key;
       await db.ref('users/' + phone + '/pointHistory/' + histKey).set({
-        amount: pts, date: today, reason: '출석', balance: cur + pts, createdAt: Date.now()
+        amount: pts, date: todayPadded, reason: '출석', balance: cur + pts, createdAt: Date.now()
       });
     }
     const nick = localStorage.getItem('nickname_' + phone) || member.name;
