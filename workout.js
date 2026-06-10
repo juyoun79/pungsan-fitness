@@ -905,6 +905,7 @@
     const calWrap = document.getElementById('att-cal-wrap');
     if (calWrap) calWrap.style.display = 'none';
     _attCalMode = null;
+    window._pointShopFrom = 'attend'; // 진입 경로 기억
     if (typeof openPointShopScreen === 'function') openPointShopScreen();
   }
 
