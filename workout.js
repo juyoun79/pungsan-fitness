@@ -485,10 +485,11 @@
 
   let setCount = 0;
   let currentEquipment = null;
-  function isDualEquipment(key) { return ['dual_inner_out', 'dual_pec_rear'].includes(key); }
+  function isDualEquipment(key) { return ['dual_inner_out', 'dual_pec_rear', 'chinup_assist'].includes(key); }
   function getDualNames(key) {
     if (key === 'dual_inner_out') return { front: '이너타이', back: '아웃타이', frontColor: '#4a7fd4', backColor: '#d4537e', frontBg: '#E6F1FB', backBg: '#FBEAF0', frontText: '#185FA5', backText: '#993556' };
     if (key === 'dual_pec_rear') return { front: '펙덱 플라이', back: '리어 델토이드', frontColor: '#4a7fd4', backColor: '#d4537e', frontBg: '#E6F1FB', backBg: '#FBEAF0', frontText: '#185FA5', backText: '#993556' };
+    if (key === 'chinup_assist') return { front: '친업', back: '딥스', frontColor: '#4a7fd4', backColor: '#d4537e', frontBg: '#E6F1FB', backBg: '#FBEAF0', frontText: '#185FA5', backText: '#993556' };
     return null;
   }
 
