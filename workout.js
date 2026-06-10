@@ -667,10 +667,7 @@
     const savedAt = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
     const dateLabel = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일';
 
-    // 현재 탭 임시 저장 먼저
-    _saveCableTabTemp();
-
-    // 현재 화면 세트 직접 읽어서 현재 탭 temp 덮어쓰기
+    // 현재 화면 세트 직접 읽어서 현재 탭 temp 업데이트
     const curEx = CABLE_EXERCISES[cableTabIdx];
     const rows = document.querySelectorAll('#cable-set-list > div');
     const curSets = [];
@@ -689,8 +686,11 @@
     });
     if (!hasAny) { showToast('세트 기록을 입력해주세요!', 'error'); return; }
 
-    // 모든 탭 기록 저장
+    // 모든 탭 기록 저장 + 합산 통계 계산
     let savedCount = 0;
+    let totalSets = 0;
+    let maxWeight = 0;
+    let totalVol = 0;
     CABLE_EXERCISES.forEach(ex => {
       const sets = cableTempSets[ex.key];
       if (!sets || sets.length === 0) return;
@@ -699,6 +699,12 @@
       const key = 'cable_ex_' + ex.key + '_' + userId;
       const memo = cableTempMemo[ex.key] || '';
       const mappedSets = validSets.map((s, i) => ({ set: i+1, weight: parseFloat(s.weight)||0, reps: parseInt(s.reps)||0 }));
+      // 통계 누적
+      mappedSets.forEach(s => {
+        totalSets++;
+        if (s.weight > maxWeight) maxWeight = s.weight;
+        totalVol += s.weight * s.reps;
+      });
       const records = JSON.parse(localStorage.getItem(key) || '[]');
       const existIdx = records.findIndex(r => r.date === today);
       const record = { date: today, dateLabel, sets: mappedSets, memo, savedAt };
@@ -714,12 +720,14 @@
     cableTempSets = { pushdown:[], row:[], fly:[], curl:[], facepull:[], pulldown:[] };
     cableTempMemo = { pushdown:'', row:'', fly:'', curl:'', facepull:'', pulldown:'' };
 
-    // 운동 완료 오버레이 표시 (일반 기구와 동일)
-    const totalSets = savedCount;
+    // 운동 완료 오버레이 표시 (다른 기구와 동일한 형식)
     const color = '#1a6fd4';
     document.getElementById('workout-complete-msg').textContent = '케이블 머신 ' + savedCount + '종목 완료!';
-    document.getElementById('workout-summary').innerHTML = `<div style="text-align:center;font-size:15px;color:#5a6478;">수고하셨어요! 💪<br>오늘 케이블 운동 <span style="color:${color};font-weight:700;">${savedCount}종목</span> 기록됐어요.</div>`;
-    document.getElementById('workout-complete-overlay').classList.add('active');
+    document.getElementById('workout-summary').innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;"><div><div style="font-size:11px;color:#5a6478;margin-bottom:4px;">총 세트</div><div style="font-size:18px;font-weight:700;color:${color};">${totalSets}</div></div><div><div style="font-size:11px;color:#5a6478;margin-bottom:4px;">최고 무게</div><div style="font-size:18px;font-weight:700;color:${color};">${maxWeight > 0 ? maxWeight + 'kg' : '-'}</div></div><div><div style="font-size:11px;color:#5a6478;margin-bottom:4px;">총 볼륨</div><div style="font-size:18px;font-weight:700;color:${color};">${totalVol > 0 ? totalVol + 'kg' : '-'}</div></div></div>`;
+    // 오버레이를 케이블 화면 위로 표시되도록 z-index 보장
+    const overlay = document.getElementById('workout-complete-overlay');
+    overlay.style.zIndex = '9999';
+    overlay.classList.add('active');
   }
   // ── 케이블 머신 전용 끝 ────────────────────────────────────
 
@@ -880,7 +888,25 @@
     document.getElementById('workout-complete-overlay').classList.add('active');
   }
 
-  function closeWorkoutComplete() { document.getElementById('workout-complete-overlay').classList.remove('active'); if (isTrainerMode) { isTrainerMode = false; showScreen('screen-trainee-detail'); switchTraineeTab('record'); } else { const isCable = document.getElementById('screen-cable-machine')?.classList.contains('active'); if (isCable) { showScreen('screen-workout-qr'); } else { closeWorkoutDetail(); } renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate); } }
+  function closeWorkoutComplete() {
+    const overlay = document.getElementById('workout-complete-overlay');
+    overlay.classList.remove('active');
+    overlay.style.zIndex = '';
+    if (isTrainerMode) {
+      isTrainerMode = false;
+      showScreen('screen-trainee-detail');
+      switchTraineeTab('record');
+    } else {
+      const isCable = document.getElementById('screen-cable-machine')?.classList.contains('active');
+      if (isCable) {
+        showScreen('screen-workout-qr');
+      } else {
+        closeWorkoutDetail();
+      }
+      renderCalendar();
+      if (calSelectedDate) renderDayDetail(calSelectedDate);
+    }
+  }
 
   function loadPrevRecords() {
     if (!currentEquipment) return;
