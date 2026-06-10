@@ -288,7 +288,10 @@
       const safeKey = 'freeweight_' + name.replace(/\s+/g,'_') + '_' + userId;
       const records = JSON.parse(localStorage.getItem(safeKey) || '[]');
       const found = records.find(r => r.date === dateStr);
-      if (found) dayRecords.push({ type:'freeweight', name, record: found });
+      if (found) {
+        const isCableEx = (typeof CABLE_EXERCISES !== 'undefined' ? CABLE_EXERCISES : []).some(e => e.name === name);
+        dayRecords.push({ type:'freeweight', name, record: found, isCable: isCableEx });
+      }
     }
     const cardioIndex = JSON.parse(localStorage.getItem('cardio_index_' + userId) || '[]');
     for (const ctype of cardioIndex) {
@@ -1426,9 +1429,11 @@
         }
       }
     }
-    // 프리웨이트
+    // 프리웨이트 (케이블 운동 이름이면 cable_ex_ 키 우선 확인 후 freeweight_ 키 확인)
     const fwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
     for (const name of fwIndex) {
+      const isCableEx = (typeof CABLE_EXERCISES !== 'undefined' ? CABLE_EXERCISES : []).some(e => e.name === name);
+      if (isCableEx) continue; // 케이블 운동은 위에서 이미 처리
       const r = JSON.parse(localStorage.getItem('freeweight_' + name.replace(/\s+/g,'_') + '_' + userId) || '[]').find(r => r.date === today);
       if (r) {
         const n = r.sets?.length || 0;
@@ -2802,6 +2807,11 @@
           return;
         }
 
+        // 케이블 운동 이름으로 자동 인식 (isCableEx 없는 구버전 루틴 호환)
+        if (!ex.isCableEx) {
+          const cableExMatch = (typeof CABLE_EXERCISES !== 'undefined' ? CABLE_EXERCISES : []).find(e => e.name === ex.name);
+          if (cableExMatch) { ex.isCableEx = true; ex.cableKey = cableExMatch.key; }
+        }
         // 케이블 운동 이전 기록 불러오기
         if (ex.isCableEx && ex.cableKey) {
           const cableStorageKey = 'cable_ex_' + ex.cableKey + '_' + userId;
@@ -3146,6 +3156,11 @@
       const mappedSets = validSets.map((s,i) => ({ set:i+1, weight:s.weight, reps:s.reps }));
       const record = { date, dateLabel, savedAt, sets: mappedSets };
 
+      // 케이블 운동 이름으로 자동 인식 (isCableEx 없는 구버전 루틴 호환)
+      if (!ex.isCableEx) {
+        const cableExMatch = (typeof CABLE_EXERCISES !== 'undefined' ? CABLE_EXERCISES : []).find(e => e.name === ex.name);
+        if (cableExMatch) { ex.isCableEx = true; ex.cableKey = cableExMatch.key; }
+      }
       // 케이블 운동 저장
       if (ex.isCableEx && ex.cableKey) {
         const cableStorageKey = 'cable_ex_' + ex.cableKey + '_' + userId;
