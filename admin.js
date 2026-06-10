@@ -2035,26 +2035,69 @@
         return { order: idx + 1, remain, type: info.type || '' };
       }
 
-      container.innerHTML = entries.map(([memberId, info]) => {
+      // 잔여 0회 → 하단 (expiredAt 순서대로), 나머지 → 상단 (기존 순서)
+      const withStatus = entries.map(([memberId, info]) => {
         const realName = nameMap[memberId] || info.name || memberId;
         const status = calcTraineeStatus(info);
-        const subText = status.type
-          ? `${status.type} · ${status.order}차 진행중 · 잔여 ${status.remain}회`
-          : '수업 종류 미설정';
-        return `
-        <div onclick="openTraineeDetail('${memberId}')"
-          style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer;"
-          ontouchstart="this.style.background='var(--blue-light)'" ontouchend="this.style.background='transparent'">
-          <div style="width:40px;height:40px;border-radius:50%;background:var(--blue);color:white;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;">
-            ${realName[0]}
+        return { memberId, info, realName, status };
+      });
+      withStatus.sort((a, b) => {
+        const aZero = a.status.remain <= 0;
+        const bZero = b.status.remain <= 0;
+        if (aZero && !bZero) return 1;
+        if (!aZero && bZero) return -1;
+        if (aZero && bZero) {
+          // 둘 다 0이면 expiredAt 순서대로
+          const aExp = a.info.expiredAt || '';
+          const bExp = b.info.expiredAt || '';
+          return aExp.localeCompare(bExp);
+        }
+        return 0;
+      });
+
+      // 전체 회원 데이터 캐시 (검색용)
+      window._traineeListData = withStatus;
+
+      function renderTraineeCards(list) {
+        if (!list.length) {
+          container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:14px;">검색 결과가 없어요</div>';
+          return;
+        }
+        container.innerHTML = list.map(({ memberId, info, realName, status }) => {
+          const subText = status.type
+            ? `${status.type} · ${status.order}차 진행중 · 잔여 ${status.remain}회`
+            : '수업 종류 미설정';
+          const nameColor = status.remain <= 0 ? 'var(--text-hint)' : 'var(--blue)';
+          return `
+          <div onclick="openTraineeDetail('${memberId}')"
+            style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer;"
+            ontouchstart="this.style.background='var(--blue-light)'" ontouchend="this.style.background='transparent'">
+            <div style="width:40px;height:40px;border-radius:50%;background:${nameColor};color:white;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;">
+              ${realName[0]}
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:14px;font-weight:700;color:var(--text);">${realName}</div>
+              <div style="font-size:12px;color:var(--text-sub);">${subText}</div>
+            </div>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </div>
-          <div style="flex:1;">
-            <div style="font-size:14px;font-weight:700;color:var(--text);">${realName}</div>
-            <div style="font-size:12px;color:var(--text-sub);">${subText}</div>
-          </div>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </div>
-      `}).join('');
+        `}).join('');
+      }
+
+      renderTraineeCards(withStatus);
+
+      // 검색 필터 함수
+      window.filterTraineeList = function(query) {
+        const q = query.trim().toLowerCase();
+        if (!q) { renderTraineeCards(window._traineeListData); return; }
+        const filtered = window._traineeListData.filter(({ realName, memberId }) => {
+          const name = realName.toLowerCase();
+          const last4 = memberId.slice(-4);
+          return name.includes(q) || last4.includes(q);
+        });
+        renderTraineeCards(filtered);
+      };
+
       }); // Promise.all 닫기
     });
   }

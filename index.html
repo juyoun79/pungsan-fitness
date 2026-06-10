@@ -3709,8 +3709,11 @@
 
       <!-- 담당 회원 섹션 -->
       <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;">
-        <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-          <div style="font-size:15px;font-weight:700;color:var(--text);">👥 담당 회원</div>
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <div style="font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;">👥 담당 회원</div>
+          <input type="text" id="trainee-list-search" placeholder="이름·번호 뒤 4자리" oninput="filterTraineeList(this.value)"
+            style="flex:1;max-width:160px;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);"
+            onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
         </div>
         <div id="trainee-list" style="padding:12px 16px;">
           <div style="text-align:center;padding:20px;color:var(--text-hint);font-size:14px;">담당 회원이 없어요<br/>회원 추가 버튼을 눌러주세요</div>
