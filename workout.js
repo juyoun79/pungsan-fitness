@@ -524,7 +524,170 @@
 
   function removeOuterSet(n) { const row = document.getElementById('outer-set-row-' + n); if (row) row.remove(); }
 
+  // ── 케이블 머신 전용 ──────────────────────────────────────
+  const CABLE_EXERCISES = [
+    { name:'케이블 푸시다운', muscles:'삼두근',           effect:'삼두근 고립, 팔 뒤쪽 선명한 라인',    key:'pushdown' },
+    { name:'케이블 로우',     muscles:'등·승모근',        effect:'등 두께 발달, 바른 자세 교정',         key:'row' },
+    { name:'케이블 플라이',   muscles:'가슴',             effect:'가슴 안쪽 근육 강화, 가슴 라인 선명', key:'fly' },
+    { name:'케이블 컬',       muscles:'이두근',           effect:'이두근 고립, 팔 앞쪽 볼륨 강화',      key:'curl' },
+    { name:'케이블 페이스풀', muscles:'어깨 후면·승모근', effect:'어깨 후면 강화, 라운드숄더 개선',     key:'facepull' },
+    { name:'케이블 암 풀다운',muscles:'광배근',           effect:'광배근 발달, 넓은 등 라인',           key:'pulldown' },
+  ];
+  let cableTabIdx = 0;
+  let cableSetCount = 0;
+  let cableRestTimer = null;
+
+  function openCableMachine() {
+    cableTabIdx = 0; cableSetCount = 0;
+    selectCableTab(0);
+    const now = new Date();
+    const el = document.getElementById('cable-date-label');
+    if (el) el.textContent = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 기록';
+    document.getElementById('cable-rest-min').value = 0;
+    document.getElementById('cable-rest-sec').value = 0;
+    showScreen('screen-cable-machine');
+  }
+
+  function closeCableMachine() {
+    skipCableRestTimer();
+    const userId = localStorage.getItem('current_user');
+    if (isTrainerMode) { isTrainerMode = false; showScreen('screen-trainee-detail'); switchTraineeTab('record'); }
+    else { showScreen('screen-workout-qr'); renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate); }
+  }
+
+  function selectCableTab(idx) {
+    cableTabIdx = idx;
+    cableSetCount = 0;
+    for (let i = 0; i < 6; i++) {
+      const t = document.getElementById('cable-tab-' + i);
+      if (!t) continue;
+      if (i === idx) {
+        t.dataset.active = 'true';
+        t.style.borderColor = '#1a6fd4';
+        t.style.background = '#E6F1FB';
+        t.style.color = '#0c447c';
+      } else {
+        t.dataset.active = 'false';
+        t.style.borderColor = 'var(--border)';
+        t.style.background = 'var(--card)';
+        t.style.color = 'var(--text-hint)';
+      }
+    }
+    const ex = CABLE_EXERCISES[idx];
+    const titleEl = document.getElementById('cable-ex-title');
+    if (titleEl) titleEl.textContent = ex.name + ' 세트 기록';
+    const musclesEl = document.getElementById('cable-eq-muscles');
+    if (musclesEl) musclesEl.textContent = ex.muscles;
+    const effectEl = document.getElementById('cable-eq-effect');
+    if (effectEl) effectEl.textContent = ex.effect;
+    const setList = document.getElementById('cable-set-list');
+    if (setList) setList.innerHTML = '';
+    const memo = document.getElementById('cable-memo');
+    if (memo) memo.value = '';
+    skipCableRestTimer();
+    addCableSet();
+    loadCablePrevRecords();
+  }
+
+  function addCableSet() {
+    cableSetCount++;
+    const list = document.getElementById('cable-set-list');
+    if (!list) return;
+    const row = document.createElement('div');
+    row.style.cssText = 'display:grid;grid-template-columns:40px 1fr 1fr 36px 36px;gap:6px;margin-bottom:6px;align-items:center;';
+    row.id = 'cable-set-row-' + cableSetCount;
+    const numColor = '#1a6fd4';
+    row.innerHTML = '<div style="width:40px;height:40px;background:' + numColor + ';border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;font-weight:700;">' + cableSetCount + '</div>'
+      + '<input type="number" min="0" step="0.5" value="0" style="border:1.5px solid var(--border);border-radius:8px;padding:8px;font-size:15px;font-weight:700;text-align:center;width:100%;box-sizing:border-box;font-family:sans-serif;background:var(--card);color:var(--text);" onfocus="this.style.borderColor=\'#1a6fd4\'" onblur="this.style.borderColor=\'var(--border)\'">'
+      + '<input type="number" min="0" value="0" style="border:1.5px solid var(--border);border-radius:8px;padding:8px;font-size:15px;font-weight:700;text-align:center;width:100%;box-sizing:border-box;font-family:sans-serif;background:var(--card);color:var(--text);" onfocus="this.style.borderColor=\'#1a6fd4\'" onblur="this.style.borderColor=\'var(--border)\'">'  
+      + '<button onclick="deleteCableSet(' + cableSetCount + ')" style="width:36px;height:40px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text-hint);font-size:16px;cursor:pointer;">✕</button>'
+      + '<button onclick="addCableSetAndTimer()" style="width:36px;height:40px;background:#E6F1FB;border:none;border-radius:8px;color:#1a6fd4;font-size:20px;font-weight:700;cursor:pointer;">+</button>';
+    list.appendChild(row);
+    startCableRestTimer();
+  }
+
+  function addCableSetAndTimer() { addCableSet(); }
+
+  function deleteCableSet(n) {
+    const row = document.getElementById('cable-set-row-' + n);
+    if (row) row.remove();
+  }
+
+  function startCableRestTimer() {
+    if (cableSetCount <= 1) return;
+    const min = parseInt(document.getElementById('cable-rest-min')?.value || 0);
+    const sec = parseInt(document.getElementById('cable-rest-sec')?.value || 0);
+    const total = min * 60 + sec;
+    if (total <= 0) return;
+    skipCableRestTimer();
+    const box = document.getElementById('cable-rest-timer-box');
+    const count = document.getElementById('cable-rest-timer-count');
+    if (!box || !count) return;
+    box.style.display = 'block';
+    let left = total;
+    count.textContent = Math.floor(left/60) + ':' + String(left%60).padStart(2,'0');
+    cableRestTimer = setInterval(() => {
+      left--;
+      if (left <= 0) { skipCableRestTimer(); return; }
+      count.textContent = Math.floor(left/60) + ':' + String(left%60).padStart(2,'0');
+    }, 1000);
+  }
+
+  function skipCableRestTimer() {
+    if (cableRestTimer) { clearInterval(cableRestTimer); cableRestTimer = null; }
+    const box = document.getElementById('cable-rest-timer-box');
+    if (box) box.style.display = 'none';
+  }
+
+  function loadCablePrevRecords() {
+    const userId = localStorage.getItem('current_user');
+    const ex = CABLE_EXERCISES[cableTabIdx];
+    const key = 'cable_ex_' + ex.key + '_' + userId;
+    const records = JSON.parse(localStorage.getItem(key) || '[]');
+    const wrap = document.getElementById('cable-prev-wrap');
+    if (!wrap) return;
+    if (records.length === 0) { wrap.innerHTML = ''; return; }
+    const last = records[records.length - 1];
+    wrap.innerHTML = '<div style="background:var(--bg);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--text-hint);">'
+      + '<div style="font-weight:700;color:var(--text-sub);margin-bottom:4px;">이전 기록 · ' + (last.dateLabel || last.date) + '</div>'
+      + last.sets.map(s => s.set + '세트 · ' + (s.weight > 0 ? s.weight + 'kg' : '자체중량') + ' × ' + s.reps + '회').join(' / ')
+      + '</div>';
+  }
+
+  function saveCableWorkout() {
+    const userId = localStorage.getItem('current_user');
+    const today = getToday();
+    const ex = CABLE_EXERCISES[cableTabIdx];
+    const key = 'cable_ex_' + ex.key + '_' + userId;
+    const rows = document.querySelectorAll('#cable-set-list > div');
+    const sets = [];
+    rows.forEach((row, i) => {
+      const inputs = row.querySelectorAll('input');
+      if (inputs.length >= 2) {
+        sets.push({ set: i+1, weight: parseFloat(inputs[0].value)||0, reps: parseInt(inputs[1].value)||0 });
+      }
+    });
+    if (sets.length === 0 || sets.every(s => s.reps === 0)) {
+      showToast('세트 기록을 입력해주세요!', 'error'); return;
+    }
+    const now = new Date();
+    const savedAt = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+    const dateLabel = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일';
+    const memo = document.getElementById('cable-memo')?.value || '';
+    const records = JSON.parse(localStorage.getItem(key) || '[]');
+    const existIdx = records.findIndex(r => r.date === today);
+    const record = { date: today, dateLabel, sets, memo, savedAt };
+    if (existIdx >= 0) records[existIdx] = record;
+    else records.push(record);
+    localStorage.setItem(key, JSON.stringify(records));
+    showToast(ex.name + ' 기록 저장! 💪', 'success');
+    skipCableRestTimer();
+    selectCableTab(cableTabIdx);
+  }
+  // ── 케이블 머신 전용 끝 ────────────────────────────────────
+
   function openGenericWorkout(eq) {
+    if (eq.key === 'cable_machine') { openCableMachine(); return; }
     currentEquipment = eq; setCount = 0; innerSetCount = 0; outerSetCount = 0;
     document.getElementById('set-list').innerHTML = '';
     document.getElementById('workout-memo').value = '';
@@ -1203,6 +1366,16 @@
     for (const ctype of classIndex) {
       const r = JSON.parse(localStorage.getItem('class_' + ctype.replace(/\s+/g,'_') + '_' + userId) || '[]').find(r => r.date === today);
       if (r) records.push({ type:'class', name: ctype, summary: (r.min||0) + '분 · 약 ' + (r.kcal||0) + 'kcal', savedAt: r.savedAt || '' });
+    }
+    // 케이블 머신 운동
+    for (const ex of CABLE_EXERCISES) {
+      const r = JSON.parse(localStorage.getItem('cable_ex_' + ex.key + '_' + userId) || '[]').find(r => r.date === today);
+      if (r) {
+        const n = r.sets?.length || 0;
+        const maxW = r.sets ? Math.max(...r.sets.map(s => s.weight||0)) : 0;
+        const rep = r.sets?.[0]?.reps || 0;
+        records.push({ type:'equipment', name: ex.name, summary: n + '세트 · ' + (maxW>0?maxW+'kg':'자체중량') + ' · ' + rep + '회', savedAt: r.savedAt || '' });
+      }
     }
     // savedAt(HH:MM) 기준 시간순 정렬, savedAt 없으면 맨 뒤로
     records.sort((a, b) => {

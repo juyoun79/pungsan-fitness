@@ -30,7 +30,7 @@
     { no:29, name:'브이스쿼트',                muscles:'하체·엉덩이',                   effect:'하체 근력 강화, 힙업',                      brand:'워런핏',      emoji:'🦵', key:'v_squat' },
     { no:30, name:'시티드 카프레이즈',         muscles:'종아리',                        effect:'하체 안정성, 균형 능력, 넘어짐 예방',       brand:'이카리안',    emoji:'🦵', key:'calf_raise' },
     { no:31, name:'스미스 머신',               muscles:'운동방법에 따라 다름',          effect:'다양한 운동 가능',                          brand:'DRAX',        emoji:'🏋️', key:'smith_machine' },
-    { no:32, name:'듀얼 케이블 머신',          muscles:'운동방법에 따라 다름',          effect:'다양한 운동 가능',                          brand:'DRAX',        emoji:'🏋️', key:'cable_machine' },
+    { no:32, name:'케이블 머신',               muscles:'운동방법에 따라 다름',          effect:'다양한 케이블 운동 가능',                   brand:'DRAX',        emoji:'🏋️', key:'cable_machine' },
   ];
 
   // 근육 부위별 색상

@@ -3614,6 +3614,76 @@
     </div>
   </div>
 
+  <!-- 케이블 머신 전용 화면 -->
+  <div class="screen" id="screen-cable-machine">
+    <div class="sub-header">
+      <button class="back-btn" onclick="closeCableMachine()">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="sub-header-title">케이블 머신 기록</div>
+      <div style="width:38px;"></div>
+    </div>
+    <div style="padding:16px 16px calc(var(--tab-h) * 2 + env(safe-area-inset-bottom, 16px) + 16px);">
+      <!-- 기구 정보 카드 -->
+      <div id="cable-eq-card" style="border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;color:white;display:flex;align-items:center;gap:14px;background:#1a6fd4;">
+        <div style="font-size:36px;">🏋️</div>
+        <div style="flex:1;">
+          <div style="font-size:17px;font-weight:700;">32번 · 케이블 머신</div>
+          <div id="cable-eq-muscles" style="font-size:13px;opacity:0.85;margin-top:2px;">삼두근</div>
+          <div id="cable-eq-effect" style="font-size:11px;opacity:0.7;margin-top:4px;line-height:1.5;">삼두근 고립, 팔 뒤쪽 선명한 라인</div>
+        </div>
+      </div>
+      <!-- 6개 운동 탭 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px;">
+        <div id="cable-tab-0" onclick="selectCableTab(0)" data-active="true" style="padding:8px 4px;border-radius:8px;border:1.5px solid #1a6fd4;background:#E6F1FB;color:#0c447c;font-size:11px;font-weight:700;cursor:pointer;text-align:center;line-height:1.4;">케이블<br>푸시다운</div>
+        <div id="cable-tab-1" onclick="selectCableTab(1)" data-active="false" style="padding:8px 4px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text-hint);font-size:11px;font-weight:700;cursor:pointer;text-align:center;line-height:1.4;">케이블<br>로우</div>
+        <div id="cable-tab-2" onclick="selectCableTab(2)" data-active="false" style="padding:8px 4px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text-hint);font-size:11px;font-weight:700;cursor:pointer;text-align:center;line-height:1.4;">케이블<br>플라이</div>
+        <div id="cable-tab-3" onclick="selectCableTab(3)" data-active="false" style="padding:8px 4px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text-hint);font-size:11px;font-weight:700;cursor:pointer;text-align:center;line-height:1.4;">케이블<br>컬</div>
+        <div id="cable-tab-4" onclick="selectCableTab(4)" data-active="false" style="padding:8px 4px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text-hint);font-size:11px;font-weight:700;cursor:pointer;text-align:center;line-height:1.4;">케이블<br>페이스풀</div>
+        <div id="cable-tab-5" onclick="selectCableTab(5)" data-active="false" style="padding:8px 4px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text-hint);font-size:11px;font-weight:700;cursor:pointer;text-align:center;line-height:1.4;">케이블<br>암 풀다운</div>
+      </div>
+      <!-- 운동 제목 -->
+      <div id="cable-ex-title" class="section-title" style="color:#1a6fd4;margin-bottom:10px;">케이블 푸시다운 세트 기록</div>
+      <!-- 휴식 타이머 -->
+      <div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:12px;font-weight:700;color:var(--text-sub);">⏱ 세트 휴식시간</span>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <input type="number" id="cable-rest-min" min="0" max="10" value="0" style="width:44px;padding:5px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;" onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'">
+          <span style="font-size:12px;color:var(--text-sub);">분</span>
+          <input type="number" id="cable-rest-sec" min="0" max="59" value="0" style="width:44px;padding:5px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;" onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'">
+          <span style="font-size:12px;color:var(--text-sub);">초</span>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text-hint);margin-bottom:8px;">기록 입력 후 + 버튼으로 세트 추가 시 자동 시작</div>
+      <!-- 휴식 타이머 카운트다운 -->
+      <div id="cable-rest-timer-box" style="display:none;background:#1a6fd4;border-radius:10px;padding:14px;margin-bottom:10px;text-align:center;">
+        <div style="font-size:12px;color:rgba(255,255,255,0.8);margin-bottom:4px;">다음 세트까지 휴식</div>
+        <div id="cable-rest-timer-count" style="font-size:36px;font-weight:700;color:white;font-variant-numeric:tabular-nums;">1:30</div>
+        <button onclick="skipCableRestTimer()" style="margin-top:8px;background:rgba(255,255,255,0.2);color:white;border:none;border-radius:8px;padding:6px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">건너뛰기</button>
+      </div>
+      <!-- 세트 헤더 -->
+      <div style="display:grid;grid-template-columns:40px 1fr 1fr 36px 36px;gap:6px;padding:8px 8px 8px 10px;background:var(--blue-light);border-radius:8px;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:700;color:var(--blue);text-align:center;">세트</div>
+        <div style="font-size:12px;font-weight:700;color:var(--blue);text-align:center;">무게 (kg)</div>
+        <div style="font-size:12px;font-weight:700;color:var(--blue);text-align:center;">횟수 (회)</div>
+        <div></div>
+      </div>
+      <div id="cable-set-list"></div>
+      <!-- 이전 기록 -->
+      <div id="cable-prev-wrap" style="margin-top:10px;"></div>
+      <!-- 메모 -->
+      <div style="margin-top:16px;">
+        <label class="field-label">메모 (선택)</label>
+        <textarea id="cable-memo" placeholder="오늘 운동 느낌, 컨디션 등을 자유롭게 적어주세요" style="width:100%;box-sizing:border-box;padding:12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;color:var(--text);resize:none;height:80px;outline:none;" onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"></textarea>
+      </div>
+      <div style="text-align:center;font-size:13px;color:var(--text-hint);margin-top:8px;" id="cable-date-label"></div>
+      <!-- 저장 버튼 -->
+      <div style="position:fixed;bottom:calc(var(--tab-h) + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);width:100%;max-width:430px;padding:12px 20px;background:var(--card);border-top:1px solid var(--border);z-index:90;">
+        <button class="btn-primary" onclick="saveCableWorkout()">💾 오늘 기록 저장</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 강사 관리 화면 -->
   <div class="screen" id="screen-trainer">
     <div class="sub-header">

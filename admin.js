@@ -5156,7 +5156,7 @@
     { no:29, name:'브이스쿼트',                 muscles:'하체·엉덩이',              key:'v_squat' },
     { no:30, name:'시티드 카프레이즈',           muscles:'종아리',                  key:'calf_raise' },
     { no:31, name:'스미스 머신',                muscles:'운동방법에 따라 다름',      key:'smith_machine' },
-    { no:32, name:'듀얼 케이블 머신',            muscles:'운동방법에 따라 다름',      key:'cable_machine' },
+    { no:32, name:'케이블 머신',                 muscles:'운동방법에 따라 다름',      key:'cable_machine' },
   ];
 
   // 기구 목록 불러오기 (Firebase → 없으면 기본값 이전)
