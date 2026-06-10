@@ -5171,11 +5171,11 @@
           showToast('기본 기구 목록이 설정됐어요!', 'success');
         });
       } else {
-        const list = [];
-        snap.forEach(child => {
-          const val = child.val();
-          if (!val.key) val.key = child.key; // key 필드 없으면 Firebase 노드키로 보완
-          list.push(val);
+        // 코드(DEFAULT_EQUIPMENT) 우선 사용, Firebase는 memo만 반영
+        const list = DEFAULT_EQUIPMENT.map(orig => {
+          const fbSnap = snap.child(orig.key);
+          const memo = fbSnap.exists() ? (fbSnap.val().memo || '') : '';
+          return { ...orig, memo };
         });
         list.sort((a, b) => (a.no || 0) - (b.no || 0));
         renderAdminEquipmentList(list);

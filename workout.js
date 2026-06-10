@@ -535,29 +535,50 @@
   ];
   let cableTabIdx = 0;
   let cableSetCount = 0;
-  let cableRestTimer = null;
+  // 탭별 임시 세트 데이터 저장 (탭 전환 시 유지)
+  let cableTempSets = { pushdown:[], row:[], fly:[], curl:[], facepull:[], pulldown:[] };
+  let cableTempMemo = { pushdown:'', row:'', fly:'', curl:'', facepull:'', pulldown:'' };
 
   function openCableMachine() {
     cableTabIdx = 0; cableSetCount = 0;
-    selectCableTab(0);
+    // 임시 데이터 초기화
+    cableTempSets = { pushdown:[], row:[], fly:[], curl:[], facepull:[], pulldown:[] };
+    cableTempMemo = { pushdown:'', row:'', fly:'', curl:'', facepull:'', pulldown:'' };
     const now = new Date();
     const el = document.getElementById('cable-date-label');
     if (el) el.textContent = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 기록';
     document.getElementById('cable-rest-min').value = 0;
     document.getElementById('cable-rest-sec').value = 0;
+    selectCableTab(0);
     showScreen('screen-cable-machine');
   }
 
   function closeCableMachine() {
-    skipCableRestTimer();
-    const userId = localStorage.getItem('current_user');
+    skipRestTimer('cable-rest-timer-box');
     if (isTrainerMode) { isTrainerMode = false; showScreen('screen-trainee-detail'); switchTraineeTab('record'); }
     else { showScreen('screen-workout-qr'); renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate); }
   }
 
+  function _saveCableTabTemp() {
+    const ex = CABLE_EXERCISES[cableTabIdx];
+    const rows = document.querySelectorAll('#cable-set-list > div');
+    const sets = [];
+    rows.forEach(row => {
+      const inputs = row.querySelectorAll('input');
+      if (inputs.length >= 2) sets.push({ weight: inputs[0].value, reps: inputs[1].value });
+    });
+    cableTempSets[ex.key] = sets;
+    cableTempMemo[ex.key] = document.getElementById('cable-memo')?.value || '';
+  }
+
   function selectCableTab(idx) {
+    // 현재 탭 데이터 임시 저장
+    if (cableTabIdx !== idx) _saveCableTabTemp();
     cableTabIdx = idx;
     cableSetCount = 0;
+    // 타이머 중지
+    skipRestTimer('cable-rest-timer-box');
+    // 탭 하이라이트
     for (let i = 0; i < 6; i++) {
       const t = document.getElementById('cable-tab-' + i);
       if (!t) continue;
@@ -580,64 +601,49 @@
     if (musclesEl) musclesEl.textContent = ex.muscles;
     const effectEl = document.getElementById('cable-eq-effect');
     if (effectEl) effectEl.textContent = ex.effect;
-    const setList = document.getElementById('cable-set-list');
-    if (setList) setList.innerHTML = '';
+    // 임시 저장된 세트 복원 or 새 세트 추가
+    const list = document.getElementById('cable-set-list');
+    if (list) list.innerHTML = '';
     const memo = document.getElementById('cable-memo');
-    if (memo) memo.value = '';
-    skipCableRestTimer();
-    addCableSet();
+    const saved = cableTempSets[ex.key];
+    if (saved && saved.length > 0) {
+      saved.forEach(s => { addCableSet(s.weight, s.reps); });
+    } else {
+      addCableSet();
+    }
+    if (memo) memo.value = cableTempMemo[ex.key] || '';
     loadCablePrevRecords();
   }
 
-  function addCableSet() {
+  function addCableSet(weight, reps) {
     cableSetCount++;
     const list = document.getElementById('cable-set-list');
     if (!list) return;
+    const color = '#1a6fd4';
+    const n = cableSetCount;
+    const wVal = weight !== undefined ? weight : '';
+    const rVal = reps !== undefined ? reps : '';
+    const showDel = n > 1 ? 'flex' : 'none';
     const row = document.createElement('div');
-    row.style.cssText = 'display:grid;grid-template-columns:40px 1fr 1fr 36px 36px;gap:6px;margin-bottom:6px;align-items:center;';
-    row.id = 'cable-set-row-' + cableSetCount;
-    const numColor = '#1a6fd4';
-    row.innerHTML = '<div style="width:40px;height:40px;background:' + numColor + ';border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;font-weight:700;">' + cableSetCount + '</div>'
-      + '<input type="number" min="0" step="0.5" value="0" style="border:1.5px solid var(--border);border-radius:8px;padding:8px;font-size:15px;font-weight:700;text-align:center;width:100%;box-sizing:border-box;font-family:sans-serif;background:var(--card);color:var(--text);" onfocus="this.style.borderColor=\'#1a6fd4\'" onblur="this.style.borderColor=\'var(--border)\'">'
-      + '<input type="number" min="0" value="0" style="border:1.5px solid var(--border);border-radius:8px;padding:8px;font-size:15px;font-weight:700;text-align:center;width:100%;box-sizing:border-box;font-family:sans-serif;background:var(--card);color:var(--text);" onfocus="this.style.borderColor=\'#1a6fd4\'" onblur="this.style.borderColor=\'var(--border)\'">'  
-      + '<button onclick="deleteCableSet(' + cableSetCount + ')" style="width:36px;height:40px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text-hint);font-size:16px;cursor:pointer;">✕</button>'
-      + '<button onclick="addCableSetAndTimer()" style="width:36px;height:40px;background:#E6F1FB;border:none;border-radius:8px;color:#1a6fd4;font-size:20px;font-weight:700;cursor:pointer;">+</button>';
+    row.id = 'cable-set-row-' + n;
+    row.style.cssText = 'display:grid;grid-template-columns:40px 1fr 1fr 36px 36px;gap:6px;margin-bottom:8px;align-items:center;padding-right:2px;';
+    row.innerHTML = `<div style="text-align:center;font-size:14px;font-weight:700;color:white;background:${color};border-radius:8px;height:44px;display:flex;align-items:center;justify-content:center;">${n}</div>`
+      + `<input type="number" placeholder="0" min="0" max="500" step="2.5" value="${wVal}" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-weight:700;text-align:center;color:var(--text);outline:none;" id="cable-weight-${n}" onfocus="this.style.borderColor='${color}'" onblur="this.style.borderColor='var(--border)'">`
+      + `<input type="number" placeholder="0" min="0" max="200" value="${rVal}" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-weight:700;text-align:center;color:var(--text);outline:none;" id="cable-reps-${n}" onfocus="this.style.borderColor='${color}'" onblur="this.style.borderColor='var(--border)'">`
+      + `<button onclick="addCableSet()" style="width:36px;height:36px;border:none;background:var(--blue-light);color:var(--blue);border-radius:8px;cursor:pointer;font-size:20px;font-weight:700;display:flex;align-items:center;justify-content:center;">+</button>`
+      + `<button onclick="removeCableSet(${n})" style="width:36px;height:36px;border:none;background:#fee2e2;color:#ef4444;border-radius:8px;cursor:pointer;font-size:18px;display:${showDel};align-items:center;justify-content:center;">×</button>`;
     list.appendChild(row);
-    startCableRestTimer();
+    if (cableSetCount > 1 && weight === undefined) {
+      startRestTimer('cable-rest-timer-box', 'cable-rest-timer-count', 'cable-rest-min', 'cable-rest-sec');
+    }
   }
 
-  function addCableSetAndTimer() { addCableSet(); }
-
-  function deleteCableSet(n) {
+  function removeCableSet(n) {
     const row = document.getElementById('cable-set-row-' + n);
     if (row) row.remove();
   }
 
-  function startCableRestTimer() {
-    if (cableSetCount <= 1) return;
-    const min = parseInt(document.getElementById('cable-rest-min')?.value || 0);
-    const sec = parseInt(document.getElementById('cable-rest-sec')?.value || 0);
-    const total = min * 60 + sec;
-    if (total <= 0) return;
-    skipCableRestTimer();
-    const box = document.getElementById('cable-rest-timer-box');
-    const count = document.getElementById('cable-rest-timer-count');
-    if (!box || !count) return;
-    box.style.display = 'block';
-    let left = total;
-    count.textContent = Math.floor(left/60) + ':' + String(left%60).padStart(2,'0');
-    cableRestTimer = setInterval(() => {
-      left--;
-      if (left <= 0) { skipCableRestTimer(); return; }
-      count.textContent = Math.floor(left/60) + ':' + String(left%60).padStart(2,'0');
-    }, 1000);
-  }
-
-  function skipCableRestTimer() {
-    if (cableRestTimer) { clearInterval(cableRestTimer); cableRestTimer = null; }
-    const box = document.getElementById('cable-rest-timer-box');
-    if (box) box.style.display = 'none';
-  }
+  function skipCableRestTimer() { skipRestTimer('cable-rest-timer-box'); }
 
   function loadCablePrevRecords() {
     const userId = localStorage.getItem('current_user');
@@ -657,6 +663,9 @@
   function saveCableWorkout() {
     const userId = localStorage.getItem('current_user');
     const today = getToday();
+    // 저장 전 현재 탭 임시 저장
+    _saveCableTabTemp();
+    // 현재 탭 기록 저장
     const ex = CABLE_EXERCISES[cableTabIdx];
     const key = 'cable_ex_' + ex.key + '_' + userId;
     const rows = document.querySelectorAll('#cable-set-list > div');
@@ -681,7 +690,10 @@
     else records.push(record);
     localStorage.setItem(key, JSON.stringify(records));
     showToast(ex.name + ' 기록 저장! 💪', 'success');
-    skipCableRestTimer();
+    skipRestTimer('cable-rest-timer-box');
+    // 저장 후 현재 탭 임시 초기화
+    cableTempSets[ex.key] = [];
+    cableTempMemo[ex.key] = '';
     selectCableTab(cableTabIdx);
   }
   // ── 케이블 머신 전용 끝 ────────────────────────────────────
@@ -2155,10 +2167,11 @@
   function closeTimerDonePopup() { stopRestAlarm(); document.getElementById('timer-done-overlay').classList.remove('active'); }
   function updateTimerDisplay(el, remain) { const m = Math.floor(remain / 60); const s = remain % 60; el.textContent = m + ':' + String(s).padStart(2, '0'); }
 
-  function skipRestTimer() {
+  function skipRestTimer(extraBoxId) {
     if (restTimerInterval) { clearInterval(restTimerInterval); restTimerInterval = null; }
     stopRestAlarm(); releaseWakeLock();
-    ['rest-timer-box', 'inner-rest-timer-box', 'outer-rest-timer-box'].forEach(id => { const box = document.getElementById(id); if (box) box.style.display = 'none'; });
+    ['rest-timer-box', 'inner-rest-timer-box', 'outer-rest-timer-box', 'cable-rest-timer-box'].forEach(id => { const box = document.getElementById(id); if (box) box.style.display = 'none'; });
+    if (extraBoxId) { const box = document.getElementById(extraBoxId); if (box) box.style.display = 'none'; }
   }
 
   function skipFwRestTimer() {
