@@ -2035,28 +2035,21 @@
         return { order: idx + 1, remain, type: info.type || '' };
       }
 
-      // 잔여 0회 → 하단 (expiredAt 순서대로), 나머지 → 상단 (기존 순서)
+      // ended=true인 회원은 맨 뒤로, 나머지는 추가 순서 유지
       const withStatus = entries.map(([memberId, info]) => {
         const realName = nameMap[memberId] || info.name || memberId;
         const status = calcTraineeStatus(info);
         return { memberId, info, realName, status };
       });
       withStatus.sort((a, b) => {
-        const aZero = a.status.remain <= 0;
-        const bZero = b.status.remain <= 0;
-        if (aZero && !bZero) return 1;
-        if (!aZero && bZero) return -1;
-        if (aZero && bZero) {
-          // 둘 다 0이면 expiredAt 순서대로
-          const aExp = a.info.expiredAt || '';
-          const bExp = b.info.expiredAt || '';
-          return aExp.localeCompare(bExp);
-        }
-        return 0;
+        const aEnded = a.info.ended ? 1 : 0;
+        const bEnded = b.info.ended ? 1 : 0;
+        return aEnded - bEnded;
       });
 
       // 전체 회원 데이터 캐시 (검색용)
       window._traineeListData = withStatus;
+      window._traineeListTrainerId = userId;
 
       function renderTraineeCards(list) {
         if (!list.length) {
@@ -2067,19 +2060,39 @@
           const subText = status.type
             ? `${status.type} · ${status.order}차 진행중 · 잔여 ${status.remain}회`
             : '수업 종류 미설정';
-          const nameColor = status.remain <= 0 ? 'var(--text-hint)' : 'var(--blue)';
+          const isEnded = info.ended === true;
+          const isRereg = info.reregTarget === true;
+          const avatarBg = isEnded ? 'var(--text-hint)' : 'var(--blue)';
+          const endedBtnStyle = isEnded
+            ? 'background:#fee2e2;color:#ef4444;border:1px solid #fca5a5;'
+            : 'background:var(--bg);color:var(--text-sub);border:1px solid var(--border);';
+          const reregBtnStyle = isRereg
+            ? 'background:#dcfce7;color:#16a34a;border:1px solid #86efac;'
+            : 'background:var(--bg);color:var(--text-sub);border:1px solid var(--border);';
           return `
-          <div onclick="openTraineeDetail('${memberId}')"
-            style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer;"
-            ontouchstart="this.style.background='var(--blue-light)'" ontouchend="this.style.background='transparent'">
-            <div style="width:40px;height:40px;border-radius:50%;background:${nameColor};color:white;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;">
-              ${realName[0]}
+          <div style="padding:12px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:12px;cursor:pointer;"
+              onclick="openTraineeDetail('${memberId}')"
+              ontouchstart="this.style.background='var(--blue-light)'" ontouchend="this.style.background='transparent'">
+              <div style="width:40px;height:40px;border-radius:50%;background:${avatarBg};color:white;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0;">
+                ${realName[0]}
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:14px;font-weight:700;color:var(--text);">${realName}</div>
+                <div style="font-size:12px;color:var(--text-sub);">${subText}</div>
+              </div>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </div>
-            <div style="flex:1;">
-              <div style="font-size:14px;font-weight:700;color:var(--text);">${realName}</div>
-              <div style="font-size:12px;color:var(--text-sub);">${subText}</div>
+            <div style="display:flex;gap:6px;margin-top:8px;padding-left:52px;">
+              <button onclick="toggleTraineeEnded('${memberId}','${realName}',${isEnded})"
+                style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;${endedBtnStyle}">
+                ${isEnded ? '✓ 종료됨' : '종료'}
+              </button>
+              <button onclick="toggleTraineeRereg('${memberId}','${realName}',${isRereg})"
+                style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;${reregBtnStyle}">
+                ${isRereg ? '✓ 재등록대상' : '재등록대상'}
+              </button>
             </div>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </div>
         `}).join('');
       }
@@ -2101,6 +2114,50 @@
       }); // Promise.all 닫기
     });
   }
+
+  // 종료 버튼 토글
+  function toggleTraineeEnded(memberId, realName, isEnded) {
+    const trainerId = window._traineeListTrainerId;
+    if (!trainerId) return;
+    if (isEnded) {
+      showConfirm(realName + ' 회원의 종료를 취소할까요?', () => {
+        db.ref('trainers/' + trainerId + '/trainees/' + memberId + '/ended').remove().then(() => {
+          showToast('종료가 취소됐어요.', 'success');
+          loadTrainerTab();
+        });
+      });
+    } else {
+      showConfirm(realName + ' 회원을 종료 처리할까요?\n목록 맨 아래로 이동됩니다.', () => {
+        db.ref('trainers/' + trainerId + '/trainees/' + memberId + '/ended').set(true).then(() => {
+          showToast('종료 처리됐어요.', 'success');
+          loadTrainerTab();
+        });
+      });
+    }
+  }
+
+  // 재등록대상 버튼 토글
+  function toggleTraineeRereg(memberId, realName, isRereg) {
+    const trainerId = window._traineeListTrainerId;
+    if (!trainerId) return;
+    if (isRereg) {
+      showConfirm(realName + ' 회원의 재등록대상을 취소할까요?', () => {
+        db.ref('trainers/' + trainerId + '/trainees/' + memberId + '/reregTarget').remove().then(() => {
+          showToast('재등록대상이 취소됐어요.', 'success');
+          loadTrainerTab();
+        });
+      });
+    } else {
+      showConfirm(realName + ' 회원을 재등록대상으로 지정할까요?', () => {
+        db.ref('trainers/' + trainerId + '/trainees/' + memberId + '/reregTarget').set(true).then(() => {
+          showToast('재등록대상으로 지정됐어요.', 'success');
+          loadTrainerTab();
+        });
+      });
+    }
+  }
+  window.toggleTraineeEnded = toggleTraineeEnded;
+  window.toggleTraineeRereg = toggleTraineeRereg;
 
   // 담당 회원 캐시
   let _traineeMembersCache = [];
@@ -5735,20 +5792,14 @@
         const thisMonthRegs = regs.filter(r => r && r.date && isThisMonth(r.date));
         if (thisMonthRegs.length > 0) reMembers++;
 
-        // 재등록률 계산용
-        // 분모: 이번 달 만료 OR 이번 달 재등록한 회원 (중복 제거)
-        // 분자: 이번 달 재등록한 회원
-        const hasExpiredThisMonth = info.expiredAt && isThisMonth(info.expiredAt);
+        // 새 재등록률 계산: reregTarget=true인 회원 중 이번달 재등록한 회원
+        const isReregTarget = info.reregTarget === true;
         const hasReRegThisMonth = thisMonthRegs.length > 0;
-
-        // 조건1: 이번달 만료 → 이번달 재등록 ✅ 분모+분자
-        // 조건2: 전달 만료 → 이번달 재등록 ✅ 분모+분자 (expiredAt이 있고 재등록이 이번달)
-        // 조건3: 잔여 있는데 이번달 재등록 ✅ 분모+분자
-        if (hasReRegThisMonth) {
-          reRegThisMonth.push(info.name || memberId); // 분자
-        }
-        if (hasExpiredThisMonth && !hasReRegThisMonth) {
-          expiredThisMonth.push(info.name || memberId); // 분모만 (미재등록)
+        if (isReregTarget) {
+          expiredThisMonth.push(info.name || memberId); // 분모 (재등록대상)
+          if (hasReRegThisMonth) {
+            reRegThisMonth.push(info.name || memberId); // 분자 (실제 재등록)
+          }
         }
 
         return db.ref('trainers/' + trainerId + '/trainees/' + memberId + '/signs').once('value', sSnap => {
@@ -5788,16 +5839,18 @@
         set('th-remain-low', remainLow.length);
         set('th-remain-ok', remainOk.length);
 
-        // 재등록률 계산
-        // 분자: 이번달 재등록한 회원 수
-        // 분모: 이번달 재등록한 회원 + 이번달 만료됐는데 미재등록 회원
+        // 새 재등록률 계산
+        // 분모: reregTarget=true인 회원 (expiredThisMonth)
+        // 분자: 그 중 이번달 실제 재등록한 회원 (reRegThisMonth)
         const reRegDone = reRegThisMonth.length;
-        const reRegNotDone = expiredThisMonth.length; // 이미 미재등록만 들어있음
+        const reRegTotal = expiredThisMonth.length;
+        const reRegNotDone = reRegTotal - reRegDone;
         set('th-rereg-done', reRegDone);
-        set('th-rereg-not', reRegNotDone);
+        set('th-rereg-not', reRegNotDone >= 0 ? reRegNotDone : 0);
+        set('th-rereg-total', reRegTotal);
 
         thChartData = { attend, absent, remain0, remainLow, remainOk, reRegThisMonth, expiredThisMonth };
-        renderTrainerHomeCharts(reRegDone, reRegNotDone, remain0.length, remainLow.length, remainOk.length);
+        renderTrainerHomeCharts(reRegDone, reRegNotDone >= 0 ? reRegNotDone : 0, remain0.length, remainLow.length, remainOk.length);
       });
     });
   }
@@ -5857,8 +5910,12 @@
       title = '이번 달 미출석 회원';
       list = thChartData.absent;
     } else if (type === 'rereg') {
-      title = '이번 달 재등록 회원';
-      list = thChartData.reRegThisMonth || [];
+      title = '이번 달 재등록률 현황';
+      const done = (thChartData.reRegThisMonth || []).map(n => `<span style="color:#22c55e;">✓ ${escapeHtml(n)} (재등록 완료)</span>`);
+      const notDone = (thChartData.expiredThisMonth || [])
+        .filter(n => !(thChartData.reRegThisMonth || []).includes(n))
+        .map(n => `<span style="color:#888780;">◦ ${escapeHtml(n)} (미재등록)</span>`);
+      list = [...done, ...notDone];
     } else if (type === 'remain') {
       title = '잔여 횟수 현황';
       const r0 = thChartData.remain0.map(n => `<span style="color:#ef4444;">⚠ ${escapeHtml(n)} (0회)</span>`);
