@@ -709,22 +709,17 @@
     });
 
     skipRestTimer('cable-rest-timer-box');
-    showToast('케이블 운동 ' + savedCount + '종목 저장! 💪', 'success');
 
     // 임시 데이터 초기화
     cableTempSets = { pushdown:[], row:[], fly:[], curl:[], facepull:[], pulldown:[] };
     cableTempMemo = { pushdown:'', row:'', fly:'', curl:'', facepull:'', pulldown:'' };
 
-    // 일반 기구처럼 달력 화면으로 이동
-    if (isTrainerMode) {
-      isTrainerMode = false;
-      showScreen('screen-trainee-detail');
-      switchTraineeTab('record');
-    } else {
-      showScreen('screen-workout-qr');
-      renderCalendar();
-      if (calSelectedDate) renderDayDetail(calSelectedDate);
-    }
+    // 운동 완료 오버레이 표시 (일반 기구와 동일)
+    const totalSets = savedCount;
+    const color = '#1a6fd4';
+    document.getElementById('workout-complete-msg').textContent = '케이블 머신 ' + savedCount + '종목 완료!';
+    document.getElementById('workout-summary').innerHTML = `<div style="text-align:center;font-size:15px;color:#5a6478;">수고하셨어요! 💪<br>오늘 케이블 운동 <span style="color:${color};font-weight:700;">${savedCount}종목</span> 기록됐어요.</div>`;
+    document.getElementById('workout-complete-overlay').classList.add('active');
   }
   // ── 케이블 머신 전용 끝 ────────────────────────────────────
 
@@ -885,7 +880,7 @@
     document.getElementById('workout-complete-overlay').classList.add('active');
   }
 
-  function closeWorkoutComplete() { document.getElementById('workout-complete-overlay').classList.remove('active'); if (isTrainerMode) { isTrainerMode = false; showScreen('screen-trainee-detail'); switchTraineeTab('record'); } else { closeWorkoutDetail(); renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate); } }
+  function closeWorkoutComplete() { document.getElementById('workout-complete-overlay').classList.remove('active'); if (isTrainerMode) { isTrainerMode = false; showScreen('screen-trainee-detail'); switchTraineeTab('record'); } else { const isCable = document.getElementById('screen-cable-machine')?.classList.contains('active'); if (isCable) { showScreen('screen-workout-qr'); } else { closeWorkoutDetail(); } renderCalendar(); if (calSelectedDate) renderDayDetail(calSelectedDate); } }
 
   function loadPrevRecords() {
     if (!currentEquipment) return;
