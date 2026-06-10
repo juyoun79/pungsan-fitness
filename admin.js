@@ -5887,15 +5887,23 @@
         const data = chart.data.datasets[0].data;
         const total = data.reduce((a, b) => a + b, 0);
         if (!total) return;
-        // 데이터가 1개(회색 도넛)이면 중앙 텍스트 표시 안 함
-        if (data.length === 1) return;
-        const pct = Math.round(data[0] / total * 100);
         ctx.save();
-        ctx.font = '700 13px sans-serif';
-        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-primary') || '#111';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(pct + '%', cx, cy);
+        // 데이터가 1개(회색 도넛) → N/A + 대상없음 두 줄 표시
+        if (data.length === 1) {
+          const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-hint') || '#aaa';
+          ctx.fillStyle = textColor;
+          ctx.font = '700 12px sans-serif';
+          ctx.fillText('N/A', cx, cy - 7);
+          ctx.font = '400 10px sans-serif';
+          ctx.fillText('대상없음', cx, cy + 7);
+        } else {
+          const pct = Math.round(data[0] / total * 100);
+          ctx.font = '700 13px sans-serif';
+          ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-primary') || '#111';
+          ctx.fillText(pct + '%', cx, cy);
+        }
         ctx.restore();
       }
     };
