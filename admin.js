@@ -649,10 +649,15 @@
         const regs = info.registrations ? Object.values(info.registrations) : [];
         const thisMonthRegs = regs.filter(r => r && r.date && isThisMonth(r.date));
         if (thisMonthRegs.length > 0) reMembers++;
+        // 새 재등록률 계산: reregTarget=true인 회원 중 이번달 재등록한 회원
+        const isReregTarget2 = info.reregTarget === true;
         const hasReRegThisMonth2 = thisMonthRegs.length > 0;
-        const hasExpiredThisMonth2 = info.expiredAt && isThisMonth(info.expiredAt);
-        if (hasReRegThisMonth2) reRegThisMonth.push(info.name || memberId);
-        if (hasExpiredThisMonth2 && !hasReRegThisMonth2) expiredThisMonth.push(info.name || memberId);
+        if (isReregTarget2) {
+          expiredThisMonth.push(info.name || memberId); // 분모 (재등록대상)
+          if (hasReRegThisMonth2) {
+            reRegThisMonth.push(info.name || memberId); // 분자 (실제 재등록)
+          }
+        }
         return db.ref('trainers/' + trainerId + '/trainees/' + memberId + '/signs').once('value', sSnap => {
           let lastSignTime = 0;
           if (sSnap.exists()) {
@@ -676,7 +681,8 @@
         set('rpt-total-remain', totalRemain);
         set('rpt-inactive-members', inactiveMembers);
         const reRegDone = reRegThisMonth.length;
-        const reRegNotDone = expiredThisMonth.length; // 이미 미재등록만 들어있음
+        const reRegTotal = expiredThisMonth.length;
+        const reRegNotDone = Math.max(0, reRegTotal - reRegDone);
         set('rpt-rereg-done', reRegDone);
         set('rpt-rereg-not', reRegNotDone);
         set('rpt-remain-0', remain0.length);
@@ -686,7 +692,13 @@
         const drawRptCharts = () => {
           const c1 = document.getElementById('rpt-chart-rereg');
           const c2 = document.getElementById('rpt-chart-remain');
-          if (c1) { if (c1._chart) c1._chart.destroy(); c1._chart = new Chart(c1, { type:'doughnut', data:{ datasets:[{ data:[reRegDone||0, reRegNotDone||0], backgroundColor:['#22c55e','#888780'], borderWidth:0 }] }, options:{ cutout:'65%', plugins:{ legend:{display:false}, tooltip:{enabled:false} } } }); }
+          if (c1) {
+            if (c1._chart) c1._chart.destroy();
+            const rptReregData = reRegTotal > 0
+              ? { data: [reRegDone, reRegNotDone], backgroundColor: ['#22c55e', '#888780'] }
+              : { data: [1], backgroundColor: ['#D3D1C7'] };
+            c1._chart = new Chart(c1, { type:'doughnut', data:{ datasets:[{ ...rptReregData, borderWidth:0 }] }, options:{ cutout:'65%', plugins:{ legend:{display:false}, tooltip:{enabled:false} } } });
+          }
           if (c2) { if (c2._chart) c2._chart.destroy(); c2._chart = new Chart(c2, { type:'doughnut', data:{ datasets:[{ data:[remain0.length||0, remainLow.length||0, remainOk.length||0], backgroundColor:['#ef4444','#f59e0b','#22c55e'], borderWidth:0 }] }, options:{ cutout:'65%', plugins:{ legend:{display:false}, tooltip:{enabled:false} } } }); }
         };
         if (typeof Chart !== 'undefined') {
@@ -5892,9 +5904,14 @@
     if (thAttendChart) thAttendChart.destroy();
     if (thRemainChart) thRemainChart.destroy();
 
+    // 재등록대상 없으면 회색 도넛
+    const reRegTotal = reRegDone + reRegNotDone;
+    const reRegData = reRegTotal > 0
+      ? { data: [reRegDone, reRegNotDone], backgroundColor: ['#22c55e', '#888780'] }
+      : { data: [1], backgroundColor: ['#D3D1C7'] };
     thAttendChart = new Chart(c1, {
       type: 'doughnut',
-      data: { datasets: [{ data: [reRegDone, reRegNotDone], backgroundColor: ['#22c55e', '#888780'], borderWidth: 0 }] },
+      data: { datasets: [{ ...reRegData, borderWidth: 0 }] },
       options: { cutout: '68%', plugins: { legend: { display: false }, tooltip: { enabled: false } }, animation: { duration: 600 } }
     });
     thRemainChart = new Chart(c2, {
