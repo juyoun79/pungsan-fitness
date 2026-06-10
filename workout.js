@@ -2802,6 +2802,25 @@
           return;
         }
 
+        // 케이블 운동 이전 기록 불러오기
+        if (ex.isCableEx && ex.cableKey) {
+          const cableStorageKey = 'cable_ex_' + ex.cableKey + '_' + userId;
+          const cableRecs = JSON.parse(localStorage.getItem(cableStorageKey) || '[]');
+          const cableLast = cableRecs[cableRecs.length - 1] || null;
+          const prevSets = cableLast ? cableLast.sets : null;
+          const sets = ex.sets || 3;
+          const inputSets = [];
+          for (let i = 0; i < sets; i++) {
+            inputSets.push({
+              set: i+1,
+              weight: prevSets&&prevSets[i] ? prevSets[i].weight : (ex.weight||0),
+              reps: prevSets&&prevSets[i] ? prevSets[i].reps : (ex.reps||10),
+              prevWeight: prevSets&&prevSets[i] ? prevSets[i].weight : null
+            });
+          }
+          exercises.push({ name: ex.name, sets: inputSets, isCableEx: true, cableKey: ex.cableKey });
+          return;
+        }
         // 기구 여부 확인
         const eqMatch = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : []).find(e => e.name === ex.name);
         let last = null;
@@ -3126,6 +3145,17 @@
       if (validSets.length === 0) return;
       const mappedSets = validSets.map((s,i) => ({ set:i+1, weight:s.weight, reps:s.reps }));
       const record = { date, dateLabel, savedAt, sets: mappedSets };
+
+      // 케이블 운동 저장
+      if (ex.isCableEx && ex.cableKey) {
+        const cableStorageKey = 'cable_ex_' + ex.cableKey + '_' + userId;
+        const cableRecords = JSON.parse(localStorage.getItem(cableStorageKey) || '[]');
+        const cableIdx = cableRecords.findIndex(r => r.date === date);
+        if (cableIdx >= 0) cableRecords[cableIdx] = record; else cableRecords.push(record);
+        localStorage.setItem(cableStorageKey, JSON.stringify(cableRecords));
+        savedCount++;
+        return;
+      }
 
       // 기구 vs 프리웨이트 구분 저장
       const eqMatch = ex.eqKey
