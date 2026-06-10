@@ -789,11 +789,15 @@
     db.ref('users/' + userId + '/attendance').once('value', snap => {
       let total = 0, month = 0;
       let todayDone = false;
+      _attCalDates = [];
       snap.forEach(child => {
         total++;
+        _attCalDates.push(child.key);
         if (child.key.startsWith(monthPrefix)) month++;
         if (child.key === today) todayDone = true;
       });
+      // 달력이 열려 있으면 재렌더링
+      if (_attCalMode) renderAttCal();
       const elTotal = document.getElementById('att-total'); if (elTotal) elTotal.textContent = total;
       const elMonth = document.getElementById('att-month'); if (elMonth) elMonth.textContent = month;
       // 오늘 출석 배지 업데이트
@@ -865,12 +869,107 @@
     );
   }
 
+  // ── 출석 달력 관련 변수 ──
+  let _attCalMode   = null;   // 'total' | 'month' | null
+  let _attCalYear   = null;
+  let _attCalMonth  = null;
+  let _attCalDates  = [];     // loadAttendanceStats 에서 채워짐
+
+  function toggleAttCal(mode) {
+    const wrap = document.getElementById('att-cal-wrap');
+    const cardTotal  = document.getElementById('att-card-total');
+    const cardMonth  = document.getElementById('att-card-month');
+    const cardPoints = document.getElementById('att-card-points');
+    if (!wrap) return;
+    // 같은 카드를 다시 탭하면 달력 닫기
+    if (_attCalMode === mode && wrap.style.display !== 'none') {
+      wrap.style.display = 'none';
+      _attCalMode = null;
+      [cardTotal, cardMonth, cardPoints].forEach(c => { if (c) { c.style.borderColor = ''; c.style.background = ''; } });
+      return;
+    }
+    _attCalMode = mode;
+    const now = new Date();
+    _attCalYear  = now.getFullYear();
+    _attCalMonth = now.getMonth(); // 0-indexed
+    // 카드 하이라이트
+    [cardTotal, cardMonth, cardPoints].forEach(c => { if (c) { c.style.borderColor = ''; c.style.background = ''; } });
+    const activeCard = mode === 'total' ? cardTotal : cardMonth;
+    if (activeCard) { activeCard.style.borderColor = '#378ADD'; activeCard.style.background = 'var(--bg)'; }
+    wrap.style.display = 'block';
+    renderAttCal();
+  }
+
+  function goAttPoint() {
+    // 포인트 카드 탭 → 포인트 상점/내역 화면으로 이동
+    const calWrap = document.getElementById('att-cal-wrap');
+    if (calWrap) calWrap.style.display = 'none';
+    _attCalMode = null;
+    if (typeof openPointShopScreen === 'function') openPointShopScreen();
+  }
+
+  function attCalMove(dir) {
+    _attCalMonth += dir;
+    if (_attCalMonth < 0)  { _attCalMonth = 11; _attCalYear--; }
+    if (_attCalMonth > 11) { _attCalMonth = 0;  _attCalYear++; }
+    renderAttCal();
+  }
+
+  function renderAttCal() {
+    const label = document.getElementById('att-cal-label');
+    const grid  = document.getElementById('att-cal-grid');
+    if (!label || !grid) return;
+    label.textContent = _attCalYear + '년 ' + (_attCalMonth + 1) + '월';
+    const now      = new Date();
+    const todayStr = now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate();
+    // 이달 필터 여부
+    const filterMonth = _attCalMode === 'month';
+    const prefix = _attCalYear + '-' + (_attCalMonth + 1) + '-';
+    // 이달 출석 날짜 Set (unpadded 키: "2026-6-5" 등)
+    const attendedSet = new Set(_attCalDates.filter(d => d.startsWith(prefix)));
+    // 달력 셀 생성
+    const firstDay = new Date(_attCalYear, _attCalMonth, 1).getDay(); // 0=일
+    const lastDate = new Date(_attCalYear, _attCalMonth + 1, 0).getDate();
+    let html = '';
+    for (let i = 0; i < firstDay; i++) html += '<div></div>';
+    for (let d = 1; d <= lastDate; d++) {
+      const dateStr = _attCalYear + '-' + (_attCalMonth + 1) + '-' + d;
+      const isToday    = dateStr === todayStr;
+      const isAttended = attendedSet.has(dateStr);
+      const dow = (firstDay + d - 1) % 7;
+      let style = 'font-size:11px;text-align:center;line-height:26px;width:26px;height:26px;margin:0 auto;border-radius:50%;';
+      if (isAttended) {
+        style += 'background:#378ADD;color:#fff;font-weight:700;';
+      } else if (isToday) {
+        style += 'border:1.5px solid #378ADD;color:#378ADD;font-weight:700;box-sizing:border-box;';
+      } else if (dow === 0) {
+        style += 'color:#ef4444;';
+      } else if (dow === 6) {
+        style += 'color:#378ADD;';
+      } else {
+        style += 'color:var(--text);';
+      }
+      // 오늘이면서 출석한 경우
+      if (isAttended && isToday) style = 'font-size:11px;text-align:center;line-height:26px;width:26px;height:26px;margin:0 auto;border-radius:50%;background:#185FA5;color:#fff;font-weight:700;';
+      html += '<div style="' + style + '">' + d + '</div>';
+    }
+    grid.innerHTML = html;
+  }
+
   function resetAttendance() {
     stopQrCamera();
     document.getElementById('qr-btn-wrap').style.display = 'block';
     document.getElementById('qr-scanner-wrap').style.display = 'none';
     const statusEl = document.getElementById('qr-status-msg');
     if (statusEl) statusEl.textContent = 'QR코드를 네모 안에 맞춰주세요';
+    // 달력 닫기
+    const calWrap = document.getElementById('att-cal-wrap');
+    if (calWrap) calWrap.style.display = 'none';
+    _attCalMode = null;
+    ['att-card-total','att-card-month','att-card-points'].forEach(id => {
+      const c = document.getElementById(id);
+      if (c) { c.style.borderColor = ''; c.style.background = ''; }
+    });
     // 완료 영역 숨기고 QR/GPS 영역 복원
     const doneWrap = document.getElementById('att-done-wrap');
     const gpsCard  = document.getElementById('att-gps-card');

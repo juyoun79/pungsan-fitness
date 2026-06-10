@@ -1742,21 +1742,47 @@
       </div>
 
       <!-- 통계 3개 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 8px;text-align:center;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div id="att-card-total" onclick="toggleAttCal('total')" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 8px;text-align:center;cursor:pointer;transition:border-color 0.2s;">
           <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">누적 출석</div>
           <div style="font-size:20px;font-weight:700;color:var(--blue);" id="att-total">-</div>
           <div style="font-size:10px;color:var(--text-hint);">회</div>
+          <div style="font-size:9px;color:var(--blue);margin-top:3px;">탭해서 보기</div>
         </div>
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 8px;text-align:center;">
+        <div id="att-card-month" onclick="toggleAttCal('month')" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 8px;text-align:center;cursor:pointer;transition:border-color 0.2s;">
           <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">이번달</div>
           <div style="font-size:20px;font-weight:700;color:var(--blue);" id="att-month">-</div>
           <div style="font-size:10px;color:var(--text-hint);">회</div>
+          <div style="font-size:9px;color:var(--blue);margin-top:3px;">탭해서 보기</div>
         </div>
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 8px;text-align:center;">
+        <div id="att-card-points" onclick="goAttPoint()" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 8px;text-align:center;cursor:pointer;transition:border-color 0.2s;">
           <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">보유 포인트</div>
           <div style="font-size:20px;font-weight:700;color:#d97706;" id="att-points">-</div>
           <div style="font-size:10px;color:var(--text-hint);">P</div>
+          <div style="font-size:9px;color:#d97706;margin-top:3px;">내역 보기 ›</div>
+        </div>
+      </div>
+
+      <!-- 출석 달력 (카드 탭 시 표시) -->
+      <div id="att-cal-wrap" style="display:none;background:var(--card);border:1px solid #B5D4F4;border-radius:var(--radius);padding:12px;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <button onclick="attCalMove(-1)" style="background:none;border:none;color:var(--blue);font-size:18px;cursor:pointer;padding:0 6px;">‹</button>
+          <span id="att-cal-label" style="font-size:13px;font-weight:700;color:#0c447c;"></span>
+          <button onclick="attCalMove(1)" style="background:none;border:none;color:var(--blue);font-size:18px;cursor:pointer;padding:0 6px;">›</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
+          <div style="font-size:9px;color:#ef4444;text-align:center;font-weight:600;">일</div>
+          <div style="font-size:9px;color:var(--text-hint);text-align:center;font-weight:600;">월</div>
+          <div style="font-size:9px;color:var(--text-hint);text-align:center;font-weight:600;">화</div>
+          <div style="font-size:9px;color:var(--text-hint);text-align:center;font-weight:600;">수</div>
+          <div style="font-size:9px;color:var(--text-hint);text-align:center;font-weight:600;">목</div>
+          <div style="font-size:9px;color:var(--text-hint);text-align:center;font-weight:600;">금</div>
+          <div style="font-size:9px;color:#378ADD;text-align:center;font-weight:600;">토</div>
+        </div>
+        <div id="att-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:8px;justify-content:flex-end;">
+          <div style="display:flex;align-items:center;gap:3px;"><div style="width:8px;height:8px;border-radius:50%;background:#378ADD;"></div><span style="font-size:9px;color:var(--text-hint);">출석일</span></div>
+          <div style="display:flex;align-items:center;gap:3px;"><div style="width:8px;height:8px;border-radius:50%;border:1.5px solid #378ADD;"></div><span style="font-size:9px;color:var(--text-hint);">오늘</span></div>
         </div>
       </div>
 
@@ -1769,18 +1795,8 @@
           <div style="font-size:17px;font-weight:700;color:#0c447c;margin-bottom:4px;">오늘 출석 완료!</div>
           <div style="font-size:13px;color:#185fa5;" id="att-done-time"></div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center;">
-            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">누적 출석</div>
-            <div style="font-size:24px;font-weight:700;color:var(--blue);" id="att-done-total">-</div>
-            <div style="font-size:11px;color:var(--text-hint);">회</div>
-          </div>
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center;">
-            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">이번 달 출석</div>
-            <div style="font-size:24px;font-weight:700;color:var(--blue);" id="att-done-month">-</div>
-            <div style="font-size:11px;color:var(--text-hint);">회</div>
-          </div>
-        </div>
+        <div id="att-done-total" style="display:none;"></div>
+        <div id="att-done-month" style="display:none;"></div>
         <div id="att-done-point-wrap" style="background:#f0fdf4;border:1px solid #86efac;border-radius:var(--radius);padding:12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:10px;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
           <div>
