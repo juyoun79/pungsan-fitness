@@ -3291,6 +3291,19 @@
   </div>
 
   <!-- 운동기록 수정 모달 -->
+  <!-- 케이블 머신 운동 선택 모달 -->
+  <div class="modal-overlay" id="cable-select-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:3000;display:none;align-items:flex-end;justify-content:center;">
+    <div style="background:var(--card);border-radius:20px 20px 0 0;padding:20px 16px 32px;width:100%;max-width:430px;box-sizing:border-box;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div style="font-size:16px;font-weight:700;color:var(--text);">케이블 운동 선택</div>
+        <button onclick="closeCableSelectModal()" style="background:none;border:none;font-size:20px;color:var(--text-hint);cursor:pointer;">×</button>
+      </div>
+      <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;">원하는 운동을 복수 선택 후 추가하세요</div>
+      <div id="cable-select-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;"></div>
+      <button onclick="applyCableSelection()" style="width:100%;background:#1a6fd4;color:white;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">선택 완료 → 루틴에 추가</button>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="edit-workout-modal">
     <div class="modal-sheet" style="overflow-y:auto;">
       <div class="modal-title">

@@ -2772,6 +2772,11 @@
   function addTRexercise(name) {
     const existing = collectTRexItems();
     const eqMatch = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : []).find(e => e.name === name);
+    // 케이블 머신 → 선택 모달 표시
+    if (eqMatch && eqMatch.key === 'cable_machine') {
+      if (typeof openCableSelectModal === 'function') openCableSelectModal('tr');
+      return;
+    }
     if (eqMatch && typeof isDualEquipment === 'function' && isDualEquipment(eqMatch.key)) {
       const info = getDualNames(eqMatch.key);
       const frontName = info.front + ' (' + eqMatch.name + ')';
@@ -2798,6 +2803,16 @@
     if (activeCat) selectTRCategory(activeCat);
     const searchVal = document.getElementById('tr-routine-ex-search-input')?.value;
     if (searchVal && searchVal.trim()) searchTRexercise(searchVal);
+  }
+
+  function addTRcableExercises(selected) {
+    const existing = collectTRexItems();
+    selected.forEach(ex => {
+      if (!existing.find(e => e.name === ex.name)) {
+        existing.push({ name: ex.name, sets: 3, weight: 0, reps: 10, isCableEx: true, cableKey: ex.key });
+      }
+    });
+    renderTRexList(existing);
   }
 
   function saveTraineeRoutine() {

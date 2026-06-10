@@ -2616,10 +2616,78 @@
     }).join('');
   }
 
+  // ── 케이블 머신 선택 모달 ──
+  let _cableSelectMode = 'routine'; // 'routine' | 'tr'
+  let _cableChecked = {};
+
+  function openCableSelectModal(mode) {
+    _cableSelectMode = mode;
+    _cableChecked = {};
+    const grid = document.getElementById('cable-select-grid');
+    if (!grid) return;
+    grid.innerHTML = CABLE_EXERCISES.map((ex, i) => {
+      return '<div id="csel-' + i + '" onclick="toggleCableSel(' + i + ')" style="display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);cursor:pointer;">'
+        + '<div id="csel-box-' + i + '" style="width:16px;height:16px;border-radius:4px;border:1.5px solid #bbb;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:10px;color:#1a6fd4;font-weight:700;flex-shrink:0;"></div>'
+        + '<span style="font-size:11px;font-weight:700;color:var(--text-sub);line-height:1.3;">' + ex.name + '</span>'
+        + '</div>';
+    }).join('');
+    const modal = document.getElementById('cable-select-modal');
+    if (modal) { modal.style.display = 'flex'; }
+  }
+
+  function toggleCableSel(idx) {
+    _cableChecked[idx] = !_cableChecked[idx];
+    const item = document.getElementById('csel-' + idx);
+    const box  = document.getElementById('csel-box-' + idx);
+    if (_cableChecked[idx]) {
+      item.style.borderColor = '#1a6fd4';
+      item.style.background = '#E6F1FB';
+      box.style.borderColor = '#1a6fd4';
+      box.style.background = '#1a6fd4';
+      box.textContent = '✓';
+      box.style.color = '#fff';
+    } else {
+      item.style.borderColor = 'var(--border)';
+      item.style.background = 'var(--card)';
+      box.style.borderColor = '#bbb';
+      box.style.background = 'var(--card)';
+      box.textContent = '';
+    }
+  }
+
+  function closeCableSelectModal() {
+    const modal = document.getElementById('cable-select-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function applyCableSelection() {
+    const selected = CABLE_EXERCISES.filter((_, i) => _cableChecked[i]);
+    if (selected.length === 0) { showToast('운동을 하나 이상 선택해주세요!', 'error'); return; }
+    closeCableSelectModal();
+    if (_cableSelectMode === 'routine') {
+      const existing = collectRoutineCreateItems();
+      selected.forEach(ex => {
+        if (!existing.find(e => e.name === ex.name)) {
+          existing.push({ name: ex.name, sets: 3, weight: 0, reps: 10, isCableEx: true, cableKey: ex.key });
+        }
+      });
+      renderRoutineCreateList(existing);
+    } else {
+      // 강사 루틴 보내기
+      if (typeof addTRcableExercises === 'function') addTRcableExercises(selected);
+    }
+  }
+  // ── 케이블 머신 선택 모달 끝 ──
+
   function addRoutineExercise(name) {
     const existing = collectRoutineCreateItems();
-    // 듀얼머신 확인
+    // 케이블 머신 → 선택 모달 표시
     const eqMatch = (typeof EQUIPMENT_LIST !== 'undefined' ? EQUIPMENT_LIST : []).find(e => e.name === name);
+    if (eqMatch && eqMatch.key === 'cable_machine') {
+      openCableSelectModal('routine');
+      return;
+    }
+    // 듀얼머신 확인
     if (eqMatch && typeof isDualEquipment === 'function' && isDualEquipment(eqMatch.key)) {
       const info = getDualNames(eqMatch.key);
       const frontName = info.front + ' (' + eqMatch.name + ')';
