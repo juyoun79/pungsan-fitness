@@ -5178,19 +5178,30 @@
   function loadAdminEquipmentList() {
     db.ref('equipment').once('value').then(snap => {
       if (!snap.exists()) {
-        // 최초 1회: 기본값 Firebase에 저장
+        // 최초 1회: 기본값 Firebase에 저장 (현재 코드 기준)
         const batch = {};
-        DEFAULT_EQUIPMENT.forEach(eq => { batch[eq.key] = eq; });
+        DEFAULT_EQUIPMENT.forEach(eq => { batch[eq.key] = { no: eq.no, name: eq.name, muscles: eq.muscles, memo: '', key: eq.key }; });
         db.ref('equipment').set(batch).then(() => {
           renderAdminEquipmentList(DEFAULT_EQUIPMENT);
           showToast('기본 기구 목록이 설정됐어요!', 'success');
         });
       } else {
-        // 코드(DEFAULT_EQUIPMENT) 우선 사용, Firebase는 memo만 반영
-        const list = DEFAULT_EQUIPMENT.map(orig => {
-          const fbSnap = snap.child(orig.key);
-          const memo = fbSnap.exists() ? (fbSnap.val().memo || '') : '';
-          return { ...orig, memo };
+        // Firebase 데이터 우선, effect/brand/emoji는 코드에서 보완
+        const list = [];
+        snap.forEach(child => {
+          const val = child.val();
+          if (!val.key) val.key = child.key;
+          const orig = DEFAULT_EQUIPMENT.find(e => e.key === val.key);
+          list.push({
+            no:      val.no      || (orig ? orig.no : 99),
+            name:    val.name    || (orig ? orig.name : ''),
+            muscles: val.muscles || (orig ? orig.muscles : ''),
+            effect:  orig ? orig.effect : '',
+            brand:   orig ? orig.brand  : '',
+            emoji:   orig ? orig.emoji  : '🏋️',
+            memo:    val.memo || '',
+            key:     val.key,
+          });
         });
         list.sort((a, b) => (a.no || 0) - (b.no || 0));
         renderAdminEquipmentList(list);
@@ -5224,8 +5235,15 @@
   function openEditEquipmentModal(key) {
     if (!key) { showToast('기구 키가 없어요. 기구 목록을 다시 불러와주세요.', 'error'); return; }
     db.ref('equipment/' + key).once('value').then(snap => {
-      if (!snap.exists()) return;
-      const eq = snap.val();
+      // Firebase에 없으면 코드(DEFAULT_EQUIPMENT)에서 보완
+      let eq = snap.exists() ? snap.val() : null;
+      if (!eq) {
+        const orig = DEFAULT_EQUIPMENT.find(e => e.key === key);
+        if (!orig) { showToast('기구 정보를 찾을 수 없어요.', 'error'); return; }
+        eq = { no: orig.no, name: orig.name, muscles: orig.muscles, memo: '', key: orig.key };
+        // Firebase에 없으면 지금 저장
+        db.ref('equipment/' + key).set(eq);
+      }
       _equipmentCache[key] = eq;
       document.getElementById('equipment-modal-title').textContent = '✏️ 기구 수정';
       document.getElementById('equipment-edit-no').value      = eq.no || '';
@@ -5299,6 +5317,30 @@
       });
     });
   }
+  // 코드 기준으로 Firebase DB 일괄 동기화 (관리자 전용)
+  function syncEquipmentToFirebase() {
+    showConfirm('코드 기준으로 Firebase DB를 업데이트할까요?\n(관리자가 수정한 내용은 유지됩니다)', () => {
+      db.ref('equipment').once('value').then(snap => {
+        const updates = {};
+        DEFAULT_EQUIPMENT.forEach(eq => {
+          const existing = snap.exists() ? snap.child(eq.key).val() : null;
+          // 이미 Firebase에 있으면 name/muscles/no만 코드 기준으로 업데이트, memo는 유지
+          updates[eq.key] = {
+            no:      eq.no,
+            name:    eq.name,
+            muscles: eq.muscles,
+            memo:    existing ? (existing.memo || '') : '',
+            key:     eq.key,
+          };
+        });
+        db.ref('equipment').update(updates).then(() => {
+          showToast('✅ DB 동기화 완료!', 'success');
+          syncEquipmentFromFirebase(() => loadAdminEquipmentList());
+        });
+      });
+    });
+  }
+  window.syncEquipmentToFirebase = syncEquipmentToFirebase;
   window.loadAdminEquipmentList = loadAdminEquipmentList;
   window.openEditEquipmentModal = openEditEquipmentModal;
   window.openAddEquipmentModal  = openAddEquipmentModal;
