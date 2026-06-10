@@ -1167,7 +1167,7 @@
             const n = r.sets?.length || 0;
             const maxW = r.sets ? Math.max(...r.sets.map(s => s.weight||0)) : 0;
             const rep = r.sets?.[0]?.reps || 0;
-            records.push({ type:'equipment', name: subName, summary: n + '세트 · ' + (maxW>0?maxW+'kg':'자체중량') + ' · ' + rep + '회' });
+            records.push({ type:'equipment', name: subName, summary: n + '세트 · ' + (maxW>0?maxW+'kg':'자체중량') + ' · ' + rep + '회', savedAt: r.savedAt || '' });
           }
         });
       } else {
@@ -1176,7 +1176,7 @@
           const n = r.sets?.length || 0;
           const maxW = r.sets ? Math.max(...r.sets.map(s => s.weight||0)) : 0;
           const rep = r.sets?.[0]?.reps || 0;
-          records.push({ type:'equipment', name: eq.name, summary: n + '세트 · ' + (maxW>0?maxW+'kg':'자체중량') + ' · ' + rep + '회' });
+          records.push({ type:'equipment', name: eq.name, summary: n + '세트 · ' + (maxW>0?maxW+'kg':'자체중량') + ' · ' + rep + '회', savedAt: r.savedAt || '' });
         }
       }
     }
@@ -1188,21 +1188,28 @@
         const n = r.sets?.length || 0;
         const maxW = r.sets ? Math.max(...r.sets.map(s => s.weight||0)) : 0;
         const rep = r.sets?.[0]?.reps || 0;
-        records.push({ type:'freeweight', name, summary: n + '세트 · ' + (maxW>0?maxW+'kg':'자체중량') + ' · ' + rep + '회' });
+        records.push({ type:'freeweight', name, summary: n + '세트 · ' + (maxW>0?maxW+'kg':'자체중량') + ' · ' + rep + '회', savedAt: r.savedAt || '' });
       }
     }
     // 유산소
     const cardioIndex = JSON.parse(localStorage.getItem('cardio_index_' + userId) || '[]');
     for (const ctype of cardioIndex) {
       const r = JSON.parse(localStorage.getItem('cardio_' + ctype + '_' + userId) || '[]').find(r => r.date === today);
-      if (r) records.push({ type:'cardio', name: ctype, summary: (r.min||0) + '분' + (r.dist > 0 ? ' · ' + r.dist + 'km' : '') + ' · 약 ' + (r.kcal||0) + 'kcal' });
+      if (r) records.push({ type:'cardio', name: ctype, summary: (r.min||0) + '분' + (r.dist > 0 ? ' · ' + r.dist + 'km' : '') + ' · 약 ' + (r.kcal||0) + 'kcal', savedAt: r.savedAt || '' });
     }
     // 수업
     const classIndex = JSON.parse(localStorage.getItem('class_index_' + userId) || '[]');
     for (const ctype of classIndex) {
       const r = JSON.parse(localStorage.getItem('class_' + ctype.replace(/\s+/g,'_') + '_' + userId) || '[]').find(r => r.date === today);
-      if (r) records.push({ type:'class', name: ctype, summary: (r.min||0) + '분 · 약 ' + (r.kcal||0) + 'kcal' });
+      if (r) records.push({ type:'class', name: ctype, summary: (r.min||0) + '분 · 약 ' + (r.kcal||0) + 'kcal', savedAt: r.savedAt || '' });
     }
+    // savedAt(HH:MM) 기준 시간순 정렬, savedAt 없으면 맨 뒤로
+    records.sort((a, b) => {
+      if (!a.savedAt && !b.savedAt) return 0;
+      if (!a.savedAt) return 1;
+      if (!b.savedAt) return -1;
+      return a.savedAt.localeCompare(b.savedAt);
+    });
     return records;
   }
 
