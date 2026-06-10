@@ -55,18 +55,31 @@
         const list = [];
         snap.forEach(child => {
           const eq = child.val();
-          // 기존 하드코딩 데이터의 effect/brand/emoji 유지
-          const orig = EQUIPMENT_LIST.find(e => e.key === eq.key);
-          list.push({
-            no:      eq.no      || (orig ? orig.no : 99),
-            name:    eq.name    || (orig ? orig.name : ''),
-            muscles: eq.muscles || (orig ? orig.muscles : ''),
-            effect:  orig ? orig.effect  : (eq.effect  || ''),
-            brand:   orig ? orig.brand   : (eq.brand   || ''),
-            emoji:   orig ? orig.emoji   : (eq.emoji   || '🏋️'),
-            memo:    eq.memo    || '',
-            key:     eq.key     || child.key,
-          });
+          // 코드(equipment.js) 값을 항상 우선 사용, Firebase는 memo만 반영
+          const orig = EQUIPMENT_LIST.find(e => e.key === (eq.key || child.key));
+          if (orig) {
+            list.push({
+              no:      orig.no,
+              name:    orig.name,
+              muscles: orig.muscles,
+              effect:  orig.effect,
+              brand:   orig.brand,
+              emoji:   orig.emoji,
+              memo:    eq.memo || '',
+              key:     orig.key,
+            });
+          } else {
+            list.push({
+              no:      eq.no || 99,
+              name:    eq.name || '',
+              muscles: eq.muscles || '',
+              effect:  eq.effect || '',
+              brand:   eq.brand || '',
+              emoji:   eq.emoji || '🏋️',
+              memo:    eq.memo || '',
+              key:     eq.key || child.key,
+            });
+          }
         });
         list.sort((a, b) => (a.no || 0) - (b.no || 0));
         EQUIPMENT_LIST = list;
