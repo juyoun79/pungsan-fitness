@@ -5319,7 +5319,7 @@
   }
   // 코드 기준으로 Firebase DB 일괄 동기화 (관리자 전용)
   function syncEquipmentToFirebase() {
-    showConfirm('코드 기준으로 Firebase DB를 업데이트할까요?\n(관리자가 수정한 내용은 유지됩니다)', () => {
+    showConfirm('⚠️ 주의: 기구 목록을 코드 기준으로 초기화합니다.\n관리자가 수정한 내용이 일부 초기화될 수 있어요.\n새 헬스장 최초 세팅 시에만 사용하세요.\n\n계속 진행할까요?', () => {
       db.ref('equipment').once('value').then(snap => {
         const updates = {};
         DEFAULT_EQUIPMENT.forEach(eq => {
