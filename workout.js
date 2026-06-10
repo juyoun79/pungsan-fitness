@@ -870,32 +870,30 @@
   }
 
   // ── 출석 달력 관련 변수 ──
-  let _attCalMode   = null;   // 'total' | 'month' | null
+  let _attCalMode   = null;   // 'open' | null
   let _attCalYear   = null;
   let _attCalMonth  = null;
   let _attCalDates  = [];     // loadAttendanceStats 에서 채워짐
 
-  function toggleAttCal(mode) {
+  function toggleAttCal() {
     const wrap = document.getElementById('att-cal-wrap');
-    const cardTotal  = document.getElementById('att-card-total');
-    const cardMonth  = document.getElementById('att-card-month');
-    const cardPoints = document.getElementById('att-card-points');
+    const card = document.getElementById('att-card-att');
+    const hint = document.getElementById('att-cal-hint');
     if (!wrap) return;
-    // 같은 카드를 다시 탭하면 달력 닫기
-    if (_attCalMode === mode && wrap.style.display !== 'none') {
+    // 열려있으면 닫기
+    if (_attCalMode === 'open' && wrap.style.display !== 'none') {
       wrap.style.display = 'none';
       _attCalMode = null;
-      [cardTotal, cardMonth, cardPoints].forEach(c => { if (c) { c.style.borderColor = ''; c.style.background = ''; } });
+      if (card) { card.style.borderColor = ''; card.style.background = ''; }
+      if (hint) hint.textContent = '탭해서 보기 ▼';
       return;
     }
-    _attCalMode = mode;
+    _attCalMode = 'open';
     const now = new Date();
     _attCalYear  = now.getFullYear();
-    _attCalMonth = now.getMonth(); // 0-indexed
-    // 카드 하이라이트
-    [cardTotal, cardMonth, cardPoints].forEach(c => { if (c) { c.style.borderColor = ''; c.style.background = ''; } });
-    const activeCard = mode === 'total' ? cardTotal : cardMonth;
-    if (activeCard) { activeCard.style.borderColor = '#378ADD'; activeCard.style.background = 'var(--bg)'; }
+    _attCalMonth = now.getMonth();
+    if (card) { card.style.borderColor = '#378ADD'; card.style.background = 'var(--bg)'; }
+    if (hint) hint.textContent = '탭해서 접기 ▲';
     wrap.style.display = 'block';
     renderAttCal();
   }
@@ -905,6 +903,10 @@
     const calWrap = document.getElementById('att-cal-wrap');
     if (calWrap) calWrap.style.display = 'none';
     _attCalMode = null;
+    const hint = document.getElementById('att-cal-hint');
+    if (hint) hint.textContent = '탭해서 보기 ▼';
+    const card = document.getElementById('att-card-att');
+    if (card) { card.style.borderColor = ''; card.style.background = ''; }
     window._pointShopFrom = 'attend'; // 진입 경로 기억
     if (typeof openPointShopScreen === 'function') openPointShopScreen();
   }
@@ -967,10 +969,12 @@
     const calWrap = document.getElementById('att-cal-wrap');
     if (calWrap) calWrap.style.display = 'none';
     _attCalMode = null;
-    ['att-card-total','att-card-month','att-card-points'].forEach(id => {
+    ['att-card-att','att-card-points'].forEach(id => {
       const c = document.getElementById(id);
       if (c) { c.style.borderColor = ''; c.style.background = ''; }
     });
+    const hint = document.getElementById('att-cal-hint');
+    if (hint) hint.textContent = '탭해서 보기 ▼';
     // 완료 영역 숨기고 QR/GPS 영역 복원
     const doneWrap = document.getElementById('att-done-wrap');
     const gpsCard  = document.getElementById('att-gps-card');

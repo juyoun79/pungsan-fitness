@@ -1741,25 +1741,29 @@
         </div>
       </div>
 
-      <!-- 통계 3개 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
-        <div id="att-card-total" onclick="toggleAttCal('total')" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 8px;text-align:center;cursor:pointer;transition:border-color 0.2s;">
-          <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">누적 출석</div>
-          <div style="font-size:20px;font-weight:700;color:var(--blue);" id="att-total">-</div>
-          <div style="font-size:10px;color:var(--text-hint);">회</div>
-          <div style="font-size:9px;color:var(--blue);margin-top:3px;">탭해서 보기</div>
+      <!-- 통계 카드: 출석(합친 카드) + 포인트 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+        <div id="att-card-att" onclick="toggleAttCal()" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 10px;cursor:pointer;transition:border-color 0.2s;">
+          <div style="display:flex;align-items:center;justify-content:space-around;">
+            <div style="text-align:center;flex:1;">
+              <div style="font-size:10px;color:var(--text-hint);margin-bottom:4px;">누적 출석</div>
+              <div style="font-size:22px;font-weight:700;color:var(--blue);line-height:1;" id="att-total">-</div>
+              <div style="font-size:9px;color:var(--text-hint);margin-top:2px;">회</div>
+            </div>
+            <div style="width:1px;height:36px;background:var(--border);"></div>
+            <div style="text-align:center;flex:1;">
+              <div style="font-size:10px;color:var(--text-hint);margin-bottom:4px;">이번달</div>
+              <div style="font-size:22px;font-weight:700;color:var(--blue);line-height:1;" id="att-month">-</div>
+              <div style="font-size:9px;color:var(--text-hint);margin-top:2px;">회</div>
+            </div>
+          </div>
+          <div style="font-size:9px;color:var(--blue);margin-top:6px;text-align:center;" id="att-cal-hint">탭해서 보기 ▼</div>
         </div>
-        <div id="att-card-month" onclick="toggleAttCal('month')" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 8px;text-align:center;cursor:pointer;transition:border-color 0.2s;">
-          <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">이번달</div>
-          <div style="font-size:20px;font-weight:700;color:var(--blue);" id="att-month">-</div>
-          <div style="font-size:10px;color:var(--text-hint);">회</div>
-          <div style="font-size:9px;color:var(--blue);margin-top:3px;">탭해서 보기</div>
-        </div>
-        <div id="att-card-points" onclick="goAttPoint()" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 8px;text-align:center;cursor:pointer;transition:border-color 0.2s;">
-          <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">보유 포인트</div>
-          <div style="font-size:20px;font-weight:700;color:#d97706;" id="att-points">-</div>
-          <div style="font-size:10px;color:var(--text-hint);">P</div>
-          <div style="font-size:9px;color:#d97706;margin-top:3px;">내역 보기 ›</div>
+        <div id="att-card-points" onclick="goAttPoint()" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px 10px;text-align:center;cursor:pointer;transition:border-color 0.2s;">
+          <div style="font-size:10px;color:var(--text-hint);margin-bottom:4px;">보유 포인트</div>
+          <div style="font-size:22px;font-weight:700;color:#d97706;line-height:1;" id="att-points">-</div>
+          <div style="font-size:9px;color:var(--text-hint);margin-top:2px;">P</div>
+          <div style="font-size:9px;color:#d97706;margin-top:6px;">내역 보기 ›</div>
         </div>
       </div>
 
