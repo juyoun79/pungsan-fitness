@@ -19,7 +19,7 @@
     { no:18, name:'프론트 랫풀 다운',          muscles:'등',                            effect:'등 넓고 탄탄, 어깨 말림·거북목 개선',       brand:'워런핏',      emoji:'💪', key:'front_lat_pull' },
     { no:19, name:'ISO 레터럴 하이로우',       muscles:'승모근·능형근·후면 삼각근',     effect:'굽은어깨·라운드 숄더 교정, 척추 강화',      brand:'해머스트랭스',emoji:'💪', key:'iso_high_low' },
     { no:20, name:'ISO 레터럴 로우',           muscles:'등·능형근·후삼각근',            effect:'어깨 말림 방지, 자세 개선',                 brand:'해머스트랭스',emoji:'💪', key:'iso_lateral_row' },
-    { no:21, name:'스탠딩 어시스트 친업',      muscles:'중·하부 승모근·등·이두근',      effect:'팔 힘 증가, 등과 어깨 균형 발달',           brand:'무브먼트',    emoji:'🏋️', key:'chinup_assist' },
+    { no:21, name:'친업 & 딥스',      muscles:'등·이두근·삼두근·가슴',          effect:'상체 근력 강화, 등·팔·가슴 균형 발달',           brand:'무브먼트',    emoji:'🏋️', key:'chinup_assist' },
     { no:22, name:'플레이트 숄더 프레스',      muscles:'어깨',                          effect:'어깨 말림 방지, 상체 균형 발달',            brand:'플라이트',    emoji:'💪', key:'plate_shoulder' },
     { no:23, name:'ISO 레터럴 숄더 프레스',    muscles:'어깨',                          effect:'어깨 말림 방지, 상체 균형 발달',            brand:'해머스트랭스',emoji:'💪', key:'iso_shoulder' },
     { no:24, name:'티바로우',                  muscles:'등',                            effect:'바른자세, 굽은 등·어깨 교정',               brand:'이카리안',    emoji:'💪', key:'tbar_row' },
