@@ -698,7 +698,34 @@
             const rptReregData = reRegTotal > 0
               ? { data: [reRegDone, reRegNotDone], backgroundColor: ['#22c55e', '#888780'] }
               : { data: [1], backgroundColor: ['#D3D1C7'] };
-            c1._chart = new Chart(c1, { type:'doughnut', data:{ datasets:[{ ...rptReregData, borderWidth:0 }] }, options:{ cutout:'65%', plugins:{ legend:{display:false}, tooltip:{enabled:false} } } });
+            const rptCenterPlugin = {
+              id: 'rptCenter',
+              afterDraw(chart) {
+                const { ctx, chartArea: { top, bottom, left, right } } = chart;
+                const cx = (left + right) / 2, cy = (top + bottom) / 2;
+                const data = chart.data.datasets[0].data;
+                const total = data.reduce((a, b) => a + b, 0);
+                if (!total) return;
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                if (data.length === 1) {
+                  const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-hint') || '#aaa';
+                  ctx.fillStyle = textColor;
+                  ctx.font = '700 11px sans-serif';
+                  ctx.fillText('N/A', cx, cy - 6);
+                  ctx.font = '400 9px sans-serif';
+                  ctx.fillText('대상없음', cx, cy + 6);
+                } else {
+                  const pct = Math.round(data[0] / total * 100);
+                  ctx.font = '700 12px sans-serif';
+                  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-primary') || '#111';
+                  ctx.fillText(pct + '%', cx, cy);
+                }
+                ctx.restore();
+              }
+            };
+            c1._chart = new Chart(c1, { type:'doughnut', data:{ datasets:[{ ...rptReregData, borderWidth:0 }] }, options:{ cutout:'65%', plugins:{ legend:{display:false}, tooltip:{enabled:false}, rptCenter:{} } }, plugins:[rptCenterPlugin] });
           }
           if (c2) { if (c2._chart) c2._chart.destroy(); c2._chart = new Chart(c2, { type:'doughnut', data:{ datasets:[{ data:[remain0.length||0, remainLow.length||0, remainOk.length||0], backgroundColor:['#ef4444','#f59e0b','#22c55e'], borderWidth:0 }] }, options:{ cutout:'65%', plugins:{ legend:{display:false}, tooltip:{enabled:false} } } }); }
         };
