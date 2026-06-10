@@ -685,6 +685,7 @@
         const reRegNotDone = Math.max(0, reRegTotal - reRegDone);
         set('rpt-rereg-done', reRegDone);
         set('rpt-rereg-not', reRegNotDone);
+        set('rpt-rereg-total', reRegTotal);
         set('rpt-remain-0', remain0.length);
         set('rpt-remain-low', remainLow.length);
         set('rpt-remain-ok', remainOk.length);
@@ -5883,9 +5884,12 @@
       afterDraw(chart) {
         const { ctx, chartArea: { top, bottom, left, right } } = chart;
         const cx = (left + right) / 2, cy = (top + bottom) / 2;
-        const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+        const data = chart.data.datasets[0].data;
+        const total = data.reduce((a, b) => a + b, 0);
         if (!total) return;
-        const pct = Math.round(chart.data.datasets[0].data[0] / total * 100);
+        // 데이터가 1개(회색 도넛)이면 중앙 텍스트 표시 안 함
+        if (data.length === 1) return;
+        const pct = Math.round(data[0] / total * 100);
         ctx.save();
         ctx.font = '700 13px sans-serif';
         ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-primary') || '#111';
