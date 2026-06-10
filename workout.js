@@ -663,38 +663,68 @@
   function saveCableWorkout() {
     const userId = localStorage.getItem('current_user');
     const today = getToday();
-    // 저장 전 현재 탭 임시 저장
-    _saveCableTabTemp();
-    // 현재 탭 기록 저장
-    const ex = CABLE_EXERCISES[cableTabIdx];
-    const key = 'cable_ex_' + ex.key + '_' + userId;
-    const rows = document.querySelectorAll('#cable-set-list > div');
-    const sets = [];
-    rows.forEach((row, i) => {
-      const inputs = row.querySelectorAll('input');
-      if (inputs.length >= 2) {
-        sets.push({ set: i+1, weight: parseFloat(inputs[0].value)||0, reps: parseInt(inputs[1].value)||0 });
-      }
-    });
-    if (sets.length === 0 || sets.every(s => s.reps === 0)) {
-      showToast('세트 기록을 입력해주세요!', 'error'); return;
-    }
     const now = new Date();
     const savedAt = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
     const dateLabel = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일';
-    const memo = document.getElementById('cable-memo')?.value || '';
-    const records = JSON.parse(localStorage.getItem(key) || '[]');
-    const existIdx = records.findIndex(r => r.date === today);
-    const record = { date: today, dateLabel, sets, memo, savedAt };
-    if (existIdx >= 0) records[existIdx] = record;
-    else records.push(record);
-    localStorage.setItem(key, JSON.stringify(records));
-    showToast(ex.name + ' 기록 저장! 💪', 'success');
+
+    // 현재 탭 임시 저장 먼저
+    _saveCableTabTemp();
+
+    // 현재 화면 세트 직접 읽어서 현재 탭 temp 덮어쓰기
+    const curEx = CABLE_EXERCISES[cableTabIdx];
+    const rows = document.querySelectorAll('#cable-set-list > div');
+    const curSets = [];
+    rows.forEach(row => {
+      const inputs = row.querySelectorAll('input');
+      if (inputs.length >= 2) curSets.push({ weight: inputs[0].value, reps: inputs[1].value });
+    });
+    cableTempSets[curEx.key] = curSets;
+    cableTempMemo[curEx.key] = document.getElementById('cable-memo')?.value || '';
+
+    // 기록이 하나라도 있는지 확인
+    let hasAny = false;
+    CABLE_EXERCISES.forEach(ex => {
+      const sets = cableTempSets[ex.key];
+      if (sets && sets.length > 0 && sets.some(s => parseInt(s.reps) > 0)) hasAny = true;
+    });
+    if (!hasAny) { showToast('세트 기록을 입력해주세요!', 'error'); return; }
+
+    // 모든 탭 기록 저장
+    let savedCount = 0;
+    CABLE_EXERCISES.forEach(ex => {
+      const sets = cableTempSets[ex.key];
+      if (!sets || sets.length === 0) return;
+      const validSets = sets.filter(s => parseInt(s.reps) > 0);
+      if (validSets.length === 0) return;
+      const key = 'cable_ex_' + ex.key + '_' + userId;
+      const memo = cableTempMemo[ex.key] || '';
+      const mappedSets = validSets.map((s, i) => ({ set: i+1, weight: parseFloat(s.weight)||0, reps: parseInt(s.reps)||0 }));
+      const records = JSON.parse(localStorage.getItem(key) || '[]');
+      const existIdx = records.findIndex(r => r.date === today);
+      const record = { date: today, dateLabel, sets: mappedSets, memo, savedAt };
+      if (existIdx >= 0) records[existIdx] = record;
+      else records.push(record);
+      localStorage.setItem(key, JSON.stringify(records));
+      savedCount++;
+    });
+
     skipRestTimer('cable-rest-timer-box');
-    // 저장 후 현재 탭 임시 초기화
-    cableTempSets[ex.key] = [];
-    cableTempMemo[ex.key] = '';
-    selectCableTab(cableTabIdx);
+    showToast('케이블 운동 ' + savedCount + '종목 저장! 💪', 'success');
+
+    // 임시 데이터 초기화
+    cableTempSets = { pushdown:[], row:[], fly:[], curl:[], facepull:[], pulldown:[] };
+    cableTempMemo = { pushdown:'', row:'', fly:'', curl:'', facepull:'', pulldown:'' };
+
+    // 일반 기구처럼 달력 화면으로 이동
+    if (isTrainerMode) {
+      isTrainerMode = false;
+      showScreen('screen-trainee-detail');
+      switchTraineeTab('record');
+    } else {
+      showScreen('screen-workout-qr');
+      renderCalendar();
+      if (calSelectedDate) renderDayDetail(calSelectedDate);
+    }
   }
   // ── 케이블 머신 전용 끝 ────────────────────────────────────
 
