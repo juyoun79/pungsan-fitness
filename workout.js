@@ -207,6 +207,12 @@
     for (const name of classIndex) {
       classify(JSON.parse(localStorage.getItem('class_' + name.replace(/\s+/g,'_') + '_' + userId) || '[]'));
     }
+    // 케이블 머신 기록 추가
+    if (typeof CABLE_EXERCISES !== 'undefined') {
+      for (const ex of CABLE_EXERCISES) {
+        classify(JSON.parse(localStorage.getItem('cable_ex_' + ex.key + '_' + userId) || '[]'));
+      }
+    }
     return { personalDays, classDays };
   }
 
@@ -375,7 +381,13 @@
           const cableMuscles = cableEx ? cableEx.muscles : '';
           const cableKey = cableEx ? 'cable_ex_' + cableEx.key + '_' + localStorage.getItem('current_user') : '';
           const cableColor = '#1a6fd4';
-          return `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div style="width:36px;height:36px;border-radius:10px;background:#E6F1FB;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏋️</div><div style="flex:1;"><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:10px;font-weight:700;color:white;background:#1a6fd4;padding:2px 5px;border-radius:4px;">개인</span><span style="font-size:11px;font-weight:700;color:white;background:#185FA5;padding:2px 6px;border-radius:5px;white-space:nowrap;">케이블</span><span style="font-size:14px;font-weight:700;color:var(--text);">${item.name}</span></div><div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${cableMuscles}${maxW > 0 ? ' · 최고 '+maxW+'kg' : ''}</div></div></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;">${record.sets.map(s=>`<div style="background:#E6F1FB;border-radius:8px;padding:8px;text-align:center;"><div style="font-size:11px;color:${cableColor};margin-bottom:2px;font-weight:600;">${s.set}세트</div><div style="font-size:13px;font-weight:700;color:var(--text);">${s.weight > 0 ? s.weight+'kg' : '-'}</div><div style="font-size:11px;color:var(--text-sub);">${s.reps}회</div></div>`).join('')}</div>${record.memo ? `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;gap:8px;"><span style="font-size:14px;">📝</span><div style="font-size:13px;color:var(--text-sub);line-height:1.6;">${record.memo}</div></div>` : ''}<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;"><span style="font-size:12px;color:var(--text-hint);">${formatTime(record.savedAt)}</span>${cableKey ? `<button onclick="openEditWorkoutModal('${cableKey}','${dateStr}')" style="background:#E6F1FB;color:#1a6fd4;border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>` : ''}</div></div>`;
+          const cableEq = EQUIPMENT_LIST.find(e => e.key === 'cable_machine');
+          const cableNo = cableEq ? cableEq.no : 32;
+          const isCableClassRecord = record.recordedBy === 'trainer';
+          const cableBadgeHtml = isCableClassRecord
+            ? `<span style="font-size:10px;font-weight:700;color:white;background:#f59e0b;padding:2px 5px;border-radius:4px;">PT</span>`
+            : `<span style="font-size:10px;font-weight:700;color:white;background:#1a6fd4;padding:2px 5px;border-radius:4px;">개인</span>`;
+          return `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div style="width:36px;height:36px;border-radius:10px;background:#E6F1FB;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🏋️</div><div style="flex:1;"><div style="display:flex;align-items:center;gap:6px;">${cableBadgeHtml}<span style="font-size:11px;font-weight:700;color:white;background:#185FA5;padding:2px 6px;border-radius:5px;white-space:nowrap;">${cableNo}번</span><span style="font-size:14px;font-weight:700;color:var(--text);">${item.name}</span></div><div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${cableMuscles}${maxW > 0 ? ' · 최고 '+maxW+'kg' : ''}</div></div></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;">${record.sets.map(s=>`<div style="background:#E6F1FB;border-radius:8px;padding:8px;text-align:center;"><div style="font-size:11px;color:${cableColor};margin-bottom:2px;font-weight:600;">${s.set}세트</div><div style="font-size:13px;font-weight:700;color:var(--text);">${s.weight > 0 ? s.weight+'kg' : '-'}</div><div style="font-size:11px;color:var(--text-sub);">${s.reps}회</div></div>`).join('')}</div>${record.memo ? `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;gap:8px;"><span style="font-size:14px;">📝</span><div style="font-size:13px;color:var(--text-sub);line-height:1.6;">${record.memo}</div></div>` : ''}<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;"><span style="font-size:12px;color:var(--text-hint);">${formatTime(record.savedAt)}</span>${(!isCableClassRecord && cableKey) ? `<button onclick="openEditWorkoutModal('${cableKey}','${dateStr}')" style="background:#E6F1FB;color:#1a6fd4;border:none;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>` : ''}</div></div>`;
         }
         // 프리웨이트 카드
         const fwInfo = FW_EXERCISE_LIST.find(e => e.name === item.name);

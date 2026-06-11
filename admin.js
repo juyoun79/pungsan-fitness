@@ -3816,10 +3816,23 @@
 
           // 기구운동/프리웨이트 카드 (기존 코드)
           const rawKey = r.eqKey || '';
-          const baseKey = rawKey.replace('dual_front_','').replace('dual_back_','').replace('fw_','');
+          const baseKey = rawKey.replace('dual_front_','').replace('dual_back_','').replace('fw_','').replace('cable_ex_','');
           const eq = EQUIPMENT_LIST.find(e => e.key === rawKey || e.key === baseKey);
           let name, subLabel = '';
-          if (r.name) {
+          // 케이블 운동 이름 한국어로 변환
+          if (rawKey.startsWith('cable_ex_')) {
+            const cableKey = rawKey.replace('cable_ex_', '');
+            const cableExList = typeof CABLE_EXERCISES !== 'undefined' ? CABLE_EXERCISES : [
+              { key:'pushdown', name:'케이블 푸시다운' },
+              { key:'row',      name:'케이블 로우' },
+              { key:'fly',      name:'케이블 플라이' },
+              { key:'curl',     name:'케이블 컬' },
+              { key:'facepull', name:'케이블 페이스풀' },
+              { key:'pulldown', name:'케이블 암 풀다운' }
+            ];
+            const cableEx = cableExList.find(e => e.key === cableKey);
+            name = cableEx ? cableEx.name : (r.name || rawKey);
+          } else if (r.name) {
             name = r.name;
           } else if (eq) {
             name = eq.name;
@@ -3842,12 +3855,21 @@
             </div>`
           ).join('') : '';
 
+          // 케이블이면 케이블머신 번호 배지, 기구면 번호 배지, fw면 배지 없음
+          const _isCableRaw = rawKey.startsWith('cable_ex_');
+          const _isFwRaw = rawKey.startsWith('fw_');
+          const _cableEq = _isCableRaw ? EQUIPMENT_LIST.find(e => e.key === 'cable_machine') : null;
+          const _noLabel = _isCableRaw
+            ? `<span style="font-size:10px;font-weight:700;color:white;background:#185FA5;padding:2px 5px;border-radius:4px;flex-shrink:0;">${_cableEq ? _cableEq.no : 32}번</span>`
+            : (eq && !_isFwRaw ? `<span style="font-size:10px;font-weight:700;color:white;background:${getMuscleColor(eq.muscles)};padding:2px 5px;border-radius:4px;flex-shrink:0;">${eq.no}번</span>` : '');
+
           html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
               <div style="display:flex;align-items:center;gap:5px;">
                 ${r.recordedBy === 'trainer'
                   ? `<span style="font-size:10px;font-weight:700;color:white;background:#f59e0b;padding:2px 5px;border-radius:4px;flex-shrink:0;">PT</span>`
                   : `<span style="font-size:10px;font-weight:700;color:white;background:#1a6fd4;padding:2px 5px;border-radius:4px;flex-shrink:0;">개인</span>`}
+                ${_noLabel}
                 <div style="font-size:13px;font-weight:700;color:var(--text);">${name}</div>
               </div>
               <div style="display:flex;align-items:center;gap:6px;">

@@ -20,7 +20,7 @@ export default {
 
     // 버전 확인 API
     if (url.pathname === '/api/version') {
-      return new Response(JSON.stringify({ version: '2.0.8' }), {
+      return new Response(JSON.stringify({ version: '2.0.9' }), {
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
