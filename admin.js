@@ -3111,7 +3111,7 @@
         } else {
           html += '<div style="padding:10px 14px;">';
           groupSigns.slice().reverse().forEach(function(s, revIdx) {
-            var realIdx = groupSigns.length - revIdx;
+            var realIdx = revIdx + 1;
             html += '<div style="margin-bottom:' + (revIdx < groupSigns.length - 1 ? '10px' : '0') + ';padding-bottom:' + (revIdx < groupSigns.length - 1 ? '10px' : '0') + ';border-bottom:' + (revIdx < groupSigns.length - 1 ? '0.5px solid var(--border)' : 'none') + ';">';
             html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
             html += '<span style="font-size:12px;font-weight:700;color:' + (s.noShow ? '#dc2626' : 'var(--text)') + ';">' + (s.noShow ? '🔴 당일취소' : '✅ ' + realIdx + '회차') + '</span>';
@@ -3388,15 +3388,38 @@
       const remain = info.remain || 0;
       const total = info.total || 0;
       const newRemain = Math.min(remain + 1, total);
-      // 서명기록 삭제 + 잔여횟수 복구 동시 처리
-      Promise.all([
-        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/signs/' + editSignKey).remove(),
-        ref.update({ remain: newRemain })
-      ]).then(() => {
-        showToast('삭제됐어요! 🗑', 'success');
-        closeEditSignModal();
-        // 카드 + 서명탭 동시 업데이트
-        refreshTraineeView(currentTraineeId);
+      const remainUpdate = { remain: newRemain };
+      // 잔여 복구 시 expiredAt도 제거
+      if (remain === 0) remainUpdate.expiredAt = null;
+
+      // 삭제할 서명의 날짜 가져오기
+      db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/signs/' + editSignKey).once('value', signSnap => {
+        const signData = signSnap.val();
+        const signDate = signData ? signData.date : null;
+
+        // 서명기록 삭제 + 잔여횟수 복구 동시 처리
+        Promise.all([
+          db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/signs/' + editSignKey).remove(),
+          ref.update(remainUpdate)
+        ]).then(() => {
+          // 같은 날짜에 다른 서명이 없으면 lessons도 삭제
+          if (signDate) {
+            db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/signs').once('value', allSignsSnap => {
+              let hasOtherSignOnDate = false;
+              allSignsSnap.forEach(s => {
+                const sv = s.val();
+                if (sv && sv.date === signDate) hasOtherSignOnDate = true;
+              });
+              if (!hasOtherSignOnDate) {
+                db.ref('users/' + currentTraineeId + '/lessons/' + signDate).remove();
+              }
+            });
+          }
+          showToast('삭제됐어요! 🗑', 'success');
+          closeEditSignModal();
+          refreshTraineeView(currentTraineeId);
+          if (currentTraineeTab === 'record') renderTrainerCal();
+        });
       });
       });
     });
@@ -3413,6 +3436,14 @@
 
       db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId + '/signs/' + dateStr + '_' + Date.now()).set(signData)
       .then(() => {
+        // 회원 달력에 수업일 저장 (당일취소도 수업 진행된 것으로 처리)
+        db.ref('users/' + signTargetMemberId + '/lessons/' + dateStr).set({
+          date: dateStr,
+          trainerId,
+          trainerName: localStorage.getItem('name_' + trainerId) || '강사',
+          savedAt,
+          noShow: true
+        });
         // remain 차감 후 카드 즉시 업데이트
         const ref2 = db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId);
         ref2.once('value', snap => {
@@ -3421,7 +3452,7 @@
           const updateData2 = { remain: newRemain };
           if (newRemain === 0) {
             const now2 = new Date();
-            updateData2.expiredAt = now2.getFullYear() + '-' + String(now2.getMonth()+1).padStart(2,'0') + '-' + String(now2.getDate()).padStart(2,'0');
+            updateData2.expiredAt = now2.getFullYear() + '-' + (now2.getMonth()+1) + '-' + now2.getDate();
           }
           ref2.update(updateData2).then(() => {
             refreshTraineeView(signTargetMemberId);
@@ -3476,12 +3507,20 @@
           const updateData = { remain: newRemain };
           if (newRemain === 0) {
             const now = new Date();
-            updateData.expiredAt = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+            updateData.expiredAt = now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate();
           }
           ref2.update(updateData).then(() => {
             refreshTraineeView(signTargetMemberId);
             if (currentTraineeTab === 'record') renderTrainerCal();
           });
+        });
+
+        // PT 서명 포인트 적립
+        db.ref('point_settings/ptSign').once('value', ptSnap => {
+          const ptSignPts = ptSnap.val() || 0;
+          if (ptSignPts > 0 && typeof addUserPoints === 'function') {
+            addUserPoints(signTargetMemberId, ptSignPts, 'PT 수업');
+          }
         });
 
         closeSignModal();
@@ -5030,6 +5069,7 @@
       const s = snap.val() || {};
       document.getElementById('pts-owunwan').value       = s.owunwan      ?? 10;
       document.getElementById('pts-attend').value        = s.attend       ?? 2;
+      document.getElementById('pts-pt-sign').value       = s.ptSign       ?? 0;
       document.getElementById('pts-weight').value        = s.weightRecord ?? 1;
       document.getElementById('pts-inbody').value        = s.inbodyRecord ?? 5;
       document.getElementById('pts-diet-text').value     = s.dietText     ?? 5;
@@ -5045,6 +5085,7 @@
     const data = {
       owunwan:       parseInt(document.getElementById('pts-owunwan').value)    || 0,
       attend:        parseInt(document.getElementById('pts-attend').value)     || 0,
+      ptSign:        parseInt(document.getElementById('pts-pt-sign').value)    || 0,
       weightRecord:  parseInt(document.getElementById('pts-weight').value)     || 0,
       inbodyRecord:  parseInt(document.getElementById('pts-inbody').value)     || 0,
       dietText:      parseInt(document.getElementById('pts-diet-text').value)  || 0,
@@ -5767,6 +5808,7 @@
       Promise.all([
         db.ref('trainers/' + trainerId + '/trainees/' + traineeId).remove(),
         db.ref('members/' + traineeId + '/trainerId').remove(),
+        db.ref('users/' + traineeId + '/lessons').remove(),
         db.ref('users/' + traineeId + '/routines').once('value').then(snap => {
           if (!snap.exists()) return;
           const updates = {};
