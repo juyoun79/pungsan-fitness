@@ -3425,6 +3425,7 @@
           }
           ref2.update(updateData2).then(() => {
             refreshTraineeView(signTargetMemberId);
+            if (currentTraineeTab === 'record') renderTrainerCal();
           });
         });
         closeSignModal();
@@ -3479,6 +3480,7 @@
           }
           ref2.update(updateData).then(() => {
             refreshTraineeView(signTargetMemberId);
+            if (currentTraineeTab === 'record') renderTrainerCal();
           });
         });
 
@@ -3618,7 +3620,7 @@
         <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
           ${['일','월','화','수','목','금','토'].map((d,i) => `<div style="text-align:center;font-size:11px;font-weight:700;color:${i===0?'#ef4444':i===6?'#3b82f6':'var(--text-hint)'};padding:4px 0;">${d}</div>`).join('')}
         </div>
-        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">
+        <div id="trainer-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">
           ${Array(firstDay).fill('<div></div>').join('')}
           ${Array.from({length:lastDate},(_,i)=>{
             const day = i+1;
@@ -3640,7 +3642,7 @@
             let color = hasLesson ? 'white' : isToday ? '#7c3aed' : dow===0 ? '#ef4444' : dow===6 ? '#3b82f6' : 'var(--text)';
             let fontW = (hasLesson || isToday || isSelected) ? '700' : '400';
             let border = isSelected ? '2px solid #1a1a2e' : 'none';
-            return `<div onclick="selectTrainerCalDay('${dateStr}')" style="text-align:center;padding:6px 2px;border-radius:50%;cursor:pointer;background:${bg};border:${border};position:relative;">
+            return `<div onclick="selectTrainerCalDay('${dateStr}')" data-date="${dateStr}" data-lesson="${hasLesson?'1':'0'}" style="text-align:center;padding:6px 2px;border-radius:50%;cursor:pointer;background:${bg};border:${border};position:relative;">
               <div style="font-size:13px;font-weight:${fontW};color:${color};">${day}</div>
               ${dotHtml}
             </div>`;
@@ -3683,7 +3685,30 @@
 
   function selectTrainerCalDay(dateStr) {
     trainerCalSelectedDate = dateStr;
-    renderTrainerCal();
+    // 날짜 클릭 시 달력 전체 재렌더링 없이 선택 표시만 업데이트 → 속도 개선
+    _updateTrainerCalSelection();
+    renderTrainerDayDetail(dateStr);
+  }
+
+  function _updateTrainerCalSelection() {
+    // 달력 각 날짜 div의 border만 업데이트 (Firebase 조회 없음)
+    const calGrid = document.getElementById('trainer-cal-grid');
+    if (!calGrid) return;
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+    calGrid.querySelectorAll('[data-date]').forEach(el => {
+      const d = el.getAttribute('data-date');
+      const isSelected = d === trainerCalSelectedDate;
+      const isToday = d === todayStr;
+      const hasLesson = el.getAttribute('data-lesson') === '1';
+      if (hasLesson) {
+        el.style.border = 'none';
+      } else if (isSelected) {
+        el.style.border = '2px solid #1a1a2e';
+      } else {
+        el.style.border = 'none';
+      }
+    });
   }
 
   function renderTrainerDayDetail(dateStr) {
