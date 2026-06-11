@@ -394,7 +394,7 @@
 
       <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:8px;">
         <div style="font-size:11px;color:var(--text-hint);margin-bottom:8px;">닉네임</div>
-        <input type="text" id="set-nickname-input" placeholder="닉네임 입력 (2~10자)"
+        <input type="text" id="set-nickname-input" placeholder="닉네임 입력 (2~6자)"
           maxlength="10"
           style="width:100%;box-sizing:border-box;padding:0;border:none;outline:none;font-size:17px;font-weight:500;font-family:'Noto Sans KR',sans-serif;background:transparent;color:var(--text);"
           onfocus="this.parentElement.style.borderColor='var(--blue)'"
@@ -6085,6 +6085,16 @@
       msgEl.textContent = '닉네임을 2자 이상 입력해주세요.';
       return;
     }
+    if (val.length > 6) {
+      msgEl.style.color = '#ef4444';
+      msgEl.textContent = '닉네임은 최대 6자까지 입력 가능해요.';
+      return;
+    }
+    if (!/^[가-힣a-zA-Z0-9]+$/.test(val)) {
+      msgEl.style.color = '#ef4444';
+      msgEl.textContent = '한글, 영문, 숫자만 사용 가능해요.';
+      return;
+    }
     // 중복 체크
     db.ref('nicknames/' + val).once('value', snap => {
       if (snap.exists()) {
@@ -6227,23 +6237,42 @@
       showToast('닉네임은 1회만 변경 가능해요 😊', 'info');
       return;
     }
+    // Firebase에서도 변경 여부 확인 (다기기 대응)
+    db.ref('users/' + userId + '/nicknameChanged').once('value', chSnap => {
+    if (chSnap.val()) {
+      localStorage.setItem('nickname_changed_' + userId, '1');
+      showToast('닉네임은 1회만 변경 가능해요 😊', 'info');
+      return;
+    }
     const cur = localStorage.getItem('nickname_' + userId) || '';
-    showInput('새 닉네임을 입력해주세요 (2~10자)\n현재: ' + cur, '닉네임 입력', cur, (newNick) => {
+    showInput('새 닉네임을 입력해주세요 (2~6자)\n현재: ' + cur, '닉네임 입력', cur, (newNick) => {
       if (!newNick || !newNick.trim()) return;
       const val = newNick.trim();
-      if (val.length < 2 || val.length > 10) {
-        showToast('닉네임은 2~10자로 입력해주세요.', 'error');
+      if (val.length < 2 || val.length > 6) {
+        showToast('닉네임은 2~6자로 입력해주세요.', 'error');
+        return;
+      }
+      if (!/^[가-힣a-zA-Z0-9]+$/.test(val)) {
+        showToast('한글, 영문, 숫자만 사용 가능해요.', 'error');
         return;
       }
       if (val === cur) { showToast('현재 닉네임과 같아요.', 'error'); return; }
       db.ref('nicknames/' + val).once('value', snap => {
         if (snap.exists()) { showToast('이미 사용 중인 닉네임이에요.', 'error'); return; }
         showConfirm('"' + val + '" 으로 변경할까요?\n변경 후에는 다시 바꿀 수 없어요.', () => {
-  
+        const userRole = localStorage.getItem('role_' + userId);
         // 기존 닉네임 해제 + 새 닉네임 저장
         db.ref('nicknames/' + cur).remove();
         db.ref('nicknames/' + val).set(userId);
-        db.ref('members/' + userId + '/nickname').set(val);
+        // 역할에 따라 저장 경로 분기
+        if (userRole === 'trainer' || userRole === 'manager') {
+          db.ref('users/' + userId + '/nickname').set(val);
+        } else {
+          db.ref('members/' + userId + '/nickname').set(val);
+          db.ref('users/' + userId + '/nickname').set(val);
+        }
+        // Firebase에도 변경 기록 저장 (다기기 제한)
+        db.ref('users/' + userId + '/nicknameChanged').set(true);
         localStorage.setItem('nickname_' + userId, val);
         localStorage.setItem('nickname_changed_' + userId, '1');
         // 기존 게시물/댓글 닉네임 일괄 업데이트
@@ -6258,6 +6287,7 @@
         });
       });
     });
+    }); // nicknameChanged Firebase 체크 닫기
   }
 
   function updateNicknameInPosts(userId, newNick) {
