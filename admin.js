@@ -3663,13 +3663,8 @@
           </div>
         </div>`;
 
-      // 날짜 선택된 경우 하단에 운동기록 + 기구추가 버튼
-      if (trainerCalSelectedDate) {
-        const selParts = trainerCalSelectedDate.split('-');
-        if (parseInt(selParts[0])===year && parseInt(selParts[1])===month) {
-          calHtml += `<div id="trainer-day-detail" style="margin-top:12px;"></div>`;
-        }
-      }
+      // trainer-day-detail은 항상 생성 (날짜 클릭 시 바로 표시 가능하도록)
+      calHtml += `<div id="trainer-day-detail" style="margin-top:12px;"></div>`;
 
       content.innerHTML = calHtml;
 
@@ -3699,15 +3694,9 @@
     calGrid.querySelectorAll('[data-date]').forEach(el => {
       const d = el.getAttribute('data-date');
       const isSelected = d === trainerCalSelectedDate;
-      const isToday = d === todayStr;
       const hasLesson = el.getAttribute('data-lesson') === '1';
-      if (hasLesson) {
-        el.style.border = 'none';
-      } else if (isSelected) {
-        el.style.border = '2px solid #1a1a2e';
-      } else {
-        el.style.border = 'none';
-      }
+      // 선택된 날짜는 초록색 원이든 아니든 검정 테두리 표시
+      el.style.border = isSelected ? '2px solid #1a1a2e' : 'none';
     });
   }
 
