@@ -939,7 +939,7 @@
             } else {
               html += '<div style="padding:10px 14px;">';
               groupSigns.slice().reverse().forEach(function(s, idx) {
-                const realIdx = groupSigns.length - idx;
+                const realIdx = idx + 1;
                 html += '<div style="margin-bottom:' + (idx < groupSigns.length - 1 ? '10px' : '0') + ';padding-bottom:' + (idx < groupSigns.length - 1 ? '10px' : '0') + ';border-bottom:' + (idx < groupSigns.length - 1 ? '0.5px solid var(--border)' : 'none') + ';">';
                 html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
                 html += '<span style="font-size:12px;font-weight:700;color:' + (s.noShow ? '#dc2626' : 'var(--text)') + ';">' + (s.noShow ? '🔴 당일취소' : '✅ ' + realIdx + '회차') + '</span>';
@@ -3121,7 +3121,7 @@
         } else {
           html += '<div style="padding:10px 14px;">';
           groupSigns.slice().reverse().forEach(function(s, idx) {
-            var realIdx = groupSigns.length - idx;
+            var realIdx = idx + 1;
             html += '<div style="margin-bottom:' + (idx < groupSigns.length - 1 ? '10px' : '0') + ';padding-bottom:' + (idx < groupSigns.length - 1 ? '10px' : '0') + ';border-bottom:' + (idx < groupSigns.length - 1 ? '0.5px solid var(--border)' : 'none') + ';">';
             html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
             html += '<span style="font-size:12px;font-weight:700;color:' + (s.noShow ? '#dc2626' : 'var(--text)') + ';">' + (s.noShow ? '🔴 당일취소' : '✅ ' + realIdx + '회차') + '</span>';
