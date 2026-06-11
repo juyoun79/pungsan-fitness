@@ -5764,7 +5764,22 @@
   // 담당해제 (관리자)
   function adminDeleteTrainee(trainerId, traineeId, traineeName) {
     showConfirm(traineeName + '님을 담당 해제할까요?', () => {
-      db.ref('trainers/' + trainerId + '/trainees/' + traineeId).remove().then(() => {
+      Promise.all([
+        db.ref('trainers/' + trainerId + '/trainees/' + traineeId).remove(),
+        db.ref('members/' + traineeId + '/trainerId').remove(),
+        db.ref('users/' + traineeId + '/routines').once('value').then(snap => {
+          if (!snap.exists()) return;
+          const updates = {};
+          Object.keys(snap.val()).forEach(key => {
+            if (snap.val()[key] && snap.val()[key].assignedBy === trainerId) {
+              updates[key] = null;
+            }
+          });
+          if (Object.keys(updates).length > 0) {
+            return db.ref('users/' + traineeId + '/routines').update(updates);
+          }
+        })
+      ]).then(() => {
         showToast(traineeName + '님이 담당 해제됐어요.', 'success');
         loadMonthlyReport();
       });
@@ -6126,7 +6141,7 @@ async function _kioskCheckIn(phone) {
   // getToday()와 동일한 unpadded 형식 사용 (예: 2026-6-9)
   const _d = new Date();
   const today = _d.getFullYear() + '-' + (_d.getMonth()+1) + '-' + _d.getDate();
-  const todayPadded = _d.toISOString().slice(0, 10); // pointHistory용
+  const todayPadded = today; // unpadded 형식으로 통일
   try {
     // 회원 존재 확인
     const memberSnap = await db.ref('members/' + phone).once('value');

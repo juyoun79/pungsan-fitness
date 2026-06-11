@@ -581,9 +581,16 @@
     // 임시 데이터 초기화
     cableTempSets = { pushdown:[], row:[], fly:[], curl:[], facepull:[], pulldown:[] };
     cableTempMemo = { pushdown:'', row:'', fly:'', curl:'', facepull:'', pulldown:'' };
-    const now = new Date();
     const el = document.getElementById('cable-date-label');
-    if (el) el.textContent = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 기록';
+    if (el) {
+      if (isTrainerMode && trainerTargetDate) {
+        const parts = trainerTargetDate.split('-');
+        el.textContent = parts[0] + '년 ' + parts[1] + '월 ' + parts[2] + '일 기록';
+      } else {
+        const now = new Date();
+        el.textContent = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 기록';
+      }
+    }
     document.getElementById('cable-rest-min').value = 0;
     document.getElementById('cable-rest-sec').value = 0;
     selectCableTab(0);
@@ -683,18 +690,32 @@
   function skipCableRestTimer() { skipRestTimer('cable-rest-timer-box'); }
 
   function loadCablePrevRecords() {
-    const userId = localStorage.getItem('current_user');
     const ex = CABLE_EXERCISES[cableTabIdx];
-    const key = 'cable_ex_' + ex.key + '_' + userId;
-    const records = JSON.parse(localStorage.getItem(key) || '[]');
     const wrap = document.getElementById('cable-prev-wrap');
     if (!wrap) return;
-    if (records.length === 0) { wrap.innerHTML = ''; return; }
-    const last = records[records.length - 1];
-    wrap.innerHTML = '<div style="background:var(--bg);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--text-hint);">'
-      + '<div style="font-weight:700;color:var(--text-sub);margin-bottom:4px;">이전 기록 · ' + (last.dateLabel || last.date) + '</div>'
-      + last.sets.map(s => s.set + '세트 · ' + (s.weight > 0 ? s.weight + 'kg' : '자체중량') + ' × ' + s.reps + '회').join(' / ')
-      + '</div>';
+
+    function renderCablePrev(last) {
+      if (!last) { wrap.innerHTML = ''; return; }
+      wrap.innerHTML = '<div style="background:var(--bg);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--text-hint);">'
+        + '<div style="font-weight:700;color:var(--text-sub);margin-bottom:4px;">이전 기록 · ' + (last.dateLabel || last.date) + '</div>'
+        + last.sets.map(s => s.set + '세트 · ' + (s.weight > 0 ? s.weight + 'kg' : '자체중량') + ' × ' + s.reps + '회').join(' / ')
+        + '</div>';
+    }
+
+    if (isTrainerMode && trainerTargetId) {
+      // 강사 모드: Firebase에서 회원 케이블 기록 읽기
+      db.ref('users/' + trainerTargetId + '/workouts/cable_ex_' + ex.key).once('value').then(snap => {
+        if (!snap.exists()) { wrap.innerHTML = ''; return; }
+        const records = Object.values(snap.val()).sort((a, b) => (a.date > b.date ? 1 : -1));
+        renderCablePrev(records[records.length - 1]);
+      });
+    } else {
+      // 일반 회원: localStorage에서 읽기
+      const userId = localStorage.getItem('current_user');
+      const key = 'cable_ex_' + ex.key + '_' + userId;
+      const records = JSON.parse(localStorage.getItem(key) || '[]');
+      renderCablePrev(records[records.length - 1] || null);
+    }
   }
 
   function saveCableWorkout() {
