@@ -239,7 +239,8 @@
     <div class="nickname-header">
       <div class="step-badge">처음 방문</div>
       <h2>기본 정보를<br/>입력해주세요</h2>
-      <p>정확한 칼로리 계산을 위해 사용돼요.<br/>나중에 내 정보에서 수정 가능해요.</p>
+      <p style="font-size:15px;font-weight:700;color:#d97706;line-height:1.7;margin-bottom:4px;">성별과 생년월일은 수정이 불가하니 정확하게 입력해주세요! ⚠️</p>
+      <p style="font-size:13px;color:var(--text-sub);line-height:1.6;margin-top:0;">정확한 칼로리 계산을 위해 사용돼요.</p>
     </div>
 
     <div class="card" style="margin-bottom:16px;">
@@ -1602,19 +1603,20 @@
         <button class="modal-close" onclick="document.getElementById('change-nickname-modal').classList.remove('active')">×</button>
       </div>
 
-      <!-- 성별 -->
+      <!-- 성별 (읽기전용 - 관리자만 수정 가능) -->
       <div style="margin-bottom:16px;">
         <label class="field-label">성별</label>
         <div style="display:flex;gap:10px;margin-top:8px;">
-          <button id="edit-gender-male" onclick="selectEditGender('male')"
-            style="flex:1;padding:11px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+          <button id="edit-gender-male"
+            style="flex:1;padding:11px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:default;font-family:'Noto Sans KR',sans-serif;opacity:0.85;">
             👨 남성
           </button>
-          <button id="edit-gender-female" onclick="selectEditGender('female')"
-            style="flex:1;padding:11px;border:2px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+          <button id="edit-gender-female"
+            style="flex:1;padding:11px;border:2px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:default;font-family:'Noto Sans KR',sans-serif;">
             👩 여성
           </button>
         </div>
+        <div style="font-size:11px;color:var(--text-hint);margin-top:5px;">성별 수정은 관리자에게 문의해주세요.</div>
         <input type="hidden" id="edit-body-gender" value="male" />
       </div>
 
