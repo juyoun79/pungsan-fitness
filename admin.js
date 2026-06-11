@@ -4424,12 +4424,14 @@
       document.getElementById('coupon-member-search').value = '';
       document.getElementById('coupon-member-id').value = '';
       document.getElementById('coupon-member-results').style.display = 'none';
-      document.getElementById('coupon-member-selected').style.display = 'none';
+      selectedCouponMembers = [];
+      renderCouponMemberTags();
       loadAllMembersForSearch();
     }
   }
 
   let allMembersCache = [];
+  let selectedCouponMembers = []; // 여러 명 선택용 배열
 
   function loadAllMembersForSearch() {
     db.ref('members').once('value', snap => {
@@ -4471,12 +4473,45 @@
   }
 
   function selectCouponMember(id, name) {
-    document.getElementById('coupon-member-id').value = id;
+    // 이미 선택된 회원이면 무시
+    if (selectedCouponMembers.find(m => m.id === id)) {
+      showToast('이미 선택된 회원이에요.', 'error');
+      return;
+    }
+    selectedCouponMembers.push({ id, name });
     document.getElementById('coupon-member-search').value = '';
     document.getElementById('coupon-member-results').style.display = 'none';
-    const selectedEl = document.getElementById('coupon-member-selected');
-    selectedEl.textContent = '선택됨: ' + name + ' (' + id + ')';
-    selectedEl.style.display = 'block';
+    renderCouponMemberTags();
+  }
+
+  function removeCouponMember(id) {
+    selectedCouponMembers = selectedCouponMembers.filter(m => m.id !== id);
+    renderCouponMemberTags();
+  }
+
+  function renderCouponMemberTags() {
+    const tagsEl = document.getElementById('coupon-member-tags');
+    if (!tagsEl) return;
+    if (selectedCouponMembers.length === 0) {
+      tagsEl.style.display = 'none';
+      tagsEl.innerHTML = '';
+      return;
+    }
+    tagsEl.style.display = 'flex';
+    tagsEl.innerHTML = selectedCouponMembers.map(m =>
+      `<div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:#EEEDFE;border-radius:20px;font-size:13px;color:#3C3489;font-weight:600;">
+        ${m.name} <span style="font-size:11px;color:#7F77DD;">(${m.id})</span>
+        <span onclick="removeCouponMember('${m.id}')" style="cursor:pointer;color:#7F77DD;font-size:15px;line-height:1;">×</span>
+      </div>`
+    ).join('');
+  }
+
+  function toggleCouponNoExpire(checked) {
+    const expireEl = document.getElementById('coupon-expire');
+    if (!expireEl) return;
+    expireEl.disabled = checked;
+    expireEl.style.opacity = checked ? '0.4' : '1';
+    if (checked) expireEl.value = '';
   }
 
   function loadMemberSelectOptions() {
@@ -4484,23 +4519,25 @@
   }
 
   function issueCoupon() {
-    const name = document.getElementById('coupon-name').value.trim();
-    const type = document.getElementById('coupon-type').value;
-    const value = document.getElementById('coupon-value').value.trim();
-    const expire = document.getElementById('coupon-expire').value;
-    const limit = document.getElementById('coupon-limit').value;
+    const name   = document.getElementById('coupon-name').value.trim();
+    const type   = document.getElementById('coupon-type').value;
+    const value  = document.getElementById('coupon-value').value.trim();
+    const noExpire = document.getElementById('coupon-no-expire')?.checked;
+    const expire = noExpire ? null : document.getElementById('coupon-expire').value;
+    const limit  = document.getElementById('coupon-limit').value;
     const target = document.getElementById('coupon-target').value;
-    const memo = document.getElementById('coupon-memo').value.trim();
+    const memo   = document.getElementById('coupon-memo').value.trim();
 
-    if (!name) { showToast('쿠폰 이름을 입력해주세요.', 'error'); return; }
+    if (!name)  { showToast('쿠폰 이름을 입력해주세요.', 'error'); return; }
     if (!value) { showToast('쿠폰 값을 입력해주세요.', 'error'); return; }
-    if (!expire) { showToast('유효기간을 설정해주세요.', 'error'); return; }
+    if (!noExpire && !expire) { showToast('유효기간을 설정하거나 기한 없음을 체크해주세요.', 'error'); return; }
 
     const couponData = {
-      name, type, value, expire, limit, memo,
+      name, type, value, limit, memo,
       issuedAt: new Date().toISOString(),
       used: false
     };
+    if (expire) couponData.expire = expire;
 
     if (target === 'all') {
       db.ref('members').once('value', snap => {
@@ -4512,22 +4549,27 @@
         db.ref().update(updates).then(() => {
           showToast('전체 회원에게 쿠폰이 발행됐어요! 🎫', 'success');
           clearCouponForm();
-          // 전체 회원 쿠폰 푸시알림
           if (typeof sendPushToAll === 'function') {
             sendPushToAll('🎟️ 쿠폰 도착!', '"' + name + '" 쿠폰이 도착했어요 🎫', 'coupon', { type: 'coupon' });
           }
         });
       });
     } else {
-      const memberId = document.getElementById('coupon-member-id').value;
-      if (!memberId) { showToast('회원을 선택해주세요.', 'error'); return; }
-      db.ref('coupons/' + memberId).push(couponData).then(() => {
-        showToast('쿠폰이 발행됐어요! 🎫', 'success');
+      if (selectedCouponMembers.length === 0) { showToast('회원을 한 명 이상 선택해주세요.', 'error'); return; }
+      const updates = {};
+      selectedCouponMembers.forEach(m => {
+        const couponId = db.ref('coupons/' + m.id).push().key;
+        updates['coupons/' + m.id + '/' + couponId] = couponData;
+      });
+      db.ref().update(updates).then(() => {
+        showToast(selectedCouponMembers.length + '명에게 쿠폰이 발행됐어요! 🎫', 'success');
+        // 각 회원에게 푸시알림
+        selectedCouponMembers.forEach(m => {
+          if (typeof sendPushToUser === 'function') {
+            sendPushToUser(m.id, '🎟️ 쿠폰 도착!', '"' + name + '" 쿠폰이 도착했어요 🎫', 'coupon', { type: 'coupon' });
+          }
+        });
         clearCouponForm();
-        // 특정 회원 쿠폰 푸시알림
-        if (typeof sendPushToUser === 'function') {
-          sendPushToUser(memberId, '🎟️ 쿠폰 도착!', '"' + name + '" 쿠폰이 도착했어요 🎫', 'coupon', { type: 'coupon' });
-        }
       });
     }
   }
@@ -4539,6 +4581,10 @@
     document.getElementById('coupon-memo').value = '';
     document.getElementById('coupon-target').value = 'all';
     document.getElementById('coupon-member-select').style.display = 'none';
+    const noExpireEl = document.getElementById('coupon-no-expire');
+    if (noExpireEl) { noExpireEl.checked = false; document.getElementById('coupon-expire').disabled = false; }
+    selectedCouponMembers = [];
+    renderCouponMemberTags();
   }
 
   function switchAdminCouponListTab(tab) {
