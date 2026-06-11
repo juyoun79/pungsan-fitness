@@ -581,16 +581,7 @@
     // 임시 데이터 초기화
     cableTempSets = { pushdown:[], row:[], fly:[], curl:[], facepull:[], pulldown:[] };
     cableTempMemo = { pushdown:'', row:'', fly:'', curl:'', facepull:'', pulldown:'' };
-    const el = document.getElementById('cable-date-label');
-    if (el) {
-      if (isTrainerMode && trainerTargetDate) {
-        const parts = trainerTargetDate.split('-');
-        el.textContent = parts[0] + '년 ' + parts[1] + '월 ' + parts[2] + '일 기록';
-      } else {
-        const now = new Date();
-        el.textContent = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 기록';
-      }
-    }
+
     document.getElementById('cable-rest-min').value = 0;
     document.getElementById('cable-rest-sec').value = 0;
     selectCableTab(0);
@@ -830,10 +821,7 @@
       document.getElementById('inner-rest-min').value = 0; document.getElementById('inner-rest-sec').value = 0;
       document.getElementById('outer-rest-min').value = 0; document.getElementById('outer-rest-sec').value = 0;
       addInnerSet(); addOuterSet();
-      const now = new Date();
-      const dLabel = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일';
-      const dlEl = document.getElementById('dual-workout-date-label');
-      if (dlEl) dlEl.textContent = dLabel + ' 기록';
+
     } else { dualWrap.style.display = 'none'; normalWrap.style.display = 'block'; }
     const color = getMuscleColor(eq.muscles);
     document.getElementById('workout-detail-title').textContent = eq.name + ' 기록';
@@ -842,8 +830,7 @@
     document.getElementById('workout-equipment-name').textContent = eq.no + '번 · ' + eq.name;
     document.getElementById('workout-equipment-muscles').textContent = eq.muscles;
     document.getElementById('workout-equipment-effect').textContent = eq.effect;
-    const now = new Date();
-    document.getElementById('workout-date-label').textContent = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 기록';
+
     loadPrevRecords();
     addSet();
     showScreen('screen-workout-detail');
