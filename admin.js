@@ -846,7 +846,14 @@
         Object.entries(rootVal.signs).forEach(([key, val]) => {
           if (val && typeof val === 'object') { signsArr.push({ key, ...val }); totalSigns++; }
         });
-        signsArr.sort((a, b) => a.key < b.key ? -1 : 1);
+        signsArr.sort((a, b) => {
+          const da = a.date || '', db = b.date || '';
+          if (da !== db) {
+            const toNum = d => { const p = d.split('-'); return parseInt(p[0])*10000 + parseInt(p[1])*100 + parseInt(p[2]); };
+            return toNum(da) - toNum(db);
+          }
+          return (a.savedAt || '') < (b.savedAt || '') ? -1 : 1;
+        });
       }
 
       // 현재 차수 계산
