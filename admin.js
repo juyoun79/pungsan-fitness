@@ -4445,9 +4445,7 @@
 
   function searchCouponMember(query) {
     const resultsEl = document.getElementById('coupon-member-results');
-    const selectedEl = document.getElementById('coupon-member-selected');
     document.getElementById('coupon-member-id').value = '';
-    selectedEl.style.display = 'none';
 
     if (!query.trim()) { resultsEl.style.display = 'none'; return; }
 
