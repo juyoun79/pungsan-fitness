@@ -4901,7 +4901,7 @@
     db.ref('auto_coupon_conditions').once('value', snap => {
       if (!snap.exists()) return;
       const conditions = snap.val();
-      ['attend', 'streak', 'owunwan', 'birthday'].forEach(key => {
+      ['attend', 'streak', 'owunwan', 'birthday', 'firstlogin'].forEach(key => {
         const c = conditions[key];
         if (!c) return;
         const onEl = document.getElementById('auto-' + key + '-on');
@@ -4992,19 +4992,36 @@
           }
         });
       }
+      // 첫 로그인
+      if (conds.firstlogin && conds.firstlogin.on) {
+        const role = localStorage.getItem('role_' + userId);
+        if (role !== 'trainer' && role !== 'manager') {
+          const doneKey = 'auto_coupon_firstlogin_' + userId;
+          db.ref('coupon_issued_flags/' + doneKey).once('value', flagSnap => {
+            if (!flagSnap.exists()) {
+              issueAutoCoupon(userId, '🎉 첫 로그인 축하 쿠폰', conds.firstlogin);
+              db.ref('coupon_issued_flags/' + doneKey).set(true);
+            }
+          });
+        }
+      }
     });
   }
 
   function issueAutoCoupon(userId, name, cond) {
-    const expireDays = parseInt(cond.expire || 30);
-    const expireDate = new Date();
-    expireDate.setDate(expireDate.getDate() + expireDays);
-    const expire = expireDate.toISOString().slice(0, 10);
+    const expireDays = parseInt(cond.expire || 0);
+    let expire = null;
+    if (expireDays > 0) {
+      const expireDate = new Date();
+      expireDate.setDate(expireDate.getDate() + expireDays);
+      expire = expireDate.toISOString().slice(0, 10);
+    }
     const couponData = {
       name, type: cond.type, value: cond.value,
-      expire, limit: '1', memo: '자동 발행',
+      limit: '1', memo: '자동 발행',
       issuedAt: new Date().toISOString(), used: false, auto: true
     };
+    if (expire) couponData.expire = expire;
     db.ref('coupons/' + userId).push(couponData).then(ref => {
       const loggedIn = localStorage.getItem('current_user');
       if (loggedIn === userId) {

@@ -3003,6 +3003,40 @@
               </div>
             </div>
 
+            <!-- 첫 로그인 -->
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <div style="font-size:14px;font-weight:700;color:var(--text);">🎉 첫 로그인</div>
+                <label style="position:relative;display:inline-block;width:44px;height:24px;">
+                  <input type="checkbox" id="auto-firstlogin-on" style="opacity:0;width:0;height:0;" onchange="saveAutoCondition('firstlogin')">
+                  <span id="auto-firstlogin-slider" style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:0.3s;"></span>
+                </label>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">쿠폰 종류</div>
+                  <select id="auto-firstlogin-type" onchange="toggleAutoValueLabel('firstlogin');saveAutoCondition('firstlogin')"
+                    style="width:100%;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+                    <option value="free">무료 횟수</option>
+                    <option value="discount">할인 (%)</option>
+                    <option value="extend">기간 연장 (일)</option>
+                    <option value="drink">음료 쿠폰</option>
+                    <option value="americano">아메리카노 쿠폰</option>
+                  </select>
+                </div>
+                <div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;" id="auto-firstlogin-val-label">지급 횟수</div>
+                  <input id="auto-firstlogin-value" type="number" min="1" placeholder="1" onchange="saveAutoCondition('firstlogin')"
+                    style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);text-align:center;">
+                </div>
+              </div>
+              <div style="margin-top:8px;">
+                <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">유효기간 (일) <span style="color:var(--text-hint);font-weight:400;">(0 입력 시 기한 없음)</span></div>
+                <input id="auto-firstlogin-expire" type="number" min="0" placeholder="30" onchange="saveAutoCondition('firstlogin')"
+                  style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);text-align:center;">
+              </div>
+            </div>
+
           </div>
         </div>
 
