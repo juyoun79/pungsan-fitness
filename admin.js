@@ -3832,17 +3832,18 @@
             ];
             const cableEx = cableExList.find(e => e.key === cableKey);
             name = cableEx ? cableEx.name : (r.name || rawKey);
+          } else if (rawKey.startsWith('dual_front_')) {
+            // 듀얼기구 전면 - r.name보다 먼저 처리
+            const dNames = getDualNames(baseKey);
+            name = dNames ? dNames.front : (r.name || eq ? eq.name : baseKey);
+          } else if (rawKey.startsWith('dual_back_')) {
+            // 듀얼기구 후면 - r.name보다 먼저 처리
+            const dNames = getDualNames(baseKey);
+            name = dNames ? dNames.back : (r.name || eq ? eq.name : baseKey);
           } else if (r.name) {
             name = r.name;
           } else if (eq) {
             name = eq.name;
-            if (rawKey.startsWith('dual_front_')) {
-              const dNames = getDualNames(baseKey);
-              name = dNames ? dNames.front : eq.name;
-            } else if (rawKey.startsWith('dual_back_')) {
-              const dNames = getDualNames(baseKey);
-              name = dNames ? dNames.back : eq.name;
-            }
           } else {
             name = baseKey.replace(/_/g,' ') || rawKey;
           }
