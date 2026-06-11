@@ -1520,6 +1520,36 @@
           localStorage.setItem('name_' + newPhone, newName);
           if (newNickname) localStorage.setItem('nickname_' + newPhone, newNickname);
           if (newBirth)    localStorage.setItem('body_birth_' + newPhone, newBirth);
+          // 닉네임 변경 시 nicknames 경로 업데이트 + 게시글/댓글 일괄 업데이트
+          if (newNickname) {
+            const oldNickname = info.nickname || '';
+            if (oldNickname && oldNickname !== newNickname) {
+              db.ref('nicknames/' + oldNickname).remove();
+            }
+            db.ref('nicknames/' + newNickname).set(newPhone);
+            db.ref('posts').once('value', postsSnap => {
+              const updates = {};
+              postsSnap.forEach(child => {
+                if (child.val().authorId === oldPhone) {
+                  updates['posts/' + child.key + '/nickname'] = newNickname;
+                  updates['posts/' + child.key + '/authorId'] = newPhone;
+                }
+              });
+              if (Object.keys(updates).length > 0) db.ref().update(updates);
+            });
+            db.ref('comments').once('value', commSnap => {
+              const updates = {};
+              commSnap.forEach(postChild => {
+                postChild.forEach(commentChild => {
+                  if (commentChild.val().authorId === oldPhone) {
+                    updates['comments/' + postChild.key + '/' + commentChild.key + '/nickname'] = newNickname;
+                    updates['comments/' + postChild.key + '/' + commentChild.key + '/authorId'] = newPhone;
+                  }
+                });
+              });
+              if (Object.keys(updates).length > 0) db.ref().update(updates);
+            });
+          }
           closeEditMemberModal();
           closeMemberModal();
           loadMemberList();
@@ -1533,6 +1563,35 @@
           localStorage.setItem('name_' + oldPhone, newName);
           if (newNickname) localStorage.setItem('nickname_' + oldPhone, newNickname);
           if (newBirth)    localStorage.setItem('body_birth_' + oldPhone, newBirth);
+          // 닉네임 변경 시 nicknames 경로 업데이트 + 게시글/댓글 일괄 업데이트
+          if (newNickname) {
+            const oldNickname = info.nickname || '';
+            if (oldNickname && oldNickname !== newNickname) {
+              db.ref('nicknames/' + oldNickname).remove();
+            }
+            db.ref('nicknames/' + newNickname).set(oldPhone);
+            // 게시글/댓글 닉네임 일괄 업데이트
+            db.ref('posts').once('value', postsSnap => {
+              const updates = {};
+              postsSnap.forEach(child => {
+                if (child.val().authorId === oldPhone) {
+                  updates['posts/' + child.key + '/nickname'] = newNickname;
+                }
+              });
+              if (Object.keys(updates).length > 0) db.ref().update(updates);
+            });
+            db.ref('comments').once('value', commSnap => {
+              const updates = {};
+              commSnap.forEach(postChild => {
+                postChild.forEach(commentChild => {
+                  if (commentChild.val().authorId === oldPhone) {
+                    updates['comments/' + postChild.key + '/' + commentChild.key + '/nickname'] = newNickname;
+                  }
+                });
+              });
+              if (Object.keys(updates).length > 0) db.ref().update(updates);
+            });
+          }
           cachedMembers[oldPhone] = { ...info, ...updateData };
           closeEditMemberModal();
           closeMemberModal();
