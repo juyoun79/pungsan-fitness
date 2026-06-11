@@ -938,9 +938,9 @@
               }
             } else {
               html += '<div style="padding:10px 14px;">';
-              groupSigns.slice().reverse().forEach(function(s, revIdx) {
-                const realIdx = groupSigns.length - revIdx;
-                html += '<div style="margin-bottom:' + (revIdx < groupSigns.length - 1 ? '10px' : '0') + ';padding-bottom:' + (revIdx < groupSigns.length - 1 ? '10px' : '0') + ';border-bottom:' + (revIdx < groupSigns.length - 1 ? '0.5px solid var(--border)' : 'none') + ';">';
+              groupSigns.slice().forEach(function(s, idx) {
+                const realIdx = idx + 1;
+                html += '<div style="margin-bottom:' + (idx < groupSigns.length - 1 ? '10px' : '0') + ';padding-bottom:' + (idx < groupSigns.length - 1 ? '10px' : '0') + ';border-bottom:' + (idx < groupSigns.length - 1 ? '0.5px solid var(--border)' : 'none') + ';">';
                 html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
                 html += '<span style="font-size:12px;font-weight:700;color:' + (s.noShow ? '#dc2626' : 'var(--text)') + ';">' + (s.noShow ? '🔴 당일취소' : '✅ ' + realIdx + '회차') + '</span>';
                 html += '<div style="display:flex;align-items:center;gap:8px;">';
@@ -1520,36 +1520,6 @@
           localStorage.setItem('name_' + newPhone, newName);
           if (newNickname) localStorage.setItem('nickname_' + newPhone, newNickname);
           if (newBirth)    localStorage.setItem('body_birth_' + newPhone, newBirth);
-          // 닉네임 변경 시 nicknames 경로 업데이트 + 게시글/댓글 일괄 업데이트
-          if (newNickname) {
-            const oldNickname = info.nickname || '';
-            if (oldNickname && oldNickname !== newNickname) {
-              db.ref('nicknames/' + oldNickname).remove();
-            }
-            db.ref('nicknames/' + newNickname).set(newPhone);
-            db.ref('posts').once('value', postsSnap => {
-              const updates = {};
-              postsSnap.forEach(child => {
-                if (child.val().authorId === oldPhone) {
-                  updates['posts/' + child.key + '/nickname'] = newNickname;
-                  updates['posts/' + child.key + '/authorId'] = newPhone;
-                }
-              });
-              if (Object.keys(updates).length > 0) db.ref().update(updates);
-            });
-            db.ref('comments').once('value', commSnap => {
-              const updates = {};
-              commSnap.forEach(postChild => {
-                postChild.forEach(commentChild => {
-                  if (commentChild.val().authorId === oldPhone) {
-                    updates['comments/' + postChild.key + '/' + commentChild.key + '/nickname'] = newNickname;
-                    updates['comments/' + postChild.key + '/' + commentChild.key + '/authorId'] = newPhone;
-                  }
-                });
-              });
-              if (Object.keys(updates).length > 0) db.ref().update(updates);
-            });
-          }
           closeEditMemberModal();
           closeMemberModal();
           loadMemberList();
@@ -1563,35 +1533,6 @@
           localStorage.setItem('name_' + oldPhone, newName);
           if (newNickname) localStorage.setItem('nickname_' + oldPhone, newNickname);
           if (newBirth)    localStorage.setItem('body_birth_' + oldPhone, newBirth);
-          // 닉네임 변경 시 nicknames 경로 업데이트 + 게시글/댓글 일괄 업데이트
-          if (newNickname) {
-            const oldNickname = info.nickname || '';
-            if (oldNickname && oldNickname !== newNickname) {
-              db.ref('nicknames/' + oldNickname).remove();
-            }
-            db.ref('nicknames/' + newNickname).set(oldPhone);
-            // 게시글/댓글 닉네임 일괄 업데이트
-            db.ref('posts').once('value', postsSnap => {
-              const updates = {};
-              postsSnap.forEach(child => {
-                if (child.val().authorId === oldPhone) {
-                  updates['posts/' + child.key + '/nickname'] = newNickname;
-                }
-              });
-              if (Object.keys(updates).length > 0) db.ref().update(updates);
-            });
-            db.ref('comments').once('value', commSnap => {
-              const updates = {};
-              commSnap.forEach(postChild => {
-                postChild.forEach(commentChild => {
-                  if (commentChild.val().authorId === oldPhone) {
-                    updates['comments/' + postChild.key + '/' + commentChild.key + '/nickname'] = newNickname;
-                  }
-                });
-              });
-              if (Object.keys(updates).length > 0) db.ref().update(updates);
-            });
-          }
           cachedMembers[oldPhone] = { ...info, ...updateData };
           closeEditMemberModal();
           closeMemberModal();
@@ -3169,9 +3110,9 @@
           html += '<div style="padding:12px 14px;text-align:center;color:var(--text-hint);font-size:12px;">아직 서명 기록이 없어요</div>';
         } else {
           html += '<div style="padding:10px 14px;">';
-          groupSigns.slice().reverse().forEach(function(s, revIdx) {
-            var realIdx = groupSigns.length - revIdx;
-            html += '<div style="margin-bottom:' + (revIdx < groupSigns.length - 1 ? '10px' : '0') + ';padding-bottom:' + (revIdx < groupSigns.length - 1 ? '10px' : '0') + ';border-bottom:' + (revIdx < groupSigns.length - 1 ? '0.5px solid var(--border)' : 'none') + ';">';
+          groupSigns.slice().forEach(function(s, idx) {
+            var realIdx = idx + 1;
+            html += '<div style="margin-bottom:' + (idx < groupSigns.length - 1 ? '10px' : '0') + ';padding-bottom:' + (idx < groupSigns.length - 1 ? '10px' : '0') + ';border-bottom:' + (idx < groupSigns.length - 1 ? '0.5px solid var(--border)' : 'none') + ';">';
             html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
             html += '<span style="font-size:12px;font-weight:700;color:' + (s.noShow ? '#dc2626' : 'var(--text)') + ';">' + (s.noShow ? '🔴 당일취소' : '✅ ' + realIdx + '회차') + '</span>';
             html += '<div style="display:flex;align-items:center;gap:8px;">';
