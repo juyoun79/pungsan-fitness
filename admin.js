@@ -807,12 +807,14 @@
       Promise.all([
         db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/registrations/' + regKey).set(prevReg),
         db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId).update({ type, total: count, remain: newRemain, regDate: dateStr }),
-        db.ref('members/' + currentTraineeId + '/trainerId').set(trainerId)
+        db.ref('members/' + currentTraineeId + '/trainerId').set(trainerId),
+        db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/reregTarget').remove()
       ]).then(() => {
         document.getElementById('trainee-card-type').textContent = type;
         refreshTraineeView(currentTraineeId);
         showToast('✅ ' + count + '회 재등록 완료!', 'success');
         closeReregisterModal();
+        loadTrainerTab();
       });
     });
   }
@@ -2027,6 +2029,9 @@
 
   function loadTrainerTab() {
     const userId = localStorage.getItem('current_user');
+    // 검색창 초기화
+    const searchEl = document.getElementById('trainee-list-search');
+    if (searchEl) searchEl.value = '';
     db.ref('trainers/' + userId + '/trainees').once('value', snap => {
       const data = snap.val();
       const container = document.getElementById('trainee-list');
@@ -2168,7 +2173,10 @@
       });
     } else {
       showConfirm(realName + ' 회원을 종료 처리할까요?\n목록 맨 아래로 이동됩니다.', () => {
-        db.ref('trainers/' + trainerId + '/trainees/' + memberId + '/ended').set(true).then(() => {
+        Promise.all([
+          db.ref('trainers/' + trainerId + '/trainees/' + memberId + '/ended').set(true),
+          db.ref('trainers/' + trainerId + '/trainees/' + memberId + '/reregTarget').remove()
+        ]).then(() => {
           showToast('종료 처리됐어요.', 'success');
           loadTrainerTab();
         });
@@ -5705,7 +5713,8 @@
       const newRemain = (info.remain || 0) + count;
       Promise.all([
         db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/registrations/' + regKey).set(prevReg),
-        ref.update({ type, total: count, remain: newRemain, regDate: dateStr })
+        ref.update({ type, total: count, remain: newRemain, regDate: dateStr }),
+        db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/reregTarget').remove()
       ]).then(() => {
         showToast('✅ ' + memberName + ' ' + count + '회 재등록 완료!', 'success');
         document.getElementById('admin-reregister-modal')?.remove();
