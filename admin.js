@@ -3015,7 +3015,17 @@
       var signs = [];
       if (signsSnap.exists()) {
         signsSnap.forEach(function(child) { signs.push({ key: child.key, ...child.val() }); });
-        signs.sort(function(a, b) { return a.key < b.key ? -1 : 1; });
+        // date 필드로 정렬 (날짜 오래된 순), 같은 날짜면 savedAt 순
+        signs.sort(function(a, b) {
+          const dateA = a.date || '';
+          const dateB = b.date || '';
+          if (dateA !== dateB) {
+            // 날짜를 숫자로 변환해서 비교 (unpadded 형식 대응)
+            const toNum = d => { const p = d.split('-'); return parseInt(p[0])*10000 + parseInt(p[1])*100 + parseInt(p[2]); };
+            return toNum(dateA) - toNum(dateB);
+          }
+          return (a.savedAt || '') < (b.savedAt || '') ? -1 : 1;
+        });
       }
 
       if (signs.length === 0) {
