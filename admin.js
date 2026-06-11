@@ -5707,7 +5707,8 @@
     const ref = db.ref('trainers/' + trainerId + '/trainees/' + traineeId);
     ref.once('value').then(snap => {
       const info = snap.val() || {};
-      const dateStr = new Date().toISOString().slice(0,10);
+      const _now = new Date();
+      const dateStr = _now.getFullYear() + '-' + (_now.getMonth()+1) + '-' + _now.getDate();
       const regKey = 'reg_' + Date.now();
       const prevReg = { type: info.type || type, total: info.total || 0, remain: info.remain || 0, date: dateStr };
       const newRemain = (info.remain || 0) + count;
