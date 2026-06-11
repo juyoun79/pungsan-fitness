@@ -260,14 +260,25 @@
         <input type="hidden" id="body-gender" value="male" />
       </div>
 
-      <!-- 나이 + 키 -->
+      <!-- 생년월일 (성별 아래) -->
+      <div class="field-wrap" style="margin-bottom:16px;">
+        <label class="field-label">생년월일</label>
+        <div style="position:relative;margin-top:6px;">
+          <input type="text" inputmode="numeric" id="body-birth" placeholder="19900101" maxlength="8"
+            style="width:100%;box-sizing:border-box;padding:12px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:18px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;"
+            onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'"
+            oninput="calcAgeFromBirthInput(this.value)" />
+        </div>
+        <div style="font-size:12px;color:var(--text-hint);margin-top:4px;">예) 1990년 01월 01일 → 19900101</div>
+      </div>
+
+      <!-- 나이(자동계산) + 키 -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
         <div>
-          <label class="field-label">나이</label>
+          <label class="field-label">나이 <span style="font-size:11px;color:var(--text-hint);font-weight:400;">(자동계산)</span></label>
           <div style="position:relative;margin-top:6px;">
-            <input type="number" id="body-age" placeholder="30" min="10" max="100"
-              style="width:100%;box-sizing:border-box;padding:12px 32px 12px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:18px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;"
-              onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
+            <input type="number" id="body-age" placeholder="--" min="10" max="100" readonly
+              style="width:100%;box-sizing:border-box;padding:12px 32px 12px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:18px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text-sub);cursor:default;" />
             <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:13px;font-weight:700;color:var(--text-sub);pointer-events:none;">세</span>
           </div>
         </div>
@@ -324,16 +335,7 @@
         </div>
       </div>
 
-      <!-- 생년월일 -->
-      <div class="field-wrap" style="margin-bottom:0;">
-        <label class="field-label">생년월일</label>
-        <div style="position:relative;margin-top:6px;">
-          <input type="text" inputmode="numeric" id="body-birth" placeholder="20110101" maxlength="8"
-            style="width:100%;box-sizing:border-box;padding:12px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:18px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;"
-            onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
-        </div>
-        <div style="font-size:12px;color:var(--text-hint);margin-top:4px;">예) 2011년 01월 01일 → 20110101</div>
-      </div>
+
 
     </div>
 
@@ -1616,14 +1618,13 @@
         <input type="hidden" id="edit-body-gender" value="male" />
       </div>
 
-      <!-- 나이 + 키 -->
+      <!-- 나이(자동계산) + 키 -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
         <div>
-          <label class="field-label">나이</label>
+          <label class="field-label">나이 <span style="font-size:11px;color:var(--text-hint);font-weight:400;">(자동계산)</span></label>
           <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
-            <input type="number" id="edit-body-age" placeholder="30" min="10" max="100"
-              style="flex:1;padding:11px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:18px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;"
-              onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
+            <input type="number" id="edit-body-age" placeholder="--" min="10" max="100" readonly
+              style="flex:1;padding:11px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:18px;font-weight:700;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text-sub);cursor:default;" />
             <span style="font-size:13px;font-weight:700;color:var(--text-sub);">세</span>
           </div>
         </div>
@@ -4481,7 +4482,9 @@
     const height = localStorage.getItem('body_height_' + userId);
     const weight = localStorage.getItem('body_weight_' + userId);
     document.getElementById('myinfo-gender').textContent = gender === 'female' ? '👩 여성' : gender === 'male' ? '👨 남성' : '-';
-    document.getElementById('myinfo-age').textContent    = age    ? age + '세'  : '-';
+    const birth4Age = localStorage.getItem('body_birth_' + userId) || '';
+    const calcAge   = calcAgeFromBirth(birth4Age);
+    document.getElementById('myinfo-age').textContent = calcAge ? calcAge + '세' : (age ? age + '세' : '-');
     document.getElementById('myinfo-height').textContent = height ? height + 'cm' : '-';
     document.getElementById('myinfo-weight').textContent = weight ? weight + 'kg' : '-';
     // 생년월일 표시
@@ -6055,6 +6058,31 @@
     }
   }
 
+  // ── 생년월일로 나이 계산 ──
+  function calcAgeFromBirth(birth) {
+    if (!birth || birth.length !== 8) return 0;
+    const y = parseInt(birth.substring(0,4));
+    const m = parseInt(birth.substring(4,6));
+    const d = parseInt(birth.substring(6,8));
+    if (isNaN(y)||isNaN(m)||isNaN(d)||y<1900||y>2100) return 0;
+    const today = new Date();
+    let age = today.getFullYear() - y;
+    if (today.getMonth()+1 < m || (today.getMonth()+1 === m && today.getDate() < d)) age--;
+    return age > 0 ? age : 0;
+  }
+
+  // 생년월일 입력 시 나이 칸 자동계산 (기본정보 입력창용)
+  function calcAgeFromBirthInput(val) {
+    const ageEl = document.getElementById('body-age');
+    if (!ageEl) return;
+    const age = calcAgeFromBirth(val);
+    if (age > 0) {
+      ageEl.value = age;
+    } else {
+      ageEl.value = '';
+    }
+  }
+
   function selectGender(gender) {
     document.getElementById('body-gender').value = gender;
     _applyGenderStyle('gender-male', 'gender-female', gender);
@@ -6318,38 +6346,35 @@
 
   function saveBodyInfo() {
     const gender = document.getElementById('body-gender').value;
+    const birth  = (document.getElementById('body-birth')?.value || '').trim();
     const age    = parseInt(document.getElementById('body-age').value) || 0;
     const height = parseFloat(document.getElementById('body-height').value) || 0;
     const weight = parseFloat(document.getElementById('body-weight').value) || 0;
-    if (!age || age < 10)     { showToast('나이를 입력해주세요.', 'error'); return; }
-    if (!height || height < 100) { showToast('키를 입력해주세요.', 'error'); return; }
-    if (!weight || weight < 20)  { showToast('체중을 입력해주세요.', 'error'); return; }
-    const userId = localStorage.getItem('current_user');
-    localStorage.setItem('body_gender_' + userId, gender);
-    localStorage.setItem('body_age_'    + userId, age);
-    localStorage.setItem('body_height_' + userId, height);
-    localStorage.setItem('body_weight_' + userId, weight);
-    // 목표 저장
     const goalType   = document.getElementById('body-goal-type')?.value || 'diet';
     const goalWeight = parseFloat(document.getElementById('body-goal-weight')?.value) || 0;
+    // 전체 필수 검증
+    if (!birth || birth.length !== 8) { showToast('생년월일을 입력해주세요. (8자리)', 'error'); return; }
+    if (!age || age < 10)             { showToast('생년월일을 정확히 입력해주세요.', 'error'); return; }
+    if (!height || height < 100)      { showToast('키를 입력해주세요.', 'error'); return; }
+    if (!weight || weight < 20)       { showToast('체중을 입력해주세요.', 'error'); return; }
+    if (!goalWeight || goalWeight < 20) { showToast('목표 체중을 입력해주세요.', 'error'); return; }
+    const userId = localStorage.getItem('current_user');
+    localStorage.setItem('body_gender_'      + userId, gender);
+    localStorage.setItem('body_age_'         + userId, age);
+    localStorage.setItem('body_height_'      + userId, height);
+    localStorage.setItem('body_weight_'      + userId, weight);
     localStorage.setItem('body_goal_type_'   + userId, goalType);
-    if (goalWeight >= 20) localStorage.setItem('body_goal_weight_' + userId, goalWeight);
+    localStorage.setItem('body_goal_weight_' + userId, goalWeight);
+    localStorage.setItem('body_birth_'       + userId, birth);
     saveWeightHistory(userId, weight);
     // Firebase 신체정보 저장
-    const birth = document.getElementById('body-birth') ? document.getElementById('body-birth').value.trim() : '';
-    if (birth) {
-      localStorage.setItem('body_birth_' + userId, birth);
-      // 강사/관리자는 users에, 회원은 members에 저장
-      const userRoleSave = localStorage.getItem('role_' + userId);
-      if (userRoleSave === 'trainer' || userRoleSave === 'manager') {
-        db.ref('users/' + userId + '/birth').set(birth);
-      } else {
-        db.ref('members/' + userId + '/birth').set(birth);
-      }
+    const userRoleSave = localStorage.getItem('role_' + userId);
+    if (userRoleSave === 'trainer' || userRoleSave === 'manager') {
+      db.ref('users/' + userId + '/birth').set(birth);
+    } else {
+      db.ref('members/' + userId + '/birth').set(birth);
     }
-    const bodyData = { gender, age, height, weight, goalType };
-    if (goalWeight >= 20) bodyData.goalWeight = goalWeight;
-    if (birth) bodyData.birth = birth;
+    const bodyData = { gender, age, height, weight, goalType, goalWeight, birth };
     db.ref('users/' + userId + '/body').set(bodyData);
     const nickname = localStorage.getItem('nickname_' + userId) || localStorage.getItem('name_' + userId) || userId;
     goHome(nickname, true);
@@ -6397,7 +6422,10 @@
       const goalType   = localStorage.getItem('body_goal_type_'   + userId) || 'diet';
       const goalWeight = localStorage.getItem('body_goal_weight_' + userId) || '';
       document.getElementById('edit-body-gender').value      = gender;
-      document.getElementById('edit-body-age').value         = age;
+      // 나이: 생년월일 기준 자동계산
+      const birthForAge = localStorage.getItem('body_birth_' + userId) || '';
+      const calcedAge   = calcAgeFromBirth(birthForAge) || age;
+      document.getElementById('edit-body-age').value         = calcedAge;
       document.getElementById('edit-body-height').value      = height;
       document.getElementById('edit-body-weight').value      = weight;
       document.getElementById('edit-body-goal-type').value   = goalType;
@@ -6411,13 +6439,14 @@
   // ── 신체정보 수정 저장 ──
   function saveBodyInfoEdit() {
     const gender = document.getElementById('edit-body-gender').value;
-    const age    = parseInt(document.getElementById('edit-body-age').value) || 0;
     const height = parseFloat(document.getElementById('edit-body-height').value) || 0;
-    // 체중은 홈화면에서만 수정 → 기존 저장값 유지
-    if (!age || age < 10)        { showToast('나이를 입력해주세요.', 'error'); return; }
-    if (!height || height < 100) { showToast('키를 입력해주세요.', 'error'); return; }
+    // 나이는 생년월일 기준 자동계산 (읽기전용)
     const userId = localStorage.getItem('current_user');
-    const weight = parseFloat(localStorage.getItem('body_weight_' + userId)) || 0; // 기존 체중 유지
+    const birth  = localStorage.getItem('body_birth_' + userId) || '';
+    const age    = calcAgeFromBirth(birth) || parseInt(document.getElementById('edit-body-age').value) || 0;
+    // 체중은 홈화면에서만 수정 → 기존 저장값 유지
+    if (!height || height < 100) { showToast('키를 입력해주세요.', 'error'); return; }
+    const weight = parseFloat(localStorage.getItem('body_weight_' + userId)) || 0;
     localStorage.setItem('body_gender_' + userId, gender);
     localStorage.setItem('body_age_'    + userId, age);
     localStorage.setItem('body_height_' + userId, height);
@@ -6427,16 +6456,6 @@
     localStorage.setItem('body_goal_type_'   + userId, goalType);
     if (goalWeight >= 20) localStorage.setItem('body_goal_weight_' + userId, goalWeight);
     // Firebase 신체정보 수정 저장 (체중은 기존값 유지, weightHistory 건드리지 않음)
-    const birth = document.getElementById('body-birth') ? document.getElementById('body-birth').value.trim() : '';
-    if (birth) {
-      localStorage.setItem('body_birth_' + userId, birth);
-      const userRoleSave2 = localStorage.getItem('role_' + userId);
-      if (userRoleSave2 === 'trainer' || userRoleSave2 === 'manager') {
-        db.ref('users/' + userId + '/birth').set(birth);
-      } else {
-        db.ref('members/' + userId + '/birth').set(birth);
-      }
-    }
     const bodyData = { gender, age, height, weight, goalType };
     if (goalWeight >= 20) bodyData.goalWeight = goalWeight;
     if (birth) bodyData.birth = birth;
