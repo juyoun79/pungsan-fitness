@@ -3589,16 +3589,13 @@
       let calHtml = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
           <div style="position:relative;">
-            <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
             <input type="text" id="trainer-equipment-search"
-              placeholder="기구명·번호 검색"
-              style="width:100%;box-sizing:border-box;padding:10px 10px 10px 34px;border:1.5px dashed #1a6fd4;border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
+              placeholder="기구명·번호·부위로 검색"
+              style="width:100%;box-sizing:border-box;padding:10px 20px 10px 10px;border:1.5px dashed #1a6fd4;border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--card);color:var(--text);"
               onfocus="this.style.borderColor='#0f4fa8';showTrainerEqSearchResult(this.value,'${trainerCalSelectedDate||''}','${traineeId}')"
               onblur="this.style.borderColor='#1a6fd4'"
               oninput="showTrainerEqSearchResult(this.value,'${trainerCalSelectedDate||''}','${traineeId}')" />
-            <button id="trainer-search-clear-btn" onclick="clearTrainerEqSearch()" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);background:var(--text-hint);border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;color:white;font-size:12px;line-height:1;padding:0;">×</button>
+            <button id="trainer-search-clear-btn" onclick="clearTrainerEqSearch()" style="display:none;position:absolute;right:4px;top:50%;transform:translateY(-50%);background:var(--text-hint);border:none;border-radius:50%;width:16px;height:16px;cursor:pointer;color:white;font-size:11px;line-height:1;padding:0;">×</button>
           </div>
           <button onclick="openTrainerFwWorkoutMode('${trainerCalSelectedDate||''}','${traineeId}')"
             style="padding:10px 8px;background:var(--card);border:1.5px dashed #8b5cf6;border-radius:var(--radius-sm);color:#8b5cf6;font-size:12px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">
@@ -3639,10 +3636,11 @@
                 </div>`
               : '<div style="width:5px;height:5px;margin:1px auto 0;"></div>';
             const dow = (firstDay + i) % 7;
-            let bg = hasLesson ? '#16a34a' : isSelected ? 'var(--blue)' : isToday ? 'rgba(124,58,237,0.15)' : 'transparent';
-            let color = hasLesson ? 'white' : isSelected ? 'white' : isToday ? '#7c3aed' : dow===0 ? '#ef4444' : dow===6 ? '#3b82f6' : 'var(--text)';
+            let bg = hasLesson ? '#16a34a' : isToday ? 'rgba(124,58,237,0.15)' : 'transparent';
+            let color = hasLesson ? 'white' : isToday ? '#7c3aed' : dow===0 ? '#ef4444' : dow===6 ? '#3b82f6' : 'var(--text)';
             let fontW = (hasLesson || isToday || isSelected) ? '700' : '400';
-            return `<div onclick="selectTrainerCalDay('${dateStr}')" style="text-align:center;padding:6px 2px;border-radius:50%;cursor:pointer;background:${bg};position:relative;">
+            let border = isSelected ? '2px solid #1a1a2e' : 'none';
+            return `<div onclick="selectTrainerCalDay('${dateStr}')" style="text-align:center;padding:6px 2px;border-radius:50%;cursor:pointer;background:${bg};border:${border};position:relative;">
               <div style="font-size:13px;font-weight:${fontW};color:${color};">${day}</div>
               ${dotHtml}
             </div>`;
