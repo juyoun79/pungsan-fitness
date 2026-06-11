@@ -4973,12 +4973,16 @@
         db.ref('members/' + userId).once('value', mSnap => {
           if (!mSnap.exists()) return;
           const m = mSnap.val();
-          if (!m.birth) return;
+          if (!m.birth || m.birth.length < 8) return;
           const today = getToday();
-          const [, mm, dd] = today.split('-');
-          const [, bm, bd] = m.birth.split('-');
+          const todayParts = today.split('-');
+          const mm = todayParts[1].padStart(2, '0');
+          const dd = todayParts[2].padStart(2, '0');
+          // 생년월일 8자리(19900615) 형식 처리
+          const bm = m.birth.length === 8 ? m.birth.substring(4,6) : (m.birth.split('-')[1] || '').padStart(2,'0');
+          const bd = m.birth.length === 8 ? m.birth.substring(6,8) : (m.birth.split('-')[2] || '').padStart(2,'0');
           if (mm === bm && dd === bd) {
-            const doneKey = 'auto_coupon_birthday_' + userId + '_' + today.slice(0,7);
+            const doneKey = 'auto_coupon_birthday_' + userId + '_' + todayParts[0] + '-' + mm;
             db.ref('coupon_issued_flags/' + doneKey).once('value', flagSnap => {
               if (!flagSnap.exists()) {
                 issueAutoCoupon(userId, '🎂 생일 축하 쿠폰', conds.birthday);
