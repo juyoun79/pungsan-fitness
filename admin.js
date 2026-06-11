@@ -3111,7 +3111,7 @@
         } else {
           html += '<div style="padding:10px 14px;">';
           groupSigns.slice().reverse().forEach(function(s, revIdx) {
-            var realIdx = revIdx + 1;
+            var realIdx = groupSigns.length - revIdx;
             html += '<div style="margin-bottom:' + (revIdx < groupSigns.length - 1 ? '10px' : '0') + ';padding-bottom:' + (revIdx < groupSigns.length - 1 ? '10px' : '0') + ';border-bottom:' + (revIdx < groupSigns.length - 1 ? '0.5px solid var(--border)' : 'none') + ';">';
             html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
             html += '<span style="font-size:12px;font-weight:700;color:' + (s.noShow ? '#dc2626' : 'var(--text)') + ';">' + (s.noShow ? '🔴 당일취소' : '✅ ' + realIdx + '회차') + '</span>';
@@ -3407,6 +3407,8 @@
             db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/signs').once('value', allSignsSnap => {
               let hasOtherSignOnDate = false;
               allSignsSnap.forEach(s => {
+                // 방금 삭제한 서명은 제외하고 확인
+                if (s.key === editSignKey) return;
                 const sv = s.val();
                 if (sv && sv.date === signDate) hasOtherSignOnDate = true;
               });
