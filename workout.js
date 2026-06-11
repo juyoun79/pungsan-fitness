@@ -81,6 +81,9 @@
               localKey = 'freeweight_' + name.replace(/\s+/g, '_') + '_' + userId;
               const fwIndex = JSON.parse(localStorage.getItem('freeweight_index_' + userId) || '[]');
               if (!fwIndex.includes(name)) { fwIndex.push(name); localStorage.setItem('freeweight_index_' + userId, JSON.stringify(fwIndex)); }
+            } else if (fbKey.startsWith('cable_ex_')) {
+              const cableKey = fbKey.replace('cable_ex_', '');
+              localKey = 'cable_ex_' + cableKey + '_' + userId;
             } else {
               localKey = 'workout_' + fbKey + '_' + userId;
             }
@@ -683,11 +686,12 @@
   }
 
   function saveCableWorkout() {
-    const userId = localStorage.getItem('current_user');
-    const today = getToday();
+    const userId = isTrainerMode ? trainerTargetId : localStorage.getItem('current_user');
+    const today = isTrainerMode && trainerTargetDate ? trainerTargetDate : getToday();
     const now = new Date();
     const savedAt = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-    const dateLabel = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일';
+    const todayParts = today.split('-');
+    const dateLabel = todayParts[0] + '년 ' + todayParts[1] + '월 ' + todayParts[2] + '일';
 
     // 현재 화면 세트 직접 읽어서 현재 탭 temp 업데이트
     const curEx = CABLE_EXERCISES[cableTabIdx];
@@ -713,26 +717,33 @@
     let totalSets = 0;
     let maxWeight = 0;
     let totalVol = 0;
+    const savePromises = [];
     CABLE_EXERCISES.forEach(ex => {
       const sets = cableTempSets[ex.key];
       if (!sets || sets.length === 0) return;
       const validSets = sets.filter(s => parseInt(s.reps) > 0);
       if (validSets.length === 0) return;
-      const key = 'cable_ex_' + ex.key + '_' + userId;
       const memo = cableTempMemo[ex.key] || '';
       const mappedSets = validSets.map((s, i) => ({ set: i+1, weight: parseFloat(s.weight)||0, reps: parseInt(s.reps)||0 }));
-      // 통계 누적
       mappedSets.forEach(s => {
         totalSets++;
         if (s.weight > maxWeight) maxWeight = s.weight;
         totalVol += s.weight * s.reps;
       });
-      const records = JSON.parse(localStorage.getItem(key) || '[]');
-      const existIdx = records.findIndex(r => r.date === today);
       const record = { date: today, dateLabel, sets: mappedSets, memo, savedAt };
-      if (existIdx >= 0) records[existIdx] = record;
-      else records.push(record);
-      localStorage.setItem(key, JSON.stringify(records));
+      if (isTrainerMode) {
+        // 강사 모드: Firebase에만 저장 (회원 ID 기준) + recordedBy 추가
+        record.recordedBy = 'trainer';
+        savePromises.push(db.ref('users/' + userId + '/workouts/cable_ex_' + ex.key + '/' + today).set(record));
+      } else {
+        // 일반 회원: localStorage + Firebase 둘 다 저장
+        const key = 'cable_ex_' + ex.key + '_' + userId;
+        const records = JSON.parse(localStorage.getItem(key) || '[]');
+        const existIdx = records.findIndex(r => r.date === today);
+        if (existIdx >= 0) records[existIdx] = record; else records.push(record);
+        localStorage.setItem(key, JSON.stringify(records));
+        savePromises.push(db.ref('users/' + userId + '/workouts/cable_ex_' + ex.key + '/' + today).set(record));
+      }
       savedCount++;
     });
 
@@ -742,11 +753,22 @@
     cableTempSets = { pushdown:[], row:[], fly:[], curl:[], facepull:[], pulldown:[] };
     cableTempMemo = { pushdown:'', row:'', fly:'', curl:'', facepull:'', pulldown:'' };
 
-    // 운동 완료 오버레이 표시 (다른 기구와 동일한 형식)
+    // 저장 완료 후 처리
+    const wasTrainerMode = isTrainerMode;
+    const savedTraineeId = trainerTargetId;
+    const savedDate = trainerTargetDate;
+    Promise.all(savePromises).then(() => {
+      if (wasTrainerMode) {
+        isTrainerMode = true;
+        trainerTargetId = savedTraineeId;
+        trainerTargetDate = savedDate;
+      }
+    });
+
+    // 운동 완료 오버레이 표시
     const color = '#1a6fd4';
     document.getElementById('workout-complete-msg').textContent = '케이블 머신 ' + savedCount + '종목 완료!';
     document.getElementById('workout-summary').innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;"><div><div style="font-size:11px;color:#5a6478;margin-bottom:4px;">총 세트</div><div style="font-size:18px;font-weight:700;color:${color};">${totalSets}</div></div><div><div style="font-size:11px;color:#5a6478;margin-bottom:4px;">최고 무게</div><div style="font-size:18px;font-weight:700;color:${color};">${maxWeight > 0 ? maxWeight + 'kg' : '-'}</div></div><div><div style="font-size:11px;color:#5a6478;margin-bottom:4px;">총 볼륨</div><div style="font-size:18px;font-weight:700;color:${color};">${totalVol > 0 ? totalVol + 'kg' : '-'}</div></div></div>`;
-    // 오버레이를 케이블 화면 위로 표시되도록 z-index 보장
     const overlay = document.getElementById('workout-complete-overlay');
     overlay.style.zIndex = '9999';
     overlay.classList.add('active');
