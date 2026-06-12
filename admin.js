@@ -5773,7 +5773,9 @@
       type, total, remain: total,
       addedAt: Date.now()
     }).then(() => {
-      _assignMembersCache = null; // 캐시 초기화
+      // members/{회원}/trainerId 동기화
+      db.ref('members/' + memberId + '/trainerId').set(trainerId);
+      _assignMembersCache = null;
       showToast(memberName + '님이 ' + trainerName + ' 강사에게 배정됐어요! 💪', 'success');
       document.getElementById('admin-assign-modal')?.remove();
       loadMonthlyReport();

@@ -6620,6 +6620,23 @@
       loadHomeNotices();
       loadHomeWeightCard();
     }
+    // trainerId 없는 회원 자동 보정 (강사가 배정했는데 trainerId 없는 경우)
+    if (!isTrainer) {
+      db.ref('members/' + userId + '/trainerId').once('value', tidSnap => {
+        if (!tidSnap.exists()) {
+          // trainers 전체 순회해서 이 회원이 있는 강사 찾기
+          db.ref('trainers').once('value', tSnap => {
+            tSnap.forEach(trainerChild => {
+              const tid = trainerChild.key;
+              const trainee = trainerChild.child('trainees/' + userId);
+              if (trainee.exists()) {
+                db.ref('members/' + userId + '/trainerId').set(tid);
+              }
+            });
+          });
+        }
+      });
+    }
     // 자동 쿠폰 조건 체크
     if (typeof checkAutoCoupons === 'function') checkAutoCoupons(localStorage.getItem('current_user'));
     // 미확인 쿠폰 체크 (로그인 시)
