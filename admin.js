@@ -6147,7 +6147,7 @@
     });
     thRemainChart = new Chart(c2, {
       type: 'doughnut',
-      data: { datasets: [{ data: [r0, rLow, rOk], backgroundColor: ['#ef4444', '#f59e0b', '#22c55e'], borderWidth: 0 }] },
+      data: { datasets: [{ data: [rOk, rLow, r0], backgroundColor: ['#22c55e', '#f59e0b', '#ef4444'], borderWidth: 0 }] },
       options: { cutout: '68%', plugins: { legend: { display: false }, tooltip: { enabled: false }, thCenter: false }, animation: { duration: 600 } }
     });
   }

@@ -586,16 +586,16 @@
             <canvas id="th-chart-remain" width="110" height="110" style="display:block;margin:0 auto;"></canvas>
             <div style="margin-top:8px;">
               <div style="display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:3px;">
-                <div style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0;"></div>
-                <span style="font-size:10px;color:var(--text-hint);">잔여 0회 <span id="th-remain-0">-</span>명</span>
+                <div style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>
+                <span style="font-size:10px;color:var(--text-hint);">정상 <span id="th-remain-ok">-</span>명</span>
               </div>
               <div style="display:flex;align-items:center;justify-content:center;gap:5px;margin-bottom:3px;">
                 <div style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0;"></div>
                 <span style="font-size:10px;color:var(--text-hint);">임박 <span id="th-remain-low">-</span>명</span>
               </div>
               <div style="display:flex;align-items:center;justify-content:center;gap:5px;">
-                <div style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;"></div>
-                <span style="font-size:10px;color:var(--text-hint);">정상 <span id="th-remain-ok">-</span>명</span>
+                <div style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0;"></div>
+                <span style="font-size:10px;color:var(--text-hint);">잔여 0회 <span id="th-remain-0">-</span>명</span>
               </div>
             </div>
             <div style="font-size:10px;color:var(--text-hint);margin-top:6px;">눌러서 목록 보기</div>
@@ -612,18 +612,28 @@
       <!-- 회원 홈 (회원 전용) -->
       <div id="member-home-section">
 
-      <!-- 오늘 현황 -->
+      <!-- 내 현황 -->
       <div class="section-title">내 현황</div>
-      <div class="stats-row">
-        <div class="stat-card">
-          <div class="stat-label">이번 달 출석</div>
-          <div><span class="stat-value" id="stat-days">0</span><span class="stat-unit">일</span></div>
-          <div class="stat-desc">꾸준히 나오고 있어요!</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+        <!-- 회원권 현황 -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
+          <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">🎫 회원권 현황</div>
+          <div style="font-size:12px;color:var(--text-hint);font-style:italic;line-height:1.5;">업데이트<br/>예정</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-label">보유 포인트</div>
-          <div><span class="stat-value" id="stat-points">0</span><span class="stat-unit">P</span></div>
-          <div class="stat-desc">출석할 때마다 적립!</div>
+        <!-- 수업 현황 -->
+        <div style="background:#E6F1FB;border:1px solid #B5D4F4;border-radius:var(--radius);padding:12px;">
+          <div style="font-size:11px;color:#185FA5;margin-bottom:6px;">🏋️ 수업 현황</div>
+          <div style="display:flex;justify-content:space-around;align-items:center;">
+            <div style="text-align:center;">
+              <div style="font-size:18px;font-weight:700;color:#185FA5;line-height:1;" id="home-pt-total">-</div>
+              <div style="font-size:10px;color:#185FA5;margin-top:2px;">총 횟수</div>
+            </div>
+            <div style="width:1px;height:20px;background:#B5D4F4;"></div>
+            <div style="text-align:center;">
+              <div style="font-size:18px;font-weight:700;color:#185FA5;line-height:1;" id="home-pt-remain">-</div>
+              <div style="font-size:10px;color:#185FA5;margin-top:2px;">잔여</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1725,24 +1735,6 @@
     </div>
 
     <div style="padding:16px 20px var(--safe-pad);">
-
-      <!-- 수업 현황 카드 -->
-      <div style="background:#E6F1FB;border:1px solid #B5D4F4;border-radius:var(--radius-sm);padding:8px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
-        <span style="font-size:12px;font-weight:700;color:#185FA5;">수업 현황</span>
-        <div style="display:flex;align-items:center;gap:14px;">
-          <div style="display:flex;align-items:center;gap:4px;">
-            <span style="font-size:11px;color:#185FA5;">총</span>
-            <span style="font-size:16px;font-weight:700;color:#185FA5;" id="att-pt-total">-</span>
-            <span style="font-size:11px;color:#185FA5;">회</span>
-          </div>
-          <div style="width:1px;height:14px;background:#B5D4F4;"></div>
-          <div style="display:flex;align-items:center;gap:4px;">
-            <span style="font-size:11px;color:#185FA5;">잔여</span>
-            <span style="font-size:16px;font-weight:700;color:#185FA5;" id="att-pt-remain">-</span>
-            <span style="font-size:11px;color:#185FA5;">회</span>
-          </div>
-        </div>
-      </div>
 
       <!-- 통계 카드: 출석(합친 카드) + 포인트 -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
@@ -6125,6 +6117,24 @@
   }
 
   // ── 생년월일로 나이 계산 ──
+  // 홈화면 수업현황 카드 로드
+  function loadHomePtCard(trainerId, userId) {
+    if (!trainerId || !userId) return;
+    db.ref('trainers/' + trainerId + '/trainees/' + userId).on('value', snap => {
+      const totalEl  = document.getElementById('home-pt-total');
+      const remainEl = document.getElementById('home-pt-remain');
+      if (!totalEl || !remainEl) return;
+      if (!snap.exists()) {
+        totalEl.textContent  = '-';
+        remainEl.textContent = '-';
+        return;
+      }
+      const d = snap.val();
+      totalEl.textContent  = d.total  != null ? d.total  : '-';
+      remainEl.textContent = d.remain != null ? d.remain : '-';
+    });
+  }
+
   function calcAgeFromBirth(birth) {
     if (!birth || birth.length !== 8) return 0;
     const y = parseInt(birth.substring(0,4));
@@ -6620,7 +6630,7 @@
       loadHomeNotices();
       loadHomeWeightCard();
     }
-    // trainerId 없는 회원 자동 보정 (강사가 배정했는데 trainerId 없는 경우)
+    // trainerId 없는 회원 자동 보정 + 홈 수업현황 카드 로드
     if (!isTrainer) {
       db.ref('members/' + userId + '/trainerId').once('value', tidSnap => {
         if (!tidSnap.exists()) {
@@ -6631,9 +6641,12 @@
               const trainee = trainerChild.child('trainees/' + userId);
               if (trainee.exists()) {
                 db.ref('members/' + userId + '/trainerId').set(tid);
+                loadHomePtCard(tid, userId);
               }
             });
           });
+        } else {
+          loadHomePtCard(tidSnap.val(), userId);
         }
       });
     }
