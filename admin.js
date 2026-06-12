@@ -1734,6 +1734,30 @@
     if (modal) modal.style.display = 'none';
   }
 
+  function updateRegPhotoUI(hasPhoto) {
+    const preview    = document.getElementById('reg-photo-preview');
+    const webcamBtn  = document.getElementById('reg-webcam-btn');
+    const deleteBtn  = document.getElementById('reg-photo-delete-btn');
+    if (!preview) return;
+    if (hasPhoto) {
+      preview.style.border = '2px solid var(--blue)';
+      if (webcamBtn)  webcamBtn.innerHTML  = '📷 다시 찍기';
+      if (deleteBtn)  { deleteBtn.style.display = 'flex'; }
+    } else {
+      preview.style.border = '1.5px solid var(--border)';
+      preview.innerHTML = '👤';
+      if (webcamBtn)  webcamBtn.innerHTML  = '📷 웹캠 촬영';
+      if (deleteBtn)  { deleteBtn.style.display = 'none'; }
+    }
+  }
+
+  function deleteRegPhoto() {
+    regPhotoBlob = null;
+    const fileInput = document.getElementById('reg-photo-file');
+    if (fileInput) fileInput.value = '';
+    updateRegPhotoUI(false);
+  }
+
   function captureRegWebcam() {
     const video  = document.getElementById('reg-webcam-video');
     const canvas = document.getElementById('reg-webcam-canvas');
@@ -1748,6 +1772,7 @@
       regPhotoBlob = blob;
       const preview = document.getElementById('reg-photo-preview');
       if (preview) { const url = URL.createObjectURL(blob); preview.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;" />`; }
+      updateRegPhotoUI(true);
       closeRegWebcam();
     }, 'image/jpeg', 0.7);
   }
@@ -1770,6 +1795,7 @@
           regPhotoBlob = blob;
           const preview = document.getElementById('reg-photo-preview');
           if (preview) { const url = URL.createObjectURL(blob); preview.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;" />`; }
+          updateRegPhotoUI(true);
         }, 'image/jpeg', 0.7);
       };
       img.src = e.target.result;
@@ -1798,8 +1824,9 @@
     document.querySelectorAll('#reg-programs input').forEach(el => el.checked = false);
     selectRegGender('male');
     regPhotoBlob = null;
-    const preview = document.getElementById('reg-photo-preview');
-    if (preview) preview.innerHTML = '👤';
+    const fileInput2 = document.getElementById('reg-photo-file');
+    if (fileInput2) fileInput2.value = '';
+    updateRegPhotoUI(false);
   }
 
   function registerMember() {

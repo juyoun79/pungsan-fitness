@@ -2505,7 +2505,7 @@
 
       <!-- ── 회원등록 탭 ── -->
       <div id="tab-register" class="admin-section">
-        <div class="admin-card" style="max-width:580px;margin-left:auto;margin-right:auto;">
+        <div class="admin-card">
           <div class="admin-card-title">➕ 신규 회원 등록</div>
 
           <!-- 회원 사진 -->
@@ -2515,14 +2515,17 @@
               <div id="reg-photo-preview" style="width:120px;height:120px;border-radius:50%;background:var(--bg);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;font-size:48px;">
                 👤
               </div>
-              <div style="display:flex;flex-direction:column;gap:8px;">
-                <button type="button" onclick="openRegWebcam()" style="padding:6px 12px;border:1.5px solid var(--blue);background:var(--card);color:var(--blue);border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;gap:4px;">
+              <div id="reg-photo-buttons" style="display:flex;flex-direction:column;gap:8px;">
+                <button type="button" id="reg-webcam-btn" onclick="openRegWebcam()" style="padding:6px 12px;border:1.5px solid var(--blue);background:var(--card);color:var(--blue);border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;gap:4px;">
                   📷 웹캠 촬영
                 </button>
                 <label style="padding:6px 12px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;gap:4px;">
                   📁 파일 선택
                   <input type="file" id="reg-photo-file" accept="image/*" style="display:none;" onchange="onRegPhotoFile(this)" />
                 </label>
+                <button type="button" id="reg-photo-delete-btn" onclick="deleteRegPhoto()" style="display:none;padding:6px 12px;border:1.5px solid #ef4444;background:var(--card);color:#ef4444;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:none;align-items:center;gap:4px;">
+                  🗑️ 사진 삭제
+                </button>
               </div>
             </div>
             <!-- 웹캠 모달 -->
