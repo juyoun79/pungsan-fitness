@@ -1695,39 +1695,152 @@
   }
 
   // ── 회원 등록 (Firebase) ──
+  // ── 회원등록 웹캠/사진 관련 ──
+  let regWebcamStream = null;
+  let regPhotoBlob = null;
+
+  function selectRegGender(gender) {
+    document.getElementById('reg-gender').value = gender;
+    const male   = document.getElementById('reg-gender-male');
+    const female = document.getElementById('reg-gender-female');
+    if (gender === 'male') {
+      male.style.border = '2px solid var(--blue)'; male.style.background = 'var(--blue)'; male.style.color = 'white';
+      female.style.border = '1.5px solid var(--border)'; female.style.background = 'var(--card)'; female.style.color = 'var(--text-sub)';
+    } else {
+      female.style.border = '2px solid #e07bba'; female.style.background = '#e07bba'; female.style.color = 'white';
+      male.style.border = '1.5px solid var(--border)'; male.style.background = 'var(--card)'; male.style.color = 'var(--text-sub)';
+    }
+  }
+
+  function openRegWebcam() {
+    const modal = document.getElementById('reg-webcam-modal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        regWebcamStream = stream;
+        const video = document.getElementById('reg-webcam-video');
+        if (video) video.srcObject = stream;
+      })
+      .catch(() => {
+        modal.style.display = 'none';
+        showToast('카메라 권한이 필요해요. 파일 선택을 이용해주세요.', 'error');
+      });
+  }
+
+  function closeRegWebcam() {
+    if (regWebcamStream) { regWebcamStream.getTracks().forEach(t => t.stop()); regWebcamStream = null; }
+    const modal = document.getElementById('reg-webcam-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function captureRegWebcam() {
+    const video  = document.getElementById('reg-webcam-video');
+    const canvas = document.getElementById('reg-webcam-canvas');
+    if (!video || !canvas) return;
+    canvas.width = 300; canvas.height = 300;
+    const ctx = canvas.getContext('2d');
+    const size = Math.min(video.videoWidth, video.videoHeight);
+    const sx = (video.videoWidth  - size) / 2;
+    const sy = (video.videoHeight - size) / 2;
+    ctx.drawImage(video, sx, sy, size, size, 0, 0, 300, 300);
+    canvas.toBlob(blob => {
+      regPhotoBlob = blob;
+      const preview = document.getElementById('reg-photo-preview');
+      if (preview) { const url = URL.createObjectURL(blob); preview.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;" />`; }
+      closeRegWebcam();
+    }, 'image/jpeg', 0.7);
+  }
+
+  function onRegPhotoFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = e => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 300; canvas.height = 300;
+        const ctx = canvas.getContext('2d');
+        const size = Math.min(img.width, img.height);
+        const sx = (img.width  - size) / 2;
+        const sy = (img.height - size) / 2;
+        ctx.drawImage(img, sx, sy, size, size, 0, 0, 300, 300);
+        canvas.toBlob(blob => {
+          regPhotoBlob = blob;
+          const preview = document.getElementById('reg-photo-preview');
+          if (preview) { const url = URL.createObjectURL(blob); preview.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;" />`; }
+        }, 'image/jpeg', 0.7);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function uploadRegPhoto(phone) {
+    if (!regPhotoBlob) return null;
+    try {
+      const storageRef = firebase.storage().ref('members/' + phone + '/profile.jpg');
+      await storageRef.put(regPhotoBlob, { contentType: 'image/jpeg' });
+      return await storageRef.getDownloadURL();
+    } catch (e) {
+      console.error('사진 업로드 실패:', e);
+      return null;
+    }
+  }
+
+  function resetRegForm() {
+    document.getElementById('reg-name').value = '';
+    document.getElementById('reg-phone').value = '';
+    document.getElementById('reg-pw').value = '';
+    if (document.getElementById('reg-birth'))   document.getElementById('reg-birth').value = '';
+    if (document.getElementById('reg-address')) document.getElementById('reg-address').value = '';
+    document.querySelectorAll('#reg-programs input').forEach(el => el.checked = false);
+    selectRegGender('male');
+    regPhotoBlob = null;
+    const preview = document.getElementById('reg-photo-preview');
+    if (preview) preview.innerHTML = '👤';
+  }
+
   function registerMember() {
-    const name = document.getElementById('reg-name').value.trim();
+    const name  = document.getElementById('reg-name').value.trim();
     const phone = document.getElementById('reg-phone').value.trim().replace(/-/g, '');
     const pwInput = document.getElementById('reg-pw').value.trim();
-    const pw = pwInput || phone.slice(-4);
+    const pw    = pwInput || phone.slice(-4);
+    const gender  = document.getElementById('reg-gender')?.value || 'male';
+    const birth   = document.getElementById('reg-birth')?.value.trim() || '';
+    const address = document.getElementById('reg-address')?.value.trim() || '';
 
-    if (!name) { showToast('이름을 입력해주세요.', 'error'); return; }
+    if (!name)  { showToast('이름을 입력해주세요.', 'error'); return; }
     if (!phone || phone.length < 10) { showToast('휴대폰 번호를 정확히 입력해주세요.', 'error'); return; }
 
     const programs = [...document.querySelectorAll('#reg-programs input:checked')].map(el => el.value);
 
-    // 번호 중복 + 이름 중복 확인
     db.ref('members/' + phone).once('value').then(snap => {
       if (snap.exists()) { showToast('이미 등록된 전화번호예요.', 'error'); return; }
 
-      // 이름 중복 확인 - 전체 회원 조회
       db.ref('members').once('value').then(allSnap => {
         let duplicateName = false;
         allSnap.forEach(child => {
           if ((child.val().name || '').trim() === name) duplicateName = true;
         });
-        const doRegister = () => {
+
+        const doRegister = async () => {
           const hashedPw = hashPw(pw);
-          db.ref('members/' + phone).set({ name: name + '(' + phone.slice(-4) + ')', pw: hashedPw, programs }).then(() => {
-            const birth = document.getElementById('reg-birth') ? document.getElementById('reg-birth').value.trim() : '';
-            if (birth) db.ref('members/' + phone + '/birth').set(birth);
-            document.getElementById('reg-name').value = '';
-            document.getElementById('reg-phone').value = '';
-            document.getElementById('reg-pw').value = '';
-            if (document.getElementById('reg-birth')) document.getElementById('reg-birth').value = '';
-            document.querySelectorAll('#reg-programs input').forEach(el => el.checked = false);
-            showToast('✅ ' + name + ' 회원이 등록됐어요!', 'success');
-          });
+          const memberData = { name: name + '(' + phone.slice(-4) + ')', pw: hashedPw, programs };
+          if (birth)   memberData.birth   = birth;
+          if (address) memberData.address = address;
+          // 성별은 body/gender에 저장
+          memberData['body/gender'] = gender;
+
+          await db.ref('members/' + phone).set(memberData);
+
+          // 사진 업로드
+          const photoUrl = await uploadRegPhoto(phone);
+          if (photoUrl) await db.ref('members/' + phone + '/photoUrl').set(photoUrl);
+
+          resetRegForm();
+          showToast('✅ ' + name + ' 회원이 등록됐어요!', 'success');
         };
 
         if (duplicateName) {

@@ -2505,29 +2505,102 @@
 
       <!-- ── 회원등록 탭 ── -->
       <div id="tab-register" class="admin-section">
-        <div class="admin-card">
+        <div class="admin-card" style="max-width:580px;margin-left:auto;margin-right:auto;">
           <div class="admin-card-title">➕ 신규 회원 등록</div>
 
-          <div class="field-wrap">
-            <label class="field-label">이름 *</label>
-            <input type="text" id="reg-name" placeholder="홍길동" style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;" onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+          <!-- 회원 사진 -->
+          <div style="margin-bottom:16px;">
+            <label class="field-label">회원 사진</label>
+            <div style="display:flex;align-items:center;gap:14px;margin-top:8px;">
+              <div id="reg-photo-preview" style="width:120px;height:120px;border-radius:50%;background:var(--bg);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;font-size:48px;">
+                👤
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <button type="button" onclick="openRegWebcam()" style="padding:6px 12px;border:1.5px solid var(--blue);background:var(--card);color:var(--blue);border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;gap:4px;">
+                  📷 웹캠 촬영
+                </button>
+                <label style="padding:6px 12px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;gap:4px;">
+                  📁 파일 선택
+                  <input type="file" id="reg-photo-file" accept="image/*" style="display:none;" onchange="onRegPhotoFile(this)" />
+                </label>
+              </div>
+            </div>
+            <!-- 웹캠 모달 -->
+            <div id="reg-webcam-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;">
+              <div style="background:#000;border-radius:12px;overflow:hidden;width:340px;">
+                <video id="reg-webcam-video" autoplay playsinline style="width:100%;display:block;"></video>
+                <canvas id="reg-webcam-canvas" style="display:none;"></canvas>
+                <div style="display:flex;gap:8px;padding:12px;background:#111;">
+                  <button onclick="captureRegWebcam()" style="flex:1;padding:10px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📷 촬영</button>
+                  <button onclick="closeRegWebcam()" style="flex:1;padding:10px;background:#444;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div class="field-wrap" style="margin-top:12px;">
-            <label class="field-label">휴대폰 번호 * (아이디로 사용)</label>
-            <input type="tel" id="reg-phone" placeholder="01012345678" maxlength="11" style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;" onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
-            <div class="hint-text">숫자만 입력 (01012345678)</div>
+          <!-- 이름 + 성별 -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div>
+              <label class="field-label">이름 *</label>
+              <input type="text" id="reg-name" placeholder="홍길동"
+                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
+                onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+            </div>
+            <div>
+              <label class="field-label">성별</label>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">
+                <button type="button" id="reg-gender-male" onclick="selectRegGender('male')"
+                  style="padding:10px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+                  👨 남성
+                </button>
+                <button type="button" id="reg-gender-female" onclick="selectRegGender('female')"
+                  style="padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+                  👩 여성
+                </button>
+              </div>
+              <input type="hidden" id="reg-gender" value="male" />
+            </div>
           </div>
 
-          <div class="field-wrap" style="margin-top:12px;">
-            <label class="field-label">초기 비밀번호</label>
-            <input type="text" id="reg-pw" placeholder="자동: 휴대폰 뒤 4자리" maxlength="4" style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;" onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
-            <div class="hint-text">비워두면 휴대폰 뒤 4자리로 자동 설정</div>
+          <!-- 휴대폰 + 초기비번 -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div>
+              <label class="field-label">휴대폰 번호 * (아이디로 사용)</label>
+              <input type="tel" id="reg-phone" placeholder="01012345678" maxlength="11"
+                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
+                onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+              <div class="hint-text">숫자만 입력</div>
+            </div>
+            <div>
+              <label class="field-label">초기 비밀번호</label>
+              <input type="text" id="reg-pw" placeholder="자동: 휴대폰 뒤 4자리" maxlength="4"
+                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
+                onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+              <div class="hint-text">비워두면 자동 설정</div>
+            </div>
           </div>
 
-          <div class="field-wrap" style="margin-top:12px;">
+          <!-- 생년월일 + 주소 -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div>
+              <label class="field-label">생년월일</label>
+              <input type="text" inputmode="numeric" id="reg-birth" placeholder="19900101" maxlength="8"
+                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
+                onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+              <div class="hint-text">예) 19900101</div>
+            </div>
+            <div>
+              <label class="field-label">주소</label>
+              <input type="text" id="reg-address" placeholder="경기도 고양시 일산동구..."
+                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
+                onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+            </div>
+          </div>
+
+          <!-- 프로그램 -->
+          <div style="margin-bottom:16px;">
             <label class="field-label">프로그램</label>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;" id="reg-programs">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-top:4px;" id="reg-programs">
               <label style="display:flex;align-items:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
                 <input type="checkbox" value="헬스" style="accent-color:var(--blue);"> 헬스
               </label>
@@ -2543,15 +2616,7 @@
             </div>
           </div>
 
-          <div class="field-wrap" style="margin-top:12px;">
-            <label class="field-label">생년월일</label>
-            <input type="text" inputmode="numeric" id="reg-birth" placeholder="20110101" maxlength="8"
-              style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;"
-              onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
-            <div class="hint-text">예) 2011년 01월 01일 → 20110101</div>
-          </div>
-
-          <button class="btn-primary" style="margin-top:16px;" onclick="registerMember()">✅ 회원 등록하기</button>
+          <button class="btn-primary" style="margin-top:4px;" onclick="registerMember()">✅ 회원 등록하기</button>
         </div>
       </div>
 
@@ -6159,6 +6224,29 @@
     }
   }
 
+  // 관리자가 입력한 성별/생년월일 기본정보 입력창에 미리 채우기
+  function prefillBodyInfoFromAdmin() {
+    const userId = localStorage.getItem('current_user');
+    if (!userId) return;
+    db.ref('members/' + userId).once('value', snap => {
+      if (!snap.exists()) return;
+      const m = snap.val();
+      // 성별 미리 채우기
+      if (m.body && m.body.gender) {
+        document.getElementById('body-gender').value = m.body.gender;
+        selectGender(m.body.gender);
+      }
+      // 생년월일 미리 채우기
+      if (m.birth) {
+        const birthEl = document.getElementById('body-birth');
+        if (birthEl) {
+          birthEl.value = m.birth;
+          calcAgeFromBirthInput(m.birth);
+        }
+      }
+    });
+  }
+
   function selectGender(gender) {
     document.getElementById('body-gender').value = gender;
     _applyGenderStyle('gender-male', 'gender-female', gender);
@@ -6737,6 +6825,10 @@
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     window.scrollTo(0, 0);
+    // 기본정보 입력창 표시 시 관리자 입력값 미리 채우기
+    if (id === 'screen-nickname' && typeof prefillBodyInfoFromAdmin === 'function') {
+      setTimeout(prefillBodyInfoFromAdmin, 100);
+    }
     // 탭바: 로그인/닉네임/관리자 화면에서는 완전히 숨김
     const tabBar = document.getElementById('global-tab-bar');
     if (tabBar) {
