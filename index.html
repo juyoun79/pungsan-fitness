@@ -2890,8 +2890,13 @@
                   <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">유효기간 (일)</div>
                   <input id="auto-attend-expire" type="number" min="1" placeholder="30" onchange="saveAutoCondition('attend')"
                     style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);text-align:center;">
-                </div>
               </div>
+              <div style="margin-top:8px;">
+                <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">메모 <span style="font-weight:400;">(쿠폰에 표기)</span></div>
+                <input id="auto-attend-memo" type="text" placeholder="예) 출석 달성 축하 쿠폰" onchange="saveAutoCondition('attend')"
+                  style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+              </div>
+            </div>
             </div>
 
             <!-- 연속 출석 -->
@@ -2931,8 +2936,13 @@
                   <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">유효기간 (일)</div>
                   <input id="auto-streak-expire" type="number" min="1" placeholder="30" onchange="saveAutoCondition('streak')"
                     style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);text-align:center;">
-                </div>
               </div>
+              <div style="margin-top:8px;">
+                <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">메모 <span style="font-weight:400;">(쿠폰에 표기)</span></div>
+                <input id="auto-streak-memo" type="text" placeholder="예) 연속 출석 보상 쿠폰" onchange="saveAutoCondition('streak')"
+                  style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+              </div>
+            </div>
             </div>
 
             <!-- 첫 오운완 -->
@@ -2966,6 +2976,11 @@
                 <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">유효기간 (일)</div>
                 <input id="auto-owunwan-expire" type="number" min="1" placeholder="30" onchange="saveAutoCondition('owunwan')"
                   style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);text-align:center;">
+              </div>
+              <div style="margin-top:8px;">
+                <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">메모 <span style="font-weight:400;">(쿠폰에 표기)</span></div>
+                <input id="auto-owunwan-memo" type="text" placeholder="예) 첫 오운완 기념 쿠폰" onchange="saveAutoCondition('owunwan')"
+                  style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
               </div>
             </div>
 
@@ -3001,6 +3016,11 @@
                 <input id="auto-birthday-expire" type="number" min="1" placeholder="30" onchange="saveAutoCondition('birthday')"
                   style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);text-align:center;">
               </div>
+              <div style="margin-top:8px;">
+                <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">메모 <span style="font-weight:400;">(쿠폰에 표기)</span></div>
+                <input id="auto-birthday-memo" type="text" placeholder="예) 생일 기념 할인 쿠폰" onchange="saveAutoCondition('birthday')"
+                  style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
+              </div>
             </div>
 
             <!-- 첫 로그인 -->
@@ -3034,6 +3054,11 @@
                 <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">유효기간 (일) <span style="color:var(--text-hint);font-weight:400;">(0 입력 시 기한 없음)</span></div>
                 <input id="auto-firstlogin-expire" type="number" min="0" placeholder="30" onchange="saveAutoCondition('firstlogin')"
                   style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);text-align:center;">
+              </div>
+              <div style="margin-top:8px;">
+                <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">메모 <span style="font-weight:400;">(쿠폰에 표기)</span></div>
+                <input id="auto-firstlogin-memo" type="text" placeholder="예) 가입 환영 쿠폰" onchange="saveAutoCondition('firstlogin')"
+                  style="width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);">
               </div>
             </div>
 

@@ -4891,9 +4891,11 @@
     if (key === 'attend' || key === 'streak') {
       data.count = document.getElementById('auto-' + key + '-count').value;
     }
-    data.type = document.getElementById('auto-' + key + '-type') ? document.getElementById('auto-' + key + '-type').value : 'free';
-    data.value = document.getElementById('auto-' + key + '-value').value;
-    data.expire = document.getElementById('auto-' + key + '-expire').value;
+    data.type   = document.getElementById('auto-' + key + '-type')   ? document.getElementById('auto-' + key + '-type').value   : 'free';
+    data.value  = document.getElementById('auto-' + key + '-value')  ? document.getElementById('auto-' + key + '-value').value  : '';
+    data.expire = document.getElementById('auto-' + key + '-expire') ? document.getElementById('auto-' + key + '-expire').value : '';
+    const memoEl = document.getElementById('auto-' + key + '-memo');
+    if (memoEl) data.memo = memoEl.value.trim();
     db.ref('auto_coupon_conditions/' + key).set(data);
   }
 
@@ -4916,6 +4918,8 @@
         if (valEl && c.value) valEl.value = c.value;
         const expEl = document.getElementById('auto-' + key + '-expire');
         if (expEl && c.expire) expEl.value = c.expire;
+        const memoEl = document.getElementById('auto-' + key + '-memo');
+        if (memoEl && c.memo) memoEl.value = c.memo;
       });
     });
   }
@@ -5016,9 +5020,10 @@
       expireDate.setDate(expireDate.getDate() + expireDays);
       expire = expireDate.toISOString().slice(0, 10);
     }
+    const memoText = cond.memo ? '자동 발행 | ' + cond.memo : '자동 발행';
     const couponData = {
       name, type: cond.type, value: cond.value,
-      limit: '1', memo: '자동 발행',
+      limit: '1', memo: memoText,
       issuedAt: new Date().toISOString(), used: false, auto: true
     };
     if (expire) couponData.expire = expire;
