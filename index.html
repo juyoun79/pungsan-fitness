@@ -7094,7 +7094,7 @@
       </div>
     </div>
     <!-- 댓글·답글 -->
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border);">
       <div>
         <div style="font-size:15px;font-weight:500;color:var(--text);">💬 댓글 · 답글</div>
         <div style="font-size:12px;color:var(--text-hint);margin-top:3px;">내 게시글·댓글에 달린 답글 알림</div>
@@ -7102,6 +7102,17 @@
       <div onclick="tapNotifToggle('comment')" style="position:relative;width:44px;height:24px;cursor:pointer;flex-shrink:0;">
         <div id="notif-track-comment" style="position:absolute;inset:0;border-radius:12px;background:#ccc;transition:background 0.3s;"></div>
         <div id="notif-thumb-comment" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left 0.3s;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>
+      </div>
+    </div>
+    <!-- 챌린지 -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;">
+      <div>
+        <div style="font-size:15px;font-weight:500;color:var(--text);">🏆 챌린지</div>
+        <div style="font-size:12px;color:var(--text-hint);margin-top:3px;">새 챌린지 시작 알림</div>
+      </div>
+      <div onclick="tapNotifToggle('challenge')" style="position:relative;width:44px;height:24px;cursor:pointer;flex-shrink:0;">
+        <div id="notif-track-challenge" style="position:absolute;inset:0;border-radius:12px;background:#ccc;transition:background 0.3s;"></div>
+        <div id="notif-thumb-challenge" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left 0.3s;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>
       </div>
     </div>
     <div style="font-size:11px;color:var(--text-hint);margin-top:16px;text-align:center;">알림을 완전히 끄려면 기기 설정에서 앱 알림을 변경하세요</div>
@@ -7431,7 +7442,7 @@ function _setupFCMTokenRefresh(userId) {
 
 // ── 알림 설정 로드 (기본값: 전부 ON) ──
 function getNotifSettings(userId) {
-  const defaults = { notice: true, coupon: true, like: true, comment: true };
+  const defaults = { notice: true, coupon: true, like: true, comment: true, challenge: true };
   try {
     const saved = JSON.parse(localStorage.getItem('notif_settings_' + userId) || '{}');
     return Object.assign(defaults, saved);
@@ -7450,7 +7461,7 @@ function saveNotifSetting(userId, key, value) {
 function openNotifSettings() {
   const userId = localStorage.getItem('current_user');
   const s = getNotifSettings(userId);
-  ['notice','coupon','like','comment'].forEach(key => _applyNotifToggleUI(key, s[key] !== false));
+  ['notice','coupon','like','comment','challenge'].forEach(key => _applyNotifToggleUI(key, s[key] !== false));
   const modal = document.getElementById('notif-settings-modal');
   modal.style.display = 'flex';
 }
@@ -8673,6 +8684,10 @@ function saveChallenge() {
     closeChallengeModal();
     showToast(editId ? '✅ 챌린지가 수정됐어요!' : '✅ 챌린지가 생성됐어요!', 'success');
     loadAdminChallenges();
+    // 새 챌린지 생성 시에만 전체 회원 푸시알림 발송
+    if (!editId && typeof sendPushToAll === 'function') {
+      sendPushToAll('🏆 새 챌린지가 시작됐어요!', '"' + name + '"에 참여해보세요 🏆', 'challenge', { type: 'challenge' });
+    }
   }).catch(err => {
     showToast('저장 실패: ' + err.message, 'error');
   });
