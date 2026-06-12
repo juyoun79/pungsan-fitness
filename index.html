@@ -7439,7 +7439,14 @@ function startNoticeRealtimeListener() {
     if (typeof loadHomeNotices === 'function') {
       const homeScreen = document.getElementById('screen-home');
       if (homeScreen && homeScreen.classList.contains('active')) {
-        loadHomeNotices();
+        // 강사/회원 역할에 따라 올바른 컨테이너 갱신
+        const _uid = localStorage.getItem('current_user');
+        const _role = _uid ? (localStorage.getItem('role_' + _uid) || 'member') : 'member';
+        if (_role === 'trainer' || _role === 'manager' || _role === 'admin') {
+          loadHomeNotices('trainer-notice-container');
+        } else {
+          loadHomeNotices();
+        }
       }
     }
   });

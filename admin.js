@@ -1162,16 +1162,28 @@
     const homeScreen = document.getElementById('screen-home');
     const isAlreadyHome = homeScreen && homeScreen.classList.contains('active');
     if (!isAlreadyHome && typeof switchTab === 'function') switchTab('home');
-    // 공지 목록 갱신
+    // 공지 목록 갱신 후 Firebase 응답 오면 팝업 표시
     setTimeout(() => {
-      if (isTrainer) {
-        loadHomeNotices('trainer-notice-container');
-      } else {
-        if (typeof loadHomeNotices === 'function') loadHomeNotices();
-      }
-      // 안 읽은 공지 팝업 — switchTab 내부 팝업과 중복 방지
-      if (!isAlreadyHome) return; // switchTab('home') 이 이미 팝업 처리함
-      if (typeof showNoticePopup === 'function') showNoticePopup(userId);
+      const container = isTrainer
+        ? document.getElementById('trainer-notice-container')
+        : document.getElementById('member-notice-container');
+      // Firebase에서 공지 직접 로딩 후 팝업까지 처리
+      db.ref('notices').once('value', snap => {
+        if (!snap.exists()) return;
+        // 공지 목록 갱신
+        if (isTrainer) {
+          loadHomeNotices('trainer-notice-container');
+        } else {
+          if (typeof loadHomeNotices === 'function') loadHomeNotices();
+        }
+        // 데이터 로딩 완료 후 팝업 표시 (switchTab 내부 팝업과 중복 방지)
+        // switchTab을 새로 호출한 경우 이미 내부 팝업 예약됨 → 스킵
+        if (!isAlreadyHome) return;
+        // 이미 홈에 있었던 경우만 여기서 직접 팝업 표시
+        if (typeof showNoticePopup === 'function') {
+          setTimeout(() => showNoticePopup(userId), 300);
+        }
+      });
     }, 400);
   }
   window.openNoticeListScreen = openNoticeListScreen;
