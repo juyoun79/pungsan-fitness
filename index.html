@@ -6815,9 +6815,10 @@
         if ('caches' in window) caches.open('pungsan-badge-v1').then(c => c.put('/badge-count', new Response(JSON.stringify({ count: 0 }), { headers: { 'Content-Type': 'application/json' } }))).catch(() => {});
         // URL 파라미터 제거
         window.history.replaceState({}, '', window.location.pathname);
-        // 공지 목록 전체화면으로 이동
+        // 공지 목록 + 팝업 표시
         if (typeof openNoticeListScreen === 'function') openNoticeListScreen();
-      }, 500);
+        // openNoticeListScreen이 홈으로 이동 후 팝업 처리하므로 별도 팝업 호출 불필요
+      }, 800);
     } else {
       setTimeout(() => showNoticePopup(userId), 300);
     }
@@ -6859,13 +6860,21 @@
         if (!event.data) return;
         if (event.data.type === 'NOTIF_CLICK') {
           setTimeout(() => {
-            if (typeof loadHomeNotices === 'function') loadHomeNotices();
+            // 강사/회원 분기해서 올바른 공지 컨테이너 갱신
+            const _notifUid = localStorage.getItem('current_user');
+            const _notifRole = _notifUid ? (localStorage.getItem('role_' + _notifUid) || 'member') : 'member';
+            if (typeof loadHomeNotices === 'function') {
+              if (_notifRole === 'trainer' || _notifRole === 'manager' || _notifRole === 'admin') {
+                loadHomeNotices('trainer-notice-container');
+              } else {
+                loadHomeNotices();
+              }
+            }
             if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
             if ('caches' in window) caches.open('pungsan-badge-v1').then(c => c.put('/badge-count', new Response(JSON.stringify({ count: 0 }), { headers: { 'Content-Type': 'application/json' } }))).catch(() => {});
-            // 공지 목록 전체화면으로 이동
-            if (typeof showScreen === 'function') showScreen('screen-home');
+            // 공지 목록으로 이동
             if (typeof openNoticeListScreen === 'function') openNoticeListScreen();
-          }, 800);
+          }, 1500);
         }
         if (event.data.type === 'BADGE_COUNT') {
           window._badgeCount = event.data.count;

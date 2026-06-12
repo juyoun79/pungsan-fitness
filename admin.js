@@ -1157,14 +1157,22 @@
   function openNoticeListScreen() {
     const userId = localStorage.getItem('current_user');
     const role = localStorage.getItem('role_' + userId) || 'member';
-    if (typeof switchTab === 'function') switchTab('home');
+    const isTrainer = role === 'trainer' || role === 'manager' || role === 'admin';
+    // 이미 홈탭에 있으면 switchTab 스킵 (깜빡임 방지)
+    const homeScreen = document.getElementById('screen-home');
+    const isAlreadyHome = homeScreen && homeScreen.classList.contains('active');
+    if (!isAlreadyHome && typeof switchTab === 'function') switchTab('home');
+    // 공지 목록 갱신
     setTimeout(() => {
-      if (role === 'trainer' || role === 'manager' || role === 'admin') {
+      if (isTrainer) {
         loadHomeNotices('trainer-notice-container');
       } else {
         if (typeof loadHomeNotices === 'function') loadHomeNotices();
       }
-    }, 200);
+      // 안 읽은 공지 팝업 — switchTab 내부 팝업과 중복 방지
+      if (!isAlreadyHome) return; // switchTab('home') 이 이미 팝업 처리함
+      if (typeof showNoticePopup === 'function') showNoticePopup(userId);
+    }, 400);
   }
   window.openNoticeListScreen = openNoticeListScreen;
 
