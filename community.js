@@ -668,11 +668,14 @@
   let communitySearchQuery = '';
   let communityAuthorFilter = '';
   let allCommunityPosts = []; // 전체 포스트 캐시
+  let visiblePostCount = 10;  // 더보기: 화면에 보여줄 게시물 수
+  const POST_LOAD_STEP = 10;  // 더보기 클릭 시 추가 개수
 
   // ── 검색 ──
   function searchCommunity(query) {
     communitySearchQuery = query.trim();
     communityAuthorFilter = '';
+    visiblePostCount = 10; // 검색 시 초기화
     document.getElementById('author-filter-badge').style.display = 'none';
     document.getElementById('community-search-clear').style.display = query ? 'block' : 'none';
     renderCommunityFeed();
@@ -696,6 +699,7 @@
   function filterByAuthor(authorId, nickname) {
     communityAuthorFilter = authorId;
     communitySearchQuery = '';
+    visiblePostCount = 10; // 작성자 필터 시 초기화
     const searchEl = document.getElementById('community-search');
     if (searchEl) searchEl.value = '';
     document.getElementById('community-search-clear').style.display = 'none';
@@ -741,13 +745,35 @@
 
     const userId = localStorage.getItem('current_user');
     const isAdmin = userId === ADMIN_ID;
-    feedEl.innerHTML = posts.map(post => buildFeedCard(post, userId, isAdmin)).join('');
+
+    // 더보기: visiblePostCount 만큼만 렌더링
+    const visiblePosts = posts.slice(0, visiblePostCount);
+    const hasMore = posts.length > visiblePostCount;
+
+    let html = visiblePosts.map(post => buildFeedCard(post, userId, isAdmin)).join('');
+
+    // 더보기 버튼
+    if (hasMore) {
+      html += `<div style="text-align:center;padding:16px 0 24px;">
+        <button onclick="loadMoreCommunityPosts()" style="padding:10px 32px;border:1.5px solid var(--border);border-radius:20px;background:var(--card);color:var(--text-sub);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+          더보기 (${posts.length - visiblePostCount}개 남음)
+        </button>
+      </div>`;
+    }
+
+    feedEl.innerHTML = html;
+  }
+
+  function loadMoreCommunityPosts() {
+    visiblePostCount += POST_LOAD_STEP;
+    renderCommunityFeed();
   }
 
   function filterCommunity(cat) {
     currentCategory = cat;
     communityAuthorFilter = '';
     communitySearchQuery = '';
+    visiblePostCount = 10; // 카테고리 변경 시 초기화
     const searchEl = document.getElementById('community-search');
     if (searchEl) searchEl.value = '';
     const badge = document.getElementById('author-filter-badge');
