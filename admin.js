@@ -1110,8 +1110,6 @@
         readList.push(id);
         localStorage.setItem('read_notices_' + userId, JSON.stringify(readList));
       }
-      // 점 색상 즉시 업데이트
-      if (typeof loadHomeNotices === 'function') loadHomeNotices();
       // 안 읽은 공지 없으면 배지 초기화
       db.ref('notices').once('value', noticeSnap => {
         let unreadCount = 0;
@@ -1130,18 +1128,45 @@
     db.ref('notices/' + id).once('value').then(snap => {
       if (!snap.exists()) return;
       const n = snap.val();
+      const dateStr = n.dateLabel || n.date || '';
       document.getElementById('notice-detail-content').innerHTML = `
         <div style="margin-bottom:16px;">
           <div style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px;line-height:1.4;">${n.title}</div>
-          <div style="font-size:12px;color:var(--text-hint);margin-bottom:14px;">${n.dateLabel}</div>
-          <div style="font-size:15px;color:var(--text-sub);line-height:1.8;white-space:pre-wrap;">${n.content}</div>
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border);">${dateStr}</div>
+          <div style="font-size:15px;color:var(--text-sub);line-height:1.9;white-space:pre-wrap;">${n.content || ''}</div>
         </div>`;
-      document.getElementById('notice-detail-modal').classList.add('active');
+      if (typeof showScreen === 'function') showScreen('screen-notice-detail');
     });
   }
+
   function closeNoticeDetail() {
-    document.getElementById('notice-detail-modal').classList.remove('active');
+    // 읽음 처리 반영 후 홈으로 복귀
+    const userId = localStorage.getItem('current_user');
+    const role = localStorage.getItem('role_' + userId) || 'member';
+    if (typeof loadHomeNotices === 'function') {
+      if (role === 'trainer' || role === 'manager' || role === 'admin') {
+        loadHomeNotices('trainer-notice-container');
+      } else {
+        loadHomeNotices();
+      }
+    }
+    if (typeof switchTab === 'function') switchTab('home');
   }
+
+  // 공지 목록 전체화면 (FCM 딥링크용)
+  function openNoticeListScreen() {
+    const userId = localStorage.getItem('current_user');
+    const role = localStorage.getItem('role_' + userId) || 'member';
+    if (typeof switchTab === 'function') switchTab('home');
+    setTimeout(() => {
+      if (role === 'trainer' || role === 'manager' || role === 'admin') {
+        loadHomeNotices('trainer-notice-container');
+      } else {
+        if (typeof loadHomeNotices === 'function') loadHomeNotices();
+      }
+    }, 200);
+  }
+  window.openNoticeListScreen = openNoticeListScreen;
 
   // ── 운동기록 수정 ──
   let editWorkoutKey = null, editWorkoutDate = null, editSetCount = 0;

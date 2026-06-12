@@ -3416,15 +3416,15 @@
     </div>
   </div>
 
-  <!-- 공지사항 상세보기 모달 -->
-  <div class="modal-overlay" id="notice-detail-modal">
-    <div class="modal-sheet" style="overflow-y:auto;">
-      <div class="modal-title">
-        <span>📢 공지사항</span>
-        <button class="modal-close" onclick="closeNoticeDetail()">×</button>
-      </div>
-      <div id="notice-detail-content"></div>
+  <!-- 공지사항 전체화면 -->
+  <div class="screen" id="screen-notice-detail">
+    <div style="background:var(--card);padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;">
+      <button onclick="closeNoticeDetail()" style="background:none;border:none;cursor:pointer;padding:4px;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div style="font-size:17px;font-weight:700;color:var(--text);">📢 공지사항</div>
     </div>
+    <div style="padding:20px 16px;overflow-y:auto;" id="notice-detail-content"></div>
   </div>
 
   <!-- 운동기록 수정 모달 -->
@@ -6811,12 +6811,12 @@
     if (window._pendingNotifPopup) {
       window._pendingNotifPopup = false;
       setTimeout(() => {
-        if (typeof showNoticePopup === 'function') showNoticePopup(userId);
         if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
-        // 배지 캐시도 초기화
         if ('caches' in window) caches.open('pungsan-badge-v1').then(c => c.put('/badge-count', new Response(JSON.stringify({ count: 0 }), { headers: { 'Content-Type': 'application/json' } }))).catch(() => {});
         // URL 파라미터 제거
         window.history.replaceState({}, '', window.location.pathname);
+        // 공지 목록 전체화면으로 이동
+        if (typeof openNoticeListScreen === 'function') openNoticeListScreen();
       }, 500);
     } else {
       setTimeout(() => showNoticePopup(userId), 300);
@@ -6860,10 +6860,11 @@
         if (event.data.type === 'NOTIF_CLICK') {
           setTimeout(() => {
             if (typeof loadHomeNotices === 'function') loadHomeNotices();
-            const uid = localStorage.getItem('current_user');
-            if (uid && typeof showNoticePopup === 'function') showNoticePopup(uid);
             if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
             if ('caches' in window) caches.open('pungsan-badge-v1').then(c => c.put('/badge-count', new Response(JSON.stringify({ count: 0 }), { headers: { 'Content-Type': 'application/json' } }))).catch(() => {});
+            // 공지 목록 전체화면으로 이동
+            if (typeof showScreen === 'function') showScreen('screen-home');
+            if (typeof openNoticeListScreen === 'function') openNoticeListScreen();
           }, 800);
         }
         if (event.data.type === 'BADGE_COUNT') {
