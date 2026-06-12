@@ -1937,6 +1937,7 @@
       document.getElementById('notice-content').value = '';
       loadNoticeListAdmin();
       loadHomeNotices();
+      loadHomeNotices('trainer-notice-container');
       showToast('공지사항이 등록됐어요!', 'success');
       // 전체 회원 푸시알림
       if (typeof sendPushToAll === 'function') {
@@ -1955,11 +1956,15 @@
   }
   let editNoticeKey = null;
 
-  function openEditNoticeModal(key, title, content) {
+  function openEditNoticeModal(key) {
     editNoticeKey = key;
-    document.getElementById('edit-notice-title').value = title;
-    document.getElementById('edit-notice-content').value = content.replace(/\\n/g, '\n');
-    document.getElementById('edit-notice-modal').style.display = 'flex';
+    db.ref('notices/' + key).once('value').then(snap => {
+      if (!snap.exists()) { showToast('공지를 찾을 수 없어요.', 'error'); return; }
+      const n = snap.val();
+      document.getElementById('edit-notice-title').value = n.title || '';
+      document.getElementById('edit-notice-content').value = n.content || '';
+      document.getElementById('edit-notice-modal').style.display = 'flex';
+    }).catch(() => showToast('불러오기 실패', 'error'));
   }
 
   function closeEditNoticeModal() {
@@ -1978,6 +1983,7 @@
       closeEditNoticeModal();
       loadNoticeListAdmin();
       loadHomeNotices();
+      loadHomeNotices('trainer-notice-container');
     }).catch(err => { showToast('수정 실패: ' + err.message, 'error'); });
   }
 
@@ -1988,6 +1994,7 @@
         closeEditNoticeModal();
         loadNoticeListAdmin();
         loadHomeNotices();
+        loadHomeNotices('trainer-notice-container');
       }).catch(err => { showToast('삭제 실패: ' + err.message, 'error'); });
     });
   }
@@ -2014,9 +2021,15 @@
               <div style="font-size:13px;color:var(--text-sub);line-height:1.5;">${n.content}</div>
               <div style="font-size:12px;color:var(--text-hint);margin-top:4px;">${n.dateLabel||n.date||''}</div>
             </div>
-            <button onclick="openEditNoticeModal('${n.firebaseKey}','${n.title.replace(/'/g,"\\'")}','${n.content.replace(/'/g,"\\'").replace(/\n/g,'\\n')}')" class="btn-sm" style="flex-shrink:0;background:var(--blue-light);color:var(--blue);border:none;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;">수정</button>
+            <button data-notice-key="${n.firebaseKey}" class="btn-sm notice-edit-btn" style="flex-shrink:0;background:var(--blue-light);color:var(--blue);border:none;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;">수정</button>
           </div>
         </div>`).join('');
+      // 수정 버튼 이벤트 - data-key로 Firebase에서 직접 로딩
+      el.querySelectorAll('.notice-edit-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          openEditNoticeModal(this.dataset.noticeKey);
+        });
+      });
     });
   }
 
