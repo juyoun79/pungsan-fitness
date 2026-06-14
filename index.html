@@ -2506,7 +2506,7 @@
       <!-- ── 회원등록 탭 ── -->
       <!-- ── 전자계약서 탭 ── -->
       <div id="tab-register" class="admin-section">
-        <div class="admin-card" style="padding:0;overflow:hidden;">
+        <div class="admin-card" style="padding:0;overflow:hidden;max-width:700px;margin-left:auto;margin-right:auto;">
 
           <!-- 단계 표시바 -->
           <div id="ct-step-bar" style="display:flex;background:var(--card);border-bottom:1px solid var(--border);">
@@ -2518,81 +2518,77 @@
           </div>
 
           <!-- ===== 1단계: 기본정보 ===== -->
-          <div id="ct-step-1" class="ct-step-content" style="padding:20px;">
-            <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:16px;">📋 기본 정보 입력</div>
+          <div id="ct-step-1" class="ct-step-content" style="padding:16px;">
+            <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;">📋 기본 정보 입력</div>
 
             <!-- 신규/재등록 -->
-            <div style="margin-bottom:16px;">
+            <div style="margin-bottom:14px;">
               <label class="field-label">회원 구분 *</label>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;">
                 <button type="button" id="ct-type-new" onclick="selectCtType('new')"
-                  style="padding:11px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+                  style="padding:9px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
                   🆕 신규
                 </button>
                 <button type="button" id="ct-type-re" onclick="selectCtType('re')"
-                  style="padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+                  style="padding:9px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
                   🔄 재등록
                 </button>
               </div>
               <input type="hidden" id="ct-type" value="new" />
             </div>
 
-            <!-- 이름 + 성별 -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <!-- 이름 + 성별 + 생년월일 + 연락처 (PC: 4열) -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
               <div>
                 <label class="field-label">성명 *</label>
                 <input type="text" id="ct-name" placeholder="홍길동"
-                  style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
+                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
                   onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
               </div>
               <div>
                 <label class="field-label">성별 *</label>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
                   <button type="button" id="ct-gender-male" onclick="selectCtGender('male')"
-                    style="padding:10px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+                    style="padding:8px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
                     👨 남
                   </button>
                   <button type="button" id="ct-gender-female" onclick="selectCtGender('female')"
-                    style="padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+                    style="padding:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
                     👩 여
                   </button>
                 </div>
                 <input type="hidden" id="ct-gender" value="male" />
               </div>
-            </div>
-
-            <!-- 생년월일 + 연락처 -->
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
               <div>
                 <label class="field-label">생년월일 *</label>
                 <input type="text" inputmode="numeric" id="ct-birth" placeholder="19900101" maxlength="8"
-                  style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
+                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
                   onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
                 <div class="hint-text">예) 19900101</div>
               </div>
               <div>
                 <label class="field-label">연락처 * (아이디)</label>
                 <input type="tel" id="ct-phone" placeholder="01012345678" maxlength="11"
-                  style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
+                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
                   onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
                 <div class="hint-text">숫자만 입력</div>
               </div>
             </div>
 
             <!-- 주소 -->
-            <div style="margin-bottom:16px;">
+            <div style="margin-bottom:14px;">
               <label class="field-label">주소</label>
               <input type="text" id="ct-address" placeholder="경기도 고양시 일산동구..."
-                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
+                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
                 onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
             </div>
 
-            <button class="btn-primary" onclick="ctNext(1)">다음 →</button>
+            <button class="btn-primary" style="padding:10px;font-size:14px;" onclick="ctNext(1)">다음 →</button>
           </div>
 
           <!-- ===== 2단계: 계약/결제 ===== -->
-          <div id="ct-step-2" class="ct-step-content" style="padding:20px;display:none;">
-            <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:16px;">💳 계약 및 결제</div>
+          <div id="ct-step-2" class="ct-step-content" style="padding:16px;display:none;">
+            <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;">💳 계약 및 결제</div>
 
             <!-- 프로그램 선택 -->
             <div style="margin-bottom:16px;">
@@ -2671,14 +2667,14 @@
             </div>
 
             <div style="display:flex;gap:10px;">
-              <button style="flex:1;padding:13px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;" onclick="ctPrev(2)">← 이전</button>
-              <button class="btn-primary" style="flex:2;" onclick="ctNext(2)">다음 →</button>
+              <button style="flex:1;padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;" onclick="ctPrev(2)">← 이전</button>
+              <button class="btn-primary" style="flex:2;padding:10px;font-size:14px;" onclick="ctNext(2)">다음 →</button>
             </div>
           </div>
 
           <!-- ===== 3단계: 약관확인 ===== -->
-          <div id="ct-step-3" class="ct-step-content" style="padding:20px;display:none;">
-            <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:16px;">📜 이용약관 확인</div>
+          <div id="ct-step-3" class="ct-step-content" style="padding:16px;display:none;">
+            <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;">📜 이용약관 확인</div>
 
             <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;max-height:420px;overflow-y:auto;font-size:13px;line-height:1.7;color:var(--text);margin-bottom:16px;">
 
@@ -2730,15 +2726,15 @@
             </label>
 
             <div style="display:flex;gap:10px;">
-              <button style="flex:1;padding:13px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;" onclick="ctPrev(3)">← 이전</button>
-              <button id="ct-agree-next" class="btn-primary" style="flex:2;opacity:0.4;pointer-events:none;" onclick="ctNext(3)">다음 →</button>
+              <button style="flex:1;padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;" onclick="ctPrev(3)">← 이전</button>
+              <button id="ct-agree-next" class="btn-primary" style="flex:2;padding:10px;font-size:14px;opacity:0.4;pointer-events:none;" onclick="ctNext(3)">다음 →</button>
             </div>
           </div>
 
           <!-- ===== 4단계: 서명 ===== -->
-          <div id="ct-step-4" class="ct-step-content" style="padding:20px;display:none;">
-            <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;">✍️ 서명</div>
-            <div style="font-size:13px;color:var(--text-sub);margin-bottom:16px;">아래 서명란에 서명해 주세요.</div>
+          <div id="ct-step-4" class="ct-step-content" style="padding:16px;display:none;">
+            <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;">✍️ 서명</div>
+            <div style="font-size:12px;color:var(--text-sub);margin-bottom:14px;">아래 서명란에 서명해 주세요.</div>
 
             <!-- 신청일 -->
             <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
@@ -2756,13 +2752,13 @@
             </div>
 
             <div style="display:flex;gap:10px;">
-              <button style="flex:1;padding:13px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;" onclick="ctPrev(4)">← 이전</button>
-              <button class="btn-primary" style="flex:2;" onclick="submitContract()">✅ 계약서 저장</button>
+              <button style="flex:1;padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;" onclick="ctPrev(4)">← 이전</button>
+              <button class="btn-primary" style="flex:2;padding:10px;font-size:14px;" onclick="submitContract()">✅ 계약서 저장</button>
             </div>
           </div>
 
           <!-- ===== 5단계: 완료 ===== -->
-          <div id="ct-step-5" class="ct-step-content" style="padding:20px;display:none;text-align:center;">
+          <div id="ct-step-5" class="ct-step-content" style="padding:16px;display:none;text-align:center;">
             <div style="font-size:48px;margin-bottom:16px;">🎉</div>
             <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px;">계약서 등록 완료!</div>
             <div id="ct-complete-msg" style="font-size:14px;color:var(--text-sub);margin-bottom:24px;line-height:1.6;"></div>
