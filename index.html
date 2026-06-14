@@ -2506,7 +2506,7 @@
       <!-- ── 회원등록 탭 ── -->
       <!-- ── 전자계약서 탭 ── -->
       <div id="tab-register" class="admin-section">
-        <div class="admin-card" style="padding:0;overflow:hidden;max-width:700px;margin-left:auto;margin-right:auto;">
+        <div class="admin-card" style="padding:0;overflow:hidden;">
 
           <!-- 단계 표시바 -->
           <div id="ct-step-bar" style="display:flex;background:var(--card);border-bottom:1px solid var(--border);">
@@ -2518,7 +2518,8 @@
           </div>
 
           <!-- ===== 1단계: 기본정보 ===== -->
-          <div id="ct-step-1" class="ct-step-content" style="padding:16px;">
+          <div id="ct-step-1" class="ct-step-content" style="padding:20px 24px;">
+            <div style="max-width:900px;margin:0 auto;">
             <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;">📋 기본 정보 입력</div>
 
             <!-- 신규/재등록 -->
@@ -2584,10 +2585,12 @@
             </div>
 
             <button class="btn-primary" style="padding:10px;font-size:14px;" onclick="ctNext(1)">다음 →</button>
+            </div>
           </div>
 
           <!-- ===== 2단계: 계약/결제 ===== -->
-          <div id="ct-step-2" class="ct-step-content" style="padding:16px;display:none;">
+          <div id="ct-step-2" class="ct-step-content" style="padding:20px 24px;display:none;">
+            <div style="max-width:900px;margin:0 auto;">
             <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;">💳 계약 및 결제</div>
 
             <!-- 프로그램 선택 -->
@@ -2670,10 +2673,12 @@
               <button style="flex:1;padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;" onclick="ctPrev(2)">← 이전</button>
               <button class="btn-primary" style="flex:2;padding:10px;font-size:14px;" onclick="ctNext(2)">다음 →</button>
             </div>
+            </div>
           </div>
 
           <!-- ===== 3단계: 약관확인 ===== -->
-          <div id="ct-step-3" class="ct-step-content" style="padding:16px;display:none;">
+          <div id="ct-step-3" class="ct-step-content" style="padding:20px 24px;display:none;">
+            <div style="max-width:900px;margin:0 auto;">
             <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;">📜 이용약관 확인</div>
 
             <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;max-height:420px;overflow-y:auto;font-size:13px;line-height:1.7;color:var(--text);margin-bottom:16px;">
@@ -2729,10 +2734,12 @@
               <button style="flex:1;padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;" onclick="ctPrev(3)">← 이전</button>
               <button id="ct-agree-next" class="btn-primary" style="flex:2;padding:10px;font-size:14px;opacity:0.4;pointer-events:none;" onclick="ctNext(3)">다음 →</button>
             </div>
+            </div>
           </div>
 
           <!-- ===== 4단계: 서명 ===== -->
-          <div id="ct-step-4" class="ct-step-content" style="padding:16px;display:none;">
+          <div id="ct-step-4" class="ct-step-content" style="padding:20px 24px;display:none;">
+            <div style="max-width:900px;margin:0 auto;">
             <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;">✍️ 서명</div>
             <div style="font-size:12px;color:var(--text-sub);margin-bottom:14px;">아래 서명란에 서명해 주세요.</div>
 
@@ -2755,10 +2762,12 @@
               <button style="flex:1;padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;" onclick="ctPrev(4)">← 이전</button>
               <button class="btn-primary" style="flex:2;padding:10px;font-size:14px;" onclick="submitContract()">✅ 계약서 저장</button>
             </div>
+            </div>
           </div>
 
           <!-- ===== 5단계: 완료 ===== -->
-          <div id="ct-step-5" class="ct-step-content" style="padding:16px;display:none;text-align:center;">
+          <div id="ct-step-5" class="ct-step-content" style="padding:20px 24px;display:none;text-align:center;">
+            <div style="max-width:900px;margin:0 auto;">
             <div style="font-size:48px;margin-bottom:16px;">🎉</div>
             <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px;">계약서 등록 완료!</div>
             <div id="ct-complete-msg" style="font-size:14px;color:var(--text-sub);margin-bottom:24px;line-height:1.6;"></div>
@@ -2769,6 +2778,7 @@
             </div>
 
             <button class="btn-primary" onclick="resetContract()" style="width:100%;">➕ 새 계약서 작성</button>
+            </div>
           </div>
 
         </div>
