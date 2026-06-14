@@ -604,6 +604,28 @@
   .overlay.active { display: flex; }
 
 
+  /* ── 전자계약서 프로그램 카드 ── */
+  .ct-prog-card {
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .ct-prog-card.selected {
+    border-color: #1a6fd4;
+    box-shadow: 0 0 0 1px #1a6fd4;
+  }
+  .ct-prog-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; cursor: pointer; background: var(--card);
+    transition: background 0.1s;
+  }
+  .ct-prog-card-header:hover { background: var(--bg); }
+  .ct-prog-card.selected .ct-prog-card-header { background: #eff6ff; }
+  .ct-prog-card-body {
+    padding: 14px; border-top: 1px solid var(--border);
+    background: var(--card);
+  }
   /* ── 전자계약서 ── */
   .ct-step-item {
     flex: 1; padding: 10px 4px; text-align: center;

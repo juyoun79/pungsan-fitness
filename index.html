@@ -2591,69 +2591,156 @@
           <!-- ===== 2단계: 계약/결제 ===== -->
           <div id="ct-step-2" class="ct-step-content" style="padding:20px 24px;display:none;">
             <div style="max-width:900px;margin:0 auto;">
-            <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;">💳 계약 및 결제</div>
+            <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;">💳 프로그램 &amp; 결제</div>
 
-            <!-- 프로그램 선택 -->
-            <div style="margin-bottom:16px;">
-              <label class="field-label">프로그램 선택 (복수 선택 가능)</label>
-              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:6px;">
-                <button type="button" class="ct-prog-btn" data-prog="헬스" onclick="toggleCtProg(this)">🏋️ 헬스</button>
-                <button type="button" class="ct-prog-btn" data-prog="PT" onclick="toggleCtProg(this)">💪 PT</button>
-                <button type="button" class="ct-prog-btn" data-prog="GX" onclick="toggleCtProg(this)">🎶 GX</button>
-                <button type="button" class="ct-prog-btn" data-prog="기구필라테스개인" onclick="toggleCtProg(this)">🧘 기구필라테스(개인)</button>
-                <button type="button" class="ct-prog-btn" data-prog="기구필라테스그룹" onclick="toggleCtProg(this)">👥 기구필라테스(그룹)</button>
+            <!-- 프로그램 카드 목록 -->
+            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+
+              <!-- 헬스 -->
+              <div class="ct-prog-card" id="ct-card-헬스">
+                <div class="ct-prog-card-header" onclick="toggleCtCard('헬스')">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <input type="checkbox" id="ct-chk-헬스" onclick="event.stopPropagation();toggleCtCard('헬스')" style="width:18px;height:18px;accent-color:var(--blue);cursor:pointer;">
+                    <span style="font-size:14px;font-weight:700;">🏋️ 헬스</span>
+                  </div>
+                  <span id="ct-summary-헬스" style="font-size:12px;background:#f1f5f9;padding:3px 8px;border-radius:20px;color:var(--text-sub);">미선택</span>
+                </div>
+                <div class="ct-prog-card-body" id="ct-body-헬스" style="display:none;" data-prog="헬스" data-has-count="false"></div>
               </div>
-            </div>
 
-            <!-- 프로그램별 상세 입력 (동적 생성) -->
-            <div id="ct-prog-details"></div>
+              <!-- GX -->
+              <div class="ct-prog-card" id="ct-card-GX">
+                <div class="ct-prog-card-header" onclick="toggleCtCard('GX')">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <input type="checkbox" id="ct-chk-GX" onclick="event.stopPropagation();toggleCtCard('GX')" style="width:18px;height:18px;accent-color:var(--blue);cursor:pointer;">
+                    <span style="font-size:14px;font-weight:700;">🎶 GX</span>
+                  </div>
+                  <span id="ct-summary-GX" style="font-size:12px;background:#f1f5f9;padding:3px 8px;border-radius:20px;color:var(--text-sub);">미선택</span>
+                </div>
+                <div class="ct-prog-card-body" id="ct-body-GX" style="display:none;" data-prog="GX" data-has-count="false"></div>
+              </div>
+
+              <!-- PT -->
+              <div class="ct-prog-card" id="ct-card-PT">
+                <div class="ct-prog-card-header" onclick="toggleCtCard('PT')">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <input type="checkbox" id="ct-chk-PT" onclick="event.stopPropagation();toggleCtCard('PT')" style="width:18px;height:18px;accent-color:var(--blue);cursor:pointer;">
+                    <span style="font-size:14px;font-weight:700;">💪 PT</span>
+                  </div>
+                  <span id="ct-summary-PT" style="font-size:12px;background:#f1f5f9;padding:3px 8px;border-radius:20px;color:var(--text-sub);">미선택</span>
+                </div>
+                <div class="ct-prog-card-body" id="ct-body-PT" style="display:none;" data-prog="PT" data-has-count="true"></div>
+              </div>
+
+              <!-- 기구필라테스 개인 -->
+              <div class="ct-prog-card" id="ct-card-기구필라테스개인">
+                <div class="ct-prog-card-header" onclick="toggleCtCard('기구필라테스개인')">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <input type="checkbox" id="ct-chk-기구필라테스개인" onclick="event.stopPropagation();toggleCtCard('기구필라테스개인')" style="width:18px;height:18px;accent-color:var(--blue);cursor:pointer;">
+                    <span style="font-size:14px;font-weight:700;">🧘 기구필라테스 개인</span>
+                  </div>
+                  <span id="ct-summary-기구필라테스개인" style="font-size:12px;background:#f1f5f9;padding:3px 8px;border-radius:20px;color:var(--text-sub);">미선택</span>
+                </div>
+                <div class="ct-prog-card-body" id="ct-body-기구필라테스개인" style="display:none;" data-prog="기구필라테스개인" data-has-count="true"></div>
+              </div>
+
+              <!-- 기구필라테스 그룹 -->
+              <div class="ct-prog-card" id="ct-card-기구필라테스그룹">
+                <div class="ct-prog-card-header" onclick="toggleCtCard('기구필라테스그룹')">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <input type="checkbox" id="ct-chk-기구필라테스그룹" onclick="event.stopPropagation();toggleCtCard('기구필라테스그룹')" style="width:18px;height:18px;accent-color:var(--blue);cursor:pointer;">
+                    <span style="font-size:14px;font-weight:700;">👥 기구필라테스 그룹</span>
+                  </div>
+                  <span id="ct-summary-기구필라테스그룹" style="font-size:12px;background:#f1f5f9;padding:3px 8px;border-radius:20px;color:var(--text-sub);">미선택</span>
+                </div>
+                <div class="ct-prog-card-body" id="ct-body-기구필라테스그룹" style="display:none;" data-prog="기구필라테스그룹" data-has-count="true"></div>
+              </div>
+
+            </div>
 
             <!-- 부가서비스 -->
-            <div style="background:var(--bg);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;">
-              <div style="font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:10px;">부가 서비스</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                <!-- 운동복 -->
+            <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:16px;">
+              <div style="background:var(--bg);padding:12px 14px;font-size:13px;font-weight:700;color:var(--text);">🎁 부가 서비스</div>
+              <div style="padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                 <div>
-                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-                    <input type="checkbox" id="ct-cloth-check" onchange="toggleCtExtra('cloth')" style="accent-color:var(--blue);width:16px;height:16px;">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                    <input type="checkbox" id="ct-cloth-check" onchange="toggleCtExtra('cloth')" style="width:17px;height:17px;accent-color:var(--blue);cursor:pointer;">
                     <label for="ct-cloth-check" style="font-size:13px;font-weight:600;cursor:pointer;">👕 운동복</label>
+                    <span id="ct-cloth-summary" style="margin-left:auto;font-size:11px;color:var(--text-sub);">미선택</span>
                   </div>
-                  <div id="ct-cloth-detail" style="display:none;">
-                    <input type="number" id="ct-cloth-months" placeholder="개월" min="1" max="24"
-                      style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-bottom:6px;"
-                      onwheel="this.blur()" oninput="calcCtTotal()" />
-                    <input type="number" id="ct-cloth-price" placeholder="금액 (0=무료)" min="0"
-                      style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
-                      onwheel="this.blur()" oninput="calcCtTotal()" />
+                  <div id="ct-cloth-detail" style="display:none;padding:10px;background:var(--bg);border-radius:var(--radius-sm);">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                      <div>
+                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">기간(개월)</div>
+                        <input type="number" id="ct-cloth-months" placeholder="개월" min="1" max="24"
+                          style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                          onwheel="this.blur()" oninput="calcCtTotal()" />
+                      </div>
+                      <div>
+                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">금액(원)</div>
+                        <input type="number" id="ct-cloth-price" placeholder="0=무료" min="0"
+                          style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                          onwheel="this.blur()" oninput="calcCtTotal()" />
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <!-- 락카 -->
                 <div>
-                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-                    <input type="checkbox" id="ct-locker-check" onchange="toggleCtExtra('locker')" style="accent-color:var(--blue);width:16px;height:16px;">
-                    <label for="ct-locker-check" style="font-size:13px;font-weight:600;cursor:pointer;">🔑 개인락카</label>
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                    <input type="checkbox" id="ct-locker-check" onchange="toggleCtExtra('locker')" style="width:17px;height:17px;accent-color:var(--blue);cursor:pointer;">
+                    <label for="ct-locker-check" style="font-size:13px;font-weight:600;cursor:pointer;">🔑 개인 락카</label>
+                    <span id="ct-locker-summary" style="margin-left:auto;font-size:11px;color:var(--text-sub);">미선택</span>
                   </div>
-                  <div id="ct-locker-detail" style="display:none;">
-                    <input type="number" id="ct-locker-months" placeholder="개월" min="1" max="24"
-                      style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-bottom:6px;"
-                      onwheel="this.blur()" oninput="calcCtTotal()" />
-                    <input type="number" id="ct-locker-price" placeholder="금액" min="0"
-                      style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
-                      onwheel="this.blur()" oninput="calcCtTotal()" />
+                  <div id="ct-locker-detail" style="display:none;padding:10px;background:var(--bg);border-radius:var(--radius-sm);">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                      <div>
+                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">기간(개월)</div>
+                        <input type="number" id="ct-locker-months" placeholder="개월" min="1" max="24"
+                          style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                          onwheel="this.blur()" oninput="calcCtTotal()" />
+                      </div>
+                      <div>
+                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">금액(원)</div>
+                        <input type="number" id="ct-locker-price" placeholder="금액" min="0"
+                          style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                          onwheel="this.blur()" oninput="calcCtTotal()" />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- 합계 -->
-            <div style="background:#f0f7ff;border:1.5px solid #bfdbfe;border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;">
-              <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-                <span style="font-size:13px;color:var(--text-sub);">합계</span>
-                <span id="ct-total-amt" style="font-size:15px;font-weight:700;color:var(--text);">0원</span>
+            <!-- 결제 내역 합계 -->
+            <div style="border:1.5px solid #bfdbfe;background:#f0f7ff;border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">📊 결제 내역</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+                <div style="background:white;border-radius:8px;padding:10px;text-align:center;">
+                  <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">현금 합계</div>
+                  <div id="ct-sum-cash" style="font-size:14px;font-weight:700;color:var(--text);">0원</div>
+                </div>
+                <div style="background:white;border-radius:8px;padding:10px;text-align:center;">
+                  <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">카드 합계</div>
+                  <div id="ct-sum-card" style="font-size:14px;font-weight:700;color:var(--text);">0원</div>
+                </div>
+                <div style="background:white;border-radius:8px;padding:10px;text-align:center;">
+                  <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">계좌 합계</div>
+                  <div id="ct-sum-transfer" style="font-size:14px;font-weight:700;color:var(--text);">0원</div>
+                </div>
               </div>
-              <div style="display:flex;justify-content:space-between;">
-                <span style="font-size:13px;color:var(--text-sub);">오늘 결제</span>
-                <span id="ct-paid-amt" style="font-size:15px;font-weight:700;color:#1a6fd4;">0원</span>
+              <div style="border-top:1px solid #bfdbfe;padding-top:10px;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                  <span style="font-size:13px;color:var(--text-sub);">계약 총액</span>
+                  <span id="ct-total-amt" style="font-size:13px;font-weight:700;color:var(--text);">0원</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                  <span style="font-size:13px;color:var(--text-sub);">오늘 결제</span>
+                  <span id="ct-paid-amt" style="font-size:14px;font-weight:700;color:#1a6fd4;">0원</span>
+                </div>
+                <div id="ct-unpaid-row" style="display:none;justify-content:space-between;">
+                  <span style="font-size:13px;font-weight:700;color:#ef4444;">미수금 🔴</span>
+                  <span id="ct-unpaid-amt" style="font-size:14px;font-weight:700;color:#ef4444;">0원</span>
+                </div>
               </div>
             </div>
 
