@@ -2065,7 +2065,7 @@
       <!-- 📅 기간 -->
       <div style="margin-bottom:12px;">
         <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:8px;">📅 기간</div>
-        <div style="display:grid;grid-template-columns:${cols};gap:8px;align-items:end;">
+        <div style="display:grid;grid-template-columns:${cols};gap:8px;margin-bottom:8px;">
           <div>
             <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">시작일</div>
             <input type="date" id="ct-${prog}-start" onchange="calcCtEndDate('${prog}');updateCtSummary('${prog}')"
@@ -2096,18 +2096,19 @@
             </div>
           </div>
         </div>
-        <div style="margin-top:8px;">
-          <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">종료일 (자동계산)</div>
-          <input type="text" id="ct-${prog}-end" readonly placeholder="시작일·개월수 입력 시 자동계산"
-            style="${inStyle}background:#f0fdf4;color:#16a34a;font-weight:600;" />
+        <!-- 종료일 + 이용요금 나란히 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div>
+            <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">종료일 (자동계산)</div>
+            <input type="text" id="ct-${prog}-end" readonly placeholder="자동계산"
+              style="${inStyle}background:#f0fdf4;color:#16a34a;font-weight:600;" />
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">💰 이용요금(원)</div>
+            <input type="number" id="ct-${prog}-price" min="0" placeholder="이용요금 입력"
+              style="${inStyle}font-weight:700;" onwheel="this.blur()" oninput="calcCtTotal();updateCtSummary('${prog}')" />
+          </div>
         </div>
-      </div>
-
-      <!-- 💰 이용요금 -->
-      <div style="margin-bottom:12px;">
-        <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:8px;">💰 이용요금</div>
-        <input type="number" id="ct-${prog}-price" min="0" placeholder="이용요금 입력"
-          style="${inStyle}font-weight:700;font-size:14px;" onwheel="this.blur()" oninput="calcCtTotal();updateCtSummary('${prog}')" />
       </div>
 
       <!-- 💳 결제방법 -->
@@ -2228,13 +2229,20 @@
     extraConfigs.forEach(({ key, label }) => {
       const check = document.getElementById('ct-' + key + '-check');
       if (!check?.checked) return;
-      const price  = parseInt(document.getElementById('ct-' + key + '-price')?.value)  || 0;
-      const months = parseInt(document.getElementById('ct-' + key + '-months')?.value) || 0;
+      const price    = parseInt(document.getElementById('ct-' + key + '-price')?.value)    || 0;
+      const cash     = parseInt(document.getElementById('ct-' + key + '-cash')?.value)     || 0;
+      const card     = parseInt(document.getElementById('ct-' + key + '-card')?.value)     || 0;
+      const transfer = parseInt(document.getElementById('ct-' + key + '-transfer')?.value) || 0;
+      const months   = parseInt(document.getElementById('ct-' + key + '-months')?.value)   || 0;
       totalContract += price;
-      if (price || months) {
+      sumCash += cash; sumCard += card; sumTransfer += transfer;
+      // 결제금액 표시
+      const paidDisp = document.getElementById('ct-' + key + '-paid-display');
+      if (paidDisp) paidDisp.textContent = (cash + card + transfer).toLocaleString() + '원';
+      if (price || cash || card || transfer) {
         breakdownItems.push({
-          label: label + (months ? ' ' + months + '개월' : '') + (price === 0 ? ' (무료)' : ''),
-          price, cash: 0, card: 0, transfer: 0
+          label: label + (months ? ' ' + months + '개월' : '') + (price === 0 && check.checked ? ' (무료)' : ''),
+          price, cash, card, transfer
         });
       }
       updateCtExtraSummary(key);
@@ -2420,14 +2428,20 @@
     const extras = {};
     if (document.getElementById('ct-cloth-check')?.checked) {
       extras.cloth = {
-        months: parseInt(document.getElementById('ct-cloth-months')?.value) || 0,
-        price : parseInt(document.getElementById('ct-cloth-price')?.value) || 0,
+        months  : parseInt(document.getElementById('ct-cloth-months')?.value)   || 0,
+        price   : parseInt(document.getElementById('ct-cloth-price')?.value)    || 0,
+        cash    : parseInt(document.getElementById('ct-cloth-cash')?.value)     || 0,
+        card    : parseInt(document.getElementById('ct-cloth-card')?.value)     || 0,
+        transfer: parseInt(document.getElementById('ct-cloth-transfer')?.value) || 0,
       };
     }
     if (document.getElementById('ct-locker-check')?.checked) {
       extras.locker = {
-        months: parseInt(document.getElementById('ct-locker-months')?.value) || 0,
-        price : parseInt(document.getElementById('ct-locker-price')?.value) || 0,
+        months  : parseInt(document.getElementById('ct-locker-months')?.value)   || 0,
+        price   : parseInt(document.getElementById('ct-locker-price')?.value)    || 0,
+        cash    : parseInt(document.getElementById('ct-locker-cash')?.value)     || 0,
+        card    : parseInt(document.getElementById('ct-locker-card')?.value)     || 0,
+        transfer: parseInt(document.getElementById('ct-locker-transfer')?.value) || 0,
       };
     }
 
@@ -2544,6 +2558,22 @@
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
+    // 부가서비스 입력값 초기화
+    ['ct-cloth-months','ct-cloth-price','ct-cloth-cash','ct-cloth-card','ct-cloth-transfer',
+     'ct-locker-months','ct-locker-price','ct-locker-cash','ct-locker-card','ct-locker-transfer'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    ['ct-cloth-summary','ct-locker-summary'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = '미선택'; el.style.color = 'var(--text-sub)'; }
+    });
+    ['ct-cloth-paid-display','ct-locker-paid-display'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = '0원';
+    });
+    const breakdownEl = document.getElementById('ct-breakdown-list');
+    if (breakdownEl) breakdownEl.innerHTML = '';
     const agreeEl = document.getElementById('ct-agree');
     if (agreeEl) agreeEl.checked = false;
     const agreeNext = document.getElementById('ct-agree-next');

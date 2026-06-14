@@ -2662,6 +2662,8 @@
             <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:16px;">
               <div style="background:var(--bg);padding:12px 14px;font-size:13px;font-weight:700;color:var(--text);">🎁 부가 서비스</div>
               <div style="padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+
+                <!-- 운동복 -->
                 <div>
                   <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
                     <input type="checkbox" id="ct-cloth-check" onchange="toggleCtExtra('cloth')" style="width:17px;height:17px;accent-color:var(--blue);cursor:pointer;">
@@ -2669,7 +2671,8 @@
                     <span id="ct-cloth-summary" style="margin-left:auto;font-size:11px;color:var(--text-sub);">미선택</span>
                   </div>
                   <div id="ct-cloth-detail" style="display:none;padding:10px;background:var(--bg);border-radius:var(--radius-sm);">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <!-- 기간 + 이용요금 -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
                       <div>
                         <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">기간(개월)</div>
                         <input type="number" id="ct-cloth-months" placeholder="개월" min="1" max="24"
@@ -2677,14 +2680,41 @@
                           onwheel="this.blur()" oninput="calcCtTotal();updateCtExtraSummary('cloth')" />
                       </div>
                       <div>
-                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">금액(원)</div>
+                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">이용요금(원)</div>
                         <input type="number" id="ct-cloth-price" placeholder="0=무료" min="0"
                           style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
                           onwheel="this.blur()" oninput="calcCtTotal();updateCtExtraSummary('cloth')" />
                       </div>
                     </div>
+                    <!-- 결제방법 -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px;">
+                      <div>
+                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">현금</div>
+                        <input type="number" id="ct-cloth-cash" placeholder="0" min="0"
+                          style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                          onwheel="this.blur()" oninput="calcCtTotal()" />
+                      </div>
+                      <div>
+                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">카드</div>
+                        <input type="number" id="ct-cloth-card" placeholder="0" min="0"
+                          style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                          onwheel="this.blur()" oninput="calcCtTotal()" />
+                      </div>
+                      <div>
+                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">계좌이체</div>
+                        <input type="number" id="ct-cloth-transfer" placeholder="0" min="0"
+                          style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                          onwheel="this.blur()" oninput="calcCtTotal()" />
+                      </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;background:white;border-radius:6px;padding:6px 10px;">
+                      <span style="font-size:11px;color:var(--text-sub);">결제금액 (자동합산)</span>
+                      <span id="ct-cloth-paid-display" style="font-size:13px;font-weight:700;color:#1a6fd4;">0원</span>
+                    </div>
                   </div>
                 </div>
+
+                <!-- 개인 락카 -->
                 <div>
                   <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
                     <input type="checkbox" id="ct-locker-check" onchange="toggleCtExtra('locker')" style="width:17px;height:17px;accent-color:var(--blue);cursor:pointer;">
@@ -2692,7 +2722,8 @@
                     <span id="ct-locker-summary" style="margin-left:auto;font-size:11px;color:var(--text-sub);">미선택</span>
                   </div>
                   <div id="ct-locker-detail" style="display:none;padding:10px;background:var(--bg);border-radius:var(--radius-sm);">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <!-- 기간 + 이용요금 -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
                       <div>
                         <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">기간(개월)</div>
                         <input type="number" id="ct-locker-months" placeholder="개월" min="1" max="24"
@@ -2700,14 +2731,40 @@
                           onwheel="this.blur()" oninput="calcCtTotal();updateCtExtraSummary('locker')" />
                       </div>
                       <div>
-                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">금액(원)</div>
+                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">이용요금(원)</div>
                         <input type="number" id="ct-locker-price" placeholder="금액" min="0"
                           style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
                           onwheel="this.blur()" oninput="calcCtTotal();updateCtExtraSummary('locker')" />
                       </div>
                     </div>
+                    <!-- 결제방법 -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px;">
+                      <div>
+                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">현금</div>
+                        <input type="number" id="ct-locker-cash" placeholder="0" min="0"
+                          style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                          onwheel="this.blur()" oninput="calcCtTotal()" />
+                      </div>
+                      <div>
+                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">카드</div>
+                        <input type="number" id="ct-locker-card" placeholder="0" min="0"
+                          style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                          onwheel="this.blur()" oninput="calcCtTotal()" />
+                      </div>
+                      <div>
+                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">계좌이체</div>
+                        <input type="number" id="ct-locker-transfer" placeholder="0" min="0"
+                          style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                          onwheel="this.blur()" oninput="calcCtTotal()" />
+                      </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;background:white;border-radius:6px;padding:6px 10px;">
+                      <span style="font-size:11px;color:var(--text-sub);">결제금액 (자동합산)</span>
+                      <span id="ct-locker-paid-display" style="font-size:13px;font-weight:700;color:#1a6fd4;">0원</span>
+                    </div>
                   </div>
                 </div>
+
               </div>
             </div>
 
