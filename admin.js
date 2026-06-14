@@ -2373,7 +2373,7 @@
       </div>`;
 
     // 프로그램별
-    let totalPrice = 0, totalPaid = 0;
+    let totalPrice = 0, totalPaid = 0, totalCash = 0, totalCard = 0, totalTransfer = 0;
     ctSelectedProgs.forEach(prog => {
       const months   = parseInt(document.getElementById('ct-' + prog + '-months')?.value) || 0;
       const count    = parseInt(document.getElementById('ct-' + prog + '-count')?.value)  || 0;
@@ -2384,7 +2384,7 @@
       const endDate  = document.getElementById('ct-' + prog + '-end')?.value || '';
       const paid     = cash + card + transfer;
       const unpaid   = price - paid;
-      totalPrice += price; totalPaid += paid;
+      totalPrice += price; totalPaid += paid; totalCash += cash; totalCard += card; totalTransfer += transfer;
 
       html += `
         <div style="margin-bottom:8px;padding:8px;background:white;border-radius:6px;border:1px solid var(--border);">
@@ -2413,7 +2413,7 @@
       const transfer = parseInt(document.getElementById('ct-' + key + '-transfer')?.value) || 0;
       const paid     = cash + card + transfer;
       const unpaid   = price - paid;
-      totalPrice += price; totalPaid += paid;
+      totalPrice += price; totalPaid += paid; totalCash += cash; totalCard += card; totalTransfer += transfer;
 
       html += `
         <div style="margin-bottom:8px;padding:8px;background:white;border-radius:6px;border:1px solid var(--border);">
@@ -2433,6 +2433,23 @@
     const totalUnpaid = totalPrice - totalPaid;
     html += `
       <div style="padding:10px;background:#f0f7ff;border-radius:6px;border:1.5px solid #bfdbfe;margin-top:4px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-sub);margin-bottom:6px;">결제 합계</div>
+        ${totalCash > 0 ? `
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+          <span style="font-size:11px;color:#059669;">현금</span>
+          <span style="font-size:11px;font-weight:700;color:#059669;">${totalCash.toLocaleString()}원</span>
+        </div>` : ''}
+        ${totalCard > 0 ? `
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+          <span style="font-size:11px;color:#1a6fd4;">카드</span>
+          <span style="font-size:11px;font-weight:700;color:#1a6fd4;">${totalCard.toLocaleString()}원</span>
+        </div>` : ''}
+        ${totalTransfer > 0 ? `
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+          <span style="font-size:11px;color:#7c3aed;">계좌이체</span>
+          <span style="font-size:11px;font-weight:700;color:#7c3aed;">${totalTransfer.toLocaleString()}원</span>
+        </div>` : ''}
+        <div style="border-top:1px solid #bfdbfe;margin:6px 0;"></div>
         <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
           <span style="font-size:11px;color:var(--text-sub);">이용요금 합계</span>
           <span style="font-size:12px;font-weight:700;color:var(--text);">${totalPrice.toLocaleString()}원</span>
@@ -2596,18 +2613,96 @@
       // 4. 완료 화면
       const totalPaid = Object.values(programs).reduce((s,p) => s + (p.cash||0) + (p.card||0) + (p.transfer||0), 0);
       const totalAmt  = Object.values(programs).reduce((s,p) => s + (p.price||0), 0);
+      const extrasAmt = Object.values(extras).reduce((s,e) => s + (e.price||0), 0);
+      const grandTotal = totalAmt + extrasAmt;
+      const grandPaid  = totalPaid + Object.values(extras).reduce((s,e) => s + (e.cash||0) + (e.card||0) + (e.transfer||0), 0);
+      const grandUnpaid = grandTotal - grandPaid;
+      const allCash     = Object.values(programs).reduce((s,p)=>s+(p.cash||0),0) + Object.values(extras).reduce((s,e)=>s+(e.cash||0),0);
+      const allCard     = Object.values(programs).reduce((s,p)=>s+(p.card||0),0) + Object.values(extras).reduce((s,e)=>s+(e.card||0),0);
+      const allTransfer = Object.values(programs).reduce((s,p)=>s+(p.transfer||0),0) + Object.values(extras).reduce((s,e)=>s+(e.transfer||0),0);
+
+      const progLabelsComplete = {
+        '헬스':'🏋️ 헬스', 'GX':'🎶 GX', 'PT':'💪 PT',
+        '기구필라테스개인':'🧘 기구필라테스 개인', '기구필라테스그룹':'👥 기구필라테스 그룹'
+      };
 
       document.getElementById('ct-complete-msg').textContent =
         isNew ? name + ' 회원 계정이 생성됐어요. (아이디: ' + phone + ' / 초기비번: ' + phone.slice(-4) + ')'
               : name + ' 회원 재등록이 완료됐어요.';
 
-      document.getElementById('ct-complete-summary').innerHTML =
-        '이름: ' + name + '<br>' +
-        '연락처: ' + phone + '<br>' +
-        '프로그램: ' + ctSelectedProgs.join(', ') + '<br>' +
-        '총금액: ' + totalAmt.toLocaleString() + '원<br>' +
-        '결제금액: ' + totalPaid.toLocaleString() + '원' +
-        (totalAmt > totalPaid ? '<br><span style="color:#ef4444;">미수금: ' + (totalAmt - totalPaid).toLocaleString() + '원</span>' : '');
+      let summaryHtml = `
+        <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border);">
+          <div style="display:flex;gap:16px;flex-wrap:wrap;">
+            <div><span style="font-size:12px;color:var(--text-sub);">이름</span><br><strong>${name}</strong></div>
+            <div><span style="font-size:12px;color:var(--text-sub);">연락처</span><br><strong>${phone}</strong></div>
+            <div><span style="font-size:12px;color:var(--text-sub);">신청일</span><br><strong>${signDate}</strong></div>
+            <div><span style="font-size:12px;color:var(--text-sub);">구분</span><br><strong>${type === 're' ? '재등록' : '신규'}</strong></div>
+          </div>
+        </div>`;
+
+      // 프로그램별
+      Object.entries(programs).forEach(([prog, p]) => {
+        const progPaid   = (p.cash||0) + (p.card||0) + (p.transfer||0);
+        const progUnpaid = (p.price||0) - progPaid;
+        summaryHtml += `
+          <div style="margin-bottom:8px;padding:8px 10px;background:var(--bg);border-radius:6px;border-left:3px solid #1a6fd4;">
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">${progLabelsComplete[prog] || prog}</div>
+            <div style="font-size:12px;color:var(--text-sub);line-height:1.7;">
+              ${p.months ? p.months + '개월' : ''}${p.count ? ' · ' + p.count + '회' : ''}
+              ${p.endDate ? ' · 종료 ' + p.endDate : ''}
+              ${p.price ? '<br>이용요금: ' + p.price.toLocaleString() + '원' : ''}
+              ${p.cash ? '<br><span style="color:#059669;">현금: ' + p.cash.toLocaleString() + '원</span>' : ''}
+              ${p.card ? '<br><span style="color:#1a6fd4;">카드: ' + p.card.toLocaleString() + '원</span>' : ''}
+              ${p.transfer ? '<br><span style="color:#7c3aed;">계좌: ' + p.transfer.toLocaleString() + '원</span>' : ''}
+              ${progUnpaid > 0 ? '<br><span style="color:#ef4444;font-weight:700;">미수금: ' + progUnpaid.toLocaleString() + '원</span>' : ''}
+            </div>
+          </div>`;
+      });
+
+      // 부가서비스
+      if (extras.cloth) {
+        const e = extras.cloth;
+        const ePaid = (e.cash||0)+(e.card||0)+(e.transfer||0);
+        summaryHtml += `
+          <div style="margin-bottom:8px;padding:8px 10px;background:var(--bg);border-radius:6px;border-left:3px solid #059669;">
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">👕 운동복</div>
+            <div style="font-size:12px;color:var(--text-sub);line-height:1.7;">
+              ${e.months ? e.months + '개월' : ''}
+              ${e.price === 0 ? ' · 무료' : (e.price ? '<br>이용요금: ' + e.price.toLocaleString() + '원' : '')}
+              ${e.cash ? '<br><span style="color:#059669;">현금: ' + e.cash.toLocaleString() + '원</span>' : ''}
+              ${e.card ? '<br><span style="color:#1a6fd4;">카드: ' + e.card.toLocaleString() + '원</span>' : ''}
+              ${e.transfer ? '<br><span style="color:#7c3aed;">계좌: ' + e.transfer.toLocaleString() + '원</span>' : ''}
+            </div>
+          </div>`;
+      }
+      if (extras.locker) {
+        const e = extras.locker;
+        summaryHtml += `
+          <div style="margin-bottom:8px;padding:8px 10px;background:var(--bg);border-radius:6px;border-left:3px solid #7c3aed;">
+            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">🔑 개인 락카</div>
+            <div style="font-size:12px;color:var(--text-sub);line-height:1.7;">
+              ${e.months ? e.months + '개월' : ''}
+              ${e.price ? '<br>이용요금: ' + e.price.toLocaleString() + '원' : ''}
+              ${e.cash ? '<br><span style="color:#059669;">현금: ' + e.cash.toLocaleString() + '원</span>' : ''}
+              ${e.card ? '<br><span style="color:#1a6fd4;">카드: ' + e.card.toLocaleString() + '원</span>' : ''}
+              ${e.transfer ? '<br><span style="color:#7c3aed;">계좌: ' + e.transfer.toLocaleString() + '원</span>' : ''}
+            </div>
+          </div>`;
+      }
+
+      // 최종 합계
+      summaryHtml += `
+        <div style="margin-top:8px;padding:10px;background:#f0f7ff;border:1.5px solid #bfdbfe;border-radius:6px;">
+          ${allCash > 0 ? '<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="font-size:12px;color:#059669;">현금 합계</span><span style="font-size:12px;font-weight:700;color:#059669;">' + allCash.toLocaleString() + '원</span></div>' : ''}
+          ${allCard > 0 ? '<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="font-size:12px;color:#1a6fd4;">카드 합계</span><span style="font-size:12px;font-weight:700;color:#1a6fd4;">' + allCard.toLocaleString() + '원</span></div>' : ''}
+          ${allTransfer > 0 ? '<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="font-size:12px;color:#7c3aed;">계좌 합계</span><span style="font-size:12px;font-weight:700;color:#7c3aed;">' + allTransfer.toLocaleString() + '원</span></div>' : ''}
+          <div style="border-top:1px solid #bfdbfe;margin:6px 0;"></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="font-size:12px;color:var(--text-sub);">이용요금 합계</span><span style="font-size:13px;font-weight:700;color:var(--text);">${grandTotal.toLocaleString()}원</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="font-size:12px;color:var(--text-sub);">오늘 결제</span><span style="font-size:13px;font-weight:700;color:#1a6fd4;">${grandPaid.toLocaleString()}원</span></div>
+          ${grandUnpaid > 0 ? '<div style="display:flex;justify-content:space-between;"><span style="font-size:12px;font-weight:700;color:#ef4444;">미수금</span><span style="font-size:13px;font-weight:700;color:#ef4444;">' + grandUnpaid.toLocaleString() + '원</span></div>' : ''}
+        </div>`;
+
+      document.getElementById('ct-complete-summary').innerHTML = summaryHtml;
 
       ctGoStep(5);
       showToast('✅ 계약서 저장 완료!', 'success');
