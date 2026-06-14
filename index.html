@@ -2887,22 +2887,30 @@
           <!-- ===== 4단계: 서명 ===== -->
           <div id="ct-step-4" class="ct-step-content" style="padding:20px 24px;display:none;">
             <div style="max-width:900px;margin:0 auto;">
-            <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;">✍️ 서명</div>
-            <div style="font-size:12px;color:var(--text-sub);margin-bottom:14px;">아래 서명란에 서명해 주세요.</div>
-
-            <!-- 신청일 -->
-            <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+              <div style="font-size:14px;font-weight:700;color:var(--text);">✍️ 서명</div>
               <span style="font-size:13px;color:var(--text-sub);">신청일: <strong id="ct-sign-date"></strong></span>
             </div>
 
-            <!-- 서명 캔버스 -->
-            <div style="position:relative;border:2px solid var(--border);border-radius:var(--radius-sm);background:#fff;margin-bottom:12px;">
-              <canvas id="ct-sign-canvas" width="600" height="200" style="width:100%;height:200px;display:block;touch-action:none;cursor:crosshair;"></canvas>
-              <div id="ct-sign-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:14px;pointer-events:none;">여기에 서명하세요</div>
-            </div>
+            <!-- 5:5 레이아웃 -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px;">
 
-            <div style="display:flex;gap:8px;margin-bottom:20px;">
-              <button onclick="clearCtSign()" style="flex:1;padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑️ 다시 서명</button>
+              <!-- 좌측: 서명 캔버스 -->
+              <div>
+                <div style="font-size:12px;color:var(--text-sub);margin-bottom:6px;">아래에 서명해 주세요</div>
+                <div style="position:relative;border:2px solid var(--border);border-radius:var(--radius-sm);background:#fff;">
+                  <canvas id="ct-sign-canvas" width="400" height="280" style="width:100%;height:280px;display:block;touch-action:none;cursor:crosshair;"></canvas>
+                  <div id="ct-sign-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:14px;pointer-events:none;">여기에 서명하세요</div>
+                </div>
+                <button onclick="clearCtSign()" style="width:100%;margin-top:8px;padding:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑️ 다시 서명</button>
+              </div>
+
+              <!-- 우측: 계약내용 요약 -->
+              <div style="background:var(--bg);border-radius:var(--radius-sm);padding:14px;overflow-y:auto;max-height:320px;">
+                <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:10px;">📋 계약 내용 확인</div>
+                <div id="ct-sign-summary"></div>
+              </div>
+
             </div>
 
             <div style="display:flex;gap:10px;">

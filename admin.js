@@ -1946,12 +1946,13 @@
       if (el) el.style.display = (i === step) ? '' : 'none';
     }
     ctCurrentStep = step;
-    // 4단계 진입 시 서명 초기화 + 날짜 표시
+    // 4단계 진입 시 서명 초기화 + 날짜 표시 + 계약내용 요약
     if (step === 4) {
       initCtSign();
       const now = new Date();
       document.getElementById('ct-sign-date').textContent =
         now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일';
+      renderCtSignSummary();
     }
   }
 
@@ -2259,18 +2260,26 @@
       } else {
         breakdownEl.innerHTML = `
           <div style="background:white;border-radius:8px;overflow:hidden;margin-bottom:8px;">
-            <div style="display:grid;grid-template-columns:1fr 80px 80px 80px 80px;gap:0;background:#f8fafc;padding:7px 10px;font-size:11px;color:var(--text-sub);font-weight:600;">
-              <div>항목</div><div style="text-align:right;">이용요금</div>
-              <div style="text-align:right;">현금</div><div style="text-align:right;">카드</div><div style="text-align:right;">계좌</div>
+            <div style="display:grid;grid-template-columns:1fr 75px 65px 65px 65px 70px;gap:0;background:#f8fafc;padding:7px 10px;font-size:11px;color:var(--text-sub);font-weight:600;">
+              <div>항목</div>
+              <div style="text-align:right;">이용요금</div>
+              <div style="text-align:right;">현금</div>
+              <div style="text-align:right;">카드</div>
+              <div style="text-align:right;">계좌</div>
+              <div style="text-align:right;">미수금</div>
             </div>
-            ${breakdownItems.map(item => `
-              <div style="display:grid;grid-template-columns:1fr 80px 80px 80px 80px;gap:0;padding:7px 10px;border-top:1px solid #f1f5f9;font-size:12px;">
+            ${breakdownItems.map(item => {
+              const itemUnpaid = item.price - (item.cash + item.card + item.transfer);
+              return `
+              <div style="display:grid;grid-template-columns:1fr 75px 65px 65px 65px 70px;gap:0;padding:7px 10px;border-top:1px solid #f1f5f9;font-size:12px;">
                 <div style="font-weight:600;color:var(--text);">${item.label}</div>
                 <div style="text-align:right;color:var(--text);">${item.price ? item.price.toLocaleString() : '-'}</div>
                 <div style="text-align:right;color:${item.cash ? '#059669' : 'var(--text-hint)'};">${item.cash ? item.cash.toLocaleString() : '-'}</div>
                 <div style="text-align:right;color:${item.card ? '#1a6fd4' : 'var(--text-hint)'};">${item.card ? item.card.toLocaleString() : '-'}</div>
                 <div style="text-align:right;color:${item.transfer ? '#7c3aed' : 'var(--text-hint)'};">${item.transfer ? item.transfer.toLocaleString() : '-'}</div>
-              </div>`).join('')}
+                <div style="text-align:right;font-weight:700;color:${itemUnpaid > 0 ? '#ef4444' : 'var(--text-hint)'};">${itemUnpaid > 0 ? itemUnpaid.toLocaleString() + ' 🔴' : '-'}</div>
+              </div>`;
+            }).join('')}
           </div>`;
       }
     }
@@ -2342,6 +2351,100 @@
       nextBtn.style.opacity = agreed ? '1' : '0.4';
       nextBtn.style.pointerEvents = agreed ? 'auto' : 'none';
     }
+  }
+
+  // 4단계 서명 화면 우측 계약내용 요약 렌더링
+  function renderCtSignSummary() {
+    const el = document.getElementById('ct-sign-summary');
+    if (!el) return;
+
+    const name    = document.getElementById('ct-name')?.value.trim() || '';
+    const phone   = document.getElementById('ct-phone')?.value.trim() || '';
+    const type    = document.getElementById('ct-type')?.value === 're' ? '재등록' : '신규';
+    const progLabels = {
+      '헬스':'🏋️ 헬스', 'GX':'🎶 GX', 'PT':'💪 PT',
+      '기구필라테스개인':'🧘 기구필라테스 개인', '기구필라테스그룹':'👥 기구필라테스 그룹'
+    };
+
+    let html = `
+      <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">${name} <span style="font-size:11px;color:var(--text-sub);font-weight:400;">(${type})</span></div>
+        <div style="font-size:12px;color:var(--text-sub);">${phone}</div>
+      </div>`;
+
+    // 프로그램별
+    let totalPrice = 0, totalPaid = 0;
+    ctSelectedProgs.forEach(prog => {
+      const months   = parseInt(document.getElementById('ct-' + prog + '-months')?.value) || 0;
+      const count    = parseInt(document.getElementById('ct-' + prog + '-count')?.value)  || 0;
+      const price    = parseInt(document.getElementById('ct-' + prog + '-price')?.value)  || 0;
+      const cash     = parseInt(document.getElementById('ct-' + prog + '-cash')?.value)   || 0;
+      const card     = parseInt(document.getElementById('ct-' + prog + '-card')?.value)   || 0;
+      const transfer = parseInt(document.getElementById('ct-' + prog + '-transfer')?.value) || 0;
+      const endDate  = document.getElementById('ct-' + prog + '-end')?.value || '';
+      const paid     = cash + card + transfer;
+      const unpaid   = price - paid;
+      totalPrice += price; totalPaid += paid;
+
+      html += `
+        <div style="margin-bottom:8px;padding:8px;background:white;border-radius:6px;border:1px solid var(--border);">
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;">${progLabels[prog] || prog}</div>
+          <div style="font-size:11px;color:var(--text-sub);line-height:1.6;">
+            ${months ? months + '개월' : ''}${count ? ' · ' + count + '회' : ''}
+            ${endDate ? '<br>종료: ' + endDate : ''}
+            ${price ? '<br>이용요금: ' + price.toLocaleString() + '원' : ''}
+            ${paid ? '<br><span style="color:#1a6fd4;">결제: ' + paid.toLocaleString() + '원</span>' : ''}
+            ${unpaid > 0 ? '<br><span style="color:#ef4444;font-weight:700;">미수금: ' + unpaid.toLocaleString() + '원 🔴</span>' : ''}
+          </div>
+        </div>`;
+    });
+
+    // 부가서비스
+    ['cloth','locker'].forEach(key => {
+      const check = document.getElementById('ct-' + key + '-check');
+      if (!check?.checked) return;
+      const label    = key === 'cloth' ? '👕 운동복' : '🔑 개인 락카';
+      const months   = parseInt(document.getElementById('ct-' + key + '-months')?.value)   || 0;
+      const price    = parseInt(document.getElementById('ct-' + key + '-price')?.value)    || 0;
+      const cash     = parseInt(document.getElementById('ct-' + key + '-cash')?.value)     || 0;
+      const card     = parseInt(document.getElementById('ct-' + key + '-card')?.value)     || 0;
+      const transfer = parseInt(document.getElementById('ct-' + key + '-transfer')?.value) || 0;
+      const paid     = cash + card + transfer;
+      const unpaid   = price - paid;
+      totalPrice += price; totalPaid += paid;
+
+      html += `
+        <div style="margin-bottom:8px;padding:8px;background:white;border-radius:6px;border:1px solid var(--border);">
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;">${label}</div>
+          <div style="font-size:11px;color:var(--text-sub);line-height:1.6;">
+            ${months ? months + '개월' : ''}
+            ${price === 0 ? ' · 무료' : (price ? '<br>이용요금: ' + price.toLocaleString() + '원' : '')}
+            ${paid ? '<br><span style="color:#1a6fd4;">결제: ' + paid.toLocaleString() + '원</span>' : ''}
+            ${unpaid > 0 ? '<br><span style="color:#ef4444;font-weight:700;">미수금: ' + unpaid.toLocaleString() + '원 🔴</span>' : ''}
+          </div>
+        </div>`;
+    });
+
+    // 최종 합계
+    const totalUnpaid = totalPrice - totalPaid;
+    html += `
+      <div style="padding:10px;background:#f0f7ff;border-radius:6px;border:1.5px solid #bfdbfe;margin-top:4px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+          <span style="font-size:11px;color:var(--text-sub);">이용요금 합계</span>
+          <span style="font-size:12px;font-weight:700;color:var(--text);">${totalPrice.toLocaleString()}원</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+          <span style="font-size:11px;color:var(--text-sub);">오늘 결제</span>
+          <span style="font-size:12px;font-weight:700;color:#1a6fd4;">${totalPaid.toLocaleString()}원</span>
+        </div>
+        ${totalUnpaid > 0 ? `
+        <div style="display:flex;justify-content:space-between;">
+          <span style="font-size:11px;color:#ef4444;font-weight:700;">미수금 🔴</span>
+          <span style="font-size:12px;font-weight:700;color:#ef4444;">${totalUnpaid.toLocaleString()}원</span>
+        </div>` : ''}
+      </div>`;
+
+    el.innerHTML = html;
   }
 
   // 서명 초기화
