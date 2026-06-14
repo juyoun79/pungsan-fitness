@@ -604,6 +604,33 @@
   .overlay.active { display: flex; }
 
 
+  /* ── 전자계약서 ── */
+  .ct-step-item {
+    flex: 1; padding: 10px 4px; text-align: center;
+    font-size: 13px; font-weight: 700; color: var(--text-hint);
+    border-bottom: 3px solid transparent; cursor: default;
+    line-height: 1.4;
+  }
+  .ct-step-item span { font-size: 10px; font-weight: 500; display: block; }
+  .ct-step-item.active { color: #1a6fd4; border-bottom-color: #1a6fd4; }
+  .ct-step-item.done { color: #16a34a; border-bottom-color: #16a34a; }
+  .ct-prog-btn {
+    padding: 10px 6px; border: 1.5px solid var(--border);
+    background: var(--card); color: var(--text-sub);
+    border-radius: var(--radius-sm); font-size: 12px; font-weight: 600;
+    cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
+    transition: all 0.15s; text-align: center;
+  }
+  .ct-prog-btn.selected {
+    border-color: #1a6fd4; background: #eff6ff; color: #1a6fd4;
+  }
+  .ct-prog-detail {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 14px; margin-bottom: 12px;
+  }
+  .ct-prog-detail-title {
+    font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px;
+  }
   /* ── 키오스크 ── */
   .kd {
     width: 14px; height: 14px; border-radius: 50%;

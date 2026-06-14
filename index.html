@@ -2423,7 +2423,7 @@
       <div class="admin-tab-row">
         <button class="admin-tab active" onclick="switchAdminTab('tab-dashboard')">📊 현황</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-members')">👥 회원</button>
-        <button class="admin-tab" onclick="switchAdminTab('tab-register')">➕ 등록</button>
+        <button class="admin-tab" onclick="switchAdminTab('tab-register')">📝 계약서</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-trainer-admin')">👨‍🏫 강사관리</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-community-admin')">💬 커뮤니티</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-notice')">📢 공지</button>
@@ -2453,7 +2453,7 @@
         <div style="width:180px;flex-shrink:0;background:var(--card);border-right:1px solid var(--border);padding:12px 8px;overflow-y:auto;">
           <button class="admin-side-tab active" onclick="switchAdminTab('tab-dashboard')">📊 현황</button>
           <button class="admin-side-tab" onclick="switchAdminTab('tab-members')">👥 회원</button>
-          <button class="admin-side-tab" onclick="switchAdminTab('tab-register')">➕ 등록</button>
+          <button class="admin-side-tab" onclick="switchAdminTab('tab-register')">📝 계약서</button>
           <button class="admin-side-tab" onclick="switchAdminTab('tab-trainer-admin')">👨‍🏫 강사관리</button>
           <button class="admin-side-tab" onclick="switchAdminTab('tab-community-admin')">💬 커뮤니티</button>
           <button class="admin-side-tab" onclick="switchAdminTab('tab-notice')">📢 공지</button>
@@ -2504,122 +2504,277 @@
       </div>
 
       <!-- ── 회원등록 탭 ── -->
+      <!-- ── 전자계약서 탭 ── -->
       <div id="tab-register" class="admin-section">
-        <div class="admin-card">
-          <div class="admin-card-title">➕ 신규 회원 등록</div>
+        <div class="admin-card" style="padding:0;overflow:hidden;">
 
-          <!-- 회원 사진 -->
-          <div style="margin-bottom:16px;">
-            <label class="field-label">회원 사진</label>
-            <div style="display:flex;align-items:center;gap:14px;margin-top:8px;">
-              <div id="reg-photo-preview" style="width:120px;height:120px;border-radius:50%;background:var(--bg);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;font-size:48px;">
-                👤
+          <!-- 단계 표시바 -->
+          <div id="ct-step-bar" style="display:flex;background:var(--card);border-bottom:1px solid var(--border);">
+            <div class="ct-step-item active" data-step="1">1<br><span>기본정보</span></div>
+            <div class="ct-step-item" data-step="2">2<br><span>계약/결제</span></div>
+            <div class="ct-step-item" data-step="3">3<br><span>약관확인</span></div>
+            <div class="ct-step-item" data-step="4">4<br><span>서명</span></div>
+            <div class="ct-step-item" data-step="5">5<br><span>완료</span></div>
+          </div>
+
+          <!-- ===== 1단계: 기본정보 ===== -->
+          <div id="ct-step-1" class="ct-step-content" style="padding:20px;">
+            <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:16px;">📋 기본 정보 입력</div>
+
+            <!-- 신규/재등록 -->
+            <div style="margin-bottom:16px;">
+              <label class="field-label">회원 구분 *</label>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;">
+                <button type="button" id="ct-type-new" onclick="selectCtType('new')"
+                  style="padding:11px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+                  🆕 신규
+                </button>
+                <button type="button" id="ct-type-re" onclick="selectCtType('re')"
+                  style="padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+                  🔄 재등록
+                </button>
               </div>
-              <div id="reg-photo-buttons" style="display:flex;flex-direction:column;gap:8px;">
-                <button type="button" id="reg-webcam-btn" onclick="openRegWebcam()" style="padding:6px 12px;border:1.5px solid var(--blue);background:var(--card);color:var(--blue);border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;gap:4px;">
-                  📷 웹캠 촬영
-                </button>
-                <label style="padding:6px 12px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;gap:4px;">
-                  📁 파일 선택
-                  <input type="file" id="reg-photo-file" accept="image/*" style="display:none;" onchange="onRegPhotoFile(this)" />
-                </label>
-                <button type="button" id="reg-photo-delete-btn" onclick="deleteRegPhoto()" style="display:none;padding:6px 12px;border:1.5px solid #ef4444;background:var(--card);color:#ef4444;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:none;align-items:center;gap:4px;">
-                  🗑️ 사진 삭제
-                </button>
+              <input type="hidden" id="ct-type" value="new" />
+            </div>
+
+            <!-- 이름 + 성별 -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+              <div>
+                <label class="field-label">성명 *</label>
+                <input type="text" id="ct-name" placeholder="홍길동"
+                  style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
+                  onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+              </div>
+              <div>
+                <label class="field-label">성별 *</label>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">
+                  <button type="button" id="ct-gender-male" onclick="selectCtGender('male')"
+                    style="padding:10px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+                    👨 남
+                  </button>
+                  <button type="button" id="ct-gender-female" onclick="selectCtGender('female')"
+                    style="padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+                    👩 여
+                  </button>
+                </div>
+                <input type="hidden" id="ct-gender" value="male" />
               </div>
             </div>
-            <!-- 웹캠 모달 -->
-            <div id="reg-webcam-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;">
-              <div style="background:#000;border-radius:12px;overflow:hidden;width:340px;">
-                <video id="reg-webcam-video" autoplay playsinline style="width:100%;display:block;"></video>
-                <canvas id="reg-webcam-canvas" style="display:none;"></canvas>
-                <div style="display:flex;gap:8px;padding:12px;background:#111;">
-                  <button onclick="captureRegWebcam()" style="flex:1;padding:10px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📷 촬영</button>
-                  <button onclick="closeRegWebcam()" style="flex:1;padding:10px;background:#444;color:white;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+
+            <!-- 생년월일 + 연락처 -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+              <div>
+                <label class="field-label">생년월일 *</label>
+                <input type="text" inputmode="numeric" id="ct-birth" placeholder="19900101" maxlength="8"
+                  style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
+                  onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+                <div class="hint-text">예) 19900101</div>
+              </div>
+              <div>
+                <label class="field-label">연락처 * (아이디)</label>
+                <input type="tel" id="ct-phone" placeholder="01012345678" maxlength="11"
+                  style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
+                  onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+                <div class="hint-text">숫자만 입력</div>
+              </div>
+            </div>
+
+            <!-- 주소 -->
+            <div style="margin-bottom:16px;">
+              <label class="field-label">주소</label>
+              <input type="text" id="ct-address" placeholder="경기도 고양시 일산동구..."
+                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
+                onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+            </div>
+
+            <button class="btn-primary" onclick="ctNext(1)">다음 →</button>
+          </div>
+
+          <!-- ===== 2단계: 계약/결제 ===== -->
+          <div id="ct-step-2" class="ct-step-content" style="padding:20px;display:none;">
+            <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:16px;">💳 계약 및 결제</div>
+
+            <!-- 프로그램 선택 -->
+            <div style="margin-bottom:16px;">
+              <label class="field-label">프로그램 선택 (복수 선택 가능)</label>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:6px;">
+                <button type="button" class="ct-prog-btn" data-prog="헬스" onclick="toggleCtProg(this)">🏋️ 헬스</button>
+                <button type="button" class="ct-prog-btn" data-prog="PT" onclick="toggleCtProg(this)">💪 PT</button>
+                <button type="button" class="ct-prog-btn" data-prog="GX" onclick="toggleCtProg(this)">🎶 GX</button>
+                <button type="button" class="ct-prog-btn" data-prog="기구필라테스개인" onclick="toggleCtProg(this)">🧘 기구필라테스(개인)</button>
+                <button type="button" class="ct-prog-btn" data-prog="기구필라테스그룹" onclick="toggleCtProg(this)">👥 기구필라테스(그룹)</button>
+              </div>
+            </div>
+
+            <!-- 프로그램별 상세 입력 (동적 생성) -->
+            <div id="ct-prog-details"></div>
+
+            <!-- 부가서비스 -->
+            <div style="background:var(--bg);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;">
+              <div style="font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:10px;">부가 서비스</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <!-- 운동복 -->
+                <div>
+                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                    <input type="checkbox" id="ct-cloth-check" onchange="toggleCtExtra('cloth')" style="accent-color:var(--blue);width:16px;height:16px;">
+                    <label for="ct-cloth-check" style="font-size:13px;font-weight:600;cursor:pointer;">👕 운동복</label>
+                  </div>
+                  <div id="ct-cloth-detail" style="display:none;">
+                    <input type="number" id="ct-cloth-months" placeholder="개월" min="1" max="24"
+                      style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-bottom:6px;"
+                      oninput="calcCtTotal()" />
+                    <input type="number" id="ct-cloth-price" placeholder="금액 (0=무료)" min="0"
+                      style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                      oninput="calcCtTotal()" />
+                  </div>
+                </div>
+                <!-- 락카 -->
+                <div>
+                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                    <input type="checkbox" id="ct-locker-check" onchange="toggleCtExtra('locker')" style="accent-color:var(--blue);width:16px;height:16px;">
+                    <label for="ct-locker-check" style="font-size:13px;font-weight:600;cursor:pointer;">🔑 개인락카</label>
+                  </div>
+                  <div id="ct-locker-detail" style="display:none;">
+                    <input type="number" id="ct-locker-months" placeholder="개월" min="1" max="24"
+                      style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-bottom:6px;"
+                      oninput="calcCtTotal()" />
+                    <input type="number" id="ct-locker-price" placeholder="금액" min="0"
+                      style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                      oninput="calcCtTotal()" />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- 이름 + 성별 -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-            <div>
-              <label class="field-label">이름 *</label>
-              <input type="text" id="reg-name" placeholder="홍길동"
-                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
-                onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
-            </div>
-            <div>
-              <label class="field-label">성별</label>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">
-                <button type="button" id="reg-gender-male" onclick="selectRegGender('male')"
-                  style="padding:10px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-                  👨 남성
-                </button>
-                <button type="button" id="reg-gender-female" onclick="selectRegGender('female')"
-                  style="padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-                  👩 여성
-                </button>
+            <!-- 합계 -->
+            <div style="background:#f0f7ff;border:1.5px solid #bfdbfe;border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                <span style="font-size:13px;color:var(--text-sub);">합계</span>
+                <span id="ct-total-amt" style="font-size:15px;font-weight:700;color:var(--text);">0원</span>
               </div>
-              <input type="hidden" id="reg-gender" value="male" />
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                <span style="font-size:13px;color:var(--text-sub);">오늘 결제</span>
+                <span id="ct-paid-amt" style="font-size:15px;font-weight:700;color:#1a6fd4;">0원</span>
+              </div>
+              <div id="ct-unpaid-row" style="display:none;display:flex;justify-content:space-between;">
+                <span style="font-size:13px;color:#ef4444;">미수금</span>
+                <span id="ct-unpaid-amt" style="font-size:15px;font-weight:700;color:#ef4444;">0원</span>
+              </div>
+            </div>
+
+            <!-- 메모 -->
+            <div style="margin-bottom:16px;">
+              <label class="field-label">메모</label>
+              <textarea id="ct-memo" placeholder="특이사항, 할인 내용 등"
+                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:70px;margin-top:4px;"
+                onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"></textarea>
+            </div>
+
+            <div style="display:flex;gap:10px;">
+              <button style="flex:1;padding:13px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;" onclick="ctPrev(2)">← 이전</button>
+              <button class="btn-primary" style="flex:2;" onclick="ctNext(2)">다음 →</button>
             </div>
           </div>
 
-          <!-- 휴대폰 + 초기비번 -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-            <div>
-              <label class="field-label">휴대폰 번호 * (아이디로 사용)</label>
-              <input type="tel" id="reg-phone" placeholder="01012345678" maxlength="11"
-                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
-                onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
-              <div class="hint-text">숫자만 입력</div>
+          <!-- ===== 3단계: 약관확인 ===== -->
+          <div id="ct-step-3" class="ct-step-content" style="padding:20px;display:none;">
+            <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:16px;">📜 이용약관 확인</div>
+
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;max-height:420px;overflow-y:auto;font-size:13px;line-height:1.7;color:var(--text);margin-bottom:16px;">
+
+              <div style="font-size:15px;font-weight:700;text-align:center;margin-bottom:16px;">풍산휘트니스 이용약관</div>
+
+              <div style="font-weight:700;color:#1a6fd4;margin-bottom:6px;">제 1조 개요 및 동의</div>
+              <p style="margin-bottom:14px;">본 센터의 명칭은 풍산휘트니스라 합니다. 본 계약은 '센터'와 '회원'의 레슨계약을 위해 필요한 제반 사항을 제공함에 있어 계약 당사자인 '센터'와 '회원'의 역할과 의무에 관한 법률관계를 규정하여 상호 원활한 이용을 함에 목적이 있습니다. 신청인 본인은 당사가 제공하는 서비스를 제공받고자 본 신청서에 기재된 개인정보 수집 및 활용에 동의합니다.</p>
+
+              <div style="font-weight:700;color:#1a6fd4;margin-bottom:6px;">제 2조 레슨규정</div>
+              <p style="margin-bottom:4px;">1. '센터'와 '회원'과 협의하여 정한 레슨시간을 준수해야 하며 부득이하게 취소, 시간변경을 원할 경우 최소 수강시간으로부터 1일전까지 센터(강사포함)에게 통보해 주어야 합니다.</p>
+              <p style="margin-bottom:4px;">2. 예약된 레슨시간에 연락을 주지 않고 불참하거나 당일 취소 시에는 레슨횟수가 자동으로 차감됩니다.</p>
+              <p style="margin-bottom:4px;">3. '회원'은 레슨수강 시 '강사'의 수업내용을 녹취 혹은 녹화를 할 수 없으며 이를 어겼을 경우 남은 수업 수의 환불처리 없이 자동 계약 해지될 수 있습니다.</p>
+              <p style="margin-bottom:14px;">4. 그룹 수업은 2인 이상 참여시 가능하고 당일 시간 변경은 강사와 합의 후 가능합니다.</p>
+
+              <div style="font-weight:700;color:#1a6fd4;margin-bottom:6px;">제 3조 계약사항 및 계약기간</div>
+              <p style="margin-bottom:4px;">1. 계약기간, 계약횟수, 계약금액은 위 표에 기재하며, 위 표에 기재한 내용을 준수합니다.</p>
+              <p style="margin-bottom:4px;">2. 그룹레슨 계약기간 - 레슨 개시일로부터 10회당 레슨은 1개월 안에 모두 소진해야 하며, 그룹레슨의 경우 별도의 기간연장은 불가능합니다.</p>
+              <p style="margin-bottom:4px;">3. 개인레슨 계약기간 - 레슨 개시일로부터 10회당 레슨은 2개월 안에 모두 소진해야 하며 계약기간 내에 소진하지 못한 잔여 수업은 자동 소멸됩니다.</p>
+              <p style="margin-bottom:4px;">4. 담당강사가 레슨을 계속 진행할 수 없는 경우(퇴사, 지점이동 등) 동일한 자격을 갖춘 강사의 변경이 있을 수 있습니다.</p>
+              <p style="margin-bottom:4px;">5. 당사의 기타 불가피한 사유로 인해 수업시간 및 예약 방식이 변경이 있을 수 있습니다.</p>
+              <p style="margin-bottom:14px;">6. 이벤트 기간에 적용된 서비스는 기간 안에 모두 소진하지 못할 시 다음 달로 이월할 수 없습니다.</p>
+
+              <div style="font-weight:700;color:#1a6fd4;margin-bottom:6px;">제 4조 환불 및 양도규정</div>
+              <p style="margin-bottom:4px;">1. 공정거래 위원회 고시에 따라 서비스업으로 분류되며 회원님의 개인사정으로 인한 귀책 사유로 환불 요청 시 센터가 인정하는 환불 사유의 경우(수업을 진행할 수 없는 사유가 공식적인 서류로 입증이 가능한 경우)에 한해서만 고시 규정에 따라 환불이 가능합니다. (이사, 병가, 전출 등)</p>
+              <p style="margin-bottom:4px;">▶ 계약 시 교부한 계약서를 지참 후 지점 방문하여 환불을 신청하여야 합니다.</p>
+              <p style="margin-bottom:4px;">▶ 환불시 등록(결제) 금액의 10%의 계약해지 위약금과 월 정상금액 기준(10만원), 일 이용료(3,300원)으로 일할 계산한 공제금액 발생합니다. 예시) 헬스 12개월 등록 후, 2개월 이용시 위약금10%+20만원 차감</p>
+              <p style="margin-bottom:4px;">▶ 진행된 날짜 및 횟수는 프로모션 등 기타 할인을 적용하지 않은 금액으로 산정하여 금액 차감 후 환불 처리됩니다.</p>
+              <p style="margin-bottom:4px;">▶ 카드로 결제한 경우 관련법령에 따라 부가세 및 카드 수수료를 사업자가 수취할 수 없어 공제대상 금액을 선 지불 후 카드 전액 결제 취소가 가능합니다.</p>
+              <p style="margin-bottom:4px;">▶ 서비스로 제공된 수업은 환불금액에 포함되지 않으며, 계약시 제공받은 사은품(헬스장 무료 이용, 할인 상품, 이벤트 상품 등) 시중금액 공제 후 환불처리 됩니다.</p>
+              <p style="margin-bottom:4px;">2. 1회 정규 레슨비 - 개인PT 1회: 7.7만원 / 그룹PT 1회: 2.2만원 / 5:1그룹필: 3.3만원 / 1:1필: 7.7만원</p>
+              <p style="margin-bottom:4px;">3. 양도규정</p>
+              <p style="margin-bottom:4px;">▶ 회원권은 양도 가능하며 양도비(헬스·GX 1만원 / 레슨 3만원)가 발생합니다.</p>
+              <p style="margin-bottom:14px;">▶ 양도받은 회원권은 환불 및 재양도가 불가합니다.</p>
+
+              <div style="font-weight:700;color:#1a6fd4;margin-bottom:6px;">제 5조 이용안내 및 기타사항</div>
+              <p style="margin-bottom:4px;">1. 이용시간(GX시간포함)은 센터의 운영사정에 따라 사전고지(1달)후 변경될 수 있습니다.<br>평일 06시~24시 / 토요일 07시~21시 / 일요일·공휴일 10시~18시 / 휴관일 2·4째주 일요일, 명절연휴</p>
+              <p style="margin-bottom:4px;">2. 탈의실 공용락카는 무료대여로 개인물건 분실 시 책임을 지지 않습니다.</p>
+              <p style="margin-bottom:4px;">3. 공용락카 키 분실 시 교체비용 2만원을 보상지불 해야 합니다.</p>
+              <p style="margin-bottom:4px;">4. 개인락카 사용기간 종료 1주일 후 통보 없이 폐기처분합니다.</p>
+              <p style="margin-bottom:4px;">5. 휴회는 3개월(1회/10일) 6개월(2회/15일) 12개월(3회/20일) 신청가능하며 지난 날짜에는 소급적용 되지 않습니다. 휴회 기간 중 개인락카는 반납해야하며 미 반납 시 계속사용으로 간주합니다.</p>
+              <p style="margin-bottom:4px;">6. 헬스장 내에서는 실내전용 운동화를 착용해야 하며 소음, 음식물 반입(음료류 가능) 및 타인에게 불쾌감을 주는 행동을 할 시 즉각 환불 없이 퇴관 조치에 동의합니다.</p>
+              <p style="margin-bottom:4px;">7. 센터 내 모든 시설에서 본인 부주의로 인한 사고의(인적, 물적) 책임은 본인에게 있음을 명시합니다.</p>
             </div>
-            <div>
-              <label class="field-label">초기 비밀번호</label>
-              <input type="text" id="reg-pw" placeholder="자동: 휴대폰 뒤 4자리" maxlength="4"
-                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
-                onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
-              <div class="hint-text">비워두면 자동 설정</div>
+
+            <!-- 동의 체크 -->
+            <label style="display:flex;align-items:center;gap:10px;padding:14px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:var(--radius-sm);cursor:pointer;margin-bottom:16px;">
+              <input type="checkbox" id="ct-agree" style="accent-color:#16a34a;width:18px;height:18px;" onchange="checkCtAgree()" />
+              <span style="font-size:14px;font-weight:600;color:#15803d;">위 이용약관을 모두 읽었으며 동의합니다.</span>
+            </label>
+
+            <div style="display:flex;gap:10px;">
+              <button style="flex:1;padding:13px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;" onclick="ctPrev(3)">← 이전</button>
+              <button id="ct-agree-next" class="btn-primary" style="flex:2;opacity:0.4;pointer-events:none;" onclick="ctNext(3)">다음 →</button>
             </div>
           </div>
 
-          <!-- 생년월일 + 주소 -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-            <div>
-              <label class="field-label">생년월일</label>
-              <input type="text" inputmode="numeric" id="reg-birth" placeholder="19900101" maxlength="8"
-                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
-                onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
-              <div class="hint-text">예) 19900101</div>
+          <!-- ===== 4단계: 서명 ===== -->
+          <div id="ct-step-4" class="ct-step-content" style="padding:20px;display:none;">
+            <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;">✍️ 서명</div>
+            <div style="font-size:13px;color:var(--text-sub);margin-bottom:16px;">아래 서명란에 서명해 주세요.</div>
+
+            <!-- 신청일 -->
+            <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+              <span style="font-size:13px;color:var(--text-sub);">신청일: <strong id="ct-sign-date"></strong></span>
             </div>
-            <div>
-              <label class="field-label">주소</label>
-              <input type="text" id="reg-address" placeholder="경기도 고양시 일산동구..."
-                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
-                onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+
+            <!-- 서명 캔버스 -->
+            <div style="position:relative;border:2px solid var(--border);border-radius:var(--radius-sm);background:#fff;margin-bottom:12px;">
+              <canvas id="ct-sign-canvas" width="600" height="200" style="width:100%;height:200px;display:block;touch-action:none;cursor:crosshair;"></canvas>
+              <div id="ct-sign-placeholder" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:14px;pointer-events:none;">여기에 서명하세요</div>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-bottom:20px;">
+              <button onclick="clearCtSign()" style="flex:1;padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑️ 다시 서명</button>
+            </div>
+
+            <div style="display:flex;gap:10px;">
+              <button style="flex:1;padding:13px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:15px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;" onclick="ctPrev(4)">← 이전</button>
+              <button class="btn-primary" style="flex:2;" onclick="submitContract()">✅ 계약서 저장</button>
             </div>
           </div>
 
-          <!-- 프로그램 -->
-          <div style="margin-bottom:16px;">
-            <label class="field-label">프로그램</label>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-top:4px;" id="reg-programs">
-              <label style="display:flex;align-items:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-                <input type="checkbox" value="헬스" style="accent-color:var(--blue);"> 헬스
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-                <input type="checkbox" value="PT" style="accent-color:var(--blue);"> PT
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-                <input type="checkbox" value="GX" style="accent-color:var(--blue);"> GX
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-                <input type="checkbox" value="기구필라테스" style="accent-color:var(--blue);"> 기구필라테스
-              </label>
+          <!-- ===== 5단계: 완료 ===== -->
+          <div id="ct-step-5" class="ct-step-content" style="padding:20px;display:none;text-align:center;">
+            <div style="font-size:48px;margin-bottom:16px;">🎉</div>
+            <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px;">계약서 등록 완료!</div>
+            <div id="ct-complete-msg" style="font-size:14px;color:var(--text-sub);margin-bottom:24px;line-height:1.6;"></div>
+
+            <div style="background:#f0f7ff;border-radius:var(--radius-sm);padding:16px;margin-bottom:24px;text-align:left;">
+              <div style="font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:10px;">📋 등록 정보</div>
+              <div id="ct-complete-summary" style="font-size:14px;color:var(--text);line-height:1.8;"></div>
             </div>
+
+            <button class="btn-primary" onclick="resetContract()" style="width:100%;">➕ 새 계약서 작성</button>
           </div>
 
-          <button class="btn-primary" style="margin-top:4px;" onclick="registerMember()">✅ 회원 등록하기</button>
         </div>
       </div>
 

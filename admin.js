@@ -1925,6 +1925,442 @@
     });
   }
 
+  // ── 전자계약서 ──
+  let ctCurrentStep = 1;
+  let ctSignCanvas, ctSignCtx, ctSigning = false;
+  let ctSelectedProgs = [];
+
+  // 단계 이동
+  function ctGoStep(step) {
+    // 이전 단계 done 처리
+    for (let i = 1; i <= 5; i++) {
+      const item = document.querySelector('.ct-step-item[data-step="' + i + '"]');
+      if (!item) continue;
+      item.classList.remove('active', 'done');
+      if (i < step) item.classList.add('done');
+      else if (i === step) item.classList.add('active');
+    }
+    // 콘텐츠 전환
+    for (let i = 1; i <= 5; i++) {
+      const el = document.getElementById('ct-step-' + i);
+      if (el) el.style.display = (i === step) ? '' : 'none';
+    }
+    ctCurrentStep = step;
+    // 4단계 진입 시 서명 초기화 + 날짜 표시
+    if (step === 4) {
+      initCtSign();
+      const now = new Date();
+      document.getElementById('ct-sign-date').textContent =
+        now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일';
+    }
+  }
+
+  function ctNext(step) {
+    if (step === 1) {
+      const name = document.getElementById('ct-name').value.trim();
+      const phone = document.getElementById('ct-phone').value.trim().replace(/-/g,'');
+      const birth = document.getElementById('ct-birth').value.trim();
+      if (!name) { showToast('성명을 입력해주세요.', 'error'); return; }
+      if (!phone || phone.length < 10) { showToast('연락처를 정확히 입력해주세요.', 'error'); return; }
+      if (!birth || birth.length !== 8) { showToast('생년월일을 8자리로 입력해주세요.', 'error'); return; }
+    }
+    if (step === 2) {
+      if (ctSelectedProgs.length === 0) { showToast('프로그램을 1개 이상 선택해주세요.', 'error'); return; }
+    }
+    ctGoStep(step + 1);
+  }
+
+  function ctPrev(step) {
+    ctGoStep(step - 1);
+  }
+
+  // 신규/재등록 선택
+  function selectCtType(type) {
+    document.getElementById('ct-type').value = type;
+    const newBtn = document.getElementById('ct-type-new');
+    const reBtn = document.getElementById('ct-type-re');
+    if (type === 'new') {
+      newBtn.style.cssText = 'padding:11px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
+      reBtn.style.cssText = 'padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
+    } else {
+      reBtn.style.cssText = 'padding:11px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
+      newBtn.style.cssText = 'padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
+    }
+  }
+
+  // 성별 선택
+  function selectCtGender(g) {
+    document.getElementById('ct-gender').value = g;
+    const mBtn = document.getElementById('ct-gender-male');
+    const fBtn = document.getElementById('ct-gender-female');
+    if (g === 'male') {
+      mBtn.style.cssText = 'padding:10px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
+      fBtn.style.cssText = 'padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
+    } else {
+      fBtn.style.cssText = 'padding:10px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
+      mBtn.style.cssText = 'padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:14px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;';
+    }
+  }
+
+  // 프로그램 선택 토글
+  function toggleCtProg(btn) {
+    const prog = btn.dataset.prog;
+    const idx = ctSelectedProgs.indexOf(prog);
+    if (idx === -1) {
+      ctSelectedProgs.push(prog);
+      btn.classList.add('selected');
+    } else {
+      ctSelectedProgs.splice(idx, 1);
+      btn.classList.remove('selected');
+    }
+    renderCtProgDetails();
+    calcCtTotal();
+  }
+
+  // 프로그램별 상세 입력 렌더링
+  function renderCtProgDetails() {
+    const container = document.getElementById('ct-prog-details');
+    if (!container) return;
+    container.innerHTML = '';
+    const progConfig = {
+      '헬스':            { icon:'🏋️', hasCount: false },
+      'PT':              { icon:'💪', hasCount: true  },
+      'GX':              { icon:'🎶', hasCount: false },
+      '기구필라테스개인': { icon:'🧘', hasCount: true  },
+      '기구필라테스그룹': { icon:'👥', hasCount: true  },
+    };
+    ctSelectedProgs.forEach(prog => {
+      const cfg = progConfig[prog] || { icon:'📋', hasCount: false };
+      const d = document.createElement('div');
+      d.className = 'ct-prog-detail';
+      d.innerHTML = `
+        <div class="ct-prog-detail-title">${cfg.icon} ${prog}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr${cfg.hasCount?';':''}${cfg.hasCount?' 1fr':''};gap:8px;margin-bottom:8px;">
+          <div>
+            <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">시작일</div>
+            <input type="date" id="ct-${prog}-start" onchange="calcCtEndDate('${prog}')"
+              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">기간(개월)</div>
+            <input type="number" id="ct-${prog}-months" min="1" max="36" placeholder="개월"
+              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+              oninput="calcCtEndDate('${prog}')" />
+          </div>
+          ${cfg.hasCount ? `
+          <div>
+            <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">횟수</div>
+            <input type="number" id="ct-${prog}-count" min="1" placeholder="회"
+              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+          </div>` : ''}
+        </div>
+        <div style="margin-bottom:8px;">
+          <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">종료일 (자동계산)</div>
+          <input type="text" id="ct-${prog}-end" readonly placeholder="시작일·기간 입력 시 자동계산"
+            style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);background:var(--bg);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;color:var(--text-sub);" />
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
+          <div>
+            <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">총금액(원)</div>
+            <input type="number" id="ct-${prog}-price" min="0" placeholder="0"
+              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+              oninput="calcCtTotal()" />
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">현금</div>
+            <input type="number" id="ct-${prog}-cash" min="0" placeholder="0"
+              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+              oninput="calcCtTotal()" />
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">카드</div>
+            <input type="number" id="ct-${prog}-card" min="0" placeholder="0"
+              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+              oninput="calcCtTotal()" />
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">계좌이체</div>
+            <input type="number" id="ct-${prog}-transfer" min="0" placeholder="0"
+              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+              oninput="calcCtTotal()" />
+          </div>
+        </div>`;
+      container.appendChild(d);
+      // 시작일 기본값 오늘
+      const startEl = document.getElementById('ct-' + prog + '-start');
+      if (startEl && !startEl.value) {
+        const t = new Date();
+        startEl.value = t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0') + '-' + String(t.getDate()).padStart(2,'0');
+        calcCtEndDate(prog);
+      }
+    });
+  }
+
+  // 종료일 자동계산
+  function calcCtEndDate(prog) {
+    const startEl = document.getElementById('ct-' + prog + '-start');
+    const monthEl = document.getElementById('ct-' + prog + '-months');
+    const endEl   = document.getElementById('ct-' + prog + '-end');
+    if (!startEl || !monthEl || !endEl) return;
+    const start = startEl.value;
+    const months = parseInt(monthEl.value);
+    if (!start || !months) { endEl.value = ''; return; }
+    const d = new Date(start);
+    d.setMonth(d.getMonth() + months);
+    d.setDate(d.getDate() - 1);
+    endEl.value = d.getFullYear() + '년 ' + (d.getMonth()+1) + '월 ' + d.getDate() + '일';
+  }
+
+  // 합계 계산
+  function calcCtTotal() {
+    let total = 0, paid = 0;
+    ctSelectedProgs.forEach(prog => {
+      const price    = parseInt(document.getElementById('ct-' + prog + '-price')?.value) || 0;
+      const cash     = parseInt(document.getElementById('ct-' + prog + '-cash')?.value) || 0;
+      const card     = parseInt(document.getElementById('ct-' + prog + '-card')?.value) || 0;
+      const transfer = parseInt(document.getElementById('ct-' + prog + '-transfer')?.value) || 0;
+      total += price;
+      paid += cash + card + transfer;
+    });
+    // 부가서비스
+    if (document.getElementById('ct-cloth-check')?.checked) {
+      total += parseInt(document.getElementById('ct-cloth-price')?.value) || 0;
+    }
+    if (document.getElementById('ct-locker-check')?.checked) {
+      total += parseInt(document.getElementById('ct-locker-price')?.value) || 0;
+    }
+    const unpaid = total - paid;
+    document.getElementById('ct-total-amt').textContent = total.toLocaleString() + '원';
+    document.getElementById('ct-paid-amt').textContent  = paid.toLocaleString() + '원';
+    const unpaidRow = document.getElementById('ct-unpaid-row');
+    if (unpaid > 0) {
+      document.getElementById('ct-unpaid-amt').textContent = unpaid.toLocaleString() + '원';
+      if (unpaidRow) unpaidRow.style.display = 'flex';
+    } else {
+      if (unpaidRow) unpaidRow.style.display = 'none';
+    }
+  }
+
+  // 부가서비스 토글
+  function toggleCtExtra(type) {
+    const detail = document.getElementById('ct-' + type + '-detail');
+    const check  = document.getElementById('ct-' + type + '-check');
+    if (detail) detail.style.display = check.checked ? '' : 'none';
+    calcCtTotal();
+  }
+
+  // 약관 동의 체크
+  function checkCtAgree() {
+    const agreed = document.getElementById('ct-agree').checked;
+    const nextBtn = document.getElementById('ct-agree-next');
+    if (nextBtn) {
+      nextBtn.style.opacity = agreed ? '1' : '0.4';
+      nextBtn.style.pointerEvents = agreed ? 'auto' : 'none';
+    }
+  }
+
+  // 서명 초기화
+  function initCtSign() {
+    ctSignCanvas = document.getElementById('ct-sign-canvas');
+    if (!ctSignCanvas || ctSignCanvas._ctInited) return;
+    ctSignCanvas._ctInited = true;
+    ctSignCtx = ctSignCanvas.getContext('2d');
+    ctSignCtx.strokeStyle = '#1a1a2e';
+    ctSignCtx.lineWidth = 2.5;
+    ctSignCtx.lineCap = 'round';
+    ctSignCtx.lineJoin = 'round';
+
+    function getPos(e) {
+      const r = ctSignCanvas.getBoundingClientRect();
+      const scaleX = ctSignCanvas.width / r.width;
+      const scaleY = ctSignCanvas.height / r.height;
+      const src = e.touches ? e.touches[0] : e;
+      return { x: (src.clientX - r.left) * scaleX, y: (src.clientY - r.top) * scaleY };
+    }
+    ctSignCanvas.addEventListener('mousedown', e => {
+      ctSigning = true;
+      const p = getPos(e);
+      ctSignCtx.beginPath(); ctSignCtx.moveTo(p.x, p.y);
+      document.getElementById('ct-sign-placeholder').style.display = 'none';
+    });
+    ctSignCanvas.addEventListener('mousemove', e => {
+      if (!ctSigning) return;
+      const p = getPos(e); ctSignCtx.lineTo(p.x, p.y); ctSignCtx.stroke();
+    });
+    ctSignCanvas.addEventListener('mouseup', () => { ctSigning = false; });
+    ctSignCanvas.addEventListener('mouseleave', () => { ctSigning = false; });
+    ctSignCanvas.addEventListener('touchstart', e => {
+      e.preventDefault(); ctSigning = true;
+      const p = getPos(e); ctSignCtx.beginPath(); ctSignCtx.moveTo(p.x, p.y);
+      document.getElementById('ct-sign-placeholder').style.display = 'none';
+    }, { passive: false });
+    ctSignCanvas.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if (!ctSigning) return;
+      const p = getPos(e); ctSignCtx.lineTo(p.x, p.y); ctSignCtx.stroke();
+    }, { passive: false });
+    ctSignCanvas.addEventListener('touchend', () => { ctSigning = false; });
+  }
+
+  function clearCtSign() {
+    if (ctSignCtx) ctSignCtx.clearRect(0, 0, ctSignCanvas.width, ctSignCanvas.height);
+    document.getElementById('ct-sign-placeholder').style.display = '';
+  }
+
+  // 계약서 최종 저장
+  async function submitContract() {
+    // 서명 확인
+    const blank = !ctSignCtx || isCanvasBlank(ctSignCanvas);
+    if (blank) { showToast('서명을 해주세요.', 'error'); return; }
+
+    const name   = document.getElementById('ct-name').value.trim();
+    const phone  = document.getElementById('ct-phone').value.trim().replace(/-/g,'');
+    const birth  = document.getElementById('ct-birth').value.trim();
+    const gender = document.getElementById('ct-gender').value;
+    const address= document.getElementById('ct-address').value.trim();
+    const type   = document.getElementById('ct-type').value;
+    const memo   = document.getElementById('ct-memo').value.trim();
+    const pw     = hashPw(phone.slice(-4));
+
+    // 프로그램별 데이터 수집
+    const programs = {};
+    ctSelectedProgs.forEach(prog => {
+      programs[prog] = {
+        startDate : document.getElementById('ct-' + prog + '-start')?.value || '',
+        months    : parseInt(document.getElementById('ct-' + prog + '-months')?.value) || 0,
+        count     : parseInt(document.getElementById('ct-' + prog + '-count')?.value) || 0,
+        endDate   : document.getElementById('ct-' + prog + '-end')?.value || '',
+        price     : parseInt(document.getElementById('ct-' + prog + '-price')?.value) || 0,
+        cash      : parseInt(document.getElementById('ct-' + prog + '-cash')?.value) || 0,
+        card      : parseInt(document.getElementById('ct-' + prog + '-card')?.value) || 0,
+        transfer  : parseInt(document.getElementById('ct-' + prog + '-transfer')?.value) || 0,
+      };
+    });
+
+    // 부가서비스
+    const extras = {};
+    if (document.getElementById('ct-cloth-check')?.checked) {
+      extras.cloth = {
+        months: parseInt(document.getElementById('ct-cloth-months')?.value) || 0,
+        price : parseInt(document.getElementById('ct-cloth-price')?.value) || 0,
+      };
+    }
+    if (document.getElementById('ct-locker-check')?.checked) {
+      extras.locker = {
+        months: parseInt(document.getElementById('ct-locker-months')?.value) || 0,
+        price : parseInt(document.getElementById('ct-locker-price')?.value) || 0,
+      };
+    }
+
+    const now = new Date();
+    const signDate = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+
+    showToast('저장 중...', 'info');
+
+    try {
+      // 1. 계정 생성 (신규면 새로 생성, 재등록이면 업데이트)
+      const memberSnap = await db.ref('members/' + phone).once('value');
+      const isNew = !memberSnap.exists();
+
+      const memberData = {
+        name   : name + '(' + phone.slice(-4) + ')',
+        pw     : pw,
+        programs: ctSelectedProgs,
+      };
+      if (birth)   memberData.birth   = birth;
+      if (address) memberData.address = address;
+      memberData['body/gender'] = gender;
+
+      await db.ref('members/' + phone).update(memberData);
+
+      // 2. 서명 이미지 Firebase Storage 저장
+      let signUrl = '';
+      try {
+        const signBlob = await new Promise(res => ctSignCanvas.toBlob(res, 'image/png'));
+        const storageRef = firebase.storage().ref('contracts/' + phone + '/' + signDate + '.png');
+        await storageRef.put(signBlob);
+        signUrl = await storageRef.getDownloadURL();
+      } catch(e) { console.warn('서명 이미지 저장 실패:', e); }
+
+      // 3. 계약서 Firebase 저장
+      const contractData = {
+        name, phone, birth, gender, address, type, memo,
+        programs, extras,
+        signDate, signUrl,
+        createdAt: Date.now(),
+        registeredBy: currentUser || 'admin',
+      };
+      const contractKey = signDate + '_' + Date.now();
+      await db.ref('contracts/' + phone + '/' + contractKey).set(contractData);
+
+      // 4. 완료 화면
+      const totalPaid = Object.values(programs).reduce((s,p) => s + (p.cash||0) + (p.card||0) + (p.transfer||0), 0);
+      const totalAmt  = Object.values(programs).reduce((s,p) => s + (p.price||0), 0);
+
+      document.getElementById('ct-complete-msg').textContent =
+        isNew ? name + ' 회원 계정이 생성됐어요. (아이디: ' + phone + ' / 초기비번: ' + phone.slice(-4) + ')'
+              : name + ' 회원 재등록이 완료됐어요.';
+
+      document.getElementById('ct-complete-summary').innerHTML =
+        '이름: ' + name + '<br>' +
+        '연락처: ' + phone + '<br>' +
+        '프로그램: ' + ctSelectedProgs.join(', ') + '<br>' +
+        '총금액: ' + totalAmt.toLocaleString() + '원<br>' +
+        '결제금액: ' + totalPaid.toLocaleString() + '원' +
+        (totalAmt > totalPaid ? '<br><span style="color:#ef4444;">미수금: ' + (totalAmt - totalPaid).toLocaleString() + '원</span>' : '');
+
+      ctGoStep(5);
+      showToast('✅ 계약서 저장 완료!', 'success');
+
+      // 회원 목록 갱신
+      if (typeof loadMembers === 'function') loadMembers();
+
+    } catch(err) {
+      showToast('저장 실패: ' + err.message, 'error');
+    }
+  }
+
+  // 캔버스 비었는지 확인
+  function isCanvasBlank(canvas) {
+    const ctx = canvas.getContext('2d');
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] > 0) return false;
+    }
+    return true;
+  }
+
+  // 계약서 초기화
+  function resetContract() {
+    ctSelectedProgs = [];
+    ctGoStep(1);
+    // 입력값 초기화
+    ['ct-name','ct-phone','ct-birth','ct-address','ct-memo'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    selectCtType('new');
+    selectCtGender('male');
+    document.querySelectorAll('.ct-prog-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('ct-prog-details').innerHTML = '';
+    document.getElementById('ct-total-amt').textContent = '0원';
+    document.getElementById('ct-paid-amt').textContent = '0원';
+    ['ct-cloth-check','ct-locker-check'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.checked = false;
+    });
+    ['ct-cloth-detail','ct-locker-detail'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    const agreeEl = document.getElementById('ct-agree');
+    if (agreeEl) agreeEl.checked = false;
+    const agreeNext = document.getElementById('ct-agree-next');
+    if (agreeNext) { agreeNext.style.opacity = '0.4'; agreeNext.style.pointerEvents = 'none'; }
+    if (ctSignCanvas) { ctSignCanvas._ctInited = false; }
+    clearCtSign();
+  }
+
   // ── 공지사항 (Firebase) ──
   function debugNotices() {
     db.ref('notices').once('value', snap => {
