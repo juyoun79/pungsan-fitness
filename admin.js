@@ -2277,7 +2277,7 @@
                 <div style="text-align:right;color:${item.cash ? '#059669' : 'var(--text-hint)'};">${item.cash ? item.cash.toLocaleString() : '-'}</div>
                 <div style="text-align:right;color:${item.card ? '#1a6fd4' : 'var(--text-hint)'};">${item.card ? item.card.toLocaleString() : '-'}</div>
                 <div style="text-align:right;color:${item.transfer ? '#7c3aed' : 'var(--text-hint)'};">${item.transfer ? item.transfer.toLocaleString() : '-'}</div>
-                <div style="text-align:right;font-weight:700;color:${itemUnpaid > 0 ? '#ef4444' : 'var(--text-hint)'};">${itemUnpaid > 0 ? itemUnpaid.toLocaleString() + ' 🔴' : '-'}</div>
+                <div style="text-align:right;font-weight:700;color:${itemUnpaid > 0 ? '#ef4444' : 'var(--text-hint)'};">${itemUnpaid > 0 ? itemUnpaid.toLocaleString() : '-'}</div>
               </div>`;
             }).join('')}
           </div>`;
@@ -2393,8 +2393,10 @@
             ${months ? months + '개월' : ''}${count ? ' · ' + count + '회' : ''}
             ${endDate ? '<br>종료: ' + endDate : ''}
             ${price ? '<br>이용요금: ' + price.toLocaleString() + '원' : ''}
-            ${paid ? '<br><span style="color:#1a6fd4;">결제: ' + paid.toLocaleString() + '원</span>' : ''}
-            ${unpaid > 0 ? '<br><span style="color:#ef4444;font-weight:700;">미수금: ' + unpaid.toLocaleString() + '원 🔴</span>' : ''}
+            ${cash ? '<br><span style="color:#059669;">현금: ' + cash.toLocaleString() + '원</span>' : ''}
+            ${card ? '<br><span style="color:#1a6fd4;">카드: ' + card.toLocaleString() + '원</span>' : ''}
+            ${transfer ? '<br><span style="color:#7c3aed;">계좌: ' + transfer.toLocaleString() + '원</span>' : ''}
+            ${unpaid > 0 ? '<br><span style="color:#ef4444;font-weight:700;">미수금: ' + unpaid.toLocaleString() + '원</span>' : ''}
           </div>
         </div>`;
     });
@@ -2419,8 +2421,10 @@
           <div style="font-size:11px;color:var(--text-sub);line-height:1.6;">
             ${months ? months + '개월' : ''}
             ${price === 0 ? ' · 무료' : (price ? '<br>이용요금: ' + price.toLocaleString() + '원' : '')}
-            ${paid ? '<br><span style="color:#1a6fd4;">결제: ' + paid.toLocaleString() + '원</span>' : ''}
-            ${unpaid > 0 ? '<br><span style="color:#ef4444;font-weight:700;">미수금: ' + unpaid.toLocaleString() + '원 🔴</span>' : ''}
+            ${cash ? '<br><span style="color:#059669;">현금: ' + cash.toLocaleString() + '원</span>' : ''}
+            ${card ? '<br><span style="color:#1a6fd4;">카드: ' + card.toLocaleString() + '원</span>' : ''}
+            ${transfer ? '<br><span style="color:#7c3aed;">계좌: ' + transfer.toLocaleString() + '원</span>' : ''}
+            ${unpaid > 0 ? '<br><span style="color:#ef4444;font-weight:700;">미수금: ' + unpaid.toLocaleString() + '원</span>' : ''}
           </div>
         </div>`;
     });
@@ -2439,7 +2443,7 @@
         </div>
         ${totalUnpaid > 0 ? `
         <div style="display:flex;justify-content:space-between;">
-          <span style="font-size:11px;color:#ef4444;font-weight:700;">미수금 🔴</span>
+          <span style="font-size:11px;color:#ef4444;font-weight:700;">미수금</span>
           <span style="font-size:12px;font-weight:700;color:#ef4444;">${totalUnpaid.toLocaleString()}원</span>
         </div>` : ''}
       </div>`;
@@ -2584,7 +2588,7 @@
         programs, extras,
         signDate, signUrl,
         createdAt: Date.now(),
-        registeredBy: currentUser || 'admin',
+        registeredBy: localStorage.getItem('current_user') || 'admin',
       };
       const contractKey = signDate + '_' + Date.now();
       await db.ref('contracts/' + phone + '/' + contractKey).set(contractData);
