@@ -2621,10 +2621,10 @@
                   <div id="ct-cloth-detail" style="display:none;">
                     <input type="number" id="ct-cloth-months" placeholder="개월" min="1" max="24"
                       style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-bottom:6px;"
-                      oninput="calcCtTotal()" />
+                      onwheel="this.blur()" oninput="calcCtTotal()" />
                     <input type="number" id="ct-cloth-price" placeholder="금액 (0=무료)" min="0"
                       style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
-                      oninput="calcCtTotal()" />
+                      onwheel="this.blur()" oninput="calcCtTotal()" />
                   </div>
                 </div>
                 <!-- 락카 -->
@@ -2636,10 +2636,10 @@
                   <div id="ct-locker-detail" style="display:none;">
                     <input type="number" id="ct-locker-months" placeholder="개월" min="1" max="24"
                       style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-bottom:6px;"
-                      oninput="calcCtTotal()" />
+                      onwheel="this.blur()" oninput="calcCtTotal()" />
                     <input type="number" id="ct-locker-price" placeholder="금액" min="0"
                       style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
-                      oninput="calcCtTotal()" />
+                      onwheel="this.blur()" oninput="calcCtTotal()" />
                   </div>
                 </div>
               </div>
@@ -2651,13 +2651,9 @@
                 <span style="font-size:13px;color:var(--text-sub);">합계</span>
                 <span id="ct-total-amt" style="font-size:15px;font-weight:700;color:var(--text);">0원</span>
               </div>
-              <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+              <div style="display:flex;justify-content:space-between;">
                 <span style="font-size:13px;color:var(--text-sub);">오늘 결제</span>
                 <span id="ct-paid-amt" style="font-size:15px;font-weight:700;color:#1a6fd4;">0원</span>
-              </div>
-              <div id="ct-unpaid-row" style="display:none;display:flex;justify-content:space-between;">
-                <span style="font-size:13px;color:#ef4444;">미수금</span>
-                <span id="ct-unpaid-amt" style="font-size:15px;font-weight:700;color:#ef4444;">0원</span>
               </div>
             </div>
 

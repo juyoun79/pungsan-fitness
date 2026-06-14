@@ -2029,60 +2029,71 @@
       '기구필라테스개인': { icon:'🧘', hasCount: true  },
       '기구필라테스그룹': { icon:'👥', hasCount: true  },
     };
+    const inStyle = `width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;`;
     ctSelectedProgs.forEach(prog => {
       const cfg = progConfig[prog] || { icon:'📋', hasCount: false };
+      const cols = cfg.hasCount ? '1fr 1fr 1fr' : '1fr 1fr';
       const d = document.createElement('div');
       d.className = 'ct-prog-detail';
       d.innerHTML = `
         <div class="ct-prog-detail-title">${cfg.icon} ${prog}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr${cfg.hasCount?';':''}${cfg.hasCount?' 1fr':''};gap:8px;margin-bottom:8px;">
+
+        <!-- 1줄: 시작일 / 기간 / 횟수(해당시) / 종료일 -->
+        <div style="display:grid;grid-template-columns:${cols} 1fr;gap:8px;margin-bottom:8px;align-items:end;">
           <div>
             <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">시작일</div>
             <input type="date" id="ct-${prog}-start" onchange="calcCtEndDate('${prog}')"
-              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+              style="${inStyle}" />
           </div>
           <div>
             <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">기간(개월)</div>
             <input type="number" id="ct-${prog}-months" min="1" max="36" placeholder="개월"
-              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+              style="${inStyle}" onwheel="this.blur()"
               oninput="calcCtEndDate('${prog}')" />
           </div>
           ${cfg.hasCount ? `
           <div>
             <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">횟수</div>
             <input type="number" id="ct-${prog}-count" min="1" placeholder="회"
-              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+              style="${inStyle}" onwheel="this.blur()" />
           </div>` : ''}
+          <div>
+            <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">종료일 (자동계산)</div>
+            <input type="text" id="ct-${prog}-end" readonly placeholder="자동계산"
+              style="${inStyle}background:var(--bg);color:var(--text-sub);" />
+          </div>
         </div>
-        <div style="margin-bottom:8px;">
-          <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">종료일 (자동계산)</div>
-          <input type="text" id="ct-${prog}-end" readonly placeholder="시작일·기간 입력 시 자동계산"
-            style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);background:var(--bg);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;color:var(--text-sub);" />
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
+
+        <!-- 서비스 추가 -->
+        <div id="ct-${prog}-extras"></div>
+        <button type="button" onclick="addCtExtra('${prog}')"
+          style="margin-bottom:10px;padding:5px 12px;border:1.5px dashed var(--border);background:transparent;color:var(--text-sub);border-radius:var(--radius-sm);font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+          ➕ 서비스 추가
+        </button>
+
+        <!-- 2줄: 총금액 / 현금·카드·계좌 -->
+        <div style="display:grid;grid-template-columns:1fr;gap:6px;margin-bottom:4px;">
           <div>
             <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">총금액(원)</div>
             <input type="number" id="ct-${prog}-price" min="0" placeholder="0"
-              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
-              oninput="calcCtTotal()" />
+              style="${inStyle}font-weight:700;" onwheel="this.blur()" oninput="calcCtTotal()" />
           </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
           <div>
             <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">현금</div>
             <input type="number" id="ct-${prog}-cash" min="0" placeholder="0"
-              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
-              oninput="calcCtTotal()" />
+              style="${inStyle}" onwheel="this.blur()" oninput="calcCtTotal()" />
           </div>
           <div>
             <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">카드</div>
             <input type="number" id="ct-${prog}-card" min="0" placeholder="0"
-              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
-              oninput="calcCtTotal()" />
+              style="${inStyle}" onwheel="this.blur()" oninput="calcCtTotal()" />
           </div>
           <div>
             <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">계좌이체</div>
             <input type="number" id="ct-${prog}-transfer" min="0" placeholder="0"
-              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
-              oninput="calcCtTotal()" />
+              style="${inStyle}" onwheel="this.blur()" oninput="calcCtTotal()" />
           </div>
         </div>`;
       container.appendChild(d);
@@ -2094,6 +2105,36 @@
         calcCtEndDate(prog);
       }
     });
+  }
+
+  // 서비스 추가 행 생성
+  let ctExtraCount = {};
+  function addCtExtra(prog) {
+    if (!ctExtraCount[prog]) ctExtraCount[prog] = 0;
+    ctExtraCount[prog]++;
+    const idx = ctExtraCount[prog];
+    const container = document.getElementById('ct-' + prog + '-extras');
+    if (!container) return;
+    const inStyle = `box-sizing:border-box;padding:7px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;`;
+    const row = document.createElement('div');
+    row.id = 'ct-' + prog + '-extra-' + idx;
+    row.style.cssText = 'display:grid;grid-template-columns:1fr 80px 60px auto;gap:6px;align-items:center;margin-bottom:6px;';
+    row.innerHTML = `
+      <input type="text" placeholder="서비스명 (예: 수영장, 탄산 등)" style="${inStyle}width:100%;" />
+      <input type="number" min="1" placeholder="수량" style="${inStyle}width:100%;" onwheel="this.blur()" />
+      <select style="${inStyle}width:100%;background:var(--card);">
+        <option value="개월">개월</option>
+        <option value="일">일</option>
+        <option value="회">회</option>
+      </select>
+      <button type="button" onclick="removeCtExtra('${prog}',${idx})"
+        style="padding:7px 10px;border:1px solid #ef4444;background:transparent;color:#ef4444;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">✕</button>`;
+    container.appendChild(row);
+  }
+
+  function removeCtExtra(prog, idx) {
+    const el = document.getElementById('ct-' + prog + '-extra-' + idx);
+    if (el) el.remove();
   }
 
   // 종료일 자동계산
@@ -2129,16 +2170,8 @@
     if (document.getElementById('ct-locker-check')?.checked) {
       total += parseInt(document.getElementById('ct-locker-price')?.value) || 0;
     }
-    const unpaid = total - paid;
     document.getElementById('ct-total-amt').textContent = total.toLocaleString() + '원';
     document.getElementById('ct-paid-amt').textContent  = paid.toLocaleString() + '원';
-    const unpaidRow = document.getElementById('ct-unpaid-row');
-    if (unpaid > 0) {
-      document.getElementById('ct-unpaid-amt').textContent = unpaid.toLocaleString() + '원';
-      if (unpaidRow) unpaidRow.style.display = 'flex';
-    } else {
-      if (unpaidRow) unpaidRow.style.display = 'none';
-    }
   }
 
   // 부가서비스 토글
@@ -2333,6 +2366,7 @@
   // 계약서 초기화
   function resetContract() {
     ctSelectedProgs = [];
+    ctExtraCount = {};
     ctGoStep(1);
     // 입력값 초기화
     ['ct-name','ct-phone','ct-birth','ct-address','ct-memo'].forEach(id => {
