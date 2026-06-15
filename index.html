@@ -4628,9 +4628,9 @@
 
   <!-- 회원 상세 모달 -->
   <!-- 회원 상세 전체화면 -->
-  <div id="member-detail-modal" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:1000;overflow-y:auto;">
+  <div id="member-detail-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);z-index:200;overflow-y:auto;">
     <!-- 헤더 -->
-    <div style="position:sticky;top:0;z-index:10;background:var(--card);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">
+    <div id="md-header" style="position:sticky;top:0;z-index:10;background:var(--card);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">
       <div style="display:flex;align-items:center;gap:10px;">
         <button onclick="closeMemberModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text);padding:0;line-height:1;">←</button>
         <span id="modal-member-name" style="font-size:16px;font-weight:700;color:var(--text);">회원 상세</span>
@@ -4683,14 +4683,7 @@
           </div>
         </div>
 
-        <!-- 회원 메모 -->
-        <div>
-          <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:6px;">📌 회원 메모</div>
-          <textarea id="md-memo" placeholder="특이사항, 메모 등 자유롭게 입력하세요."
-            style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:80px;line-height:1.5;background:var(--card);"
-            onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)';saveMemberMemo()"></textarea>
-          <button onclick="saveMemberMemo()" style="width:100%;margin-top:6px;padding:7px;background:var(--blue);color:white;border:none;border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 메모 저장</button>
-        </div>
+
 
         <!-- 액션 버튼 -->
         <div style="display:flex;flex-direction:column;gap:8px;margin-top:auto;">
@@ -4709,6 +4702,17 @@
           <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;">📊 수업현황</div>
           <div id="md-class-status" style="background:var(--card);border-radius:10px;padding:16px;">
             <div style="text-align:center;color:var(--text-hint);font-size:13px;">불러오는 중...</div>
+          </div>
+        </div>
+
+        <!-- 회원 메모 -->
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:10px;">📌 회원 메모</div>
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <textarea id="md-memo" placeholder="특이사항, 메모 등 자유롭게 입력하세요."
+              style="flex:1;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:70px;line-height:1.6;background:var(--card);"
+              onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+            <button onclick="saveMemberMemo()" style="padding:10px 16px;background:var(--blue);color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;height:70px;">💾<br/>저장</button>
           </div>
         </div>
 
@@ -4733,7 +4737,7 @@
   </div>
 
   <!-- 회원정보 수정 모달 -->
-  <div class="modal-overlay" id="edit-member-modal">
+  <div class="modal-overlay" id="edit-member-modal" style="z-index:300;">
     <div class="modal-sheet" style="overflow-y:auto;">
       <div class="modal-title">
         <span>✏️ 회원정보 수정</span>

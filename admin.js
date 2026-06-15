@@ -1457,6 +1457,16 @@
     if (!info) return;
 
     const modal = document.getElementById('member-detail-modal');
+    // 관리자 탭이 보이도록 헤더 높이만큼 top 설정
+    const pcHeader = document.getElementById('admin-header-pc');
+    const mobileHeader = document.getElementById('admin-header-mobile');
+    let headerH = 0;
+    if (pcHeader && pcHeader.offsetHeight > 0) {
+      headerH = pcHeader.offsetHeight;
+    } else if (mobileHeader && mobileHeader.offsetHeight > 0) {
+      headerH = mobileHeader.offsetHeight;
+    }
+    modal.style.top = headerH + 'px';
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
 
@@ -1481,7 +1491,7 @@
       : '-';
 
     // 성별
-    const genderVal = info['body/gender'] || '';
+    const genderVal = (info.body && info.body.gender) ? info.body.gender : (info['body/gender'] || '');
     document.getElementById('md-gender').textContent = genderVal === 'male' ? '남성' : genderVal === 'female' ? '여성' : '-';
 
     // 주소
@@ -1711,7 +1721,7 @@
 
   function closeMemberModal() {
     const modal = document.getElementById('member-detail-modal');
-    if (modal) modal.style.display = 'none';
+    if (modal) { modal.style.display = 'none'; modal.style.top = '0'; }
     document.body.style.overflow = '';
     currentMemberPhone = null;
   }
