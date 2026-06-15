@@ -2532,20 +2532,20 @@
             <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:12px;letter-spacing:0.3px;">기본 정보</div>
             <div style="display:flex;flex-direction:column;gap:10px;">
 
-              <!-- 이름 -->
-              <div style="display:grid;grid-template-columns:72px 1fr;align-items:center;gap:12px;">
-                <span style="font-size:13px;color:var(--text-hint);">이름</span>
-                <input id="md-edit-name" type="text" placeholder="이름 입력"
-                  style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
-                  onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
-              </div>
-
-              <!-- 생년월일 -->
-              <div style="display:grid;grid-template-columns:72px 1fr;align-items:center;gap:12px;">
-                <span style="font-size:13px;color:var(--text-hint);">생년월일</span>
-                <input id="md-edit-birth" type="text" placeholder="19900101 (8자리)"
-                  style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
-                  onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
+              <!-- 이름 + 생년월일 (2열) -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">이름</div>
+                  <input id="md-edit-name" type="text" placeholder="이름 입력"
+                    style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
+                    onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
+                </div>
+                <div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">생년월일</div>
+                  <input id="md-edit-birth" type="text" placeholder="19900101"
+                    style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
+                    onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
+                </div>
               </div>
 
               <!-- 성별 -->
@@ -2577,8 +2577,8 @@
                   onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'"></textarea>
               </div>
 
-              <!-- 포인트/출석 (읽기전용) -->
-              <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:4px;">
+              <!-- 포인트/이번달출석/누적출석 (3열 한 줄) -->
+              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:2px;">
                 <div style="background:var(--bg);border-radius:10px;padding:10px 12px;">
                   <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">포인트</div>
                   <div id="md-points" style="font-size:13px;font-weight:600;color:var(--blue);"></div>
