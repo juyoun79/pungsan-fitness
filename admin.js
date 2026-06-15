@@ -2285,6 +2285,20 @@
     }
   }
 
+  let selectedLockerCatId = null;
+
+  function selectLockerCategory(catId) {
+    selectedLockerCatId = catId;
+    // 버튼 활성화 스타일
+    document.querySelectorAll('.locker-cat-btn').forEach(btn => {
+      const isActive = btn.dataset.catid === catId;
+      btn.style.background = isActive ? 'var(--blue)' : 'var(--card)';
+      btn.style.color = isActive ? 'white' : 'var(--text)';
+      btn.style.border = isActive ? 'none' : '1.5px solid var(--border)';
+    });
+    renderLockerGrid();
+  }
+
   function renderLockerStatus() {
     const wrap = document.getElementById('locker-status-wrap');
     if (!wrap) return;
@@ -2292,44 +2306,67 @@
       wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-hint);font-size:14px;">설정 탭에서 락카 종류를 먼저 등록해주세요.</div>';
       return;
     }
+    // 첫 번째 카테고리 기본 선택
+    if (!selectedLockerCatId || !lockerCategories.find(c => c.id === selectedLockerCatId)) {
+      selectedLockerCatId = lockerCategories[0].id;
+    }
+    // 종류 버튼 탭 렌더링
+    const catBtns = lockerCategories.map(cat => {
+      const isActive = cat.id === selectedLockerCatId;
+      return `<button class="locker-cat-btn" data-catid="${cat.id}" onclick="selectLockerCategory('${cat.id}')"
+        style="padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
+        background:${isActive ? 'var(--blue)' : 'var(--card)'};
+        color:${isActive ? 'white' : 'var(--text)'};
+        border:${isActive ? 'none' : '1.5px solid var(--border)'};">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cat.color||'#1a6fd4'};margin-right:5px;vertical-align:middle;"></span>
+        ${cat.name}
+      </button>`;
+    }).join('');
+
+    wrap.innerHTML = `
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">${catBtns}</div>
+      <div id="locker-grid-wrap"></div>`;
+    renderLockerGrid();
+  }
+
+  function renderLockerGrid() {
+    const wrap = document.getElementById('locker-grid-wrap');
+    if (!wrap) return;
+    const cat = lockerCategories.find(c => c.id === selectedLockerCatId);
+    if (!cat) return;
+
     const today = getToday();
-    const soon  = new Date(); soon.setDate(soon.getDate() + 7);
-    const soonStr = soon.toISOString().slice(0,10).replace(/-/g,'');
+    const soon = new Date(); soon.setDate(soon.getDate() + 7);
+    const soonDate = soon.toISOString().slice(0,10);
 
-    wrap.innerHTML = lockerCategories.map(cat => {
-      const nos = [];
-      for (let n = cat.startNo; n <= cat.endNo; n++) nos.push(n);
-      const grid = nos.map(no => {
-        const key = cat.id + '_' + no;
-        const d = lockerData[key];
-        let bg = '#e8f5e9', border = '#81c784', emoji = '';
-        let tooltip = '빈칸';
-        if (d) {
-          const endD = d.endDate || '';
-          if (d.status === 'disabled') { bg='#f5f5f5'; border='#9e9e9e'; emoji='⚫'; tooltip='사용불가'; }
-          else if (d.status === 'expired') { bg='#ffebee'; border='#e57373'; emoji='🔴'; tooltip='기간만료'; }
-          else if (endD && endD < today) { bg='#ffebee'; border='#e57373'; emoji='🔴'; tooltip='기간만료'; }
-          else if (endD && endD <= soonStr.slice(0,4)+'-'+soonStr.slice(4,6)+'-'+soonStr.slice(6,8)) {
-            bg='#fff8e1'; border='#ffb74d'; emoji='🟡'; tooltip='만료임박';
-          }
-          else { bg='#e3f2fd'; border='#64b5f6'; emoji='🔵'; tooltip='사용중'; }
-        }
-        return `<div onclick="openLockerDetail('${cat.id}','${no}')"
-          title="${tooltip}"
-          style="width:52px;height:52px;border-radius:8px;background:${bg};border:1.5px solid ${border};display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:11px;font-weight:600;color:var(--text);gap:2px;">
-          ${emoji ? `<span style="font-size:14px;">${emoji}</span>` : ''}
-          <span>${no}</span>
-        </div>`;
-      }).join('');
+    const nos = [];
+    for (let n = cat.startNo; n <= cat.endNo; n++) nos.push(n);
 
-      return `<div style="background:var(--card);border-radius:12px;padding:16px;margin-bottom:12px;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-          <span style="width:12px;height:12px;border-radius:50%;background:${cat.color || '#1a6fd4'};display:inline-block;"></span>
-          <span style="font-size:14px;font-weight:700;color:var(--text);">${cat.name}</span>
-          <span style="font-size:12px;color:var(--text-hint);">(${cat.startNo}~${cat.endNo}번)</span>
-        </div>
+    const grid = nos.map(no => {
+      const key = cat.id + '_' + no;
+      const d = lockerData[key];
+      let bg = '#e8f5e9', border = '#81c784', emoji = '', tooltip = '빈칸';
+      if (d) {
+        const endD = d.endDate || '';
+        if (d.status === 'disabled')      { bg='#f5f5f5'; border='#9e9e9e'; emoji='⚫'; tooltip='사용불가'; }
+        else if (d.status === 'expired' || (endD && endD < today))
+                                           { bg='#ffebee'; border='#e57373'; emoji='🔴'; tooltip='기간만료'; }
+        else if (endD && endD <= soonDate) { bg='#fff8e1'; border='#ffb74d'; emoji='🟡'; tooltip='만료임박'; }
+        else                               { bg='#e3f2fd'; border='#64b5f6'; emoji='🔵'; tooltip='사용중'; }
+      }
+      return `<div onclick="openLockerDetail('${cat.id}','${no}')" title="${tooltip}"
+        style="width:52px;height:52px;border-radius:8px;background:${bg};border:1.5px solid ${border};
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        cursor:pointer;font-size:11px;font-weight:600;color:var(--text);gap:2px;">
+        ${emoji ? `<span style="font-size:13px;">${emoji}</span>` : ''}
+        <span>${no}</span>
+      </div>`;
+    }).join('');
+
+    wrap.innerHTML = `
+      <div style="background:var(--card);border-radius:12px;padding:16px;">
         <div style="display:flex;flex-wrap:wrap;gap:8px;">${grid}</div>
-        <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;">
+        <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;">
           <span style="font-size:11px;color:var(--text-hint);">🟢 빈칸</span>
           <span style="font-size:11px;color:var(--text-hint);">🔵 사용중</span>
           <span style="font-size:11px;color:var(--text-hint);">🟡 만료임박</span>
@@ -2337,7 +2374,6 @@
           <span style="font-size:11px;color:var(--text-hint);">⚫ 사용불가</span>
         </div>
       </div>`;
-    }).join('');
   }
 
   function openLockerDetail(catId, no) {
