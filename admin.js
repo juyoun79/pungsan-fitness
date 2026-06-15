@@ -1481,11 +1481,13 @@
     // 헤더 이름
     document.getElementById('modal-member-name').textContent = (info.name || phone) + ' 회원';
 
-    // 좌측 기본정보 렌더링
+    // 기본정보 직접 입력 방식으로 세팅
     const rawName = (info.name || '').replace(/\(\d{4}\)$/, '').trim();
-    document.getElementById('md-name').textContent = rawName;
+    // 프로필 이름 표시
+    const mdNameEl = document.getElementById('md-name');
+    if (mdNameEl) mdNameEl.textContent = rawName;
 
-    // 닉네임: localStorage 우선 표시 후 Firebase에서 최신값 업데이트
+    // 닉네임
     const nickEl = document.getElementById('md-nick');
     const localNick = localStorage.getItem('name_' + phone) || '';
     if (nickEl) nickEl.textContent = localNick ? '닉네임: ' + localNick : '닉네임: 미설정';
@@ -1500,20 +1502,27 @@
     }).catch(() => {
       if (nickEl) nickEl.textContent = localNick ? '닉네임: ' + localNick : '닉네임: 미설정';
     });
-    document.getElementById('md-phone').textContent = phone;
 
-    // 생년월일
+    // 연락처 (읽기전용)
+    const mdPhoneEl = document.getElementById('md-phone');
+    if (mdPhoneEl) mdPhoneEl.textContent = phone;
+
+    // 이름 입력창
+    const mdEditName = document.getElementById('md-edit-name');
+    if (mdEditName) mdEditName.value = rawName;
+
+    // 생년월일 입력창
     const birth = info.birth || '';
-    document.getElementById('md-birth').textContent = birth
-      ? birth.slice(0,4) + '.' + birth.slice(4,6) + '.' + birth.slice(6,8)
-      : '-';
+    const mdEditBirth = document.getElementById('md-edit-birth');
+    if (mdEditBirth) mdEditBirth.value = birth;
 
-    // 성별
-    const genderVal = (info.body && info.body.gender) ? info.body.gender : (info['body/gender'] || '');
-    document.getElementById('md-gender').textContent = genderVal === 'male' ? '남성' : genderVal === 'female' ? '여성' : '-';
+    // 성별 버튼
+    const genderVal = (info.body && info.body.gender) ? info.body.gender : (info['body/gender'] || 'male');
+    selectMdGender(genderVal);
 
-    // 주소
-    document.getElementById('md-address').textContent = info.address || '-';
+    // 주소 입력창
+    const mdEditAddress = document.getElementById('md-edit-address');
+    if (mdEditAddress) mdEditAddress.value = info.address || '';
 
     // 프로그램 태그
     const progWrap = document.getElementById('md-programs');
@@ -1691,6 +1700,73 @@
   }
 
   // 회원 메모 저장
+  // 성별 버튼 선택
+  function selectMdGender(g) {
+    const male   = document.getElementById('md-gender-male');
+    const female = document.getElementById('md-gender-female');
+    if (!male || !female) return;
+    if (g === 'male') {
+      male.style.background   = 'var(--blue)';
+      male.style.color        = 'white';
+      male.style.borderColor  = 'var(--blue)';
+      female.style.background = 'var(--bg)';
+      female.style.color      = 'var(--text)';
+      female.style.borderColor= 'var(--border)';
+    } else {
+      female.style.background = 'var(--blue)';
+      female.style.color      = 'white';
+      female.style.borderColor= 'var(--blue)';
+      male.style.background   = 'var(--bg)';
+      male.style.color        = 'var(--text)';
+      male.style.borderColor  = 'var(--border)';
+    }
+    male.dataset.selected   = g === 'male'   ? 'true' : 'false';
+    female.dataset.selected = g === 'female' ? 'true' : 'false';
+  }
+
+  // 기본정보 저장
+  async function saveMemberBasicInfo() {
+    const phone = currentMemberPhone;
+    if (!phone) return;
+    const name    = document.getElementById('md-edit-name')?.value.trim();
+    const birth   = document.getElementById('md-edit-birth')?.value.trim();
+    const address = document.getElementById('md-edit-address')?.value.trim();
+    const maleBtn = document.getElementById('md-gender-male');
+    const gender  = maleBtn?.dataset.selected === 'true' ? 'male' : 'female';
+
+    if (!name) { showToast('이름을 입력해주세요.', 'error'); return; }
+    if (birth && !/^\d{8}$/.test(birth)) { showToast('생년월일은 8자리 숫자로 입력해주세요. (예: 19900101)', 'error'); return; }
+
+    try {
+      const updates = {};
+      updates['members/' + phone + '/name']    = name;
+      updates['members/' + phone + '/birth']   = birth;
+      updates['members/' + phone + '/address'] = address;
+      updates['members/' + phone + '/body/gender'] = gender;
+      await db.ref().update(updates);
+
+      // cachedMembers 업데이트
+      if (cachedMembers[phone]) {
+        cachedMembers[phone].name    = name;
+        cachedMembers[phone].birth   = birth;
+        cachedMembers[phone].address = address;
+        if (!cachedMembers[phone].body) cachedMembers[phone].body = {};
+        cachedMembers[phone].body.gender = gender;
+      }
+
+      // 프로필 이름 즉시 갱신
+      const rawName = name.replace(/\(\d{4}\)$/, '').trim();
+      const mdNameEl = document.getElementById('md-name');
+      if (mdNameEl) mdNameEl.textContent = rawName;
+      const modalNameEl = document.getElementById('modal-member-name');
+      if (modalNameEl) modalNameEl.textContent = rawName + ' 회원';
+
+      showToast('✅ 기본정보 저장 완료!', 'success');
+    } catch(e) {
+      showToast('저장에 실패했어요. 다시 시도해주세요.', 'error');
+    }
+  }
+
   function saveMemberMemo() {
     const phone = currentMemberPhone;
     if (!phone) return;

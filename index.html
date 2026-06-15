@@ -2527,39 +2527,77 @@
             </div>
           </div>
 
-          <!-- 기본정보 2열 카드 -->
+          <!-- 기본정보 직접 입력 -->
           <div style="background:var(--card);padding:16px;margin-bottom:8px;">
-            <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:10px;letter-spacing:0.3px;">기본 정보</div>
-            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-              <div style="background:var(--bg);border-radius:10px;padding:10px 12px;">
-                <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">연락처</div>
-                <div id="md-phone" style="font-size:13px;font-weight:600;color:var(--text);"></div>
+            <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:12px;letter-spacing:0.3px;">기본 정보</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+
+              <!-- 이름 -->
+              <div style="display:grid;grid-template-columns:72px 1fr;align-items:center;gap:12px;">
+                <span style="font-size:13px;color:var(--text-hint);">이름</span>
+                <input id="md-edit-name" type="text" placeholder="이름 입력"
+                  style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
+                  onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
               </div>
-              <div style="background:var(--bg);border-radius:10px;padding:10px 12px;">
-                <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">생년월일</div>
-                <div id="md-birth" style="font-size:13px;font-weight:600;color:var(--text);"></div>
+
+              <!-- 생년월일 -->
+              <div style="display:grid;grid-template-columns:72px 1fr;align-items:center;gap:12px;">
+                <span style="font-size:13px;color:var(--text-hint);">생년월일</span>
+                <input id="md-edit-birth" type="text" placeholder="19900101 (8자리)"
+                  style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
+                  onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
               </div>
-              <div style="background:var(--bg);border-radius:10px;padding:10px 12px;">
-                <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">성별</div>
-                <div id="md-gender" style="font-size:13px;font-weight:600;color:var(--text);"></div>
+
+              <!-- 성별 -->
+              <div style="display:grid;grid-template-columns:72px 1fr;align-items:center;gap:12px;">
+                <span style="font-size:13px;color:var(--text-hint);">성별</span>
+                <div style="display:flex;gap:6px;">
+                  <button id="md-gender-male" onclick="selectMdGender('male')"
+                    style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">남성</button>
+                  <button id="md-gender-female" onclick="selectMdGender('female')"
+                    style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">여성</button>
+                </div>
               </div>
-              <div style="background:var(--bg);border-radius:10px;padding:10px 12px;">
-                <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">포인트</div>
-                <div id="md-points" style="font-size:13px;font-weight:600;color:var(--blue);"></div>
+
+              <!-- 연락처 (읽기전용 + 변경버튼) -->
+              <div style="display:grid;grid-template-columns:72px 1fr;align-items:center;gap:12px;">
+                <span style="font-size:13px;color:var(--text-hint);">연락처</span>
+                <div style="display:flex;gap:6px;align-items:center;">
+                  <div id="md-phone" style="flex:1;padding:8px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--text-sub);"></div>
+                  <button onclick="openEditMemberModal()"
+                    style="padding:8px 10px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">변경</button>
+                </div>
               </div>
-              <div style="background:var(--bg);border-radius:10px;padding:10px 12px;">
-                <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">이번달 출석</div>
-                <div id="md-attend" style="font-size:13px;font-weight:600;color:var(--text);"></div>
+
+              <!-- 주소 -->
+              <div style="display:grid;grid-template-columns:72px 1fr;align-items:start;gap:12px;">
+                <span style="font-size:13px;color:var(--text-hint);padding-top:9px;">주소</span>
+                <textarea id="md-edit-address" placeholder="주소 입력"
+                  style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:60px;line-height:1.5;background:var(--bg);color:var(--text);"
+                  onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'"></textarea>
               </div>
-              <div style="background:var(--bg);border-radius:10px;padding:10px 12px;">
-                <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">누적 출석</div>
-                <div id="md-attend-total" style="font-size:13px;font-weight:600;color:var(--text);">-</div>
+
+              <!-- 포인트/출석 (읽기전용) -->
+              <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:4px;">
+                <div style="background:var(--bg);border-radius:10px;padding:10px 12px;">
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">포인트</div>
+                  <div id="md-points" style="font-size:13px;font-weight:600;color:var(--blue);"></div>
+                </div>
+                <div style="background:var(--bg);border-radius:10px;padding:10px 12px;">
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">이번달 출석</div>
+                  <div id="md-attend" style="font-size:13px;font-weight:600;color:var(--text);"></div>
+                </div>
+                <div style="background:var(--bg);border-radius:10px;padding:10px 12px;">
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">누적 출석</div>
+                  <div id="md-attend-total" style="font-size:13px;font-weight:600;color:var(--text);">-</div>
+                </div>
               </div>
-              <div style="background:var(--bg);border-radius:10px;padding:10px 12px;grid-column:1/-1;">
-                <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">주소</div>
-                <div id="md-address" style="font-size:13px;font-weight:600;color:var(--text);word-break:keep-all;"></div>
-              </div>
+
             </div>
+
+            <!-- 저장 버튼 -->
+            <button onclick="saveMemberBasicInfo()"
+              style="width:100%;margin-top:14px;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 기본정보 저장</button>
           </div>
 
           <!-- 수업현황 -->
@@ -2597,7 +2635,6 @@
 
           <!-- 액션 버튼 -->
           <div style="background:var(--card);padding:16px;margin-bottom:8px;display:flex;flex-direction:column;gap:8px;">
-            <button onclick="openEditMemberModal()" style="width:100%;padding:11px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 회원정보 수정</button>
             <button onclick="editMemberPw()" style="width:100%;padding:11px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔑 비밀번호 초기화</button>
             <button onclick="editMemberPoint()" style="width:100%;padding:11px;background:#f0fdf4;color:#16a34a;border:1.5px solid #86efac;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💰 포인트 수정</button>
             <button onclick="deleteMember()" style="width:100%;padding:11px;background:#fff0f0;color:#c0392b;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑️ 회원 삭제</button>
