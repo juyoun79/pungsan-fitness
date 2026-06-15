@@ -2548,24 +2548,24 @@
                 </div>
               </div>
 
-              <!-- 성별 -->
-              <div style="display:grid;grid-template-columns:72px 1fr;align-items:center;gap:12px;">
-                <span style="font-size:13px;color:var(--text-hint);">성별</span>
-                <div style="display:flex;gap:6px;">
-                  <button id="md-gender-male" onclick="selectMdGender('male')"
-                    style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">남성</button>
-                  <button id="md-gender-female" onclick="selectMdGender('female')"
-                    style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">여성</button>
+              <!-- 성별 + 연락처 (2열 한 줄) -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">성별</div>
+                  <div style="display:flex;gap:5px;">
+                    <button id="md-gender-male" onclick="selectMdGender('male')"
+                      style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">남성</button>
+                    <button id="md-gender-female" onclick="selectMdGender('female')"
+                      style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">여성</button>
+                  </div>
                 </div>
-              </div>
-
-              <!-- 연락처 (읽기전용 + 변경버튼) -->
-              <div style="display:grid;grid-template-columns:72px 1fr;align-items:center;gap:12px;">
-                <span style="font-size:13px;color:var(--text-hint);">연락처</span>
-                <div style="display:flex;gap:6px;align-items:center;">
-                  <div id="md-phone" style="flex:1;padding:8px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--text-sub);"></div>
-                  <button onclick="openEditMemberModal()"
-                    style="padding:8px 10px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">변경</button>
+                <div>
+                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">연락처</div>
+                  <div style="display:flex;gap:5px;align-items:center;">
+                    <div id="md-phone" style="flex:1;padding:8px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--text-sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+                    <button onclick="openEditMemberModal()"
+                      style="padding:8px 10px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">변경</button>
+                  </div>
                 </div>
               </div>
 
