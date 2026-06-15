@@ -1457,22 +1457,7 @@
     if (!info) return;
 
     const modal = document.getElementById('member-detail-modal');
-    // 관리자 탭이 보이도록 헤더 높이만큼 top 설정
-    // PC모드: admin-pc-layout이 display:block이면 PC모드 (헤더 약 60px)
-    // 모바일모드: admin-header-mobile 표시 (헤더+탭 약 140px)
-    const pcLayout = document.getElementById('admin-pc-layout');
-    const isPcMode = pcLayout && pcLayout.style.display === 'block';
-    let headerH = 0;
-    if (isPcMode) {
-      const pcHeader = document.getElementById('admin-header-pc');
-      headerH = (pcHeader && pcHeader.offsetHeight > 0) ? pcHeader.offsetHeight : 60;
-    } else {
-      const mobileHeader = document.getElementById('admin-header-mobile');
-      headerH = (mobileHeader && mobileHeader.offsetHeight > 0) ? mobileHeader.offsetHeight : 140;
-    }
-    modal.style.top = headerH + 'px';
     modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
 
     const now = new Date();
     const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
@@ -1737,8 +1722,7 @@
 
   function closeMemberModal() {
     const modal = document.getElementById('member-detail-modal');
-    if (modal) { modal.style.display = 'none'; modal.style.top = '0'; }
-    document.body.style.overflow = '';
+    if (modal) modal.style.display = 'none';
     currentMemberPhone = null;
   }
 
