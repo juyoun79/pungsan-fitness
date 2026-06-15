@@ -2584,6 +2584,14 @@
                 onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
             </div>
 
+            <!-- 비고 -->
+            <div style="margin-bottom:14px;">
+              <label class="field-label">비고</label>
+              <textarea id="ct-memo" placeholder="특이사항, 메모 등 자유롭게 입력하세요."
+                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;resize:vertical;min-height:70px;line-height:1.5;"
+                onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"></textarea>
+            </div>
+
             <button class="btn-primary" style="padding:10px;font-size:14px;" onclick="ctNext(1)">다음 →</button>
             </div>
           </div>
@@ -9517,5 +9525,17 @@ async function payChalllengeReward(challengeId) {
   });
 }
 </script>
+  <!-- 계약서 웹캠 모달 -->
+  <div id="ct-webcam-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:4000;align-items:center;justify-content:center;flex-direction:column;gap:14px;">
+    <video id="ct-webcam-video" autoplay playsinline
+      style="width:280px;height:280px;object-fit:cover;border-radius:50%;border:3px solid white;background:#000;"></video>
+    <div style="display:flex;gap:12px;">
+      <button onclick="captureCtWebcam()"
+        style="padding:12px 24px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📸 촬영</button>
+      <button onclick="closeCtWebcam()"
+        style="padding:12px 24px;background:#555;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✕ 닫기</button>
+    </div>
+  </div>
+
 </body>
 </html>

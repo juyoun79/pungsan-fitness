@@ -1925,6 +1925,119 @@
     });
   }
 
+  // ── 계약서 웹캠/사진 관련 ──
+  let ctWebcamStream = null;
+  let ctPhotoBlob    = null;
+
+  function openCtWebcam() {
+    const modal = document.getElementById('ct-webcam-modal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        ctWebcamStream = stream;
+        const video = document.getElementById('ct-webcam-video');
+        if (video) video.srcObject = stream;
+      })
+      .catch(() => {
+        modal.style.display = 'none';
+        showToast('카메라 권한이 필요해요. 파일 선택을 이용해주세요.', 'error');
+      });
+  }
+
+  function closeCtWebcam() {
+    if (ctWebcamStream) { ctWebcamStream.getTracks().forEach(t => t.stop()); ctWebcamStream = null; }
+    const modal = document.getElementById('ct-webcam-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function updateCtPhotoUI(hasPhoto) {
+    const preview   = document.getElementById('ct-photo-preview');
+    const webcamBtn = document.getElementById('ct-webcam-btn');
+    const deleteBtn = document.getElementById('ct-photo-delete-btn');
+    if (!preview) return;
+    if (hasPhoto) {
+      preview.style.border = '2px solid var(--blue)';
+      if (webcamBtn) webcamBtn.innerHTML = '📷 다시 찍기';
+      if (deleteBtn) deleteBtn.style.display = 'flex';
+    } else {
+      preview.style.border = '1.5px solid var(--border)';
+      preview.innerHTML = '👤';
+      if (webcamBtn) webcamBtn.innerHTML = '📷 웹캠 촬영';
+      if (deleteBtn) deleteBtn.style.display = 'none';
+    }
+  }
+
+  function deleteCtPhoto() {
+    ctPhotoBlob = null;
+    const fileInput = document.getElementById('ct-photo-file');
+    if (fileInput) fileInput.value = '';
+    updateCtPhotoUI(false);
+  }
+
+  function captureCtWebcam() {
+    const video  = document.getElementById('ct-webcam-video');
+    const canvas = document.getElementById('ct-webcam-canvas');
+    if (!video || !canvas) return;
+    canvas.width = 300; canvas.height = 300;
+    const ctx  = canvas.getContext('2d');
+    const size = Math.min(video.videoWidth, video.videoHeight);
+    const sx   = (video.videoWidth  - size) / 2;
+    const sy   = (video.videoHeight - size) / 2;
+    ctx.drawImage(video, sx, sy, size, size, 0, 0, 300, 300);
+    canvas.toBlob(blob => {
+      ctPhotoBlob = blob;
+      const preview = document.getElementById('ct-photo-preview');
+      if (preview) {
+        const url = URL.createObjectURL(blob);
+        preview.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;" />`;
+      }
+      updateCtPhotoUI(true);
+      closeCtWebcam();
+    }, 'image/jpeg', 0.7);
+  }
+
+  function onCtPhotoFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const img    = new Image();
+    const reader = new FileReader();
+    reader.onload = e => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 300; canvas.height = 300;
+        const ctx  = canvas.getContext('2d');
+        const size = Math.min(img.width, img.height);
+        const sx   = (img.width  - size) / 2;
+        const sy   = (img.height - size) / 2;
+        ctx.drawImage(img, sx, sy, size, size, 0, 0, 300, 300);
+        canvas.toBlob(blob => {
+          ctPhotoBlob = blob;
+          const preview = document.getElementById('ct-photo-preview');
+          if (preview) {
+            const url = URL.createObjectURL(blob);
+            preview.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;" />`;
+          }
+          updateCtPhotoUI(true);
+        }, 'image/jpeg', 0.7);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function uploadCtPhoto(phone) {
+    if (!ctPhotoBlob) return null;
+    try {
+      const storageRef = firebase.storage().ref('members/' + phone + '/profile.jpg');
+      await storageRef.put(ctPhotoBlob, { contentType: 'image/jpeg' });
+      return await storageRef.getDownloadURL();
+    } catch (e) {
+      console.error('계약서 사진 업로드 실패:', e);
+      return null;
+    }
+  }
+
   // ── 전자계약서 ──
   let ctCurrentStep = 1;
   let ctSignCanvas, ctSignCtx, ctSigning = false;
@@ -1982,8 +2095,15 @@
           document.getElementById('ct-name').value    = rawName;
           document.getElementById('ct-birth').value   = data.birth   || birth;
           document.getElementById('ct-address').value = data.address || '';
+          if (data.memo) document.getElementById('ct-memo').value = data.memo || '';
           const gender = data['body/gender'] || 'male';
           selectCtGender(gender);
+          // 기존 사진이 있으면 미리보기 표시
+          if (data.photoUrl) {
+            const preview = document.getElementById('ct-photo-preview');
+            if (preview) preview.innerHTML = `<img src="${data.photoUrl}" style="width:100%;height:100%;object-fit:cover;" />`;
+            updateCtPhotoUI(true);
+          }
           showToast('기존 정보를 불러왔어요.', 'info');
         }
         ctGoStep(2);
@@ -2590,6 +2710,10 @@
 
       await db.ref('members/' + phone).update(memberData);
 
+      // 2-a. 프로필 사진 업로드
+      const photoUrl = await uploadCtPhoto(phone);
+      if (photoUrl) await db.ref('members/' + phone + '/photoUrl').set(photoUrl);
+
       // 2. 서명 이미지 Firebase Storage 저장
       let signUrl = '';
       try {
@@ -2748,6 +2872,12 @@
     });
     selectCtType('new');
     selectCtGender('male');
+    // 사진 초기화
+    ctPhotoBlob = null;
+    if (ctWebcamStream) { ctWebcamStream.getTracks().forEach(t => t.stop()); ctWebcamStream = null; }
+    const ctFileInput = document.getElementById('ct-photo-file');
+    if (ctFileInput) ctFileInput.value = '';
+    updateCtPhotoUI(false);
     document.querySelectorAll('.ct-prog-btn').forEach(b => b.classList.remove('selected'));
     document.getElementById('ct-prog-details').innerHTML = '';
     document.getElementById('ct-total-amt').textContent = '0원';
