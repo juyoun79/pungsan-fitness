@@ -2585,8 +2585,9 @@
       }
     }
     try {
-      // 기존 전체 삭제 후 순번 기반 키로 저장 (안전한 방식)
+      // 기존 전체 삭제
       await db.ref('locker_settings/categories').remove();
+      // 순번 기반 키로 하나씩 저장
       for (let i = 0; i < lockerCategories.length; i++) {
         const cat = lockerCategories[i];
         await db.ref('locker_settings/categories/cat' + i).set({
@@ -2595,7 +2596,6 @@
           startNo: Number(cat.startNo),
           endNo: Number(cat.endNo)
         });
-        // 로컬 id도 업데이트
         lockerCategories[i].id = 'cat' + i;
       }
       showToast('✅ 설정 저장 완료!', 'success');
