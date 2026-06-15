@@ -9542,14 +9542,20 @@ async function payChalllengeReward(challengeId) {
 }
 </script>
   <!-- 계약서 웹캠 모달 -->
-  <div id="ct-webcam-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:4000;align-items:center;justify-content:center;flex-direction:column;gap:14px;">
-    <video id="ct-webcam-video" autoplay playsinline
-      style="width:280px;height:280px;object-fit:cover;border-radius:50%;border:3px solid white;background:#000;"></video>
-    <div style="display:flex;gap:12px;">
-      <button onclick="captureCtWebcam()"
-        style="padding:12px 24px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📸 촬영</button>
-      <button onclick="closeCtWebcam()"
-        style="padding:12px 24px;background:#555;color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✕ 닫기</button>
+  <!-- 계약서 웹캠 모달 -->
+  <div id="ct-webcam-modal" onclick="closeCtWebcam()"
+    style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:4000;align-items:center;justify-content:center;">
+    <div onclick="event.stopPropagation()"
+      style="background:var(--card);border-radius:16px;padding:24px;display:flex;flex-direction:column;align-items:center;gap:16px;width:340px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+      <div style="font-size:15px;font-weight:700;color:var(--text);">📷 웹캠 촬영</div>
+      <video id="ct-webcam-video" autoplay playsinline
+        style="width:240px;height:240px;object-fit:cover;border-radius:50%;border:3px solid var(--blue);background:#000;"></video>
+      <div style="display:flex;gap:10px;width:100%;">
+        <button onclick="captureCtWebcam()"
+          style="flex:1;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📸 촬영</button>
+        <button onclick="closeCtWebcam()"
+          style="flex:1;padding:11px;background:var(--bg);color:var(--text);border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✕ 닫기</button>
+      </div>
     </div>
   </div>
 
