@@ -41,6 +41,10 @@
     if (tabId === 'coupon-auto') loadAutoConditions();
     if (tabId === 'tab-equipment-admin') loadAdminEquipmentList();
     if (tabId === 'tab-locker') loadLockerTab();
+    else if (_lockerSettingsDirty) {
+      _lockerSettingsDirty = false;
+      showToast('락카 설정이 저장되지 않았어요. 설정 탭에서 💾 저장 버튼을 눌러주세요.', 'error');
+    }
     if (tabId !== 'tab-trainer-admin') {
       if (_monthlyReportListener && _monthlyReportTrainerId) {
         db.ref('trainers/' + _monthlyReportTrainerId + '/trainees').off('value', _monthlyReportListener);
@@ -2259,6 +2263,8 @@
     lockerData = dataSnap.val() || {};
   }
 
+  let _lockerSettingsDirty = false;
+
   function switchLockerSubtab(tab) {
     const statusBtn  = document.getElementById('locker-subtab-status');
     const settingsBtn= document.getElementById('locker-subtab-settings');
@@ -2532,10 +2538,10 @@
     wrap.innerHTML = lockerCategories.map((cat, idx) => `
       <div style="background:var(--bg);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;">
         <div style="display:flex;align-items:center;gap:8px;">
-          <input type="color" value="${cat.color || '#1a6fd4'}" onchange="lockerCategories[${idx}].color=this.value"
+          <input type="color" value="${cat.color || '#1a6fd4'}" oninput="lockerCategories[${idx}].color=this.value"
             style="width:32px;height:32px;border:none;border-radius:6px;cursor:pointer;padding:2px;" />
           <input type="text" value="${cat.name}" placeholder="종류명 (예: 일반남성)"
-            onchange="lockerCategories[${idx}].name=this.value"
+            oninput="lockerCategories[${idx}].name=this.value"
             style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
           <button onclick="removeLockerCategory(${idx})"
             style="padding:7px 10px;background:#fff0f0;color:#c0392b;border:none;border-radius:8px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
@@ -2544,13 +2550,13 @@
           <div>
             <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">시작 번호</div>
             <input type="number" value="${cat.startNo || 1}" min="1"
-              onchange="lockerCategories[${idx}].startNo=parseInt(this.value)"
+              oninput="lockerCategories[${idx}].startNo=parseInt(this.value)||1"
               style="width:100%;box-sizing:border-box;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
           </div>
           <div>
             <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">끝 번호</div>
             <input type="number" value="${cat.endNo || 10}" min="1"
-              onchange="lockerCategories[${idx}].endNo=parseInt(this.value)"
+              oninput="lockerCategories[${idx}].endNo=parseInt(this.value)||1"
               style="width:100%;box-sizing:border-box;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
           </div>
         </div>
@@ -2561,11 +2567,13 @@
     const colors = ['#1a6fd4','#e91e63','#4caf50','#ff9800','#9c27b0','#00bcd4'];
     const color  = colors[lockerCategories.length % colors.length];
     lockerCategories.push({ id: 'cat_' + Date.now(), name: '', color, startNo: 1, endNo: 10 });
+    _lockerSettingsDirty = true;
     renderLockerCategoryList();
   }
 
   function removeLockerCategory(idx) {
     lockerCategories.splice(idx, 1);
+    _lockerSettingsDirty = true;
     renderLockerCategoryList();
   }
 
@@ -2586,6 +2594,7 @@
       };
     });
     await db.ref().update(updates);
+    _lockerSettingsDirty = false;
     showToast('✅ 설정 저장 완료!', 'success');
     switchLockerSubtab('status');
     renderLockerStatus();
