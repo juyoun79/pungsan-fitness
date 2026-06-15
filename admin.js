@@ -1456,58 +1456,263 @@
     const info = cachedMembers[phone];
     if (!info) return;
 
-    const nick = localStorage.getItem('name_' + phone) || '미설정';
+    const modal = document.getElementById('member-detail-modal');
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+
+    const nick = localStorage.getItem('name_' + phone) || '';
     const now = new Date();
     const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
     const today = getToday();
 
+    // 헤더 이름
+    document.getElementById('modal-member-name').textContent = (info.name || phone) + ' 회원';
+
+    // 좌측 기본정보 렌더링
+    const rawName = (info.name || '').replace(/\(\d{4}\)$/, '').trim();
+    document.getElementById('md-name').textContent = rawName;
+    document.getElementById('md-nick').textContent = nick ? '닉네임: ' + nick : '';
+    document.getElementById('md-phone').textContent = phone;
+
+    // 생년월일
+    const birth = info.birth || '';
+    document.getElementById('md-birth').textContent = birth
+      ? birth.slice(0,4) + '.' + birth.slice(4,6) + '.' + birth.slice(6,8)
+      : '-';
+
+    // 성별
+    const genderVal = info['body/gender'] || '';
+    document.getElementById('md-gender').textContent = genderVal === 'male' ? '남성' : genderVal === 'female' ? '여성' : '-';
+
+    // 주소
+    document.getElementById('md-address').textContent = info.address || '-';
+
+    // 프로그램 태그
+    const progWrap = document.getElementById('md-programs');
+    if (info.programs && info.programs.length > 0) {
+      progWrap.innerHTML = info.programs.map(p =>
+        `<span style="background:var(--blue-light);color:var(--blue);font-size:12px;padding:3px 8px;border-radius:8px;font-weight:600;">${p}</span>`
+      ).join('');
+    } else {
+      progWrap.innerHTML = '<span style="font-size:12px;color:var(--text-hint);">-</span>';
+    }
+
+    // 사진
+    const photoDiv = document.getElementById('md-photo');
+    if (info.photoUrl) {
+      photoDiv.innerHTML = `<img src="${info.photoUrl}" style="width:100%;height:100%;object-fit:cover;" />`;
+    } else {
+      photoDiv.innerHTML = rawName ? rawName[0] : '👤';
+      photoDiv.style.fontSize = '32px';
+    }
+
+    // 회원 메모 불러오기
+    const memoEl = document.getElementById('md-memo');
+    if (memoEl) {
+      memoEl.value = '';
+      db.ref('members/' + phone + '/memo').once('value').then(snap => {
+        if (memoEl) memoEl.value = snap.val() || '';
+      });
+    }
+
     // Firebase에서 출석/포인트 불러오기
     Promise.all([
       db.ref('users/' + phone + '/attendance').once('value'),
-      db.ref('users/' + phone + '/points').once('value')
+      db.ref('users/' + phone + '/points').once('value'),
     ]).then(([attSnap, ptsSnap]) => {
       const attendData = attSnap.val() || {};
       const attendCount = Object.keys(attendData).filter(k => k.startsWith(monthPrefix)).length;
       const todayAttend = !!attendData[today];
       const pts = ptsSnap.val() ?? localStorage.getItem('points_' + phone) ?? '0';
       localStorage.setItem('points_' + phone, String(pts));
-      _renderMemberModal(info, phone, nick, pts, attendCount, todayAttend);
+      document.getElementById('md-points').textContent = Number(pts).toLocaleString() + 'P';
+      document.getElementById('md-attend').textContent = attendCount + '일' + (todayAttend ? ' ✅' : '');
     }).catch(() => {
       const pts = localStorage.getItem('points_' + phone) || '0';
-      let attendCount = 0;
-      for (let d = 1; d <= 31; d++) {
-        if (localStorage.getItem('attend_' + phone + '_' + monthPrefix + d) === 'done') attendCount++;
-      }
-      const todayAttend = localStorage.getItem('attend_' + phone + '_' + today) === 'done';
-      _renderMemberModal(info, phone, nick, pts, attendCount, todayAttend);
+      document.getElementById('md-points').textContent = Number(pts).toLocaleString() + 'P';
+      document.getElementById('md-attend').textContent = '-';
+    });
+
+    // 수업현황 렌더링
+    _renderMdClassStatus(phone, info);
+
+    // 계약이력 렌더링
+    _renderMdContracts(phone);
+
+    // 서명기록 렌더링
+    _renderMdSigns(phone);
+  }
+
+  // 수업현황
+  function _renderMdClassStatus(phone, info) {
+    const el = document.getElementById('md-class-status');
+    if (!el) return;
+    const now = new Date();
+    const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
+    db.ref('users/' + phone + '/attendance').once('value').then(attSnap => {
+      const attendData = attSnap.val() || {};
+      const monthCount = Object.keys(attendData).filter(k => k.startsWith(monthPrefix)).length;
+      const totalCount = Object.keys(attendData).length;
+      const progs = info.programs && info.programs.length > 0
+        ? info.programs.map(p => `<span style="background:var(--blue-light);color:var(--blue);font-size:12px;padding:3px 8px;border-radius:8px;font-weight:600;">${p}</span>`).join('')
+        : '<span style="font-size:12px;color:var(--text-hint);">등록된 프로그램 없음</span>';
+      el.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center;">
+          <div style="background:var(--bg);border-radius:8px;padding:12px;">
+            <div style="font-size:20px;font-weight:700;color:var(--blue);">${monthCount}</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">이번달 출석</div>
+          </div>
+          <div style="background:var(--bg);border-radius:8px;padding:12px;">
+            <div style="font-size:20px;font-weight:700;color:var(--text);">${totalCount}</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">누적 출석</div>
+          </div>
+          <div style="background:var(--bg);border-radius:8px;padding:12px;">
+            <div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.4;">${info.programs ? info.programs.length : 0}개</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">등록 프로그램</div>
+          </div>
+        </div>
+        <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px;">${progs}</div>`;
     });
   }
 
-  function _renderMemberModal(info, phone, nick, pts, attendCount, todayAttend) {
+  // 계약이력
+  function _renderMdContracts(phone) {
+    const el = document.getElementById('md-contracts');
+    if (!el) return;
+    db.ref('contracts/' + phone).once('value').then(snap => {
+      if (!snap.exists()) {
+        el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;background:var(--card);border-radius:10px;">계약 이력이 없어요</div>';
+        return;
+      }
+      const contracts = [];
+      snap.forEach(child => contracts.push({ key: child.key, ...child.val() }));
+      // 최신순 정렬
+      contracts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-    document.getElementById('modal-member-name').textContent = info.name + ' 회원';
-    document.getElementById('modal-member-info').innerHTML = `
-      <div style="background:var(--bg);border-radius:var(--radius-sm);padding:14px;margin-bottom:14px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-          <div><div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">이름</div><div style="font-size:14px;font-weight:700;">${info.name}</div></div>
-          <div><div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">닉네임</div><div style="font-size:14px;font-weight:700;">${nick}</div></div>
-          <div><div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">전화번호</div><div style="font-size:14px;font-weight:700;">${phone}</div></div>
-          <div><div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">오늘 출석</div><div style="font-size:14px;font-weight:700;">${todayAttend ? '✅ 완료' : '❌ 미완료'}</div></div>
-          <div><div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">이번달 출석</div><div style="font-size:14px;font-weight:700;">${attendCount}일</div></div>
-          <div><div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">보유 포인트</div><div style="font-size:14px;font-weight:700;">${pts}P</div></div>
-        </div>
-        ${info.programs && info.programs.length > 0 ? `
-          <div style="margin-top:10px;">
-            <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">등록 프로그램</div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;">${info.programs.map(p => `<span style="background:var(--blue-light);color:var(--blue);font-size:12px;padding:4px 10px;border-radius:8px;font-weight:600;">${p}</span>`).join('')}</div>
-          </div>` : ''}
-      </div>
-    `;
-    document.getElementById('member-detail-modal').classList.add('active');
+      const progLabels = {
+        '헬스':'🏋️ 헬스', 'GX':'🎶 GX', 'PT':'💪 PT',
+        '기구필라테스개인':'🧘 기구필라테스 개인', '기구필라테스그룹':'👥 기구필라테스 그룹'
+      };
+
+      el.innerHTML = contracts.map((c, idx) => {
+        const programs = c.programs || {};
+        const totalAmt = Object.values(programs).reduce((s, p) => s + (p.price || 0), 0);
+        const totalPaid = Object.values(programs).reduce((s, p) => s + (p.cash||0) + (p.card||0) + (p.transfer||0), 0);
+        const totalUnpaid = totalAmt - totalPaid;
+        const extrasAmt = Object.values(c.extras || {}).reduce((s, e) => s + (e.price || 0), 0);
+        const grandTotal = totalAmt + extrasAmt;
+        const grandPaid = totalPaid + Object.values(c.extras || {}).reduce((s, e) => s + (e.cash||0) + (e.card||0) + (e.transfer||0), 0);
+        const grandUnpaid = grandTotal - grandPaid;
+
+        const progNames = Object.keys(programs).map(p => progLabels[p] || p).join(', ');
+
+        return `<div style="background:var(--card);border-radius:10px;padding:16px;border:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--text);">${c.signDate || '-'} · ${c.type === 're' ? '재등록' : '신규'}</div>
+              <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${progNames || '-'}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:13px;font-weight:700;color:var(--text);">${grandTotal.toLocaleString()}원</div>
+              ${grandUnpaid > 0 ? `<div style="font-size:11px;color:#ef4444;font-weight:700;">미수금 ${grandUnpaid.toLocaleString()}원</div>` : `<div style="font-size:11px;color:#22c55e;font-weight:600;">완납 ✓</div>`}
+            </div>
+          </div>
+          ${c.memo ? `<div style="background:var(--bg);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text-sub);margin-bottom:10px;">📌 ${c.memo}</div>` : ''}
+          ${grandUnpaid > 0 ? `
+          <button onclick="payMemberUnpaid('${phone}','${c.key}',${grandUnpaid})"
+            style="width:100%;padding:8px;background:#fff7ed;color:#ea580c;border:1.5px solid #fed7aa;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+            💳 미수금 ${grandUnpaid.toLocaleString()}원 결제처리
+          </button>` : ''}
+        </div>`;
+      }).join('');
+    });
+  }
+
+  // 미수금 결제처리
+  function payMemberUnpaid(phone, contractKey, unpaidAmt) {
+    showConfirm(`미수금 ${unpaidAmt.toLocaleString()}원을 결제처리 할까요?`, () => {
+      db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
+        if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+        const c = snap.val();
+        const programs = c.programs || {};
+        // 각 프로그램의 미수금을 현금으로 처리
+        const updates = {};
+        Object.entries(programs).forEach(([prog, p]) => {
+          const progUnpaid = (p.price || 0) - (p.cash||0) - (p.card||0) - (p.transfer||0);
+          if (progUnpaid > 0) {
+            updates['contracts/' + phone + '/' + contractKey + '/programs/' + prog + '/cash'] =
+              (p.cash || 0) + progUnpaid;
+          }
+        });
+        const extras = c.extras || {};
+        Object.entries(extras).forEach(([ext, e]) => {
+          const extUnpaid = (e.price || 0) - (e.cash||0) - (e.card||0) - (e.transfer||0);
+          if (extUnpaid > 0) {
+            updates['contracts/' + phone + '/' + contractKey + '/extras/' + ext + '/cash'] =
+              (e.cash || 0) + extUnpaid;
+          }
+        });
+        db.ref().update(updates).then(() => {
+          showToast('✅ 미수금 결제처리 완료!', 'success');
+          _renderMdContracts(phone);
+        });
+      });
+    });
+  }
+
+  // 회원 메모 저장
+  function saveMemberMemo() {
+    const phone = currentMemberPhone;
+    if (!phone) return;
+    const memo = document.getElementById('md-memo')?.value.trim() || '';
+    db.ref('members/' + phone + '/memo').set(memo).then(() => {
+      showToast('✅ 메모 저장 완료!', 'success');
+    });
+  }
+
+  // 서명기록 (관리자용 - trainerId 기반)
+  function _renderMdSigns(phone) {
+    const el = document.getElementById('md-signs');
+    if (!el) return;
+    // 해당 회원을 담당하는 강사 찾기
+    db.ref('trainers').once('value').then(trainersSnap => {
+      let trainerId = null;
+      trainersSnap.forEach(t => {
+        if (t.child('trainees/' + phone).exists()) trainerId = t.key;
+      });
+      if (!trainerId) {
+        el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">배정된 강사가 없거나 서명기록이 없어요</div>';
+        return;
+      }
+      db.ref('trainers/' + trainerId + '/trainees/' + phone + '/signs').once('value').then(signsSnap => {
+        if (!signsSnap.exists()) {
+          el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">서명 기록이 없어요</div>';
+          return;
+        }
+        const signs = [];
+        signsSnap.forEach(child => signs.push({ key: child.key, ...child.val() }));
+        signs.sort((a, b) => {
+          const toNum = d => { if (!d) return 0; const p = d.split('-'); return parseInt(p[0])*10000+parseInt(p[1]||0)*100+parseInt(p[2]||0); };
+          return toNum(b.date) - toNum(a.date);
+        });
+        el.innerHTML = `
+          <div style="font-size:12px;color:var(--text-sub);margin-bottom:10px;">총 ${signs.length}회</div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            ${signs.slice(0, 10).map((s, i) => `
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg);border-radius:6px;">
+                <span style="font-size:12px;font-weight:600;color:var(--text);">${signs.length - i}회차</span>
+                <span style="font-size:12px;color:var(--text-sub);">${s.date || '-'}</span>
+              </div>`).join('')}
+            ${signs.length > 10 ? `<div style="text-align:center;font-size:12px;color:var(--text-hint);padding:6px;">외 ${signs.length - 10}건</div>` : ''}
+          </div>`;
+      });
+    });
   }
 
   function closeMemberModal() {
-    document.getElementById('member-detail-modal').classList.remove('active');
+    const modal = document.getElementById('member-detail-modal');
+    if (modal) modal.style.display = 'none';
+    document.body.style.overflow = '';
     currentMemberPhone = null;
   }
 

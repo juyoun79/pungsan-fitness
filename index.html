@@ -2832,13 +2832,7 @@
               </div>
             </div>
 
-            <!-- 메모 -->
-            <div style="margin-bottom:16px;">
-              <label class="field-label">메모</label>
-              <textarea id="ct-memo" placeholder="특이사항, 할인 내용 등"
-                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:70px;margin-top:4px;"
-                onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"></textarea>
-            </div>
+
 
             <div style="display:flex;gap:10px;">
               <button style="flex:1;padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;" onclick="ctPrev(2)">← 이전</button>
@@ -4633,20 +4627,107 @@
   </div>
 
   <!-- 회원 상세 모달 -->
-  <div class="modal-overlay" id="member-detail-modal">
-    <div class="modal-sheet" style="overflow-y:auto;">
-      <div class="modal-title">
-        <span id="modal-member-name">회원 상세</span>
-        <button class="modal-close" onclick="closeMemberModal()">×</button>
+  <!-- 회원 상세 전체화면 -->
+  <div id="member-detail-modal" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:1000;overflow-y:auto;">
+    <!-- 헤더 -->
+    <div style="position:sticky;top:0;z-index:10;background:var(--card);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button onclick="closeMemberModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text);padding:0;line-height:1;">←</button>
+        <span id="modal-member-name" style="font-size:16px;font-weight:700;color:var(--text);">회원 상세</span>
+      </div>
+      <button onclick="closeMemberModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-hint);">×</button>
+    </div>
+
+    <!-- PC 2열 레이아웃 -->
+    <div style="display:grid;grid-template-columns:280px 1fr;gap:0;max-width:1100px;margin:0 auto;min-height:calc(100vh - 57px);">
+
+      <!-- 좌측: 기본정보 -->
+      <div style="border-right:1px solid var(--border);padding:24px 20px;display:flex;flex-direction:column;gap:16px;">
+
+        <!-- 사진 -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+          <div id="md-photo" style="width:90px;height:90px;border-radius:50%;border:2px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:32px;overflow:hidden;">👤</div>
+          <div id="md-name" style="font-size:16px;font-weight:700;color:var(--text);"></div>
+          <div id="md-nick" style="font-size:12px;color:var(--text-sub);"></div>
+        </div>
+
+        <!-- 기본정보 -->
+        <div style="background:var(--bg);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;">
+          <div style="display:grid;grid-template-columns:80px 1fr;gap:6px;align-items:center;">
+            <span style="font-size:11px;color:var(--text-hint);">연락처</span>
+            <span id="md-phone" style="font-size:13px;font-weight:600;color:var(--text);"></span>
+          </div>
+          <div style="display:grid;grid-template-columns:80px 1fr;gap:6px;align-items:center;">
+            <span style="font-size:11px;color:var(--text-hint);">생년월일</span>
+            <span id="md-birth" style="font-size:13px;font-weight:600;color:var(--text);"></span>
+          </div>
+          <div style="display:grid;grid-template-columns:80px 1fr;gap:6px;align-items:center;">
+            <span style="font-size:11px;color:var(--text-hint);">성별</span>
+            <span id="md-gender" style="font-size:13px;font-weight:600;color:var(--text);"></span>
+          </div>
+          <div style="display:grid;grid-template-columns:80px 1fr;gap:6px;align-items:center;">
+            <span style="font-size:11px;color:var(--text-hint);">주소</span>
+            <span id="md-address" style="font-size:13px;font-weight:600;color:var(--text);"></span>
+          </div>
+          <div style="display:grid;grid-template-columns:80px 1fr;gap:6px;align-items:center;">
+            <span style="font-size:11px;color:var(--text-hint);">포인트</span>
+            <span id="md-points" style="font-size:13px;font-weight:600;color:var(--blue);"></span>
+          </div>
+          <div style="display:grid;grid-template-columns:80px 1fr;gap:6px;align-items:center;">
+            <span style="font-size:11px;color:var(--text-hint);">이번달 출석</span>
+            <span id="md-attend" style="font-size:13px;font-weight:600;color:var(--text);"></span>
+          </div>
+          <div>
+            <span style="font-size:11px;color:var(--text-hint);">프로그램</span>
+            <div id="md-programs" style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;"></div>
+          </div>
+        </div>
+
+        <!-- 회원 메모 -->
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:6px;">📌 회원 메모</div>
+          <textarea id="md-memo" placeholder="특이사항, 메모 등 자유롭게 입력하세요."
+            style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:80px;line-height:1.5;background:var(--card);"
+            onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)';saveMemberMemo()"></textarea>
+          <button onclick="saveMemberMemo()" style="width:100%;margin-top:6px;padding:7px;background:var(--blue);color:white;border:none;border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 메모 저장</button>
+        </div>
+
+        <!-- 액션 버튼 -->
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:auto;">
+          <button onclick="openEditMemberModal()" style="width:100%;padding:9px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 회원정보 수정</button>
+          <button onclick="editMemberPw()" style="width:100%;padding:9px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔑 비밀번호 초기화</button>
+          <button onclick="editMemberPoint()" style="width:100%;padding:9px;background:#f0fdf4;color:#16a34a;border:1.5px solid #86efac;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💰 포인트 수정</button>
+          <button onclick="deleteMember()" style="width:100%;padding:9px;background:#fff0f0;color:#c0392b;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑️ 회원 삭제</button>
+        </div>
       </div>
 
-      <div id="modal-member-info"></div>
+      <!-- 우측: 수업현황 + 계약이력 + 서명기록 -->
+      <div style="padding:24px 24px;display:flex;flex-direction:column;gap:24px;overflow-y:auto;">
 
-      <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px;">
-        <button class="btn-primary" onclick="openEditMemberModal()">✏️ 회원정보 수정</button>
-        <button class="btn-primary" onclick="editMemberPw()">🔑 비밀번호 초기화</button>
-        <button class="btn-sm btn-green-sm" style="width:100%;padding:12px;" onclick="editMemberPoint()">💰 포인트 수정</button>
-        <button class="btn-sm btn-red-sm" style="width:100%;padding:12px;" onclick="deleteMember()">🗑️ 회원 삭제</button>
+        <!-- 수업현황 -->
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;">📊 수업현황</div>
+          <div id="md-class-status" style="background:var(--card);border-radius:10px;padding:16px;">
+            <div style="text-align:center;color:var(--text-hint);font-size:13px;">불러오는 중...</div>
+          </div>
+        </div>
+
+        <!-- 계약이력 -->
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;">📝 계약이력</div>
+          <div id="md-contracts" style="display:flex;flex-direction:column;gap:10px;">
+            <div style="text-align:center;color:var(--text-hint);font-size:13px;">불러오는 중...</div>
+          </div>
+        </div>
+
+        <!-- 서명기록 -->
+        <div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;">✍️ 서명기록</div>
+          <div id="md-signs" style="background:var(--card);border-radius:10px;padding:16px;">
+            <div style="text-align:center;color:var(--text-hint);font-size:13px;">불러오는 중...</div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
