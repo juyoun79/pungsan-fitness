@@ -1488,16 +1488,18 @@
     // 닉네임: localStorage 우선 표시 후 Firebase에서 최신값 업데이트
     const nickEl = document.getElementById('md-nick');
     const localNick = localStorage.getItem('name_' + phone) || '';
-    if (nickEl) nickEl.textContent = localNick ? '닉네임: ' + localNick : '';
+    if (nickEl) nickEl.textContent = localNick ? '닉네임: ' + localNick : '닉네임: 미설정';
     db.ref('users/' + phone + '/nickname').once('value').then(nickSnap => {
       const firebaseNick = nickSnap.val() || '';
       if (firebaseNick) {
         localStorage.setItem('name_' + phone, firebaseNick);
         if (nickEl) nickEl.textContent = '닉네임: ' + firebaseNick;
-      } else if (!localNick) {
-        if (nickEl) nickEl.textContent = '';
+      } else {
+        if (nickEl) nickEl.textContent = '닉네임: 미설정';
       }
-    }).catch(() => {});
+    }).catch(() => {
+      if (nickEl) nickEl.textContent = localNick ? '닉네임: ' + localNick : '닉네임: 미설정';
+    });
     document.getElementById('md-phone').textContent = phone;
 
     // 생년월일
