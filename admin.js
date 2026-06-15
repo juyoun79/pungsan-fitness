@@ -2584,19 +2584,27 @@
         showToast('번호 범위를 확인해주세요.', 'error'); return;
       }
     }
-    const updates = {};
-    // 기존 설정 삭제 후 새로 저장
-    await db.ref('locker_settings/categories').remove();
-    lockerCategories.forEach(cat => {
-      updates['locker_settings/categories/' + cat.id] = {
-        name: cat.name, color: cat.color,
-        startNo: cat.startNo, endNo: cat.endNo
-      };
-    });
-    await db.ref().update(updates);
-    showToast('✅ 설정 저장 완료!', 'success');
-    switchLockerSubtab('status');
-    renderLockerStatus();
+    try {
+      // 기존 전체 삭제 후 순번 기반 키로 저장 (안전한 방식)
+      await db.ref('locker_settings/categories').remove();
+      for (let i = 0; i < lockerCategories.length; i++) {
+        const cat = lockerCategories[i];
+        await db.ref('locker_settings/categories/cat' + i).set({
+          name: cat.name,
+          color: cat.color || '#1a6fd4',
+          startNo: Number(cat.startNo),
+          endNo: Number(cat.endNo)
+        });
+        // 로컬 id도 업데이트
+        lockerCategories[i].id = 'cat' + i;
+      }
+      showToast('✅ 설정 저장 완료!', 'success');
+      switchLockerSubtab('status');
+      renderLockerStatus();
+    } catch(e) {
+      showToast('저장에 실패했어요. 다시 시도해주세요.', 'error');
+      console.error(e);
+    }
   }
 
   // ── 계약서 웹캠/사진 관련 ──
