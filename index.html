@@ -2423,6 +2423,7 @@
       <div class="admin-tab-row">
         <button class="admin-tab active" onclick="switchAdminTab('tab-dashboard')">📊 현황</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-members')">👥 회원</button>
+        <button class="admin-tab" onclick="switchAdminTab('tab-locker')">🔑 락카</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-register')">📝 계약서</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-trainer-admin')">👨‍🏫 강사관리</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-community-admin')">💬 커뮤니티</button>
@@ -2453,6 +2454,7 @@
         <div style="width:180px;flex-shrink:0;background:var(--card);border-right:1px solid var(--border);padding:12px 8px;overflow-y:auto;">
           <button class="admin-side-tab active" onclick="switchAdminTab('tab-dashboard')">📊 현황</button>
           <button class="admin-side-tab" onclick="switchAdminTab('tab-members')">👥 회원</button>
+          <button class="admin-side-tab" onclick="switchAdminTab('tab-locker')">🔑 락카</button>
           <button class="admin-side-tab" onclick="switchAdminTab('tab-register')">📝 계약서</button>
           <button class="admin-side-tab" onclick="switchAdminTab('tab-trainer-admin')">👨‍🏫 강사관리</button>
           <button class="admin-side-tab" onclick="switchAdminTab('tab-community-admin')">💬 커뮤니티</button>
@@ -2645,6 +2647,40 @@
 
       <!-- ── 회원등록 탭 ── -->
       <!-- ── 전자계약서 탭 ── -->
+      <!-- ── 락카 탭 ── -->
+      <div id="tab-locker" class="admin-section">
+        <div style="padding:16px;max-width:900px;margin:0 auto;">
+
+          <!-- 설정 / 현황 서브탭 -->
+          <div style="display:flex;gap:8px;margin-bottom:16px;">
+            <button id="locker-subtab-status" onclick="switchLockerSubtab('status')"
+              style="padding:8px 18px;border-radius:20px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📊 현황</button>
+            <button id="locker-subtab-settings" onclick="switchLockerSubtab('settings')"
+              style="padding:8px 18px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">⚙️ 설정</button>
+          </div>
+
+          <!-- 현황 뷰 -->
+          <div id="locker-view-status">
+            <div id="locker-status-wrap">
+              <div style="text-align:center;padding:40px;color:var(--text-hint);font-size:14px;">불러오는 중...</div>
+            </div>
+          </div>
+
+          <!-- 설정 뷰 -->
+          <div id="locker-view-settings" style="display:none;">
+            <div style="background:var(--card);border-radius:12px;padding:16px;margin-bottom:12px;">
+              <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;">락카 종류 설정</div>
+              <div id="locker-category-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;"></div>
+              <button onclick="addLockerCategory()"
+                style="width:100%;padding:10px;border:1.5px dashed var(--border);border-radius:10px;background:transparent;color:var(--text-sub);font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 종류 추가</button>
+            </div>
+            <button onclick="saveLockerSettings()"
+              style="width:100%;padding:12px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 설정 저장</button>
+          </div>
+
+        </div>
+      </div>
+
       <div id="tab-register" class="admin-section">
         <div class="admin-card" style="padding:0;overflow:hidden;">
 

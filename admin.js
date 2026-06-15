@@ -40,6 +40,7 @@
     if (tabId === 'tab-challenge-admin') loadAdminChallenges();
     if (tabId === 'coupon-auto') loadAutoConditions();
     if (tabId === 'tab-equipment-admin') loadAdminEquipmentList();
+    if (tabId === 'tab-locker') loadLockerTab();
     if (tabId !== 'tab-trainer-admin') {
       if (_monthlyReportListener && _monthlyReportTrainerId) {
         db.ref('trainers/' + _monthlyReportTrainerId + '/trainees').off('value', _monthlyReportListener);
@@ -2235,6 +2236,323 @@
         }
       });
     });
+  }
+
+  // ── 락카 관리 ──
+  let lockerCategories = []; // [{id, name, color, startNo, endNo}]
+  let lockerData = {};       // {번호: {phone, name, startDate, endDate, lockPassword, status, categoryId}}
+
+  async function loadLockerTab() {
+    switchLockerSubtab('status');
+    await loadLockerData();
+    renderLockerStatus();
+    renderLockerCategoryList();
+  }
+
+  async function loadLockerData() {
+    const [catSnap, dataSnap] = await Promise.all([
+      db.ref('locker_settings/categories').once('value'),
+      db.ref('lockers').once('value')
+    ]);
+    lockerCategories = [];
+    catSnap.forEach(c => lockerCategories.push({ id: c.key, ...c.val() }));
+    lockerData = dataSnap.val() || {};
+  }
+
+  function switchLockerSubtab(tab) {
+    const statusBtn  = document.getElementById('locker-subtab-status');
+    const settingsBtn= document.getElementById('locker-subtab-settings');
+    const statusView = document.getElementById('locker-view-status');
+    const settingsView = document.getElementById('locker-view-settings');
+    if (tab === 'status') {
+      statusView.style.display = 'block';
+      settingsView.style.display = 'none';
+      statusBtn.style.background = 'var(--blue)';
+      statusBtn.style.color = 'white';
+      statusBtn.style.border = 'none';
+      settingsBtn.style.background = 'var(--card)';
+      settingsBtn.style.color = 'var(--text)';
+      settingsBtn.style.border = '1.5px solid var(--border)';
+    } else {
+      statusView.style.display = 'none';
+      settingsView.style.display = 'block';
+      settingsBtn.style.background = 'var(--blue)';
+      settingsBtn.style.color = 'white';
+      settingsBtn.style.border = 'none';
+      statusBtn.style.background = 'var(--card)';
+      statusBtn.style.color = 'var(--text)';
+      statusBtn.style.border = '1.5px solid var(--border)';
+    }
+  }
+
+  function renderLockerStatus() {
+    const wrap = document.getElementById('locker-status-wrap');
+    if (!wrap) return;
+    if (lockerCategories.length === 0) {
+      wrap.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-hint);font-size:14px;">설정 탭에서 락카 종류를 먼저 등록해주세요.</div>';
+      return;
+    }
+    const today = getToday();
+    const soon  = new Date(); soon.setDate(soon.getDate() + 7);
+    const soonStr = soon.toISOString().slice(0,10).replace(/-/g,'');
+
+    wrap.innerHTML = lockerCategories.map(cat => {
+      const nos = [];
+      for (let n = cat.startNo; n <= cat.endNo; n++) nos.push(n);
+      const grid = nos.map(no => {
+        const key = cat.id + '_' + no;
+        const d = lockerData[key];
+        let bg = '#e8f5e9', border = '#81c784', emoji = '';
+        let tooltip = '빈칸';
+        if (d) {
+          const endD = d.endDate || '';
+          if (d.status === 'disabled') { bg='#f5f5f5'; border='#9e9e9e'; emoji='⚫'; tooltip='사용불가'; }
+          else if (d.status === 'expired') { bg='#ffebee'; border='#e57373'; emoji='🔴'; tooltip='기간만료'; }
+          else if (endD && endD < today) { bg='#ffebee'; border='#e57373'; emoji='🔴'; tooltip='기간만료'; }
+          else if (endD && endD <= soonStr.slice(0,4)+'-'+soonStr.slice(4,6)+'-'+soonStr.slice(6,8)) {
+            bg='#fff8e1'; border='#ffb74d'; emoji='🟡'; tooltip='만료임박';
+          }
+          else { bg='#e3f2fd'; border='#64b5f6'; emoji='🔵'; tooltip='사용중'; }
+        }
+        return `<div onclick="openLockerDetail('${cat.id}','${no}')"
+          title="${tooltip}"
+          style="width:52px;height:52px;border-radius:8px;background:${bg};border:1.5px solid ${border};display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:11px;font-weight:600;color:var(--text);gap:2px;">
+          ${emoji ? `<span style="font-size:14px;">${emoji}</span>` : ''}
+          <span>${no}</span>
+        </div>`;
+      }).join('');
+
+      return `<div style="background:var(--card);border-radius:12px;padding:16px;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <span style="width:12px;height:12px;border-radius:50%;background:${cat.color || '#1a6fd4'};display:inline-block;"></span>
+          <span style="font-size:14px;font-weight:700;color:var(--text);">${cat.name}</span>
+          <span style="font-size:12px;color:var(--text-hint);">(${cat.startNo}~${cat.endNo}번)</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">${grid}</div>
+        <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;">
+          <span style="font-size:11px;color:var(--text-hint);">🟢 빈칸</span>
+          <span style="font-size:11px;color:var(--text-hint);">🔵 사용중</span>
+          <span style="font-size:11px;color:var(--text-hint);">🟡 만료임박</span>
+          <span style="font-size:11px;color:var(--text-hint);">🔴 기간만료</span>
+          <span style="font-size:11px;color:var(--text-hint);">⚫ 사용불가</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function openLockerDetail(catId, no) {
+    const key = catId + '_' + no;
+    const d = lockerData[key];
+    const cat = lockerCategories.find(c => c.id === catId);
+    const catName = cat ? cat.name : '';
+    const isEmpty = !d || (!d.phone && d.status !== 'disabled');
+
+    const html = isEmpty ? `
+      <div style="padding:4px 0;">
+        <div style="font-size:15px;font-weight:700;margin-bottom:14px;">🔑 ${catName} ${no}번 - 빈칸</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">회원 연락처</div>
+            <input id="ld-phone" type="text" placeholder="01000000000"
+              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">시작일</div>
+              <input id="ld-start" type="date"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">종료일</div>
+              <input id="ld-end" type="date"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+            </div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">자물쇠 번호</div>
+            <input id="ld-lock" type="text" placeholder="자물쇠 번호"
+              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:16px;">
+          <button onclick="assignLocker('${catId}','${no}')"
+            style="flex:1;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✅ 배정</button>
+          <button onclick="setLockerDisabled('${catId}','${no}')"
+            style="flex:1;padding:11px;background:#f5f5f5;color:#666;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">⚫ 사용불가</button>
+        </div>
+      </div>` : `
+      <div style="padding:4px 0;">
+        <div style="font-size:15px;font-weight:700;margin-bottom:14px;">🔑 ${catName} ${no}번 ${d.status === 'expired' ? '🔴' : d.status === 'disabled' ? '⚫' : '🔵'}</div>
+        <div style="background:var(--bg);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--text-hint);">회원명</span><span style="font-size:13px;font-weight:600;">${d.name || '-'}</span></div>
+          <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--text-hint);">연락처</span><span style="font-size:13px;font-weight:600;">${d.phone || '-'}</span></div>
+          <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--text-hint);">기간</span><span style="font-size:13px;font-weight:600;">${d.startDate||'-'} ~ ${d.endDate||'-'}</span></div>
+          <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--text-hint);">자물쇠</span><span style="font-size:13px;font-weight:600;">${d.lockPassword || '-'}</span></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          ${d.status === 'expired' || (d.endDate && d.endDate < getToday())
+            ? `<button onclick="collectLocker('${catId}','${no}')" style="flex:1;padding:11px;background:#fff3e0;color:#e65100;border:1.5px solid #ffb74d;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✅ 회수 완료</button>`
+            : ''}
+          <button onclick="releaseLocker('${catId}','${no}')"
+            style="flex:1;padding:11px;background:#fff0f0;color:#c0392b;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑️ 해제</button>
+          ${d.status === 'disabled'
+            ? `<button onclick="enableLocker('${catId}','${no}')" style="flex:1;padding:11px;background:#e8f5e9;color:#2e7d32;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🟢 사용가능</button>`
+            : ''}
+        </div>
+      </div>`;
+
+    showLockerDetail(html);
+  }
+
+  async function assignLocker(catId, no) {
+    const phone = document.getElementById('ld-phone')?.value.trim();
+    const start = document.getElementById('ld-start')?.value;
+    const end   = document.getElementById('ld-end')?.value;
+    const lock  = document.getElementById('ld-lock')?.value.trim();
+    if (!phone) { showToast('연락처를 입력해주세요.', 'error'); return; }
+
+    const memberSnap = await db.ref('members/' + phone).once('value');
+    const memberName = memberSnap.exists() ? (memberSnap.val().name || phone) : phone;
+
+    const key = catId + '_' + no;
+    await db.ref('lockers/' + key).set({
+      phone, name: memberName, startDate: start, endDate: end,
+      lockPassword: lock, status: 'active', categoryId: catId, lockerNo: no
+    });
+    // 회원 데이터에도 락카 번호 저장
+    await db.ref('members/' + phone + '/lockerKey').set(key);
+    lockerData[key] = { phone, name: memberName, startDate: start, endDate: end, lockPassword: lock, status: 'active', categoryId: catId, lockerNo: no };
+    closeLockerDetail();
+    renderLockerStatus();
+    showToast('✅ 락카 배정 완료!', 'success');
+  }
+
+  async function collectLocker(catId, no) {
+    const key = catId + '_' + no;
+    await db.ref('lockers/' + key + '/status').set('collected');
+    await db.ref('lockers/' + key).remove();
+    if (lockerData[key]?.phone) await db.ref('members/' + lockerData[key].phone + '/lockerKey').remove();
+    delete lockerData[key];
+    closeLockerDetail();
+    renderLockerStatus();
+    showToast('✅ 회수 완료! 락카가 비워졌어요.', 'success');
+  }
+
+  async function releaseLocker(catId, no) {
+    const key = catId + '_' + no;
+    showConfirm('이 락카를 해제할까요?', async () => {
+      if (lockerData[key]?.phone) await db.ref('members/' + lockerData[key].phone + '/lockerKey').remove();
+      await db.ref('lockers/' + key).remove();
+      delete lockerData[key];
+      renderLockerStatus();
+      showToast('락카가 해제됐어요.', 'success');
+    });
+  }
+
+  async function setLockerDisabled(catId, no) {
+    const key = catId + '_' + no;
+    await db.ref('lockers/' + key).set({ status: 'disabled', categoryId: catId, lockerNo: no });
+    lockerData[key] = { status: 'disabled', categoryId: catId, lockerNo: no };
+    closeLockerDetail();
+    renderLockerStatus();
+    showToast('사용불가 처리됐어요.', 'success');
+  }
+
+  async function enableLocker(catId, no) {
+    const key = catId + '_' + no;
+    await db.ref('lockers/' + key).remove();
+    delete lockerData[key];
+    closeLockerDetail();
+    renderLockerStatus();
+    showToast('사용가능 처리됐어요.', 'success');
+  }
+
+  function showLockerDetail(html) {
+    const existing = document.getElementById('locker-detail-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'locker-detail-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;';
+    modal.innerHTML = `<div style="background:var(--card);border-radius:16px;padding:24px;width:100%;max-width:360px;max-height:80vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:4px;"><button onclick="closeLockerDetail()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-hint);">×</button></div>
+      ${html}</div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeLockerDetail(); });
+  }
+
+  function closeLockerDetail() {
+    const modal = document.getElementById('locker-detail-modal');
+    if (modal) modal.remove();
+  }
+
+  // 락카 설정
+  function renderLockerCategoryList() {
+    const wrap = document.getElementById('locker-category-list');
+    if (!wrap) return;
+    if (lockerCategories.length === 0) {
+      wrap.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">종류를 추가해주세요</div>';
+      return;
+    }
+    wrap.innerHTML = lockerCategories.map((cat, idx) => `
+      <div style="background:var(--bg);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="color" value="${cat.color || '#1a6fd4'}" onchange="lockerCategories[${idx}].color=this.value"
+            style="width:32px;height:32px;border:none;border-radius:6px;cursor:pointer;padding:2px;" />
+          <input type="text" value="${cat.name}" placeholder="종류명 (예: 일반남성)"
+            onchange="lockerCategories[${idx}].name=this.value"
+            style="flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+          <button onclick="removeLockerCategory(${idx})"
+            style="padding:7px 10px;background:#fff0f0;color:#c0392b;border:none;border-radius:8px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div>
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">시작 번호</div>
+            <input type="number" value="${cat.startNo || 1}" min="1"
+              onchange="lockerCategories[${idx}].startNo=parseInt(this.value)"
+              style="width:100%;box-sizing:border-box;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">끝 번호</div>
+            <input type="number" value="${cat.endNo || 10}" min="1"
+              onchange="lockerCategories[${idx}].endNo=parseInt(this.value)"
+              style="width:100%;box-sizing:border-box;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  function addLockerCategory() {
+    const colors = ['#1a6fd4','#e91e63','#4caf50','#ff9800','#9c27b0','#00bcd4'];
+    const color  = colors[lockerCategories.length % colors.length];
+    lockerCategories.push({ id: 'cat_' + Date.now(), name: '', color, startNo: 1, endNo: 10 });
+    renderLockerCategoryList();
+  }
+
+  function removeLockerCategory(idx) {
+    lockerCategories.splice(idx, 1);
+    renderLockerCategoryList();
+  }
+
+  async function saveLockerSettings() {
+    for (const cat of lockerCategories) {
+      if (!cat.name) { showToast('종류명을 모두 입력해주세요.', 'error'); return; }
+      if (!cat.startNo || !cat.endNo || cat.startNo > cat.endNo) {
+        showToast('번호 범위를 확인해주세요.', 'error'); return;
+      }
+    }
+    const updates = {};
+    // 기존 설정 삭제 후 새로 저장
+    await db.ref('locker_settings/categories').remove();
+    lockerCategories.forEach(cat => {
+      updates['locker_settings/categories/' + cat.id] = {
+        name: cat.name, color: cat.color,
+        startNo: cat.startNo, endNo: cat.endNo
+      };
+    });
+    await db.ref().update(updates);
+    showToast('✅ 설정 저장 완료!', 'success');
+    switchLockerSubtab('status');
+    renderLockerStatus();
   }
 
   // ── 계약서 웹캠/사진 관련 ──
