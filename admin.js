@@ -24,7 +24,15 @@
     // 클릭된 버튼 활성화 (모바일 탭 or 사이드탭)
     if (event && event.target) event.target.classList.add('active');
     if (tabId === 'tab-dashboard') loadAdminDashboard();
-    if (tabId === 'tab-members') loadMemberList();
+    if (tabId === 'tab-members') {
+      // 회원 상세가 열려있으면 목록으로 복귀
+      const detailView = document.getElementById('member-detail-view');
+      const listView   = document.getElementById('member-list-view');
+      if (detailView) detailView.style.display = 'none';
+      if (listView)   listView.style.display   = 'block';
+      currentMemberPhone = null;
+      loadMemberList();
+    }
     if (tabId === 'tab-notice') loadNoticeListAdmin();
     if (tabId === 'tab-community-admin') loadAdminCommunityFeed('전체');
     if (tabId === 'tab-trainer-admin') loadAdminTrainerSchedule();
@@ -1456,8 +1464,15 @@
     const info = cachedMembers[phone];
     if (!info) return;
 
-    const modal = document.getElementById('member-detail-modal');
-    modal.style.display = 'block';
+    const listView   = document.getElementById('member-list-view');
+    const detailView = document.getElementById('member-detail-view');
+    if (listView)   listView.style.display   = 'none';
+    if (detailView) detailView.style.display = 'block';
+    // PC모드일 때 스크롤 맨 위로
+    const pcBody = document.getElementById('admin-pc-body');
+    const mobileBody = document.getElementById('admin-mobile-body');
+    if (pcBody && pcBody.contains(detailView)) pcBody.scrollTop = 0;
+    if (mobileBody) mobileBody.scrollTop = 0;
 
     const now = new Date();
     const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
@@ -1721,8 +1736,10 @@
   }
 
   function closeMemberModal() {
-    const modal = document.getElementById('member-detail-modal');
-    if (modal) modal.style.display = 'none';
+    const listView   = document.getElementById('member-list-view');
+    const detailView = document.getElementById('member-detail-view');
+    if (detailView) detailView.style.display = 'none';
+    if (listView)   listView.style.display   = 'block';
     currentMemberPhone = null;
   }
 
