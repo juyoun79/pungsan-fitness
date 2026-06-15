@@ -1553,6 +1553,8 @@
       localStorage.setItem('points_' + phone, String(pts));
       document.getElementById('md-points').textContent = Number(pts).toLocaleString() + 'P';
       document.getElementById('md-attend').textContent = attendCount + '일' + (todayAttend ? ' ✅' : '');
+      const totalAttendEl = document.getElementById('md-attend-total');
+      if (totalAttendEl) totalAttendEl.textContent = Object.keys(attSnap.val() || {}).length + '일';
     }).catch(() => {
       const pts = localStorage.getItem('points_' + phone) || '0';
       document.getElementById('md-points').textContent = Number(pts).toLocaleString() + 'P';
@@ -1573,31 +1575,31 @@
   function _renderMdClassStatus(phone, info) {
     const el = document.getElementById('md-class-status');
     if (!el) return;
-    const now = new Date();
-    const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
-    db.ref('users/' + phone + '/attendance').once('value').then(attSnap => {
-      const attendData = attSnap.val() || {};
-      const monthCount = Object.keys(attendData).filter(k => k.startsWith(monthPrefix)).length;
-      const totalCount = Object.keys(attendData).length;
-      const progs = info.programs && info.programs.length > 0
-        ? info.programs.map(p => `<span style="background:var(--blue-light);color:var(--blue);font-size:12px;padding:3px 8px;border-radius:8px;font-weight:600;">${p}</span>`).join('')
-        : '<span style="font-size:12px;color:var(--text-hint);">등록된 프로그램 없음</span>';
+    // PT/필라테스 잔여횟수 표시
+    db.ref('trainers').once('value').then(trainersSnap => {
+      let trainerId = null;
+      let traineeInfo = null;
+      trainersSnap.forEach(t => {
+        const td = t.child('trainees/' + phone);
+        if (td.exists()) { trainerId = t.key; traineeInfo = td.val(); }
+      });
+      const remain = traineeInfo ? (traineeInfo.remain || 0) : '-';
+      const total  = traineeInfo ? (traineeInfo.total  || 0) : '-';
+      const type   = traineeInfo ? (traineeInfo.type   || '-') : '-';
       el.innerHTML = `
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center;">
-          <div style="background:var(--bg);border-radius:8px;padding:12px;">
-            <div style="font-size:20px;font-weight:700;color:var(--blue);">${monthCount}</div>
-            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">이번달 출석</div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+          <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:20px;font-weight:700;color:var(--blue);">${remain}</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:3px;">잔여 횟수</div>
           </div>
-          <div style="background:var(--bg);border-radius:8px;padding:12px;">
-            <div style="font-size:20px;font-weight:700;color:var(--text);">${totalCount}</div>
-            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">누적 출석</div>
-          </div>
-          <div style="background:var(--bg);border-radius:8px;padding:12px;">
-            <div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.4;">${info.programs ? info.programs.length : 0}개</div>
-            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">등록 프로그램</div>
+          <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:20px;font-weight:700;color:var(--text);">${total}</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:3px;">전체 횟수</div>
           </div>
         </div>
-        <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px;">${progs}</div>`;
+        ${traineeInfo ? `<div style="margin-top:8px;font-size:12px;color:var(--text-sub);text-align:center;">${type}</div>` : '<div style="margin-top:8px;font-size:12px;color:var(--text-hint);text-align:center;">배정된 강사가 없어요</div>'}`;
+    }).catch(() => {
+      el.innerHTML = '<div style="text-align:center;color:var(--text-hint);font-size:13px;padding:8px 0;">불러오기 실패</div>';
     });
   }
 
