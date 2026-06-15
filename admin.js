@@ -1458,19 +1458,22 @@
 
     const modal = document.getElementById('member-detail-modal');
     // 관리자 탭이 보이도록 헤더 높이만큼 top 설정
-    const pcHeader = document.getElementById('admin-header-pc');
-    const mobileHeader = document.getElementById('admin-header-mobile');
+    // PC모드: admin-pc-layout이 display:block이면 PC모드 (헤더 약 60px)
+    // 모바일모드: admin-header-mobile 표시 (헤더+탭 약 140px)
+    const pcLayout = document.getElementById('admin-pc-layout');
+    const isPcMode = pcLayout && pcLayout.style.display === 'block';
     let headerH = 0;
-    if (pcHeader && pcHeader.offsetHeight > 0) {
-      headerH = pcHeader.offsetHeight;
-    } else if (mobileHeader && mobileHeader.offsetHeight > 0) {
-      headerH = mobileHeader.offsetHeight;
+    if (isPcMode) {
+      const pcHeader = document.getElementById('admin-header-pc');
+      headerH = (pcHeader && pcHeader.offsetHeight > 0) ? pcHeader.offsetHeight : 60;
+    } else {
+      const mobileHeader = document.getElementById('admin-header-mobile');
+      headerH = (mobileHeader && mobileHeader.offsetHeight > 0) ? mobileHeader.offsetHeight : 140;
     }
     modal.style.top = headerH + 'px';
     modal.style.display = 'block';
     document.body.style.overflow = 'hidden';
 
-    const nick = localStorage.getItem('name_' + phone) || '';
     const now = new Date();
     const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
     const today = getToday();
@@ -1481,7 +1484,20 @@
     // 좌측 기본정보 렌더링
     const rawName = (info.name || '').replace(/\(\d{4}\)$/, '').trim();
     document.getElementById('md-name').textContent = rawName;
-    document.getElementById('md-nick').textContent = nick ? '닉네임: ' + nick : '';
+
+    // 닉네임: localStorage 우선 표시 후 Firebase에서 최신값 업데이트
+    const nickEl = document.getElementById('md-nick');
+    const localNick = localStorage.getItem('name_' + phone) || '';
+    if (nickEl) nickEl.textContent = localNick ? '닉네임: ' + localNick : '';
+    db.ref('users/' + phone + '/nickname').once('value').then(nickSnap => {
+      const firebaseNick = nickSnap.val() || '';
+      if (firebaseNick) {
+        localStorage.setItem('name_' + phone, firebaseNick);
+        if (nickEl) nickEl.textContent = '닉네임: ' + firebaseNick;
+      } else if (!localNick) {
+        if (nickEl) nickEl.textContent = '';
+      }
+    }).catch(() => {});
     document.getElementById('md-phone').textContent = phone;
 
     // 생년월일
