@@ -2351,21 +2351,40 @@
     const grid = nos.map(no => {
       const key = cat.id + '_' + no;
       const d = lockerData[key];
-      let bg = '#e8f5e9', border = '#81c784', emoji = '', tooltip = '빈칸';
+      let bg = '#e8f5e9', border = '#81c784', statusEmoji = '', tooltip = '빈칸';
+      let nameText = '', ddayText = '', ddayColor = 'var(--text-hint)';
       if (d) {
         const endD = d.endDate || '';
-        if (d.status === 'disabled')      { bg='#f5f5f5'; border='#9e9e9e'; emoji='⚫'; tooltip='사용불가'; }
-        else if (d.status === 'expired' || (endD && endD < today))
-                                           { bg='#ffebee'; border='#e57373'; emoji='🔴'; tooltip='기간만료'; }
-        else if (endD && endD <= soonDate) { bg='#fff8e1'; border='#ffb74d'; emoji='🟡'; tooltip='만료임박'; }
-        else                               { bg='#e3f2fd'; border='#64b5f6'; emoji='🔵'; tooltip='사용중'; }
+        if (d.status === 'disabled')      { bg='#f5f5f5'; border='#9e9e9e'; statusEmoji='⚫'; tooltip='사용불가'; }
+        else if (d.status === 'expired' || (endD && endD < today)) {
+          bg='#ffebee'; border='#e57373'; statusEmoji='🔴'; tooltip='기간만료';
+        } else if (endD && endD <= soonDate) {
+          bg='#fff8e1'; border='#ffb74d'; statusEmoji='🟡'; tooltip='만료임박';
+        } else {
+          bg='#e3f2fd'; border='#64b5f6'; statusEmoji='🔵'; tooltip='사용중';
+        }
+        // 이름 (최대 4글자)
+        const rawName = (d.name || '').replace(/\(\d{4}\)$/, '').trim();
+        nameText = rawName.length > 4 ? rawName.slice(0,4) : rawName;
+        // D-day 계산
+        if (endD) {
+          const diff = Math.ceil((new Date(endD) - new Date(today)) / (1000*60*60*24));
+          if (diff < 0) { ddayText = '만료'; ddayColor = '#e57373'; }
+          else if (diff === 0) { ddayText = 'D-day'; ddayColor = '#ff9800'; }
+          else if (diff <= 7) { ddayText = 'D-' + diff; ddayColor = '#ff9800'; }
+          else { ddayText = endD.slice(5); ddayColor = 'var(--text-hint)'; }
+        }
       }
       return `<div onclick="openLockerDetail('${cat.id}','${no}')" title="${tooltip}"
-        style="width:52px;height:52px;border-radius:8px;background:${bg};border:1.5px solid ${border};
+        style="width:68px;height:76px;border-radius:10px;background:${bg};border:1.5px solid ${border};
         display:flex;flex-direction:column;align-items:center;justify-content:center;
-        cursor:pointer;font-size:11px;font-weight:600;color:var(--text);gap:2px;">
-        ${emoji ? `<span style="font-size:13px;">${emoji}</span>` : ''}
-        <span>${no}</span>
+        cursor:pointer;color:var(--text);gap:1px;padding:4px;box-sizing:border-box;">
+        <span style="font-size:11px;font-weight:700;color:var(--text-sub);">${no}번</span>
+        ${nameText
+          ? `<span style="font-size:12px;font-weight:700;color:var(--text);line-height:1.2;">${nameText}</span>
+             <span style="font-size:10px;color:${ddayColor};font-weight:600;">${ddayText}</span>`
+          : `<span style="font-size:10px;color:var(--text-hint);">${statusEmoji || '빈칸'}</span>`
+        }
       </div>`;
     }).join('');
 
@@ -2393,10 +2412,18 @@
       <div style="padding:4px 0;">
         <div style="font-size:15px;font-weight:700;margin-bottom:14px;">🔑 ${catName} ${no}번 - 빈칸</div>
         <div style="display:flex;flex-direction:column;gap:10px;">
-          <div>
-            <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">회원 연락처</div>
-            <input id="ld-phone" type="text" placeholder="01000000000"
-              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">회원 연락처</div>
+              <input id="ld-phone" type="text" placeholder="01000000000"
+                oninput="autoFillLockerName(this.value)"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">이름</div>
+              <input id="ld-name" type="text" placeholder="이름"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+            </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
             <div>
@@ -2446,15 +2473,35 @@
     showLockerDetail(html);
   }
 
+  // 연락처 입력 시 이름 자동 불러오기
+  let _autoFillTimer = null;
+  function autoFillLockerName(phone) {
+    clearTimeout(_autoFillTimer);
+    if (phone.length < 10) return;
+    _autoFillTimer = setTimeout(async () => {
+      const snap = await db.ref('members/' + phone).once('value');
+      if (snap.exists()) {
+        const name = snap.val().name || '';
+        const nameEl = document.getElementById('ld-name');
+        if (nameEl && name) nameEl.value = name.replace(/\(\d{4}\)$/, '').trim();
+      }
+    }, 500);
+  }
+
   async function assignLocker(catId, no) {
     const phone = document.getElementById('ld-phone')?.value.trim();
+    const inputName = document.getElementById('ld-name')?.value.trim();
     const start = document.getElementById('ld-start')?.value;
     const end   = document.getElementById('ld-end')?.value;
     const lock  = document.getElementById('ld-lock')?.value.trim();
     if (!phone) { showToast('연락처를 입력해주세요.', 'error'); return; }
 
-    const memberSnap = await db.ref('members/' + phone).once('value');
-    const memberName = memberSnap.exists() ? (memberSnap.val().name || phone) : phone;
+    // 입력된 이름 우선, 없으면 Firebase에서 불러오기
+    let memberName = inputName;
+    if (!memberName) {
+      const memberSnap = await db.ref('members/' + phone).once('value');
+      memberName = memberSnap.exists() ? (memberSnap.val().name || phone) : phone;
+    }
 
     const key = catId + '_' + no;
     await db.ref('lockers/' + key).set({
