@@ -2715,23 +2715,23 @@
             </div>
 
             <!-- 신규/재등록 -->
-            <div style="margin-bottom:14px;">
+            <div style="margin-bottom:18px;">
               <label class="field-label">회원 구분 *</label>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
                 <button type="button" id="ct-type-new" onclick="selectCtType('new')"
-                  style="padding:9px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+                  style="padding:11px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
                   🆕 신규
                 </button>
                 <button type="button" id="ct-type-re" onclick="selectCtType('re')"
-                  style="padding:9px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+                  style="padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
                   🔄 재등록
                 </button>
               </div>
               <input type="hidden" id="ct-type" value="new" />
             </div>
 
-            <!-- 이름 + 성별 + 생년월일 + 연락처 (PC: 4열) -->
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+            <!-- 1행: 성명 + 성별 -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
               <div>
                 <label class="field-label">성명 *</label>
                 <input type="text" id="ct-name" placeholder="홍길동"
@@ -2742,16 +2742,20 @@
                 <label class="field-label">성별 *</label>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
                   <button type="button" id="ct-gender-male" onclick="selectCtGender('male')"
-                    style="padding:8px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-                    👨 남
+                    style="padding:9px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+                    남
                   </button>
                   <button type="button" id="ct-gender-female" onclick="selectCtGender('female')"
-                    style="padding:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-                    👩 여
+                    style="padding:9px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+                    여
                   </button>
                 </div>
                 <input type="hidden" id="ct-gender" value="male" />
               </div>
+            </div>
+
+            <!-- 2행: 생년월일 + 연락처 -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
               <div>
                 <label class="field-label">생년월일 *</label>
                 <input type="text" inputmode="numeric" id="ct-birth" placeholder="19900101" maxlength="8"
@@ -2760,7 +2764,7 @@
                 <div class="hint-text">예) 19900101</div>
               </div>
               <div>
-                <label class="field-label">연락처 * (아이디)</label>
+                <label class="field-label">연락처 * <span style="font-weight:400;color:var(--text-hint);">(로그인 아이디)</span></label>
                 <input type="tel" id="ct-phone" placeholder="01012345678" maxlength="11"
                   style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
                   onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
@@ -2769,16 +2773,16 @@
             </div>
 
             <!-- 주소 -->
-            <div style="margin-bottom:14px;">
+            <div style="margin-bottom:12px;">
               <label class="field-label">주소</label>
               <input type="text" id="ct-address" placeholder="경기도 고양시 일산동구..."
                 style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;"
                 onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
             </div>
 
-            <!-- 비고 -->
+            <!-- 메모 -->
             <div style="margin-bottom:14px;">
-              <label class="field-label">비고</label>
+              <label class="field-label">메모</label>
               <textarea id="ct-memo" placeholder="특이사항, 메모 등 자유롭게 입력하세요."
                 style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;resize:vertical;min-height:70px;line-height:1.5;"
                 onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"></textarea>
