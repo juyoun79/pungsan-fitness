@@ -2389,9 +2389,9 @@
     }).join('');
 
     wrap.innerHTML = `
-      <div style="background:var(--card);border-radius:12px;padding:16px;">
+      <div style="background:var(--card);border-radius:12px;padding:12px 8px;">
         <!-- 색깔 안내 - 상단 -->
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;padding:8px 10px;background:var(--bg);border-radius:8px;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding:6px 8px;background:var(--bg);border-radius:8px;">
           <span style="font-size:11px;color:var(--text-hint);">🟢 빈칸</span>
           <span style="font-size:11px;color:var(--text-hint);">🔵 사용중</span>
           <span style="font-size:11px;color:var(--text-hint);">🟡 만료임박</span>
