@@ -45,7 +45,7 @@
     if (tabId === 'tab-coupon') loadMemberSelectOptions();
     if (tabId === 'tab-challenge-admin') loadAdminChallenges();
     if (tabId === 'coupon-auto') loadAutoConditions();
-    if (tabId === 'tab-equipment-admin') loadAdminEquipmentList();
+    if (tabId === 'tab-settings') switchSettingsSubtab('pw');
     if (tabId === 'tab-locker') loadLockerTab();
     if (tabId !== 'tab-trainer-admin') {
       if (_monthlyReportListener && _monthlyReportTrainerId) {
@@ -2857,6 +2857,7 @@
       if (ctSelectedProgs.length === 0) { showToast('프로그램을 1개 이상 선택해주세요.', 'error'); return; }
     }
     ctGoStep(step + 1);
+    if (step === 2) loadCtTerms();
   }
 
   function ctPrev(step) {
@@ -3308,7 +3309,119 @@
     summary.style.color = '#1a6fd4';
   }
 
-  // 약관 동의 체크
+  // ── 설정탭 서브탭 전환 ──
+  function switchSettingsSubtab(tab) {
+    const tabs = ['pw', 'equipment', 'terms'];
+    tabs.forEach(t => {
+      const btn  = document.getElementById('settings-subtab-' + t);
+      const view = document.getElementById('settings-view-' + t);
+      const isActive = t === tab;
+      if (btn) {
+        btn.style.background = isActive ? 'var(--blue)' : 'var(--card)';
+        btn.style.color      = isActive ? 'white'       : 'var(--text)';
+        btn.style.border     = isActive ? 'none'        : '1.5px solid var(--border)';
+      }
+      if (view) view.style.display = isActive ? '' : 'none';
+    });
+    if (tab === 'equipment') loadAdminEquipmentList();
+    if (tab === 'terms')     loadTerms();
+  }
+  window.switchSettingsSubtab = switchSettingsSubtab;
+
+  // ── 약관 기본값 (하드코딩 폴백) ──
+  const DEFAULT_TERMS = `풍산휘트니스 이용약관
+
+제 1조 개요 및 동의
+본 센터의 명칭은 풍산휘트니스라 합니다. 본 계약은 '센터'와 '회원'의 레슨계약을 위해 필요한 제반 사항을 제공함에 있어 계약 당사자인 '센터'와 '회원'의 역할과 의무에 관한 법률관계를 규정하여 상호 원활한 이용을 함에 목적이 있습니다. 신청인 본인은 당사가 제공하는 서비스를 제공받고자 본 신청서에 기재된 개인정보 수집 및 활용에 동의합니다.
+
+제 2조 레슨규정
+1. '센터'와 '회원'과 협의하여 정한 레슨시간을 준수해야 하며 부득이하게 취소, 시간변경을 원할 경우 최소 수강시간으로부터 1일전까지 센터(강사포함)에게 통보해 주어야 합니다.
+2. 예약된 레슨시간에 연락을 주지 않고 불참하거나 당일 취소 시에는 레슨횟수가 자동으로 차감됩니다.
+3. '회원'은 레슨수강 시 '강사'의 수업내용을 녹취 혹은 녹화를 할 수 없으며 이를 어겼을 경우 남은 수업 수의 환불처리 없이 자동 계약 해지될 수 있습니다.
+4. 그룹 수업은 2인 이상 참여시 가능하고 당일 시간 변경은 강사와 합의 후 가능합니다.
+
+제 3조 계약사항 및 계약기간
+1. 계약기간, 계약횟수, 계약금액은 위 표에 기재하며, 위 표에 기재한 내용을 준수합니다.
+2. 그룹레슨 계약기간 - 레슨 개시일로부터 10회당 레슨은 1개월 안에 모두 소진해야 하며, 그룹레슨의 경우 별도의 기간연장은 불가능합니다.
+3. 개인레슨 계약기간 - 레슨 개시일로부터 10회당 레슨은 2개월 안에 모두 소진해야 하며 계약기간 내에 소진하지 못한 잔여 수업은 자동 소멸됩니다.
+4. 담당강사가 레슨을 계속 진행할 수 없는 경우(퇴사, 지점이동 등) 동일한 자격을 갖춘 강사의 변경이 있을 수 있습니다.
+5. 당사의 기타 불가피한 사유로 인해 수업시간 및 예약 방식이 변경이 있을 수 있습니다.
+6. 이벤트 기간에 적용된 서비스는 기간 안에 모두 소진하지 못할 시 다음 달로 이월할 수 없습니다.
+
+제 4조 환불 및 양도규정
+1. 공정거래 위원회 고시에 따라 서비스업으로 분류되며 회원님의 개인사정으로 인한 귀책 사유로 환불 요청 시 센터가 인정하는 환불 사유의 경우(수업을 진행할 수 없는 사유가 공식적인 서류로 입증이 가능한 경우)에 한해서만 고시 규정에 따라 환불이 가능합니다.
+▶ 계약 시 교부한 계약서를 지참 후 지점 방문하여 환불을 신청하여야 합니다.
+▶ 환불시 등록(결제) 금액의 10%의 계약해지 위약금과 월 정상금액 기준(10만원), 일 이용료(3,300원)으로 일할 계산한 공제금액 발생합니다.
+▶ 진행된 날짜 및 횟수는 프로모션 등 기타 할인을 적용하지 않은 금액으로 산정하여 금액 차감 후 환불 처리됩니다.
+▶ 카드로 결제한 경우 관련법령에 따라 부가세 및 카드 수수료를 사업자가 수취할 수 없어 공제대상 금액을 선 지불 후 카드 전액 결제 취소가 가능합니다.
+▶ 서비스로 제공된 수업은 환불금액에 포함되지 않으며, 계약시 제공받은 사은품 시중금액 공제 후 환불처리 됩니다.
+2. 1회 정규 레슨비 - 개인PT 1회: 7.7만원 / 그룹PT 1회: 2.2만원 / 5:1그룹필: 3.3만원 / 1:1필: 7.7만원
+3. 양도규정
+▶ 회원권은 양도 가능하며 양도비(헬스·GX 1만원 / 레슨 3만원)가 발생합니다.
+▶ 양도받은 회원권은 환불 및 재양도가 불가합니다.
+
+제 5조 이용안내 및 기타사항
+1. 이용시간(GX시간포함)은 센터의 운영사정에 따라 사전고지(1달)후 변경될 수 있습니다.
+평일 06시~24시 / 토요일 07시~21시 / 일요일·공휴일 10시~18시 / 휴관일 2·4째주 일요일, 명절연휴
+2. 탈의실 공용락카는 무료대여로 개인물건 분실 시 책임을 지지 않습니다.
+3. 공용락카 키 분실 시 교체비용 2만원을 보상지불 해야 합니다.
+4. 개인락카 사용기간 종료 1주일 후 통보 없이 폐기처분합니다.
+5. 휴회는 3개월(1회/10일) 6개월(2회/15일) 12개월(3회/20일) 신청가능하며 지난 날짜에는 소급적용 되지 않습니다.
+6. 헬스장 내에서는 실내전용 운동화를 착용해야 하며 소음, 음식물 반입(음료류 가능) 및 타인에게 불쾌감을 주는 행동을 할 시 즉각 환불 없이 퇴관 조치에 동의합니다.
+7. 센터 내 모든 시설에서 본인 부주의로 인한 사고의(인적, 물적) 책임은 본인에게 있음을 명시합니다.`;
+
+  // ── 약관 불러오기 (설정탭 편집창) ──
+  async function loadTerms() {
+    const editor = document.getElementById('admin-terms-editor');
+    if (!editor) return;
+    editor.value = '불러오는 중...';
+    try {
+      const snap = await db.ref('settings/terms').once('value');
+      editor.value = snap.exists() ? snap.val() : DEFAULT_TERMS;
+    } catch(e) {
+      editor.value = DEFAULT_TERMS;
+    }
+  }
+  window.loadTerms = loadTerms;
+
+  // ── 약관 기본값 불러오기 ──
+  function loadDefaultTerms() {
+    const editor = document.getElementById('admin-terms-editor');
+    if (editor) editor.value = DEFAULT_TERMS;
+  }
+  window.loadDefaultTerms = loadDefaultTerms;
+
+  // ── 약관 저장 ──
+  async function saveTerms() {
+    const editor = document.getElementById('admin-terms-editor');
+    if (!editor) return;
+    const content = editor.value.trim();
+    if (!content) { showToast('약관 내용을 입력해주세요.', 'error'); return; }
+    try {
+      await db.ref('settings/terms').set(content);
+      showToast('약관이 저장됐어요.', 'success');
+    } catch(e) {
+      showToast('저장 실패: ' + e.message, 'error');
+    }
+  }
+  window.saveTerms = saveTerms;
+
+  // ── 계약서 3단계 약관 표시 (Firebase 우선, 폴백: 하드코딩) ──
+  async function loadCtTerms() {
+    const wrap = document.getElementById('ct-terms-content');
+    if (!wrap) return;
+    wrap.textContent = '불러오는 중...';
+    try {
+      const snap = await db.ref('settings/terms').once('value');
+      const text = snap.exists() ? snap.val() : DEFAULT_TERMS;
+      wrap.style.whiteSpace = 'pre-wrap';
+      wrap.textContent = text;
+    } catch(e) {
+      wrap.style.whiteSpace = 'pre-wrap';
+      wrap.textContent = DEFAULT_TERMS;
+    }
+  }
+  window.loadCtTerms = loadCtTerms;
   function checkCtAgree() {
     const agreed = document.getElementById('ct-agree').checked;
     const nextBtn = document.getElementById('ct-agree-next');

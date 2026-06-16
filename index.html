@@ -2431,7 +2431,6 @@
         <button class="admin-tab" onclick="switchAdminTab('tab-coupon')">🎫 쿠폰</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-challenge-admin')">🏆 챌린지</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-settings')">⚙️ 설정</button>
-        <button class="admin-tab" onclick="switchAdminTab('tab-equipment-admin')">🏋️ 기구</button>
         <button class="admin-tab" onclick="openKiosk()">⌨️ 키오스크</button>
       </div>
     </div>
@@ -2462,7 +2461,6 @@
           <button class="admin-side-tab" onclick="switchAdminTab('tab-coupon')">🎫 쿠폰</button>
           <button class="admin-side-tab" onclick="switchAdminTab('tab-challenge-admin')">🏆 챌린지</button>
           <button class="admin-side-tab" onclick="switchAdminTab('tab-settings')">⚙️ 설정</button>
-          <button class="admin-side-tab" onclick="switchAdminTab('tab-equipment-admin')">🏋️ 기구</button>
           <button class="admin-side-tab" onclick="openKiosk()">⌨️ 키오스크</button>
         </div>
         <div id="admin-pc-body" style="flex:1;overflow-y:auto;padding:0;"></div>
@@ -3053,49 +3051,10 @@
             <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;">📜 이용약관 확인</div>
 
             <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;max-height:420px;overflow-y:auto;font-size:13px;line-height:1.7;color:var(--text);margin-bottom:16px;">
-
-              <div style="font-size:15px;font-weight:700;text-align:center;margin-bottom:16px;">풍산휘트니스 이용약관</div>
-
-              <div style="font-weight:700;color:#1a6fd4;margin-bottom:6px;">제 1조 개요 및 동의</div>
-              <p style="margin-bottom:14px;">본 센터의 명칭은 풍산휘트니스라 합니다. 본 계약은 '센터'와 '회원'의 레슨계약을 위해 필요한 제반 사항을 제공함에 있어 계약 당사자인 '센터'와 '회원'의 역할과 의무에 관한 법률관계를 규정하여 상호 원활한 이용을 함에 목적이 있습니다. 신청인 본인은 당사가 제공하는 서비스를 제공받고자 본 신청서에 기재된 개인정보 수집 및 활용에 동의합니다.</p>
-
-              <div style="font-weight:700;color:#1a6fd4;margin-bottom:6px;">제 2조 레슨규정</div>
-              <p style="margin-bottom:4px;">1. '센터'와 '회원'과 협의하여 정한 레슨시간을 준수해야 하며 부득이하게 취소, 시간변경을 원할 경우 최소 수강시간으로부터 1일전까지 센터(강사포함)에게 통보해 주어야 합니다.</p>
-              <p style="margin-bottom:4px;">2. 예약된 레슨시간에 연락을 주지 않고 불참하거나 당일 취소 시에는 레슨횟수가 자동으로 차감됩니다.</p>
-              <p style="margin-bottom:4px;">3. '회원'은 레슨수강 시 '강사'의 수업내용을 녹취 혹은 녹화를 할 수 없으며 이를 어겼을 경우 남은 수업 수의 환불처리 없이 자동 계약 해지될 수 있습니다.</p>
-              <p style="margin-bottom:14px;">4. 그룹 수업은 2인 이상 참여시 가능하고 당일 시간 변경은 강사와 합의 후 가능합니다.</p>
-
-              <div style="font-weight:700;color:#1a6fd4;margin-bottom:6px;">제 3조 계약사항 및 계약기간</div>
-              <p style="margin-bottom:4px;">1. 계약기간, 계약횟수, 계약금액은 위 표에 기재하며, 위 표에 기재한 내용을 준수합니다.</p>
-              <p style="margin-bottom:4px;">2. 그룹레슨 계약기간 - 레슨 개시일로부터 10회당 레슨은 1개월 안에 모두 소진해야 하며, 그룹레슨의 경우 별도의 기간연장은 불가능합니다.</p>
-              <p style="margin-bottom:4px;">3. 개인레슨 계약기간 - 레슨 개시일로부터 10회당 레슨은 2개월 안에 모두 소진해야 하며 계약기간 내에 소진하지 못한 잔여 수업은 자동 소멸됩니다.</p>
-              <p style="margin-bottom:4px;">4. 담당강사가 레슨을 계속 진행할 수 없는 경우(퇴사, 지점이동 등) 동일한 자격을 갖춘 강사의 변경이 있을 수 있습니다.</p>
-              <p style="margin-bottom:4px;">5. 당사의 기타 불가피한 사유로 인해 수업시간 및 예약 방식이 변경이 있을 수 있습니다.</p>
-              <p style="margin-bottom:14px;">6. 이벤트 기간에 적용된 서비스는 기간 안에 모두 소진하지 못할 시 다음 달로 이월할 수 없습니다.</p>
-
-              <div style="font-weight:700;color:#1a6fd4;margin-bottom:6px;">제 4조 환불 및 양도규정</div>
-              <p style="margin-bottom:4px;">1. 공정거래 위원회 고시에 따라 서비스업으로 분류되며 회원님의 개인사정으로 인한 귀책 사유로 환불 요청 시 센터가 인정하는 환불 사유의 경우(수업을 진행할 수 없는 사유가 공식적인 서류로 입증이 가능한 경우)에 한해서만 고시 규정에 따라 환불이 가능합니다. (이사, 병가, 전출 등)</p>
-              <p style="margin-bottom:4px;">▶ 계약 시 교부한 계약서를 지참 후 지점 방문하여 환불을 신청하여야 합니다.</p>
-              <p style="margin-bottom:4px;">▶ 환불시 등록(결제) 금액의 10%의 계약해지 위약금과 월 정상금액 기준(10만원), 일 이용료(3,300원)으로 일할 계산한 공제금액 발생합니다. 예시) 헬스 12개월 등록 후, 2개월 이용시 위약금10%+20만원 차감</p>
-              <p style="margin-bottom:4px;">▶ 진행된 날짜 및 횟수는 프로모션 등 기타 할인을 적용하지 않은 금액으로 산정하여 금액 차감 후 환불 처리됩니다.</p>
-              <p style="margin-bottom:4px;">▶ 카드로 결제한 경우 관련법령에 따라 부가세 및 카드 수수료를 사업자가 수취할 수 없어 공제대상 금액을 선 지불 후 카드 전액 결제 취소가 가능합니다.</p>
-              <p style="margin-bottom:4px;">▶ 서비스로 제공된 수업은 환불금액에 포함되지 않으며, 계약시 제공받은 사은품(헬스장 무료 이용, 할인 상품, 이벤트 상품 등) 시중금액 공제 후 환불처리 됩니다.</p>
-              <p style="margin-bottom:4px;">2. 1회 정규 레슨비 - 개인PT 1회: 7.7만원 / 그룹PT 1회: 2.2만원 / 5:1그룹필: 3.3만원 / 1:1필: 7.7만원</p>
-              <p style="margin-bottom:4px;">3. 양도규정</p>
-              <p style="margin-bottom:4px;">▶ 회원권은 양도 가능하며 양도비(헬스·GX 1만원 / 레슨 3만원)가 발생합니다.</p>
-              <p style="margin-bottom:14px;">▶ 양도받은 회원권은 환불 및 재양도가 불가합니다.</p>
-
-              <div style="font-weight:700;color:#1a6fd4;margin-bottom:6px;">제 5조 이용안내 및 기타사항</div>
-              <p style="margin-bottom:4px;">1. 이용시간(GX시간포함)은 센터의 운영사정에 따라 사전고지(1달)후 변경될 수 있습니다.<br>평일 06시~24시 / 토요일 07시~21시 / 일요일·공휴일 10시~18시 / 휴관일 2·4째주 일요일, 명절연휴</p>
-              <p style="margin-bottom:4px;">2. 탈의실 공용락카는 무료대여로 개인물건 분실 시 책임을 지지 않습니다.</p>
-              <p style="margin-bottom:4px;">3. 공용락카 키 분실 시 교체비용 2만원을 보상지불 해야 합니다.</p>
-              <p style="margin-bottom:4px;">4. 개인락카 사용기간 종료 1주일 후 통보 없이 폐기처분합니다.</p>
-              <p style="margin-bottom:4px;">5. 휴회는 3개월(1회/10일) 6개월(2회/15일) 12개월(3회/20일) 신청가능하며 지난 날짜에는 소급적용 되지 않습니다. 휴회 기간 중 개인락카는 반납해야하며 미 반납 시 계속사용으로 간주합니다.</p>
-              <p style="margin-bottom:4px;">6. 헬스장 내에서는 실내전용 운동화를 착용해야 하며 소음, 음식물 반입(음료류 가능) 및 타인에게 불쾌감을 주는 행동을 할 시 즉각 환불 없이 퇴관 조치에 동의합니다.</p>
-              <p style="margin-bottom:4px;">7. 센터 내 모든 시설에서 본인 부주의로 인한 사고의(인적, 물적) 책임은 본인에게 있음을 명시합니다.</p>
+              <div id="ct-terms-content" style="white-space:pre-wrap;">불러오는 중...</div>
             </div>
 
-            <!-- 동의 체크 -->
+                        <!-- 동의 체크 -->
             <label style="display:flex;align-items:center;gap:10px;padding:14px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:var(--radius-sm);cursor:pointer;margin-bottom:16px;">
               <input type="checkbox" id="ct-agree" style="accent-color:#16a34a;width:18px;height:18px;" onchange="checkCtAgree()" />
               <span style="font-size:14px;font-weight:600;color:#15803d;">위 이용약관을 모두 읽었으며 동의합니다.</span>
@@ -3881,37 +3840,77 @@
       </div>
 
       <div id="tab-settings" class="admin-section">
-        <div class="admin-card">
-          <div class="admin-card-title">🔐 관리자 비밀번호 변경</div>
-          <div class="field-wrap" style="margin-bottom:12px;">
-            <label class="field-label">현재 비밀번호</label>
-            <input type="password" id="admin-cur-pw" placeholder="현재 비밀번호"
-              style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;"
-              onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
-          </div>
-          <div class="field-wrap" style="margin-bottom:16px;">
-            <label class="field-label">새 비밀번호</label>
-            <input type="password" id="admin-new-pw" placeholder="새 비밀번호 (4자리 이상)"
-              style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;"
-              onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
-          </div>
-          <button class="btn-primary" onclick="changeAdminPw()">비밀번호 변경</button>
+
+        <!-- 서브탭 버튼 -->
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+          <button id="settings-subtab-pw" onclick="switchSettingsSubtab('pw')"
+            style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--blue);color:white;border:none;">
+            🔐 비밀번호
+          </button>
+          <button id="settings-subtab-equipment" onclick="switchSettingsSubtab('equipment')"
+            style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);border:1.5px solid var(--border);">
+            🏋️ 기구 관리
+          </button>
+          <button id="settings-subtab-terms" onclick="switchSettingsSubtab('terms')"
+            style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);border:1.5px solid var(--border);">
+            📜 이용약관
+          </button>
         </div>
+
+        <!-- 서브탭: 비밀번호 -->
+        <div id="settings-view-pw">
+          <div class="admin-card">
+            <div class="admin-card-title">🔐 관리자 비밀번호 변경</div>
+            <div class="field-wrap" style="margin-bottom:12px;">
+              <label class="field-label">현재 비밀번호</label>
+              <input type="password" id="admin-cur-pw" placeholder="현재 비밀번호"
+                style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+            </div>
+            <div class="field-wrap" style="margin-bottom:16px;">
+              <label class="field-label">새 비밀번호</label>
+              <input type="password" id="admin-new-pw" placeholder="새 비밀번호 (4자리 이상)"
+                style="width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
+            </div>
+            <button class="btn-primary" onclick="changeAdminPw()">비밀번호 변경</button>
+          </div>
+        </div>
+
+        <!-- 서브탭: 기구 관리 -->
+        <div id="settings-view-equipment" style="display:none;">
+          <div class="admin-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+              <div class="admin-card-title" style="margin:0;">🏋️ 기구 목록</div>
+              <button onclick="openAddEquipmentModal()" style="background:var(--blue);color:white;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 기구 추가</button>
+              <button onclick="syncEquipmentToFirebase()" style="background:#059669;color:white;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔄 DB 동기화</button>
+            </div>
+            <div id="admin-equipment-list" style="max-width:700px;margin:0 auto;">
+              <div style="text-align:center;padding:30px;color:var(--text-hint);font-size:14px;">불러오는 중...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 서브탭: 이용약관 -->
+        <div id="settings-view-terms" style="display:none;">
+          <div class="admin-card">
+            <div class="admin-card-title">📜 이용약관 수정</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;">수정 후 저장하면 계약서 약관에 즉시 반영돼요.</div>
+            <textarea id="admin-terms-editor"
+              style="width:100%;box-sizing:border-box;min-height:400px;padding:12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:vertical;line-height:1.7;"
+              placeholder="약관 내용을 입력하세요..."
+              onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"></textarea>
+            <div style="display:flex;gap:8px;margin-top:10px;">
+              <button onclick="loadDefaultTerms()" style="flex:1;padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">기본값 불러오기</button>
+              <button onclick="saveTerms()" class="btn-primary" style="flex:2;padding:10px;font-size:13px;">저장</button>
+            </div>
+          </div>
+        </div>
+
       </div>
 
-      <!-- 기구관리 섹션 -->
-      <div id="tab-equipment-admin" class="admin-section">
-        <div class="admin-card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-            <div class="admin-card-title" style="margin:0;">🏋️ 기구 목록</div>
-            <button onclick="openAddEquipmentModal()" style="background:var(--blue);color:white;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 기구 추가</button>
-            <button onclick="syncEquipmentToFirebase()" style="background:#059669;color:white;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔄 DB 동기화</button>
-          </div>
-          <div id="admin-equipment-list" style="max-width:700px;margin:0 auto;">
-            <div style="text-align:center;padding:30px;color:var(--text-hint);font-size:14px;">불러오는 중...</div>
-          </div>
-        </div>
-      </div>
+      <!-- 기구관리 섹션 (탭바에서 제거, 설정탭 내부로 이동됨) -->
+      <div id="tab-equipment-admin" class="admin-section" style="display:none !important;"></div>
 
     </div>
   </div>
