@@ -2865,16 +2865,26 @@
             <!-- 부가서비스 -->
             <div style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:16px;">
               <div style="background:var(--bg);padding:12px 14px;font-size:13px;font-weight:700;color:var(--text);">🎁 부가 서비스</div>
-              <div style="padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div style="padding:12px 14px;">
 
-                <!-- 운동복 -->
-                <div>
-                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <!-- 운동복 + 락카 체크행 나란히 -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px;">
+                  <!-- 운동복 체크 -->
+                  <div style="display:flex;align-items:center;gap:8px;">
                     <input type="checkbox" id="ct-cloth-check" onchange="toggleCtExtra('cloth')" style="width:17px;height:17px;accent-color:var(--blue);cursor:pointer;">
                     <label for="ct-cloth-check" style="font-size:13px;font-weight:600;cursor:pointer;">👕 운동복</label>
                     <span id="ct-cloth-summary" style="margin-left:auto;font-size:11px;color:var(--text-sub);">미선택</span>
                   </div>
-                  <div id="ct-cloth-detail" style="display:none;padding:10px;background:var(--bg);border-radius:var(--radius-sm);">
+                  <!-- 락카 체크 -->
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <input type="checkbox" id="ct-locker-check" onchange="toggleCtExtra('locker')" style="width:17px;height:17px;accent-color:var(--blue);cursor:pointer;">
+                    <label for="ct-locker-check" style="font-size:13px;font-weight:600;cursor:pointer;">🔑 개인 락카</label>
+                    <span id="ct-locker-summary" style="margin-left:auto;font-size:11px;color:var(--text-sub);">미선택</span>
+                  </div>
+                </div>
+
+                <!-- 운동복 detail (전체 너비) -->
+                <div id="ct-cloth-detail" style="display:none;padding:10px;background:var(--bg);border-radius:var(--radius-sm);margin-top:8px;">
                     <!-- 기간 + 이용요금 -->
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
                       <div>
@@ -2915,18 +2925,10 @@
                       <span style="font-size:11px;color:var(--text-sub);">결제금액 (자동합산)</span>
                       <span id="ct-cloth-paid-display" style="font-size:13px;font-weight:700;color:#1a6fd4;">0원</span>
                     </div>
-                  </div>
                 </div>
 
-                <!-- 개인 락카 -->
-                <div>
-                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                    <input type="checkbox" id="ct-locker-check" onchange="toggleCtExtra('locker')" style="width:17px;height:17px;accent-color:var(--blue);cursor:pointer;">
-                    <label for="ct-locker-check" style="font-size:13px;font-weight:600;cursor:pointer;">🔑 개인 락카</label>
-                    <span id="ct-locker-summary" style="margin-left:auto;font-size:11px;color:var(--text-sub);">미선택</span>
-                  </div>
-                  <div id="ct-locker-detail" style="display:none;padding:10px;background:var(--bg);border-radius:var(--radius-sm);">
-                    <!-- 카테고리 선택 + 번호 -->
+                <!-- 락카 detail (전체 너비) -->
+                <div id="ct-locker-detail" style="display:none;padding:10px;background:var(--bg);border-radius:var(--radius-sm);margin-top:8px;">
                     <div style="margin-bottom:10px;">
                       <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">락카 종류 선택</div>
                       <select id="ct-locker-cat" onchange="loadCtLockerGrid()"
@@ -2991,8 +2993,7 @@
                       <span style="font-size:11px;color:var(--text-sub);">결제금액 (자동합산)</span>
                       <span id="ct-locker-paid-display" style="font-size:13px;font-weight:700;color:#1a6fd4;">0원</span>
                     </div>
-                  </div>
-                </div>
+                </div><!-- /ct-locker-detail -->
 
               </div>
             </div>
