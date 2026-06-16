@@ -3745,76 +3745,56 @@
         isNew ? name + ' 회원 계정이 생성됐어요. (아이디: ' + phone + ' / 초기비번: ' + phone.slice(-4) + ')'
               : name + ' 회원 재등록이 완료됐어요.';
 
+      // 5단계 등록 정보 요약 (간략)
       let summaryHtml = `
-        <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border);">
-          <div style="display:flex;gap:16px;flex-wrap:wrap;">
-            <div><span style="font-size:12px;color:var(--text-sub);">이름</span><br><strong>${name}</strong></div>
-            <div><span style="font-size:12px;color:var(--text-sub);">연락처</span><br><strong>${phone}</strong></div>
-            <div><span style="font-size:12px;color:var(--text-sub);">신청일</span><br><strong>${signDate}</strong></div>
-            <div><span style="font-size:12px;color:var(--text-sub);">구분</span><br><strong>${type === 're' ? '재등록' : '신규'}</strong></div>
-          </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border);">
+          <div><span style="font-size:11px;color:var(--text-sub);">이름</span><br><strong style="font-size:13px;">${name}</strong></div>
+          <div><span style="font-size:11px;color:var(--text-sub);">연락처</span><br><strong style="font-size:13px;">${phone}</strong></div>
+          <div><span style="font-size:11px;color:var(--text-sub);">신청일</span><br><strong style="font-size:13px;">${signDate}</strong></div>
+          <div><span style="font-size:11px;color:var(--text-sub);">구분</span><br><strong style="font-size:13px;">${type === 're' ? '재등록' : '신규'}</strong></div>
         </div>`;
 
-      // 프로그램별
+      // 프로그램 목록
       Object.entries(programs).forEach(([prog, p]) => {
-        const progPaid   = (p.cash||0) + (p.card||0) + (p.transfer||0);
+        const progPaid   = (p.cash||0)+(p.card||0)+(p.transfer||0);
         const progUnpaid = (p.price||0) - progPaid;
         summaryHtml += `
-          <div style="margin-bottom:8px;padding:8px 10px;background:var(--bg);border-radius:6px;border-left:3px solid #1a6fd4;">
-            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">${progLabelsComplete[prog] || prog}</div>
-            <div style="font-size:12px;color:var(--text-sub);line-height:1.7;">
-              ${p.months ? p.months + '개월' : ''}${p.count ? ' · ' + p.count + '회' : ''}
-              ${p.endDate ? ' · 종료 ' + p.endDate : ''}
-              ${p.price ? '<br>이용요금: ' + p.price.toLocaleString() + '원' : ''}
-              ${p.cash ? '<br><span style="color:#059669;">현금: ' + p.cash.toLocaleString() + '원</span>' : ''}
-              ${p.card ? '<br><span style="color:#1a6fd4;">카드: ' + p.card.toLocaleString() + '원</span>' : ''}
-              ${p.transfer ? '<br><span style="color:#7c3aed;">계좌: ' + p.transfer.toLocaleString() + '원</span>' : ''}
-              ${progUnpaid > 0 ? '<br><span style="color:#ef4444;font-weight:700;">미수금: ' + progUnpaid.toLocaleString() + '원</span>' : ''}
-            </div>
-          </div>`;
-      });
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+            <span style="font-size:13px;font-weight:600;">${progLabelsComplete[prog]||prog}</span>
+            <span style="font-size:12px;color:var(--text-sub);">${p.months?p.months+'개월':''}${p.count?' · '+p.count+'회':''}</span>
+            ${progUnpaid>0 ? `<span style="font-size:12px;font-weight:700;color:#ef4444;">미수금 ${progUnpaid.toLocaleString()}원</span>` : `<span style="font-size:12px;color:#059669;">✓ 완납</span>`}
+          </div>`; });
 
       // 부가서비스
       if (extras.cloth) {
-        const e = extras.cloth;
-        const ePaid = (e.cash||0)+(e.card||0)+(e.transfer||0);
         summaryHtml += `
-          <div style="margin-bottom:8px;padding:8px 10px;background:var(--bg);border-radius:6px;border-left:3px solid #059669;">
-            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">👕 운동복</div>
-            <div style="font-size:12px;color:var(--text-sub);line-height:1.7;">
-              ${e.months ? e.months + '개월' : ''}
-              ${e.price === 0 ? ' · 무료' : (e.price ? '<br>이용요금: ' + e.price.toLocaleString() + '원' : '')}
-              ${e.cash ? '<br><span style="color:#059669;">현금: ' + e.cash.toLocaleString() + '원</span>' : ''}
-              ${e.card ? '<br><span style="color:#1a6fd4;">카드: ' + e.card.toLocaleString() + '원</span>' : ''}
-              ${e.transfer ? '<br><span style="color:#7c3aed;">계좌: ' + e.transfer.toLocaleString() + '원</span>' : ''}
-            </div>
-          </div>`;
-      }
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+            <span style="font-size:13px;font-weight:600;">👕 운동복</span>
+            <span style="font-size:12px;color:var(--text-sub);">${extras.cloth.months||0}개월</span>
+            <span style="font-size:12px;color:#059669;">${extras.cloth.price===0?'무료':'✓'}</span>
+          </div>`; }
       if (extras.locker) {
-        const e = extras.locker;
+        const lPaid   = (extras.locker.cash||0)+(extras.locker.card||0)+(extras.locker.transfer||0);
+        const lUnpaid = (extras.locker.price||0)-lPaid;
         summaryHtml += `
-          <div style="margin-bottom:8px;padding:8px 10px;background:var(--bg);border-radius:6px;border-left:3px solid #7c3aed;">
-            <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">🔑 개인 락카</div>
-            <div style="font-size:12px;color:var(--text-sub);line-height:1.7;">
-              ${e.months ? e.months + '개월' : ''}
-              ${e.price ? '<br>이용요금: ' + e.price.toLocaleString() + '원' : ''}
-              ${e.cash ? '<br><span style="color:#059669;">현금: ' + e.cash.toLocaleString() + '원</span>' : ''}
-              ${e.card ? '<br><span style="color:#1a6fd4;">카드: ' + e.card.toLocaleString() + '원</span>' : ''}
-              ${e.transfer ? '<br><span style="color:#7c3aed;">계좌: ' + e.transfer.toLocaleString() + '원</span>' : ''}
-            </div>
-          </div>`;
-      }
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+            <span style="font-size:13px;font-weight:600;">🔑 개인 락카</span>
+            <span style="font-size:12px;color:var(--text-sub);">${extras.locker.lockerNo?extras.locker.lockerNo+'번 · ':''}${extras.locker.months||0}개월</span>
+            ${lUnpaid>0 ? `<span style="font-size:12px;font-weight:700;color:#ef4444;">미수금 ${lUnpaid.toLocaleString()}원</span>` : `<span style="font-size:12px;color:#059669;">✓ 완납</span>`}
+          </div>`; }
 
-      // 최종 합계
+      // 합계
       summaryHtml += `
-        <div style="margin-top:8px;padding:10px;background:#f0f7ff;border:1.5px solid #bfdbfe;border-radius:6px;">
-          ${allCash > 0 ? '<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="font-size:12px;color:#059669;">현금 합계</span><span style="font-size:12px;font-weight:700;color:#059669;">' + allCash.toLocaleString() + '원</span></div>' : ''}
-          ${allCard > 0 ? '<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="font-size:12px;color:#1a6fd4;">카드 합계</span><span style="font-size:12px;font-weight:700;color:#1a6fd4;">' + allCard.toLocaleString() + '원</span></div>' : ''}
-          ${allTransfer > 0 ? '<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="font-size:12px;color:#7c3aed;">계좌 합계</span><span style="font-size:12px;font-weight:700;color:#7c3aed;">' + allTransfer.toLocaleString() + '원</span></div>' : ''}
-          <div style="border-top:1px solid #bfdbfe;margin:6px 0;"></div>
-          <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="font-size:12px;color:var(--text-sub);">이용요금 합계</span><span style="font-size:13px;font-weight:700;color:var(--text);">${grandTotal.toLocaleString()}원</span></div>
-          <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span style="font-size:12px;color:var(--text-sub);">오늘 결제</span><span style="font-size:13px;font-weight:700;color:#1a6fd4;">${grandPaid.toLocaleString()}원</span></div>
-          ${grandUnpaid > 0 ? '<div style="display:flex;justify-content:space-between;"><span style="font-size:12px;font-weight:700;color:#ef4444;">미수금</span><span style="font-size:13px;font-weight:700;color:#ef4444;">' + grandUnpaid.toLocaleString() + '원</span></div>' : ''}
+        <div style="margin-top:10px;padding:10px;background:white;border-radius:6px;border:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+            <span style="font-size:12px;color:var(--text-sub);">총 계약금액</span>
+            <span style="font-size:13px;font-weight:700;">${grandTotal.toLocaleString()}원</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+            <span style="font-size:12px;color:var(--text-sub);">오늘 결제</span>
+            <span style="font-size:13px;font-weight:700;color:#1a6fd4;">${grandPaid.toLocaleString()}원</span>
+          </div>
+          ${grandUnpaid>0 ? `<div style="display:flex;justify-content:space-between;padding-top:6px;border-top:1px solid var(--border);"><span style="font-size:12px;font-weight:700;color:#ef4444;">미수금</span><span style="font-size:13px;font-weight:700;color:#ef4444;">${grandUnpaid.toLocaleString()}원</span></div>` : `<div style="text-align:center;font-size:12px;color:#059669;font-weight:700;padding-top:6px;border-top:1px solid var(--border);">✅ 전액 완납</div>`}
         </div>`;
 
       document.getElementById('ct-complete-summary').innerHTML = summaryHtml;
@@ -3859,75 +3839,102 @@
     // 프로그램 행 생성
     let progRows = '';
     let totalPrice=0, totalCash=0, totalCard=0, totalTransfer=0;
+    const progNameMap = {
+      '헬스':'헬스', 'GX':'GX', 'PT':'PT (개인레슨)',
+      '기구필라테스개인':'기구필라테스 개인', '기구필라테스그룹':'기구필라테스 그룹'
+    };
     if (d.programs) {
       Object.entries(d.programs).forEach(([prog, p]) => {
-        const label = progLabels[prog] || prog;
-        const paid  = (p.cash||0)+(p.card||0)+(p.transfer||0);
-        const unpaid= (p.price||0)-paid;
+        const label  = progNameMap[prog] || prog;
+        const paid   = (p.cash||0)+(p.card||0)+(p.transfer||0);
+        const unpaid = (p.price||0)-paid;
         totalPrice    += (p.price||0);
         totalCash     += (p.cash||0);
         totalCard     += (p.card||0);
         totalTransfer += (p.transfer||0);
         progRows += `
           <tr>
-            <td>${label.replace(/[🏋️🎶💪🧘👥]/gu,'').trim()}</td>
-            <td style="white-space:nowrap;">${p.startDate||'-'} ~ ${p.endDate||'-'}</td>
-            <td style="text-align:center;">${p.months ? p.months+'개월' : '-'}${p.count ? '<br>'+p.count+'회' : ''}</td>
-            <td style="text-align:right;">${p.price ? p.price.toLocaleString()+'원' : '-'}</td>
-            <td style="text-align:right;color:#059669;">${p.cash ? p.cash.toLocaleString() : '-'}</td>
-            <td style="text-align:right;color:#185FA5;">${p.card ? p.card.toLocaleString() : '-'}</td>
-            <td style="text-align:right;color:#7c3aed;">${p.transfer ? p.transfer.toLocaleString() : '-'}</td>
-            <td style="text-align:right;color:#ef4444;font-weight:700;">${unpaid > 0 ? unpaid.toLocaleString() : '-'}</td>
-          </tr>`;
-      });
-    }
+            <td style="font-size:10pt;">${label}</td>
+            <td style="white-space:nowrap;font-size:10pt;">${p.startDate||'-'} ~ ${p.endDate||'-'}</td>
+            <td style="text-align:center;font-size:10pt;">${p.months?p.months+'개월':'-'}${p.count?'<br>'+p.count+'회':''}</td>
+            <td style="text-align:right;font-size:10pt;">${p.price?p.price.toLocaleString()+'원':'-'}</td>
+            <td style="text-align:right;color:#059669;font-size:10pt;">${p.cash?p.cash.toLocaleString():'-'}</td>
+            <td style="text-align:right;color:#185FA5;font-size:10pt;">${p.card?p.card.toLocaleString():'-'}</td>
+            <td style="text-align:right;color:#7c3aed;font-size:10pt;">${p.transfer?p.transfer.toLocaleString():'-'}</td>
+            <td style="text-align:right;color:#ef4444;font-weight:700;font-size:10pt;">${unpaid>0?unpaid.toLocaleString():'-'}</td>
+          </tr>`; }); }
 
-    // 합계 행
+    // 합계 계산 (부가서비스 포함)
     const grandPaid   = totalCash + totalCard + totalTransfer;
     let   grandTotal  = totalPrice;
     let   grandUnpaid = totalPrice - grandPaid;
+    let   grandCash   = totalCash;
+    let   grandCard   = totalCard;
+    let   grandTransfer = totalTransfer;
 
     // 부가서비스 행
     let extrasRows = '';
     if (d.extras) {
       if (d.extras.locker) {
         const e = d.extras.locker;
-        const lockerLabel = e.lockerNo ? `${e.lockerNo}번 · ${e.months||'-'}개월` : `${e.months||'-'}개월`;
+        // 락카 종료일 계산
+        let lockerEnd = '-';
+        if (e.startDate && e.months) {
+          const sd = new Date(e.startDate);
+          sd.setMonth(sd.getMonth() + e.months);
+          sd.setDate(sd.getDate() - 1);
+          lockerEnd = sd.getFullYear()+'-'+String(sd.getMonth()+1).padStart(2,'0')+'-'+String(sd.getDate()).padStart(2,'0');
+        }
+        const lockerStart = e.startDate || d.signDate || '-';
+        const lockerLabel = e.lockerNo ? e.lockerNo+'번' : '-';
         const ePaid   = (e.cash||0)+(e.card||0)+(e.transfer||0);
         const eUnpaid = (e.price||0)-ePaid;
-        grandTotal  += (e.price||0);
-        grandUnpaid += eUnpaid;
+        grandTotal    += (e.price||0);
+        grandUnpaid   += eUnpaid;
+        grandCash     += (e.cash||0);
+        grandCard     += (e.card||0);
+        grandTransfer += (e.transfer||0);
         extrasRows += `
           <tr>
-            <td>🔑 개인 락카</td>
-            <td colspan="2">${lockerLabel}</td>
-            <td style="text-align:right;">${e.price ? e.price.toLocaleString()+'원' : '무료'}</td>
-            <td style="text-align:right;color:#059669;">${e.cash ? e.cash.toLocaleString() : '-'}</td>
-            <td style="text-align:right;color:#185FA5;">${e.card ? e.card.toLocaleString() : '-'}</td>
-            <td style="text-align:right;color:#7c3aed;">${e.transfer ? e.transfer.toLocaleString() : '-'}</td>
-            <td style="text-align:right;color:#ef4444;font-weight:700;">${eUnpaid > 0 ? eUnpaid.toLocaleString() : '-'}</td>
+            <td style="font-size:10pt;">개인 락카 (${lockerLabel})</td>
+            <td style="white-space:nowrap;font-size:10pt;">${lockerStart} ~ ${lockerEnd}</td>
+            <td style="text-align:center;font-size:10pt;">${e.months||'-'}개월</td>
+            <td style="text-align:right;font-size:10pt;">${e.price?e.price.toLocaleString()+'원':'무료'}</td>
+            <td style="text-align:right;color:#059669;font-size:10pt;">${e.cash?e.cash.toLocaleString():'-'}</td>
+            <td style="text-align:right;color:#185FA5;font-size:10pt;">${e.card?e.card.toLocaleString():'-'}</td>
+            <td style="text-align:right;color:#7c3aed;font-size:10pt;">${e.transfer?e.transfer.toLocaleString():'-'}</td>
+            <td style="text-align:right;color:#ef4444;font-weight:700;font-size:10pt;">${eUnpaid>0?eUnpaid.toLocaleString():'-'}</td>
           </tr>`;
       }
       if (d.extras.cloth) {
         const e = d.extras.cloth;
         const ePaid   = (e.cash||0)+(e.card||0)+(e.transfer||0);
         const eUnpaid = (e.price||0)-ePaid;
-        grandTotal  += (e.price||0);
-        grandUnpaid += eUnpaid;
+        grandTotal    += (e.price||0);
+        grandUnpaid   += eUnpaid;
+        grandCash     += (e.cash||0);
+        grandCard     += (e.card||0);
+        grandTransfer += (e.transfer||0);
         extrasRows += `
           <tr>
-            <td>👕 운동복</td>
-            <td colspan="2">${e.months||'-'}개월</td>
-            <td style="text-align:right;">${e.price ? e.price.toLocaleString()+'원' : '무료'}</td>
-            <td style="text-align:right;color:#059669;">${e.cash ? e.cash.toLocaleString() : '-'}</td>
-            <td style="text-align:right;color:#185FA5;">${e.card ? e.card.toLocaleString() : '-'}</td>
-            <td style="text-align:right;color:#7c3aed;">${e.transfer ? e.transfer.toLocaleString() : '-'}</td>
-            <td style="text-align:right;color:#ef4444;font-weight:700;">${eUnpaid > 0 ? eUnpaid.toLocaleString() : '-'}</td>
+            <td style="font-size:10pt;">운동복</td>
+            <td style="font-size:10pt;">-</td>
+            <td style="text-align:center;font-size:10pt;">${e.months||'-'}개월</td>
+            <td style="text-align:right;font-size:10pt;">${e.price?e.price.toLocaleString()+'원':'무료'}</td>
+            <td style="text-align:right;color:#059669;font-size:10pt;">${e.cash?e.cash.toLocaleString():'-'}</td>
+            <td style="text-align:right;color:#185FA5;font-size:10pt;">${e.card?e.card.toLocaleString():'-'}</td>
+            <td style="text-align:right;color:#7c3aed;font-size:10pt;">${e.transfer?e.transfer.toLocaleString():'-'}</td>
+            <td style="text-align:right;color:#ef4444;font-weight:700;font-size:10pt;">${eUnpaid>0?eUnpaid.toLocaleString():'-'}</td>
           </tr>`;
       }
     }
 
-    const termsText = (d.terms || DEFAULT_TERMS).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    // 약관 텍스트 처리 - HTML 이스케이프 후 줄바꿈 + 조항 제목 강조
+    const rawTerms = (d.terms || DEFAULT_TERMS)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const termsText = rawTerms
+      .replace(/\n/g, '<br>')
+      .replace(/(제\d+조[^\n<]*)/g, '<strong style="color:#185FA5;">$1</strong>');
     const genderStr = d.gender === 'female' ? '여' : '남';
     const typeStr   = d.type   === 're'     ? '재등록' : '신규 등록';
     const birthFmt  = d.birth ? d.birth.replace(/(\d{4})(\d{2})(\d{2})/,'$1년 $2월 $3일') : '-';
@@ -3940,25 +3947,23 @@
 <style>
 * { box-sizing:border-box; margin:0; padding:0; }
 body { background:#f0f0f0; font-family:'Noto Sans KR','Malgun Gothic','맑은 고딕',sans-serif; }
-.a4 { width:210mm; min-height:297mm; background:white; margin:10mm auto; padding:13mm 15mm; font-size:11.5pt; color:#111; }
+.a4 { width:210mm; min-height:297mm; background:white; margin:10mm auto; padding:13mm 15mm; font-size:12pt; color:#111; }
 @media print { body{background:white;} .a4{margin:0; padding:13mm 15mm;} .btn-wrap{display:none;} }
-.title-row { display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #185FA5; padding-bottom:7px; margin-bottom:12px; }
-.title-main { font-size:19pt; font-weight:700; color:#185FA5; }
-.title-sub { font-size:10.5pt; color:#555; text-align:right; line-height:1.8; }
-.section { margin-bottom:10px; }
-.sec-head { background:#185FA5; color:white; font-size:11pt; font-weight:700; padding:5px 10px; margin-bottom:5px; }
+.title-row { display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #185FA5; padding-bottom:8px; margin-bottom:13px; }
+.title-main { font-size:20pt; font-weight:700; color:#185FA5; }
+.title-sub { font-size:11pt; color:#555; text-align:right; line-height:1.8; }
+.section { margin-bottom:11px; }
+.sec-head { background:#185FA5; color:white; font-size:11.5pt; font-weight:700; padding:6px 10px; margin-bottom:5px; }
 table { width:100%; border-collapse:collapse; font-size:10.5pt; }
-td { border:0.7px solid #aaa; padding:6px 8px; vertical-align:middle; line-height:1.5; }
-.lbl { background:#eef2f7; color:#333; font-weight:700; white-space:nowrap; width:70px; }
-.prog-head { background:#d6e4f0; font-weight:700; font-size:10pt; color:#185FA5; text-align:center; padding:6px 4px; white-space:nowrap; }
-.total-row { background:#e4eef8; font-weight:700; font-size:11pt; }
-.terms-box { border:0.7px solid #aaa; padding:8px 11px; font-size:8.5pt; line-height:1.9; color:#222; column-count:2; column-gap:14px; }
-.terms-title { font-weight:700; color:#185FA5; margin-top:7px; margin-bottom:2px; font-size:9pt; display:block; }
-.terms-title:first-child { margin-top:0; }
-.sign-row { display:flex; gap:10px; margin-top:7px; align-items:stretch; }
-.sign-box { flex:1; border:0.7px solid #aaa; padding:10px 12px; min-height:80px; }
-.stamp { width:70px; height:70px; border:2.5px solid #ef4444; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:9.5pt; color:#ef4444; font-weight:700; text-align:center; line-height:1.5; flex-shrink:0; align-self:center; }
-.unpaid-box { background:#fef2f2; border:0.7px solid #fca5a5; border-radius:6px; padding:8px 12px; margin-top:8px; font-size:10pt; color:#991b1b; }
+td { border:0.7px solid #aaa; padding:7px 8px; vertical-align:middle; line-height:1.6; }
+.lbl { background:#eef2f7; color:#333; font-weight:700; white-space:nowrap; width:72px; }
+.prog-head { background:#d6e4f0; font-weight:700; font-size:10.5pt; color:#185FA5; text-align:center; padding:7px 4px; white-space:nowrap; }
+.total-row { background:#e4eef8; font-weight:700; }
+.terms-box { border:0.7px solid #aaa; padding:9px 12px; font-size:8.5pt; line-height:2.0; color:#222; column-count:2; column-gap:14px; }
+.sign-row { display:flex; gap:10px; margin-top:8px; align-items:stretch; }
+.sign-box { flex:1; border:0.7px solid #aaa; padding:10px 12px; min-height:85px; }
+.stamp { width:72px; height:72px; border:2.5px solid #ef4444; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10pt; color:#ef4444; font-weight:700; text-align:center; line-height:1.5; flex-shrink:0; align-self:center; }
+.unpaid-box { background:#fef2f2; border:0.7px solid #fca5a5; border-radius:6px; padding:8px 12px; margin-top:8px; font-size:10.5pt; color:#991b1b; }
 .btn-wrap { text-align:center; margin:12px 0; }
 .btn-pdf { background:#185FA5; color:white; border:none; padding:10px 28px; font-size:13pt; border-radius:6px; cursor:pointer; font-family:inherit; }
 </style>
@@ -4006,12 +4011,12 @@ td { border:0.7px solid #aaa; padding:6px 8px; vertical-align:middle; line-heigh
       ${progRows}
       ${extrasRows}
       <tr class="total-row">
-        <td colspan="3" style="text-align:right;padding-right:12px;">합계</td>
-        <td style="text-align:right;">${grandTotal.toLocaleString()}원</td>
-        <td style="text-align:right;color:#059669;">${totalCash ? totalCash.toLocaleString() : '-'}</td>
-        <td style="text-align:right;color:#185FA5;">${totalCard ? totalCard.toLocaleString() : '-'}</td>
-        <td style="text-align:right;color:#7c3aed;">${totalTransfer ? totalTransfer.toLocaleString() : '-'}</td>
-        <td style="text-align:right;color:#ef4444;font-weight:700;">${grandUnpaid > 0 ? grandUnpaid.toLocaleString() : '-'}</td>
+        <td colspan="3" style="text-align:right;padding-right:12px;font-size:11pt;">합계</td>
+        <td style="text-align:right;font-size:11pt;">${grandTotal.toLocaleString()}원</td>
+        <td style="text-align:right;color:#059669;font-size:11pt;">${grandCash?grandCash.toLocaleString():'-'}</td>
+        <td style="text-align:right;color:#185FA5;font-size:11pt;">${grandCard?grandCard.toLocaleString():'-'}</td>
+        <td style="text-align:right;color:#7c3aed;font-size:11pt;">${grandTransfer?grandTransfer.toLocaleString():'-'}</td>
+        <td style="text-align:right;color:#ef4444;font-weight:700;font-size:11pt;">${grandUnpaid>0?grandUnpaid.toLocaleString():'-'}</td>
       </tr>
     </table>
     ${grandUnpaid > 0 ? `<div class="unpaid-box">⚠️ 미수금 ${grandUnpaid.toLocaleString()}원이 남아있어요. 센터 방문 또는 계좌이체로 납부해주세요.</div>` : ''}
