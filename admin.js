@@ -2390,14 +2390,16 @@
 
     wrap.innerHTML = `
       <div style="background:var(--card);border-radius:12px;padding:16px;">
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">${grid}</div>
-        <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;">
+        <!-- 색깔 안내 - 상단 -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;padding:8px 10px;background:var(--bg);border-radius:8px;">
           <span style="font-size:11px;color:var(--text-hint);">🟢 빈칸</span>
           <span style="font-size:11px;color:var(--text-hint);">🔵 사용중</span>
           <span style="font-size:11px;color:var(--text-hint);">🟡 만료임박</span>
           <span style="font-size:11px;color:var(--text-hint);">🔴 기간만료</span>
           <span style="font-size:11px;color:var(--text-hint);">⚫ 사용불가</span>
         </div>
+        <!-- 락카 그리드 - gap 줄여서 5개씩 -->
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">${grid}</div>
       </div>`;
   }
 
