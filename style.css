@@ -324,7 +324,7 @@
   .admin-tab-row { display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; }
   .admin-tab { padding:7px 14px; border-radius:20px; border:none; background:rgba(255,255,255,0.1); color:rgba(255,255,255,0.7); font-size:13px; font-weight:500; cursor:pointer; white-space:nowrap; font-family:'Noto Sans KR',sans-serif; transition:all 0.15s; }
   .admin-tab.active { background:var(--blue); color:white; }
-  .admin-body { padding:16px 16px var(--safe-pad); }
+  .admin-body { padding:16px 8px var(--safe-pad); }
   .admin-section { display:none; }
   .admin-side-tab { display:block; width:100%; text-align:left; padding:10px 12px; border:none; border-radius:8px; background:transparent; color:var(--text-sub); font-size:13px; font-weight:500; cursor:pointer; font-family:'Noto Sans KR',sans-serif; margin-bottom:2px; transition:all 0.15s; }
   .admin-side-tab:hover { background:var(--bg); color:var(--text); }

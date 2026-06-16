@@ -2924,7 +2924,7 @@
     container.dataset.rendered = 'true';
     const hasCount = container.dataset.hasCount === 'true';
     const inStyle = `width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;`;
-    const cols = hasCount ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr';
+    const cols = hasCount ? '2fr 0.8fr 0.8fr 1.4fr' : '2fr 0.8fr 1.4fr';
     container.innerHTML = `
       <!-- 📅 기간 -->
       <div style="margin-bottom:12px;">
@@ -3123,8 +3123,7 @@
       } else {
         breakdownEl.innerHTML = `
           <div style="background:white;border-radius:8px;overflow:hidden;margin-bottom:8px;">
-            <div style="display:grid;grid-template-columns:1fr 75px 65px 65px 65px 70px;gap:0;background:#f8fafc;padding:7px 10px;font-size:11px;color:var(--text-sub);font-weight:600;">
-              <div>항목</div>
+            <div style="display:grid;grid-template-columns:75px 65px 65px 65px 70px;gap:0;background:#f8fafc;padding:7px 10px;font-size:11px;color:var(--text-sub);font-weight:600;">
               <div style="text-align:right;">이용요금</div>
               <div style="text-align:right;">현금</div>
               <div style="text-align:right;">카드</div>
@@ -3134,13 +3133,15 @@
             ${breakdownItems.map(item => {
               const itemUnpaid = item.price - (item.cash + item.card + item.transfer);
               return `
-              <div style="display:grid;grid-template-columns:1fr 75px 65px 65px 65px 70px;gap:0;padding:7px 10px;border-top:1px solid #f1f5f9;font-size:12px;">
-                <div style="font-weight:600;color:var(--text);">${item.label}</div>
-                <div style="text-align:right;color:var(--text);">${item.price ? item.price.toLocaleString() : '-'}</div>
-                <div style="text-align:right;color:${item.cash ? '#059669' : 'var(--text-hint)'};">${item.cash ? item.cash.toLocaleString() : '-'}</div>
-                <div style="text-align:right;color:${item.card ? '#1a6fd4' : 'var(--text-hint)'};">${item.card ? item.card.toLocaleString() : '-'}</div>
-                <div style="text-align:right;color:${item.transfer ? '#7c3aed' : 'var(--text-hint)'};">${item.transfer ? item.transfer.toLocaleString() : '-'}</div>
-                <div style="text-align:right;font-weight:700;color:${itemUnpaid > 0 ? '#ef4444' : 'var(--text-hint)'};">${itemUnpaid > 0 ? itemUnpaid.toLocaleString() : '-'}</div>
+              <div style="border-top:1px solid #f1f5f9;">
+                <div style="padding:6px 10px 2px;font-size:12px;font-weight:700;color:var(--text);">${item.label}</div>
+                <div style="display:grid;grid-template-columns:75px 65px 65px 65px 70px;gap:0;padding:3px 10px 7px;font-size:12px;">
+                  <div style="text-align:right;color:var(--text);">${item.price ? item.price.toLocaleString() : '-'}</div>
+                  <div style="text-align:right;color:${item.cash ? '#059669' : 'var(--text-hint)'};">${item.cash ? item.cash.toLocaleString() : '-'}</div>
+                  <div style="text-align:right;color:${item.card ? '#1a6fd4' : 'var(--text-hint)'};">${item.card ? item.card.toLocaleString() : '-'}</div>
+                  <div style="text-align:right;color:${item.transfer ? '#7c3aed' : 'var(--text-hint)'};">${item.transfer ? item.transfer.toLocaleString() : '-'}</div>
+                  <div style="text-align:right;font-weight:700;color:${itemUnpaid > 0 ? '#ef4444' : 'var(--text-hint)'};">${itemUnpaid > 0 ? itemUnpaid.toLocaleString() : '-'}</div>
+                </div>
               </div>`;
             }).join('')}
           </div>`;
@@ -3424,6 +3425,7 @@
     }
     if (document.getElementById('ct-locker-check')?.checked) {
       extras.locker = {
+        lockerNo: document.getElementById('ct-locker-no')?.value.trim() || '',
         months  : parseInt(document.getElementById('ct-locker-months')?.value)   || 0,
         price   : parseInt(document.getElementById('ct-locker-price')?.value)    || 0,
         cash    : parseInt(document.getElementById('ct-locker-cash')?.value)     || 0,
@@ -3476,6 +3478,26 @@
       };
       const contractKey = signDate + '_' + Date.now();
       await db.ref('contracts/' + phone + '/' + contractKey).set(contractData);
+
+      // 3-1. 락카번호 입력 시 lockers/ Firebase 동기화
+      if (extras.locker?.lockerNo) {
+        const lockerNo = extras.locker.lockerNo;
+        const startDate = signDate;
+        // 종료일 계산 (개월수 기준)
+        let endDate = '';
+        if (extras.locker.months) {
+          const d = new Date(signDate);
+          d.setMonth(d.getMonth() + extras.locker.months);
+          d.setDate(d.getDate() - 1);
+          endDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        }
+        await db.ref('lockers/' + lockerNo).set({
+          lockerNo, phone, name,
+          startDate, endDate,
+          status: 'active',
+        });
+        await db.ref('members/' + phone + '/lockerKey').set(lockerNo);
+      }
 
       // 4. 완료 화면
       const totalPaid = Object.values(programs).reduce((s,p) => s + (p.cash||0) + (p.card||0) + (p.transfer||0), 0);
@@ -3635,7 +3657,7 @@
     });
     // 부가서비스 입력값 초기화
     ['ct-cloth-months','ct-cloth-price','ct-cloth-cash','ct-cloth-card','ct-cloth-transfer',
-     'ct-locker-months','ct-locker-price','ct-locker-cash','ct-locker-card','ct-locker-transfer'].forEach(id => {
+     'ct-locker-no','ct-locker-months','ct-locker-price','ct-locker-cash','ct-locker-card','ct-locker-transfer'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
