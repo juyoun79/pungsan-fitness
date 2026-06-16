@@ -673,3 +673,19 @@
     #kiosk-wrap { flex-direction: row !important; gap: 32px; align-items: center !important; justify-content: center !important; }
     #kiosk-wrap > div:first-child { margin-bottom: 0 !important; }
   }
+
+/* ── 계약서 숫자 입력칸 스피너(▲▼) 숨김 ── */
+.ct-prog-card-body input[type=number]::-webkit-inner-spin-button,
+.ct-prog-card-body input[type=number]::-webkit-outer-spin-button,
+[id^="ct-cloth-"]::-webkit-inner-spin-button,
+[id^="ct-cloth-"]::-webkit-outer-spin-button,
+[id^="ct-locker-"]::-webkit-inner-spin-button,
+[id^="ct-locker-"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.ct-prog-card-body input[type=number],
+[id^="ct-cloth-"],
+[id^="ct-locker-"] {
+  -moz-appearance: textfield;
+}
