@@ -2255,8 +2255,14 @@
       db.ref('lockers').once('value')
     ]);
     lockerCategories = [];
-    catSnap.forEach(c => lockerCategories.push({ id: c.key, ...c.val() }));
+    const catVal = catSnap.val();
+    if (catVal && typeof catVal === 'object') {
+      Object.entries(catVal).forEach(([key, val]) => {
+        lockerCategories.push({ id: key, ...val });
+      });
+    }
     lockerData = dataSnap.val() || {};
+    console.log('락카 종류 불러옴:', lockerCategories.length, '개', lockerCategories.map(c=>c.name));
   }
 
   function switchLockerSubtab(tab) {
