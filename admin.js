@@ -3639,13 +3639,14 @@
     }
     if (document.getElementById('ct-locker-check')?.checked) {
       extras.locker = {
-        lockerNo : document.getElementById('ct-locker-no')?.value.trim()     || '',
-        lockerCatId: document.getElementById('ct-locker-cat-id')?.value.trim() || '',
-        months   : parseInt(document.getElementById('ct-locker-months')?.value)   || 0,
-        price    : parseInt(document.getElementById('ct-locker-price')?.value)    || 0,
-        cash     : parseInt(document.getElementById('ct-locker-cash')?.value)     || 0,
-        card     : parseInt(document.getElementById('ct-locker-card')?.value)     || 0,
-        transfer : parseInt(document.getElementById('ct-locker-transfer')?.value) || 0,
+        lockerNo    : document.getElementById('ct-locker-no')?.value.trim()      || '',
+        lockerCatId : document.getElementById('ct-locker-cat-id')?.value.trim()  || '',
+        startDate   : signDate,
+        months      : parseInt(document.getElementById('ct-locker-months')?.value)   || 0,
+        price       : parseInt(document.getElementById('ct-locker-price')?.value)    || 0,
+        cash        : parseInt(document.getElementById('ct-locker-cash')?.value)     || 0,
+        card        : parseInt(document.getElementById('ct-locker-card')?.value)     || 0,
+        transfer    : parseInt(document.getElementById('ct-locker-transfer')?.value) || 0,
       };
     }
 
@@ -3759,28 +3760,28 @@
         const progPaid   = (p.cash||0)+(p.card||0)+(p.transfer||0);
         const progUnpaid = (p.price||0) - progPaid;
         summaryHtml += `
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+          <div style="display:grid;grid-template-columns:1fr auto auto;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);gap:8px;">
             <span style="font-size:13px;font-weight:600;">${progLabelsComplete[prog]||prog}</span>
-            <span style="font-size:12px;color:var(--text-sub);">${p.months?p.months+'개월':''}${p.count?' · '+p.count+'회':''}</span>
-            ${progUnpaid>0 ? `<span style="font-size:12px;font-weight:700;color:#ef4444;">미수금 ${progUnpaid.toLocaleString()}원</span>` : `<span style="font-size:12px;color:#059669;">✓ 완납</span>`}
+            <span style="font-size:12px;color:var(--text-sub);text-align:right;">${p.months?p.months+'개월':''}${p.count?' · '+p.count+'회':''}</span>
+            ${progUnpaid>0 ? `<span style="font-size:12px;font-weight:700;color:#ef4444;text-align:right;">미수금 ${progUnpaid.toLocaleString()}원</span>` : `<span style="font-size:12px;color:#059669;text-align:right;">✓ 완납</span>`}
           </div>`; });
 
       // 부가서비스
       if (extras.cloth) {
         summaryHtml += `
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+          <div style="display:grid;grid-template-columns:1fr auto auto;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);gap:8px;">
             <span style="font-size:13px;font-weight:600;">👕 운동복</span>
-            <span style="font-size:12px;color:var(--text-sub);">${extras.cloth.months||0}개월</span>
-            <span style="font-size:12px;color:#059669;">${extras.cloth.price===0?'무료':'✓'}</span>
+            <span style="font-size:12px;color:var(--text-sub);text-align:right;">${extras.cloth.months||0}개월</span>
+            <span style="font-size:12px;color:#059669;text-align:right;">${extras.cloth.price===0?'무료':'✓'}</span>
           </div>`; }
       if (extras.locker) {
         const lPaid   = (extras.locker.cash||0)+(extras.locker.card||0)+(extras.locker.transfer||0);
         const lUnpaid = (extras.locker.price||0)-lPaid;
         summaryHtml += `
-          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
-            <span style="font-size:13px;font-weight:600;">🔑 개인 락카</span>
-            <span style="font-size:12px;color:var(--text-sub);">${extras.locker.lockerNo?extras.locker.lockerNo+'번 · ':''}${extras.locker.months||0}개월</span>
-            ${lUnpaid>0 ? `<span style="font-size:12px;font-weight:700;color:#ef4444;">미수금 ${lUnpaid.toLocaleString()}원</span>` : `<span style="font-size:12px;color:#059669;">✓ 완납</span>`}
+          <div style="display:grid;grid-template-columns:1fr auto auto;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);gap:8px;">
+            <span style="font-size:13px;font-weight:600;">🔑 개인 락카${extras.locker.lockerNo?' ('+extras.locker.lockerNo+'번)':''}</span>
+            <span style="font-size:12px;color:var(--text-sub);text-align:right;">${extras.locker.months||0}개월</span>
+            ${lUnpaid>0 ? `<span style="font-size:12px;font-weight:700;color:#ef4444;text-align:right;">미수금 ${lUnpaid.toLocaleString()}원</span>` : `<span style="font-size:12px;color:#059669;text-align:right;">✓ 완납</span>`}
           </div>`; }
 
       // 합계
@@ -3840,8 +3841,8 @@
     let progRows = '';
     let totalPrice=0, totalCash=0, totalCard=0, totalTransfer=0;
     const progNameMap = {
-      '헬스':'헬스', 'GX':'GX', 'PT':'PT (개인레슨)',
-      '기구필라테스개인':'기구필라테스 개인', '기구필라테스그룹':'기구필라테스 그룹'
+      '헬스':'헬스', 'GX':'GX', 'PT':'PT',
+      '기구필라테스개인':'기구P 개인', '기구필라테스그룹':'기구P 그룹'
     };
     if (d.programs) {
       Object.entries(d.programs).forEach(([prog, p]) => {
@@ -3934,10 +3935,12 @@
       .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const termsText = rawTerms
       .replace(/\n/g, '<br>')
-      .replace(/(제\d+조[^\n<]*)/g, '<strong style="color:#185FA5;">$1</strong>');
-    const genderStr = d.gender === 'female' ? '여' : '남';
-    const typeStr   = d.type   === 're'     ? '재등록' : '신규 등록';
-    const birthFmt  = d.birth ? d.birth.replace(/(\d{4})(\d{2})(\d{2})/,'$1년 $2월 $3일') : '-';
+      .replace(/(제\d+조[^<]*)/g, '<strong style="color:#185FA5;display:block;margin-top:6px;">$1</strong>');
+    const genderStr  = d.gender === 'female' ? '여' : '남';
+    const typeStr    = d.type   === 're'     ? '재등록' : '신규 등록';
+    const birthFmt   = d.birth ? d.birth.replace(/(\d{4})(\d{2})(\d{2})/,'$1년 $2월 $3일') : '-';
+    // 주소 특수문자 안전하게 처리
+    const safeAddr   = (d.address||'-').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
     return `<!DOCTYPE html>
 <html lang="ko">
@@ -3947,23 +3950,23 @@
 <style>
 * { box-sizing:border-box; margin:0; padding:0; }
 body { background:#f0f0f0; font-family:'Noto Sans KR','Malgun Gothic','맑은 고딕',sans-serif; }
-.a4 { width:210mm; min-height:297mm; background:white; margin:10mm auto; padding:13mm 15mm; font-size:12pt; color:#111; }
-@media print { body{background:white;} .a4{margin:0; padding:13mm 15mm;} .btn-wrap{display:none;} }
-.title-row { display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #185FA5; padding-bottom:8px; margin-bottom:13px; }
-.title-main { font-size:20pt; font-weight:700; color:#185FA5; }
-.title-sub { font-size:11pt; color:#555; text-align:right; line-height:1.8; }
-.section { margin-bottom:11px; }
-.sec-head { background:#185FA5; color:white; font-size:11.5pt; font-weight:700; padding:6px 10px; margin-bottom:5px; }
-table { width:100%; border-collapse:collapse; font-size:10.5pt; }
-td { border:0.7px solid #aaa; padding:7px 8px; vertical-align:middle; line-height:1.6; }
+.a4 { width:210mm; min-height:297mm; background:white; margin:10mm auto; padding:12mm 14mm; font-size:12.5pt; color:#111; }
+@media print { body{background:white;} .a4{margin:0; padding:12mm 14mm;} .btn-wrap{display:none;} }
+.title-row { display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #185FA5; padding-bottom:8px; margin-bottom:14px; }
+.title-main { font-size:21pt; font-weight:700; color:#185FA5; }
+.title-sub { font-size:11pt; color:#555; text-align:right; line-height:1.9; }
+.section { margin-bottom:12px; }
+.sec-head { background:#185FA5; color:white; font-size:12pt; font-weight:700; padding:6px 10px; margin-bottom:6px; }
+table { width:100%; border-collapse:collapse; font-size:11pt; }
+td { border:0.7px solid #aaa; padding:7px 9px; vertical-align:middle; line-height:1.6; }
 .lbl { background:#eef2f7; color:#333; font-weight:700; white-space:nowrap; width:72px; }
-.prog-head { background:#d6e4f0; font-weight:700; font-size:10.5pt; color:#185FA5; text-align:center; padding:7px 4px; white-space:nowrap; }
+.prog-head { background:#d6e4f0; font-weight:700; font-size:11pt; color:#185FA5; text-align:center; padding:7px 4px; white-space:nowrap; }
 .total-row { background:#e4eef8; font-weight:700; }
-.terms-box { border:0.7px solid #aaa; padding:9px 12px; font-size:8.5pt; line-height:2.0; color:#222; column-count:2; column-gap:14px; }
+.terms-box { border:0.7px solid #aaa; padding:10px 12px; font-size:9pt; line-height:2.0; color:#222; column-count:2; column-gap:16px; }
 .sign-row { display:flex; gap:10px; margin-top:8px; align-items:stretch; }
-.sign-box { flex:1; border:0.7px solid #aaa; padding:10px 12px; min-height:85px; }
-.stamp { width:72px; height:72px; border:2.5px solid #ef4444; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10pt; color:#ef4444; font-weight:700; text-align:center; line-height:1.5; flex-shrink:0; align-self:center; }
-.unpaid-box { background:#fef2f2; border:0.7px solid #fca5a5; border-radius:6px; padding:8px 12px; margin-top:8px; font-size:10.5pt; color:#991b1b; }
+.sign-box { flex:1; border:0.7px solid #aaa; padding:10px 12px; min-height:88px; }
+.stamp { width:74px; height:74px; border:2.5px solid #ef4444; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10.5pt; color:#ef4444; font-weight:700; text-align:center; line-height:1.5; flex-shrink:0; align-self:center; }
+.unpaid-box { background:#fef2f2; border:0.7px solid #fca5a5; border-radius:6px; padding:9px 12px; margin-top:8px; font-size:11pt; color:#991b1b; }
 .btn-wrap { text-align:center; margin:12px 0; }
 .btn-pdf { background:#185FA5; color:white; border:none; padding:10px 28px; font-size:13pt; border-radius:6px; cursor:pointer; font-family:inherit; }
 </style>
@@ -3987,7 +3990,7 @@ td { border:0.7px solid #aaa; padding:7px 8px; vertical-align:middle; line-heigh
       </tr>
       <tr>
         <td class="lbl">연락처</td><td>${d.phone||'-'}</td>
-        <td class="lbl">주소</td><td colspan="3">${d.address||'-'}</td>
+        <td class="lbl">주소</td><td colspan="3">${safeAddr}</td>
       </tr>
       <tr>
         <td class="lbl">비고</td><td colspan="5">${d.memo||'-'}</td>
@@ -4075,6 +4078,29 @@ td { border:0.7px solid #aaa; padding:7px 8px; vertical-align:middle; line-heigh
   window.openMyContract = openMyContract;
 
   // ── 5단계 완료 후 PDF 새탭 열기 ──
+  // ── 계약서 회원앱으로 전송 (FCM) ──
+  async function sendContractToMember() {
+    if (!window._lastContractData) { showToast('계약서 데이터가 없어요.', 'error'); return; }
+    const d = window._lastContractData;
+    try {
+      if (typeof sendPushToUser === 'function') {
+        await sendPushToUser(
+          d.phone,
+          '📄 계약서가 등록됐어요!',
+          d.name + '님의 계약서가 등록됐어요. 앱 > 내 정보 > 내 계약서에서 확인하세요.',
+          'contract',
+          { type: 'contract' }
+        );
+        showToast('✅ 회원 앱으로 전송됐어요!', 'success');
+      } else {
+        showToast('푸시 알림 기능을 사용할 수 없어요.', 'error');
+      }
+    } catch(e) {
+      showToast('전송 실패: ' + e.message, 'error');
+    }
+  }
+  window.sendContractToMember = sendContractToMember;
+
   function openContractPdf() {
     if (!window._lastContractData) { showToast('계약서 데이터가 없어요.', 'error'); return; }
     const html = buildContractHtml(window._lastContractData);
