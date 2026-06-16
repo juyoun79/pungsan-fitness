@@ -21,6 +21,12 @@
     document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.admin-side-tab').forEach(t => t.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
+    // 계약서 탭: admin-body 좌우 여백 제거 / 다른 탭: 복구
+    const adminBody = document.getElementById('admin-mobile-body');
+    if (adminBody) {
+      adminBody.style.paddingLeft  = tabId === 'tab-register' ? '0' : '';
+      adminBody.style.paddingRight = tabId === 'tab-register' ? '0' : '';
+    }
     // 클릭된 버튼 활성화 (모바일 탭 or 사이드탭)
     if (event && event.target) event.target.classList.add('active');
     if (tabId === 'tab-dashboard') loadAdminDashboard();

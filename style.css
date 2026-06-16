@@ -689,3 +689,12 @@
 [id^="ct-locker-"] {
   -moz-appearance: textfield;
 }
+
+/* ── 계약서 탭 모바일 여백 최소화 ── */
+#tab-register.admin-section .admin-card {
+  padding: 0;
+  margin-bottom: 0;
+}
+#tab-register .ct-step-content {
+  padding: 16px 12px !important;
+}
