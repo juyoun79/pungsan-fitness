@@ -1129,6 +1129,11 @@
           <div style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500;">🔔 알림 설정</div>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
+        <!-- 내 계약서 -->
+        <div onclick="openMyContract()" style="padding:16px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500;">📄 내 계약서</div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
         <div onclick="doLogout()" style="padding:16px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
           <div style="display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500;color:#ef4444;">🚪 로그아웃</div>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -3104,18 +3109,32 @@
           </div>
 
           <!-- ===== 5단계: 완료 ===== -->
-          <div id="ct-step-5" class="ct-step-content" style="padding:20px 24px;display:none;text-align:center;">
+          <div id="ct-step-5" class="ct-step-content" style="padding:16px 12px;display:none;">
             <div style="max-width:900px;margin:0 auto;">
-            <div style="font-size:48px;margin-bottom:16px;">🎉</div>
-            <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px;">계약서 등록 완료!</div>
-            <div id="ct-complete-msg" style="font-size:14px;color:var(--text-sub);margin-bottom:24px;line-height:1.6;"></div>
 
-            <div style="background:#f0f7ff;border-radius:var(--radius-sm);padding:16px;margin-bottom:24px;text-align:left;">
-              <div style="font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:10px;">📋 등록 정보</div>
-              <div id="ct-complete-summary" style="font-size:14px;color:var(--text);line-height:1.8;"></div>
-            </div>
+              <!-- 완료 메시지 -->
+              <div style="text-align:center;margin-bottom:16px;">
+                <div style="font-size:36px;margin-bottom:8px;">🎉</div>
+                <div style="font-size:17px;font-weight:700;color:var(--text);margin-bottom:6px;">계약서 등록 완료!</div>
+                <div id="ct-complete-msg" style="font-size:13px;color:var(--text-sub);line-height:1.6;"></div>
+              </div>
 
-            <button class="btn-primary" onclick="resetContract()" style="width:100%;">➕ 새 계약서 작성</button>
+              <!-- 버튼 -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+                <button onclick="openContractPdf()" style="padding:12px;background:#185FA5;color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+                  📄 PDF로 저장
+                </button>
+                <button onclick="resetContract()" style="padding:12px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+                  ➕ 새 계약서 작성
+                </button>
+              </div>
+
+              <!-- 계약 요약 -->
+              <div style="background:#f0f7ff;border-radius:var(--radius-sm);padding:14px;border:1px solid #bfdbfe;">
+                <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:10px;">📋 등록 정보</div>
+                <div id="ct-complete-summary" style="font-size:13px;color:var(--text);line-height:1.8;"></div>
+              </div>
+
             </div>
           </div>
 

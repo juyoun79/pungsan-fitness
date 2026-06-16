@@ -3684,15 +3684,24 @@
       } catch(e) { console.warn('서명 이미지 저장 실패:', e); }
 
       // 3. 계약서 Firebase 저장
+      // 약관 내용 (저장 시점 기준으로 함께 저장)
+      let termsText = DEFAULT_TERMS;
+      try {
+        const termsSnap = await db.ref('settings/terms').once('value');
+        if (termsSnap.exists()) termsText = termsSnap.val();
+      } catch(e) {}
+
       const contractData = {
         name, phone, birth, gender, address, type, memo,
         programs, extras,
         signDate, signUrl,
+        terms: termsText,
         createdAt: Date.now(),
         registeredBy: localStorage.getItem('current_user') || 'admin',
       };
       const contractKey = signDate + '_' + Date.now();
       await db.ref('contracts/' + phone + '/' + contractKey).set(contractData);
+      window._lastContractData = contractData;
 
       // 3-1. 락카번호 입력 시 lockers/ Firebase 동기화 (key: catId_번호)
       if (extras.locker?.lockerNo && extras.locker?.lockerCatId) {
@@ -3832,6 +3841,244 @@
   }
 
   // 계약서 초기화
+  // ── 계약서 HTML 생성 (5단계 완료 + 회원 앱 조회 공통 사용) ──
+  function buildContractHtml(d) {
+    const progLabels = {
+      '헬스':'🏋️ 헬스', 'GX':'🎶 GX', 'PT':'💪 PT',
+      '기구필라테스개인':'🧘 기구필라테스 개인', '기구필라테스그룹':'👥 기구필라테스 그룹'
+    };
+
+    // 생년월일 → 나이 계산
+    let ageStr = '';
+    if (d.birth && d.birth.length >= 4) {
+      const birthYear = parseInt(d.birth.slice(0,4));
+      const age = new Date().getFullYear() - birthYear;
+      ageStr = ` (${age}세)`;
+    }
+
+    // 프로그램 행 생성
+    let progRows = '';
+    let totalPrice=0, totalCash=0, totalCard=0, totalTransfer=0;
+    if (d.programs) {
+      Object.entries(d.programs).forEach(([prog, p]) => {
+        const label = progLabels[prog] || prog;
+        const paid  = (p.cash||0)+(p.card||0)+(p.transfer||0);
+        const unpaid= (p.price||0)-paid;
+        totalPrice    += (p.price||0);
+        totalCash     += (p.cash||0);
+        totalCard     += (p.card||0);
+        totalTransfer += (p.transfer||0);
+        progRows += `
+          <tr>
+            <td>${label.replace(/[🏋️🎶💪🧘👥]/gu,'').trim()}</td>
+            <td style="white-space:nowrap;">${p.startDate||'-'} ~ ${p.endDate||'-'}</td>
+            <td style="text-align:center;">${p.months ? p.months+'개월' : '-'}${p.count ? '<br>'+p.count+'회' : ''}</td>
+            <td style="text-align:right;">${p.price ? p.price.toLocaleString()+'원' : '-'}</td>
+            <td style="text-align:right;color:#059669;">${p.cash ? p.cash.toLocaleString() : '-'}</td>
+            <td style="text-align:right;color:#185FA5;">${p.card ? p.card.toLocaleString() : '-'}</td>
+            <td style="text-align:right;color:#7c3aed;">${p.transfer ? p.transfer.toLocaleString() : '-'}</td>
+            <td style="text-align:right;color:#ef4444;font-weight:700;">${unpaid > 0 ? unpaid.toLocaleString() : '-'}</td>
+          </tr>`;
+      });
+    }
+
+    // 합계 행
+    const grandPaid   = totalCash + totalCard + totalTransfer;
+    let   grandTotal  = totalPrice;
+    let   grandUnpaid = totalPrice - grandPaid;
+
+    // 부가서비스 행
+    let extrasRows = '';
+    if (d.extras) {
+      if (d.extras.locker) {
+        const e = d.extras.locker;
+        const lockerLabel = e.lockerNo ? `${e.lockerNo}번 · ${e.months||'-'}개월` : `${e.months||'-'}개월`;
+        const ePaid   = (e.cash||0)+(e.card||0)+(e.transfer||0);
+        const eUnpaid = (e.price||0)-ePaid;
+        grandTotal  += (e.price||0);
+        grandUnpaid += eUnpaid;
+        extrasRows += `
+          <tr>
+            <td>🔑 개인 락카</td>
+            <td colspan="2">${lockerLabel}</td>
+            <td style="text-align:right;">${e.price ? e.price.toLocaleString()+'원' : '무료'}</td>
+            <td style="text-align:right;color:#059669;">${e.cash ? e.cash.toLocaleString() : '-'}</td>
+            <td style="text-align:right;color:#185FA5;">${e.card ? e.card.toLocaleString() : '-'}</td>
+            <td style="text-align:right;color:#7c3aed;">${e.transfer ? e.transfer.toLocaleString() : '-'}</td>
+            <td style="text-align:right;color:#ef4444;font-weight:700;">${eUnpaid > 0 ? eUnpaid.toLocaleString() : '-'}</td>
+          </tr>`;
+      }
+      if (d.extras.cloth) {
+        const e = d.extras.cloth;
+        const ePaid   = (e.cash||0)+(e.card||0)+(e.transfer||0);
+        const eUnpaid = (e.price||0)-ePaid;
+        grandTotal  += (e.price||0);
+        grandUnpaid += eUnpaid;
+        extrasRows += `
+          <tr>
+            <td>👕 운동복</td>
+            <td colspan="2">${e.months||'-'}개월</td>
+            <td style="text-align:right;">${e.price ? e.price.toLocaleString()+'원' : '무료'}</td>
+            <td style="text-align:right;color:#059669;">${e.cash ? e.cash.toLocaleString() : '-'}</td>
+            <td style="text-align:right;color:#185FA5;">${e.card ? e.card.toLocaleString() : '-'}</td>
+            <td style="text-align:right;color:#7c3aed;">${e.transfer ? e.transfer.toLocaleString() : '-'}</td>
+            <td style="text-align:right;color:#ef4444;font-weight:700;">${eUnpaid > 0 ? eUnpaid.toLocaleString() : '-'}</td>
+          </tr>`;
+      }
+    }
+
+    const termsText = (d.terms || DEFAULT_TERMS).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const genderStr = d.gender === 'female' ? '여' : '남';
+    const typeStr   = d.type   === 're'     ? '재등록' : '신규 등록';
+    const birthFmt  = d.birth ? d.birth.replace(/(\d{4})(\d{2})(\d{2})/,'$1년 $2월 $3일') : '-';
+
+    return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>풍산휘트니스 가입 계약서</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body { background:#f0f0f0; font-family:'Noto Sans KR','Malgun Gothic','맑은 고딕',sans-serif; }
+.a4 { width:210mm; min-height:297mm; background:white; margin:10mm auto; padding:13mm 15mm; font-size:11.5pt; color:#111; }
+@media print { body{background:white;} .a4{margin:0; padding:13mm 15mm;} .btn-wrap{display:none;} }
+.title-row { display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #185FA5; padding-bottom:7px; margin-bottom:12px; }
+.title-main { font-size:19pt; font-weight:700; color:#185FA5; }
+.title-sub { font-size:10.5pt; color:#555; text-align:right; line-height:1.8; }
+.section { margin-bottom:10px; }
+.sec-head { background:#185FA5; color:white; font-size:11pt; font-weight:700; padding:5px 10px; margin-bottom:5px; }
+table { width:100%; border-collapse:collapse; font-size:10.5pt; }
+td { border:0.7px solid #aaa; padding:6px 8px; vertical-align:middle; line-height:1.5; }
+.lbl { background:#eef2f7; color:#333; font-weight:700; white-space:nowrap; width:70px; }
+.prog-head { background:#d6e4f0; font-weight:700; font-size:10pt; color:#185FA5; text-align:center; padding:6px 4px; white-space:nowrap; }
+.total-row { background:#e4eef8; font-weight:700; font-size:11pt; }
+.terms-box { border:0.7px solid #aaa; padding:8px 11px; font-size:8.5pt; line-height:1.9; color:#222; column-count:2; column-gap:14px; }
+.terms-title { font-weight:700; color:#185FA5; margin-top:7px; margin-bottom:2px; font-size:9pt; display:block; }
+.terms-title:first-child { margin-top:0; }
+.sign-row { display:flex; gap:10px; margin-top:7px; align-items:stretch; }
+.sign-box { flex:1; border:0.7px solid #aaa; padding:10px 12px; min-height:80px; }
+.stamp { width:70px; height:70px; border:2.5px solid #ef4444; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:9.5pt; color:#ef4444; font-weight:700; text-align:center; line-height:1.5; flex-shrink:0; align-self:center; }
+.unpaid-box { background:#fef2f2; border:0.7px solid #fca5a5; border-radius:6px; padding:8px 12px; margin-top:8px; font-size:10pt; color:#991b1b; }
+.btn-wrap { text-align:center; margin:12px 0; }
+.btn-pdf { background:#185FA5; color:white; border:none; padding:10px 28px; font-size:13pt; border-radius:6px; cursor:pointer; font-family:inherit; }
+</style>
+</head>
+<body>
+<div class="btn-wrap">
+  <button class="btn-pdf" onclick="window.print()">📄 PDF로 저장</button>
+</div>
+<div class="a4">
+  <div class="title-row">
+    <div class="title-main">풍산휘트니스 가입 계약서</div>
+    <div class="title-sub">계약일: ${d.signDate||'-'}<br>${typeStr}</div>
+  </div>
+  <div class="section">
+    <div class="sec-head">회원 정보</div>
+    <table>
+      <tr>
+        <td class="lbl">성명</td><td>${d.name||'-'}</td>
+        <td class="lbl">성별</td><td>${genderStr}</td>
+        <td class="lbl">생년월일</td><td>${birthFmt}${ageStr}</td>
+      </tr>
+      <tr>
+        <td class="lbl">연락처</td><td>${d.phone||'-'}</td>
+        <td class="lbl">주소</td><td colspan="3">${d.address||'-'}</td>
+      </tr>
+      <tr>
+        <td class="lbl">비고</td><td colspan="5">${d.memo||'-'}</td>
+      </tr>
+    </table>
+  </div>
+  <div class="section">
+    <div class="sec-head">계약 내용</div>
+    <table>
+      <colgroup>
+        <col style="width:14%"><col style="width:22%"><col style="width:13%">
+        <col style="width:13%"><col style="width:10%"><col style="width:10%">
+        <col style="width:10%"><col style="width:10%">
+      </colgroup>
+      <tr>
+        <td class="prog-head">구분</td><td class="prog-head">이용기간</td>
+        <td class="prog-head">기간/횟수</td><td class="prog-head">이용요금</td>
+        <td class="prog-head">현금</td><td class="prog-head">카드</td>
+        <td class="prog-head">계좌이체</td><td class="prog-head">미수금</td>
+      </tr>
+      ${progRows}
+      ${extrasRows}
+      <tr class="total-row">
+        <td colspan="3" style="text-align:right;padding-right:12px;">합계</td>
+        <td style="text-align:right;">${grandTotal.toLocaleString()}원</td>
+        <td style="text-align:right;color:#059669;">${totalCash ? totalCash.toLocaleString() : '-'}</td>
+        <td style="text-align:right;color:#185FA5;">${totalCard ? totalCard.toLocaleString() : '-'}</td>
+        <td style="text-align:right;color:#7c3aed;">${totalTransfer ? totalTransfer.toLocaleString() : '-'}</td>
+        <td style="text-align:right;color:#ef4444;font-weight:700;">${grandUnpaid > 0 ? grandUnpaid.toLocaleString() : '-'}</td>
+      </tr>
+    </table>
+    ${grandUnpaid > 0 ? `<div class="unpaid-box">⚠️ 미수금 ${grandUnpaid.toLocaleString()}원이 남아있어요. 센터 방문 또는 계좌이체로 납부해주세요.</div>` : ''}
+  </div>
+  <div class="section">
+    <div class="sec-head">이용약관</div>
+    <div class="terms-box">${termsText}</div>
+  </div>
+  <div class="section">
+    <div class="sec-head">동의 및 서명</div>
+    <div style="font-size:10.5pt;padding:6px 0;line-height:1.6;">본인은 위의 이용약관을 준수할 것에 동의하며 상기와 같이 회원가입을 신청합니다.</div>
+    <div class="sign-row">
+      <div class="sign-box" style="flex:1.2;">
+        <div style="font-size:9.5pt;color:#666;margin-bottom:8px;">신청일</div>
+        <div style="font-size:12pt;font-weight:700;">${d.signDate||'-'}</div>
+      </div>
+      <div class="sign-box" style="flex:3;">
+        <div style="font-size:9.5pt;color:#666;margin-bottom:6px;">회원 서명</div>
+        ${d.signUrl ? `<img src="${d.signUrl}" style="max-height:52px;max-width:100%;">` : '<div style="height:52px;display:flex;align-items:center;color:#aaa;font-size:10pt;">서명 없음</div>'}
+      </div>
+      <div class="stamp">서명<br>완료</div>
+    </div>
+  </div>
+</div>
+<div class="btn-wrap">
+  <button class="btn-pdf" onclick="window.print()">📄 PDF로 저장</button>
+</div>
+</body></html>`;
+  }
+  window.buildContractHtml = buildContractHtml;
+
+  // ── 회원 앱: 내 계약서 조회 ──
+  async function openMyContract() {
+    const phone = localStorage.getItem('current_user');
+    if (!phone) return;
+
+    showToast('계약서 불러오는 중...', 'info');
+    try {
+      const snap = await db.ref('contracts/' + phone).once('value');
+      if (!snap.exists()) {
+        showToast('등록된 계약서가 없어요.', 'error');
+        return;
+      }
+      // 가장 최근 계약서 선택
+      const contracts = snap.val();
+      const keys      = Object.keys(contracts).sort();
+      const latest    = contracts[keys[keys.length - 1]];
+      const html      = buildContractHtml(latest);
+      const blob      = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url       = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch(e) {
+      showToast('계약서 조회 실패: ' + e.message, 'error');
+    }
+  }
+  window.openMyContract = openMyContract;
+
+  // ── 5단계 완료 후 PDF 새탭 열기 ──
+  function openContractPdf() {
+    if (!window._lastContractData) { showToast('계약서 데이터가 없어요.', 'error'); return; }
+    const html = buildContractHtml(window._lastContractData);
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  }
+  window.openContractPdf = openContractPdf;
+
   function resetContract() {
     ctSelectedProgs = [];
     ctExtraCount = {};
