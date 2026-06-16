@@ -3260,11 +3260,10 @@
       gridEl.innerHTML = items.map(item => `
         <div onclick="${item.disabled ? '' : `selectCtLockerNo('${catId}','${item.no}')`}"
           id="ct-locker-cell-${item.no}"
-          style="width:52px;height:52px;border-radius:8px;background:${item.bg};border:1.5px solid ${item.border};
-          display:flex;flex-direction:column;align-items:center;justify-content:center;
-          cursor:${item.disabled ? 'not-allowed' : 'pointer'};gap:1px;box-sizing:border-box;opacity:${item.disabled ? '0.6' : '1'};">
-          <span style="font-size:10px;font-weight:700;color:var(--text-sub);">${item.no}번</span>
-          <span style="font-size:10px;color:var(--text-hint);">${item.label}</span>
+          style="width:40px;height:40px;border-radius:6px;background:${item.bg};border:1.5px solid ${item.border};
+          display:flex;align-items:center;justify-content:center;
+          cursor:${item.disabled ? 'not-allowed' : 'pointer'};box-sizing:border-box;opacity:${item.disabled ? '0.5' : '1'};">
+          <span style="font-size:12px;font-weight:700;color:var(--text);">${item.no}</span>
         </div>`).join('');
     } catch(e) {
       gridEl.innerHTML = '<span style="font-size:12px;color:#ef4444;">로드 실패</span>';
