@@ -3145,12 +3145,15 @@
               </div>
 
               <!-- 버튼 -->
-              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+                <button onclick="ctGoStep(4)" style="padding:12px;background:var(--card);color:var(--text-sub);border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+                  ← 서명 수정
+                </button>
                 <button onclick="openContractPdf()" style="padding:12px;background:#185FA5;color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
                   📄 PDF 저장
                 </button>
                 <button onclick="sendContractToMember()" style="padding:12px;background:#059669;color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-                  📱 앱으로 전송
+                  📱 앱 전송
                 </button>
                 <button onclick="resetContract()" style="padding:12px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
                   ➕ 새 계약서

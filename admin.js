@@ -2805,6 +2805,8 @@
     // 4단계 진입 시 서명 초기화 + 날짜 표시 + 계약내용 요약
     if (step === 4) {
       initCtSign();
+      clearCtSign();
+      window._ctSubmitting = false;
       const now = new Date();
       document.getElementById('ct-sign-date').textContent =
         now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일';
@@ -3637,9 +3639,13 @@
 
   // 계약서 최종 저장
   async function submitContract() {
+    // 중복 저장 방지
+    if (window._ctSubmitting) return;
+    window._ctSubmitting = true;
+
     // 서명 확인
     const blank = !ctSignCtx || isCanvasBlank(ctSignCanvas);
-    if (blank) { showToast('서명을 해주세요.', 'error'); return; }
+    if (blank) { window._ctSubmitting = false; showToast('서명을 해주세요.', 'error'); return; }
 
     const name   = document.getElementById('ct-name').value.trim();
     const phone  = document.getElementById('ct-phone').value.trim().replace(/-/g,'');
@@ -3732,14 +3738,11 @@
       const photoUrl = await uploadCtPhoto(phone);
       if (photoUrl) await db.ref('members/' + phone + '/photoUrl').set(photoUrl);
 
-      // 2. 서명 이미지 Firebase Storage 저장
+      // 2. 서명 이미지 Base64로 저장 (PDF에서 CORS 없이 표시 가능)
       let signUrl = '';
       try {
-        const signBlob = await new Promise(res => ctSignCanvas.toBlob(res, 'image/png'));
-        const storageRef = firebase.storage().ref('contracts/' + phone + '/' + signDate + '.png');
-        await storageRef.put(signBlob);
-        signUrl = await storageRef.getDownloadURL();
-      } catch(e) { console.warn('서명 이미지 저장 실패:', e); }
+        signUrl = ctSignCanvas.toDataURL('image/png');
+      } catch(e) { console.warn('서명 이미지 변환 실패:', e); }
 
       // 3. 계약서 Firebase 저장
       // 약관 내용 (저장 시점 기준으로 함께 저장)
@@ -3852,11 +3855,13 @@
 
       ctGoStep(5);
       showToast('✅ 계약서 저장 완료!', 'success');
+      window._ctSubmitting = false;
 
       // 회원 목록 갱신
       if (typeof loadMembers === 'function') loadMembers();
 
     } catch(err) {
+      window._ctSubmitting = false;
       showToast('저장 실패: ' + err.message, 'error');
     }
   }
