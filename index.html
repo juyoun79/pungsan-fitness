@@ -2888,13 +2888,26 @@
 
                 <!-- 운동복 detail (전체 너비) -->
                 <div id="ct-cloth-detail" style="display:none;padding:10px;background:var(--bg);border-radius:var(--radius-sm);margin-top:8px;">
+                    <!-- 시작일 + 종료일 -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                      <div>
+                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">시작일</div>
+                        <input type="date" id="ct-cloth-start"
+                          style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                          oninput="calcCtExtraEndDate('cloth')" />
+                      </div>
+                      <div>
+                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">종료일 (자동계산)</div>
+                        <div id="ct-cloth-end-display" style="padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text-hint);background:var(--bg);">자동계산</div>
+                      </div>
+                    </div>
                     <!-- 기간 + 이용요금 -->
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
                       <div>
                         <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">기간(개월)</div>
                         <input type="number" id="ct-cloth-months" placeholder="개월" min="1" max="24"
                           style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
-                          onwheel="this.blur()" oninput="calcCtTotal();updateCtExtraSummary('cloth')" />
+                          onwheel="this.blur()" oninput="calcCtTotal();updateCtExtraSummary('cloth');calcCtExtraEndDate('cloth')" />
                       </div>
                       <div>
                         <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">이용요금(원)</div>
@@ -2956,13 +2969,26 @@
                         <input type="hidden" id="ct-locker-cat-id" value="" />
                       </div>
                     </div>
+                    <!-- 시작일 + 종료일 -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                      <div>
+                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">시작일</div>
+                        <input type="date" id="ct-locker-start"
+                          style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
+                          oninput="calcCtExtraEndDate('locker')" />
+                      </div>
+                      <div>
+                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">종료일 (자동계산)</div>
+                        <div id="ct-locker-end-display" style="padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text-hint);background:var(--bg);">자동계산</div>
+                      </div>
+                    </div>
                     <!-- 기간 + 이용요금 -->
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
                       <div>
                         <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">기간(개월)</div>
                         <input type="number" id="ct-locker-months" placeholder="개월" min="1" max="24"
                           style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
-                          onwheel="this.blur()" oninput="calcCtTotal();updateCtExtraSummary('locker')" />
+                          onwheel="this.blur()" oninput="calcCtTotal();updateCtExtraSummary('locker');calcCtExtraEndDate('locker')" />
                       </div>
                       <div>
                         <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">이용요금(원)</div>

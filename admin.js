@@ -3273,25 +3273,59 @@
   }
 
   // 계약서에서 락카 번호 선택
+  // ── 부가서비스 종료일 자동계산 ──
+  function calcCtExtraEndDate(type) {
+    const startEl   = document.getElementById('ct-' + type + '-start');
+    const monthsEl  = document.getElementById('ct-' + type + '-months');
+    const displayEl = document.getElementById('ct-' + type + '-end-display');
+    if (!startEl || !monthsEl || !displayEl) return;
+    const startVal  = startEl.value;
+    const months    = parseInt(monthsEl.value) || 0;
+    if (!startVal || !months) { displayEl.textContent = '자동계산'; displayEl.style.color = 'var(--text-hint)'; return; }
+    const d = new Date(startVal);
+    d.setMonth(d.getMonth() + months);
+    d.setDate(d.getDate() - 1);
+    const endStr = d.getFullYear() + '년 ' + (d.getMonth()+1) + '월 ' + d.getDate() + '일';
+    displayEl.textContent = endStr;
+    displayEl.style.color = '#059669';
+  }
+  window.calcCtExtraEndDate = calcCtExtraEndDate;
+
   function selectCtLockerNo(catId, no) {
-    const key     = catId + '_' + no;
     const noInput = document.getElementById('ct-locker-no');
     const catInput= document.getElementById('ct-locker-cat-id');
     const display = document.getElementById('ct-locker-no-display');
-
-    // 이전 선택 해제
-    document.querySelectorAll('[id^="ct-locker-cell-"]').forEach(el => {
-      el.style.outline = 'none';
-    });
-
-    // 현재 선택 표시
-    const cell = document.getElementById('ct-locker-cell-' + no);
-    if (cell) cell.style.outline = '2.5px solid #1a6fd4';
+    const gridWrap= document.getElementById('ct-locker-grid');
+    const catSel  = document.getElementById('ct-locker-cat');
+    const catName = catSel?.options[catSel?.selectedIndex]?.textContent || '';
 
     if (noInput)  noInput.value  = no;
     if (catInput) catInput.value = catId;
-    if (display)  display.textContent = no + '번 (' + (document.getElementById('ct-locker-cat')?.options[document.getElementById('ct-locker-cat')?.selectedIndex]?.textContent || '') + ')';
+
+    // 선택 표시 + 그리드 숨기고 변경 버튼 표시
+    if (display) {
+      display.innerHTML = `
+        <span style="font-size:13px;font-weight:700;color:#185FA5;">✅ ${catName} ${no}번 선택됨</span>
+        <button type="button" onclick="showCtLockerGrid()"
+          style="margin-left:8px;padding:3px 10px;font-size:11px;border:1px solid var(--border);background:var(--card);border-radius:20px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+          변경
+        </button>`;
+    }
+    if (gridWrap) gridWrap.style.display = 'none';
   }
+
+  // 락카 그리드 다시 표시 (변경 버튼 클릭 시)
+  function showCtLockerGrid() {
+    const gridWrap = document.getElementById('ct-locker-grid');
+    const display  = document.getElementById('ct-locker-no-display');
+    const noInput  = document.getElementById('ct-locker-no');
+    const catInput = document.getElementById('ct-locker-cat-id');
+    if (gridWrap) gridWrap.style.display = '';
+    if (display)  display.innerHTML = '<span style="font-size:13px;color:var(--text-hint);">없음 (나중에 배정)</span>';
+    if (noInput)  noInput.value  = '';
+    if (catInput) catInput.value = '';
+  }
+  window.showCtLockerGrid = showCtLockerGrid;
 
   // 부가서비스 카드 상단 요약 업데이트
   function updateCtExtraSummary(type) {
@@ -3626,32 +3660,48 @@
       };
     });
 
+    // 날짜 계산 함수
+    const calcEndDate = (startDateStr, months) => {
+      if (!startDateStr || !months) return '';
+      const d = new Date(startDateStr);
+      d.setMonth(d.getMonth() + months);
+      d.setDate(d.getDate() - 1);
+      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    };
+
+    const now = new Date();
+    const signDate = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+
     // 부가서비스
     const extras = {};
     if (document.getElementById('ct-cloth-check')?.checked) {
+      const clothStart  = document.getElementById('ct-cloth-start')?.value || signDate;
+      const clothMonths = parseInt(document.getElementById('ct-cloth-months')?.value) || 0;
       extras.cloth = {
-        months  : parseInt(document.getElementById('ct-cloth-months')?.value)   || 0,
-        price   : parseInt(document.getElementById('ct-cloth-price')?.value)    || 0,
-        cash    : parseInt(document.getElementById('ct-cloth-cash')?.value)     || 0,
-        card    : parseInt(document.getElementById('ct-cloth-card')?.value)     || 0,
-        transfer: parseInt(document.getElementById('ct-cloth-transfer')?.value) || 0,
+        startDate : clothStart,
+        endDate   : calcEndDate(clothStart, clothMonths),
+        months    : clothMonths,
+        price     : parseInt(document.getElementById('ct-cloth-price')?.value)    || 0,
+        cash      : parseInt(document.getElementById('ct-cloth-cash')?.value)     || 0,
+        card      : parseInt(document.getElementById('ct-cloth-card')?.value)     || 0,
+        transfer  : parseInt(document.getElementById('ct-cloth-transfer')?.value) || 0,
       };
     }
     if (document.getElementById('ct-locker-check')?.checked) {
+      const lockerStart  = document.getElementById('ct-locker-start')?.value || signDate;
+      const lockerMonths = parseInt(document.getElementById('ct-locker-months')?.value) || 0;
       extras.locker = {
-        lockerNo    : document.getElementById('ct-locker-no')?.value.trim()      || '',
-        lockerCatId : document.getElementById('ct-locker-cat-id')?.value.trim()  || '',
-        startDate   : signDate,
-        months      : parseInt(document.getElementById('ct-locker-months')?.value)   || 0,
+        lockerNo    : document.getElementById('ct-locker-no')?.value.trim()     || '',
+        lockerCatId : document.getElementById('ct-locker-cat-id')?.value.trim() || '',
+        startDate   : lockerStart,
+        endDate     : calcEndDate(lockerStart, lockerMonths),
+        months      : lockerMonths,
         price       : parseInt(document.getElementById('ct-locker-price')?.value)    || 0,
         cash        : parseInt(document.getElementById('ct-locker-cash')?.value)     || 0,
         card        : parseInt(document.getElementById('ct-locker-card')?.value)     || 0,
         transfer    : parseInt(document.getElementById('ct-locker-transfer')?.value) || 0,
       };
     }
-
-    const now = new Date();
-    const signDate = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
 
     showToast('저장 중...', 'info');
 
@@ -3706,22 +3756,15 @@
 
       // 3-1. 락카번호 입력 시 lockers/ Firebase 동기화 (key: catId_번호)
       if (extras.locker?.lockerNo && extras.locker?.lockerCatId) {
-        const lockerNo  = extras.locker.lockerNo;
+        const lockerNo    = extras.locker.lockerNo;
         const lockerCatId = extras.locker.lockerCatId;
-        const lockerKey = lockerCatId + '_' + lockerNo;
-        const startDate = signDate;
-        let endDate = '';
-        if (extras.locker.months) {
-          const d = new Date(signDate);
-          d.setMonth(d.getMonth() + extras.locker.months);
-          d.setDate(d.getDate() - 1);
-          endDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-        }
+        const lockerKey   = lockerCatId + '_' + lockerNo;
         await db.ref('lockers/' + lockerKey).set({
           lockerNo, phone, name,
-          startDate, endDate,
+          startDate : extras.locker.startDate,
+          endDate   : extras.locker.endDate,
           categoryId: lockerCatId,
-          status: 'active',
+          status    : 'active',
         });
         await db.ref('members/' + phone + '/lockerKey').set(lockerKey);
       }
@@ -3919,7 +3962,7 @@
         extrasRows += `
           <tr>
             <td style="font-size:10pt;">운동복</td>
-            <td style="font-size:10pt;">-</td>
+            <td style="white-space:nowrap;font-size:10pt;">${e.startDate||'-'} ~ ${e.endDate||'-'}</td>
             <td style="text-align:center;font-size:10pt;">${e.months||'-'}개월</td>
             <td style="text-align:right;font-size:10pt;">${e.price?e.price.toLocaleString()+'원':'무료'}</td>
             <td style="text-align:right;color:#059669;font-size:10pt;">${e.cash?e.cash.toLocaleString():'-'}</td>
@@ -4152,9 +4195,16 @@ td { border:0.7px solid #aaa; padding:7px 9px; vertical-align:middle; line-heigh
     });
     // 부가서비스 입력값 초기화
     ['ct-cloth-months','ct-cloth-price','ct-cloth-cash','ct-cloth-card','ct-cloth-transfer',
-     'ct-locker-no','ct-locker-cat-id','ct-locker-months','ct-locker-price','ct-locker-cash','ct-locker-card','ct-locker-transfer'].forEach(id => {
+     'ct-cloth-start',
+     'ct-locker-no','ct-locker-cat-id','ct-locker-months','ct-locker-price','ct-locker-cash','ct-locker-card','ct-locker-transfer',
+     'ct-locker-start'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = '';
+    });
+    // 종료일 표시 초기화
+    ['ct-cloth-end-display','ct-locker-end-display'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = '자동계산'; el.style.color = 'var(--text-hint)'; }
     });
     // 락카 카테고리 드롭다운 초기화
     const lockerCatSel = document.getElementById('ct-locker-cat');
