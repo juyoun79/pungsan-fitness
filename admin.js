@@ -2785,6 +2785,7 @@
   let ctCurrentStep = 1;
   let ctSignCanvas, ctSignCtx, ctSigning = false;
   let ctSelectedProgs = [];
+  let ctPackages = []; // [{id, items:{prog:{months,count,price,...}}, name, totalPrice, ...}]
 
   // 단계 이동
   function ctGoStep(step) {
@@ -2856,7 +2857,9 @@
       return; // Firebase 조회 비동기라 여기서 return
     }
     if (step === 2) {
-      if (ctSelectedProgs.length === 0) { showToast('프로그램을 1개 이상 선택해주세요.', 'error'); return; }
+      if (ctSelectedProgs.length === 0 && ctPackages.length === 0) {
+        showToast('프로그램 또는 패키지를 1개 이상 선택해주세요.', 'error'); return;
+      }
     }
     ctGoStep(step + 1);
     if (step === 2) loadCtTerms();
@@ -2896,6 +2899,186 @@
 
   // 프로그램 선택 토글
   // 프로그램 카드 토글 (체크박스 방식)
+  // ── 패키지 관련 함수 ──
+  const CT_PROG_LABELS = {
+    '헬스':'🏋️ 헬스', 'GX':'🎶 GX', 'PT':'💪 PT',
+    '기구필라테스개인':'🧘 기구필라테스 개인', '기구필라테스그룹':'👥 기구필라테스 그룹'
+  };
+  const CT_PROG_LIST = ['헬스','GX','PT','기구필라테스개인','기구필라테스그룹'];
+
+  let ctPkgIdCounter = 0;
+
+  function addCtPackage() {
+    const id = ++ctPkgIdCounter;
+    ctPackages.push({ id, items: {}, name: '' });
+    renderCtPackages();
+    calcCtTotal();
+  }
+  window.addCtPackage = addCtPackage;
+
+  function removeCtPackage(id) {
+    ctPackages = ctPackages.filter(p => p.id !== id);
+    renderCtPackages();
+    calcCtTotal();
+  }
+  window.removeCtPackage = removeCtPackage;
+
+  function toggleCtPackageProg(pkgId, prog) {
+    const pkg = ctPackages.find(p => p.id === pkgId);
+    if (!pkg) return;
+    if (pkg.items[prog]) {
+      delete pkg.items[prog];
+    } else {
+      pkg.items[prog] = { months:0, count:0, price:0, cash:0, card:0, transfer:0, startDate:'', endDate:'' };
+    }
+    updateCtPackageName(pkg);
+    renderCtPackages();
+    calcCtTotal();
+  }
+  window.toggleCtPackageProg = toggleCtPackageProg;
+
+  function updateCtPackageName(pkg) {
+    const names = Object.keys(pkg.items).map(p => {
+      const short = { '헬스':'헬스','GX':'GX','PT':'PT','기구필라테스개인':'기구P개인','기구필라테스그룹':'기구P그룹' };
+      return short[p] || p;
+    });
+    pkg.name = names.length > 0 ? names.join('+') + ' 패키지' : '';
+  }
+
+  function updateCtPkgField(pkgId, prog, field, value) {
+    const pkg = ctPackages.find(p => p.id === pkgId);
+    if (!pkg || !pkg.items[prog]) return;
+    pkg.items[prog][field] = field === 'startDate' || field === 'endDate' ? value : (parseInt(value)||0);
+    // 종료일 자동계산
+    if (field === 'months' || field === 'startDate') {
+      const start  = pkg.items[prog].startDate;
+      const months = pkg.items[prog].months;
+      if (start && months) {
+        const d = new Date(start);
+        d.setMonth(d.getMonth() + months);
+        d.setDate(d.getDate()-1);
+        pkg.items[prog].endDate = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        // 종료일 표시 업데이트
+        const endEl = document.getElementById('ct-pkg-'+pkgId+'-'+prog+'-end-display');
+        if (endEl) endEl.textContent = pkg.items[prog].endDate;
+      }
+    }
+    calcCtTotal();
+  }
+  window.updateCtPkgField = updateCtPkgField;
+
+  function renderCtPackages() {
+    const list  = document.getElementById('ct-package-list');
+    const empty = document.getElementById('ct-package-empty');
+    if (!list) return;
+    if (empty) empty.style.display = ctPackages.length === 0 ? '' : 'none';
+
+    list.innerHTML = ctPackages.map(pkg => {
+      const today = new Date().toISOString().slice(0,10);
+      const progButtons = CT_PROG_LIST.map(prog => {
+        const sel = !!pkg.items[prog];
+        return `<button type="button" onclick="toggleCtPackageProg(${pkg.id},'${prog}')"
+          style="padding:6px 10px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
+          background:${sel?'#185FA5':'var(--card)'};color:${sel?'white':'var(--text-sub)'};border:${sel?'none':'1px solid var(--border)'};">
+          ${CT_PROG_LABELS[prog]}
+        </button>`;
+      }).join('');
+
+      const progInputs = Object.keys(pkg.items).map(prog => {
+        const it = pkg.items[prog];
+        const hasCount = prog === 'PT' || prog === '기구필라테스개인' || prog === '기구필라테스그룹';
+        return `
+          <div style="background:var(--card);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:10px;margin-top:8px;">
+            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;">${CT_PROG_LABELS[prog]}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
+              <div>
+                <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">시작일</div>
+                <input type="date" value="${it.startDate||today}"
+                  style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
+                  oninput="updateCtPkgField(${pkg.id},'${prog}','startDate',this.value)" />
+              </div>
+              <div>
+                <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">종료일 (자동)</div>
+                <div id="ct-pkg-${pkg.id}-${prog}-end-display" style="padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:#059669;background:var(--bg);">${it.endDate||'자동계산'}</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:${hasCount?'1fr 1fr 1fr':'1fr 1fr'};gap:6px;margin-bottom:6px;">
+              <div>
+                <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">기간(개월)</div>
+                <input type="number" min="1" max="36" placeholder="개월" value="${it.months||''}"
+                  style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
+                  onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','months',this.value)" />
+              </div>
+              ${hasCount ? `<div>
+                <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">횟수</div>
+                <input type="number" min="1" placeholder="회" value="${it.count||''}"
+                  style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
+                  onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','count',this.value)" />
+              </div>` : ''}
+              <div>
+                <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">이용요금</div>
+                <input type="number" min="0" placeholder="0" value="${it.price||''}"
+                  style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
+                  onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','price',this.value)" />
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+              <div>
+                <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">현금</div>
+                <input type="number" min="0" placeholder="0" value="${it.cash||''}"
+                  style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
+                  onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','cash',this.value)" />
+              </div>
+              <div>
+                <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">카드</div>
+                <input type="number" min="0" placeholder="0" value="${it.card||''}"
+                  style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
+                  onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','card',this.value)" />
+              </div>
+              <div>
+                <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">계좌이체</div>
+                <input type="number" min="0" placeholder="0" value="${it.transfer||''}"
+                  style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
+                  onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','transfer',this.value)" />
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+
+      const pkgTotal = Object.values(pkg.items).reduce((s,it) => s+(it.price||0), 0);
+      const pkgPaid  = Object.values(pkg.items).reduce((s,it) => s+(it.cash||0)+(it.card||0)+(it.transfer||0), 0);
+
+      return `
+        <div style="border-top:0.5px solid var(--border);padding:12px 14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-size:13px;font-weight:700;color:#185FA5;">📦 ${pkg.name || '패키지 구성 중...'}</span>
+            <button onclick="removeCtPackage(${pkg.id})" style="font-size:11px;color:#ef4444;border:1px solid #fca5a5;background:#fef2f2;border-radius:20px;padding:3px 10px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">${progButtons}</div>
+          ${progInputs}
+          ${pkgTotal > 0 ? `
+            <div style="margin-top:8px;padding:8px 10px;background:#f0f7ff;border-radius:var(--radius-sm);display:flex;justify-content:space-between;font-size:12px;">
+              <span style="color:var(--text-sub);">패키지 합계</span>
+              <span style="color:#185FA5;font-weight:700;">${pkgTotal.toLocaleString()}원 (결제 ${pkgPaid.toLocaleString()}원)</span>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+  }
+  window.renderCtPackages = renderCtPackages;
+
+  function calcCtPackageTotals() {
+    let total=0, cash=0, card=0, transfer=0;
+    ctPackages.forEach(pkg => {
+      Object.values(pkg.items).forEach(it => {
+        total    += (it.price||0);
+        cash     += (it.cash||0);
+        card     += (it.card||0);
+        transfer += (it.transfer||0);
+      });
+    });
+    return { total, cash, card, transfer };
+  }
+
   function toggleCtCard(prog) {
     const chk  = document.getElementById('ct-chk-' + prog);
     const card = document.getElementById('ct-card-' + prog);
@@ -3084,6 +3267,25 @@
         breakdownItems.push({
           label: (progLabels[prog] || prog) + (months ? ' ' + months + '개월' : ''),
           price, cash, card, transfer
+        });
+      }
+    });
+
+    // 패키지
+    const pkgTotals = calcCtPackageTotals();
+    totalContract += pkgTotals.total;
+    sumCash       += pkgTotals.cash;
+    sumCard       += pkgTotals.card;
+    sumTransfer   += pkgTotals.transfer;
+    ctPackages.forEach(pkg => {
+      const pkgTotal = Object.values(pkg.items).reduce((s,it)=>s+(it.price||0),0);
+      const pkgCash  = Object.values(pkg.items).reduce((s,it)=>s+(it.cash||0),0);
+      const pkgCard  = Object.values(pkg.items).reduce((s,it)=>s+(it.card||0),0);
+      const pkgTr    = Object.values(pkg.items).reduce((s,it)=>s+(it.transfer||0),0);
+      if (pkgTotal > 0 || pkgCash > 0 || pkgCard > 0 || pkgTr > 0) {
+        breakdownItems.push({
+          label: '📦 ' + (pkg.name || '패키지'),
+          price: pkgTotal, cash: pkgCash, card: pkgCard, transfer: pkgTr,
         });
       }
     });
@@ -3522,6 +3724,34 @@
         </div>`;
     });
 
+    // 패키지 (회원 화면 - 패키지명 + 합산금액만)
+    ctPackages.forEach(pkg => {
+      const pkgTotal   = Object.values(pkg.items).reduce((s,it)=>s+(it.price||0),0);
+      const pkgPaid    = Object.values(pkg.items).reduce((s,it)=>s+(it.cash||0)+(it.card||0)+(it.transfer||0),0);
+      const pkgUnpaid  = pkgTotal - pkgPaid;
+      const pkgCash    = Object.values(pkg.items).reduce((s,it)=>s+(it.cash||0),0);
+      const pkgCard    = Object.values(pkg.items).reduce((s,it)=>s+(it.card||0),0);
+      const pkgTransfer= Object.values(pkg.items).reduce((s,it)=>s+(it.transfer||0),0);
+      // 기간 범위 (가장 이른 시작일 ~ 가장 늦은 종료일)
+      const starts = Object.values(pkg.items).map(it=>it.startDate).filter(Boolean).sort();
+      const ends   = Object.values(pkg.items).map(it=>it.endDate).filter(Boolean).sort();
+      const dateRange = starts.length ? starts[0] + ' ~ ' + (ends[ends.length-1]||'') : '';
+      totalPrice += pkgTotal; totalPaid += pkgPaid;
+      totalCash += pkgCash; totalCard += pkgCard; totalTransfer += pkgTransfer;
+      html += `
+        <div style="margin-bottom:8px;padding:8px;background:white;border-radius:6px;border:1px solid var(--border);">
+          <div style="font-size:12px;font-weight:700;color:#185FA5;margin-bottom:4px;">📦 ${pkg.name || '패키지'}</div>
+          <div style="font-size:11px;color:var(--text-sub);line-height:1.6;">
+            ${dateRange ? dateRange + '<br>' : ''}
+            ${pkgTotal ? '이용요금: ' + pkgTotal.toLocaleString() + '원' : ''}
+            ${pkgCash ? '<br><span style="color:#059669;">현금: ' + pkgCash.toLocaleString() + '원</span>' : ''}
+            ${pkgCard ? '<br><span style="color:#1a6fd4;">카드: ' + pkgCard.toLocaleString() + '원</span>' : ''}
+            ${pkgTransfer ? '<br><span style="color:#7c3aed;">계좌: ' + pkgTransfer.toLocaleString() + '원</span>' : ''}
+            ${pkgUnpaid > 0 ? '<br><span style="color:#ef4444;font-weight:700;">미수금: ' + pkgUnpaid.toLocaleString() + '원</span>' : ''}
+          </div>
+        </div>`;
+    });
+
     // 부가서비스
     ['cloth','locker'].forEach(key => {
       const check = document.getElementById('ct-' + key + '-check');
@@ -3716,6 +3946,16 @@
       };
     }
 
+    // 패키지 데이터 수집
+    const packages = ctPackages.map(pkg => ({
+      name      : pkg.name,
+      items     : pkg.items,
+      totalPrice: Object.values(pkg.items).reduce((s,it)=>s+(it.price||0),0),
+      totalCash : Object.values(pkg.items).reduce((s,it)=>s+(it.cash||0),0),
+      totalCard : Object.values(pkg.items).reduce((s,it)=>s+(it.card||0),0),
+      totalTransfer: Object.values(pkg.items).reduce((s,it)=>s+(it.transfer||0),0),
+    }));
+
     showToast('저장 중...', 'info');
 
     try {
@@ -3754,7 +3994,7 @@
 
       const contractData = {
         name, phone, birth, gender, address, type, memo,
-        programs, extras,
+        programs, packages, extras,
         signDate, signUrl,
         terms: termsText,
         createdAt: Date.now(),
@@ -3817,6 +4057,16 @@
             <span style="font-size:13px;font-weight:600;">${progLabelsComplete[prog]||prog}</span>
             <span style="font-size:12px;color:var(--text-sub);text-align:right;">${p.months?p.months+'개월':''}${p.count?' · '+p.count+'회':''}</span>
             ${progUnpaid>0 ? `<span style="font-size:12px;font-weight:700;color:#ef4444;text-align:right;">미수금 ${progUnpaid.toLocaleString()}원</span>` : `<span style="font-size:12px;color:#059669;text-align:right;">✓ 완납</span>`}
+          </div>`; });
+
+      // 패키지 (패키지명+합산금액만)
+      packages.forEach(pkg => {
+        const pkgUnpaid = pkg.totalPrice - (pkg.totalCash + pkg.totalCard + pkg.totalTransfer);
+        summaryHtml += `
+          <div style="display:grid;grid-template-columns:1fr auto auto;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);gap:8px;">
+            <span style="font-size:13px;font-weight:600;">📦 ${pkg.name||'패키지'}</span>
+            <span style="font-size:12px;color:var(--text-sub);text-align:right;">${pkg.totalPrice.toLocaleString()}원</span>
+            ${pkgUnpaid>0 ? `<span style="font-size:12px;font-weight:700;color:#ef4444;text-align:right;">미수금 ${pkgUnpaid.toLocaleString()}원</span>` : `<span style="font-size:12px;color:#059669;text-align:right;">✓ 완납</span>`}
           </div>`; });
 
       // 부가서비스
@@ -3920,13 +4170,42 @@
             <td style="text-align:right;color:#ef4444;font-weight:700;font-size:10pt;">${unpaid>0?unpaid.toLocaleString():'-'}</td>
           </tr>`; }); }
 
-    // 합계 계산 (부가서비스 포함)
+    // 합계 계산 (부가서비스 + 패키지 포함)
     const grandPaid   = totalCash + totalCard + totalTransfer;
     let   grandTotal  = totalPrice;
     let   grandUnpaid = totalPrice - grandPaid;
     let   grandCash   = totalCash;
     let   grandCard   = totalCard;
     let   grandTransfer = totalTransfer;
+
+    // 패키지 행 (패키지명 + 합산금액만 표시)
+    let pkgRows = '';
+    if (d.packages && d.packages.length > 0) {
+      d.packages.forEach(pkg => {
+        const pkgUnpaid = pkg.totalPrice - (pkg.totalCash + pkg.totalCard + pkg.totalTransfer);
+        // 기간 범위 계산
+        const allItems  = Object.values(pkg.items || {});
+        const starts    = allItems.map(it=>it.startDate).filter(Boolean).sort();
+        const ends      = allItems.map(it=>it.endDate).filter(Boolean).sort();
+        const dateRange = starts.length ? starts[0] + ' ~ ' + (ends[ends.length-1]||'') : '-';
+        grandTotal    += pkg.totalPrice;
+        grandUnpaid   += pkgUnpaid;
+        grandCash     += pkg.totalCash;
+        grandCard     += pkg.totalCard;
+        grandTransfer += pkg.totalTransfer;
+        pkgRows += `
+          <tr>
+            <td style="font-size:10pt;color:#185FA5;font-weight:500;">📦 ${pkg.name||'패키지'}</td>
+            <td style="white-space:nowrap;font-size:10pt;">${dateRange}</td>
+            <td style="text-align:center;font-size:10pt;">-</td>
+            <td style="text-align:right;font-size:10pt;">${pkg.totalPrice?pkg.totalPrice.toLocaleString()+'원':'-'}</td>
+            <td style="text-align:right;color:#059669;font-size:10pt;">${pkg.totalCash?pkg.totalCash.toLocaleString():'-'}</td>
+            <td style="text-align:right;color:#185FA5;font-size:10pt;">${pkg.totalCard?pkg.totalCard.toLocaleString():'-'}</td>
+            <td style="text-align:right;color:#7c3aed;font-size:10pt;">${pkg.totalTransfer?pkg.totalTransfer.toLocaleString():'-'}</td>
+            <td style="text-align:right;color:#ef4444;font-weight:700;font-size:10pt;">${pkgUnpaid>0?pkgUnpaid.toLocaleString():'-'}</td>
+          </tr>`;
+      });
+    }
 
     // 부가서비스 행
     let extrasRows = '';
@@ -4067,6 +4346,7 @@ td { border:0.7px solid #aaa; padding:7px 9px; vertical-align:middle; line-heigh
         <td class="prog-head">계좌이체</td><td class="prog-head">미수금</td>
       </tr>
       ${progRows}
+      ${pkgRows}
       ${extrasRows}
       <tr class="total-row">
         <td colspan="3" style="text-align:right;padding-right:12px;font-size:11pt;">합계</td>
@@ -4167,6 +4447,9 @@ td { border:0.7px solid #aaa; padding:7px 9px; vertical-align:middle; line-heigh
 
   function resetContract() {
     ctSelectedProgs = [];
+    ctPackages = [];
+    ctPkgIdCounter = 0;
+    renderCtPackages();
     ctExtraCount = {};
     // 프로그램 카드 초기화
     ['헬스','GX','PT','기구필라테스개인','기구필라테스그룹'].forEach(prog => {
