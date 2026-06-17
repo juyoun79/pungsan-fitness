@@ -3188,6 +3188,16 @@
         summary.style.color = 'var(--text-sub)';
       }
     }
+    // 체크 시 시작일 오늘 날짜 자동 세팅
+    if (check.checked) {
+      const startEl = document.getElementById('ct-' + type + '-start');
+      if (startEl && !startEl.value) {
+        const today = new Date();
+        startEl.value = today.getFullYear() + '-' +
+          String(today.getMonth()+1).padStart(2,'0') + '-' +
+          String(today.getDate()).padStart(2,'0');
+      }
+    }
     // 락카 체크 시 카테고리 로드
     if (type === 'locker' && check.checked) loadCtLockerCategories();
     updateCtExtraSummary(type);
@@ -3292,38 +3302,35 @@
   window.calcCtExtraEndDate = calcCtExtraEndDate;
 
   function selectCtLockerNo(catId, no) {
-    const noInput = document.getElementById('ct-locker-no');
-    const catInput= document.getElementById('ct-locker-cat-id');
-    const display = document.getElementById('ct-locker-no-display');
-    const gridWrap= document.getElementById('ct-locker-grid');
-    const catSel  = document.getElementById('ct-locker-cat');
-    const catName = catSel?.options[catSel?.selectedIndex]?.textContent || '';
+    const noInput   = document.getElementById('ct-locker-no');
+    const catInput  = document.getElementById('ct-locker-cat-id');
+    const display   = document.getElementById('ct-locker-no-display');
+    const displayWrap = document.getElementById('ct-locker-no-display-wrap');
+    const gridWrap  = document.getElementById('ct-locker-grid');
+    const catSel    = document.getElementById('ct-locker-cat');
+    const catName   = catSel?.options[catSel?.selectedIndex]?.textContent || '';
 
     if (noInput)  noInput.value  = no;
     if (catInput) catInput.value = catId;
 
-    // 선택 표시 + 그리드 숨기고 변경 버튼 표시
+    // 선택 표시 (그리드 밖에 표시)
     if (display) {
       display.innerHTML = `
-        <span style="font-size:13px;font-weight:700;color:#185FA5;">✅ ${catName} ${no}번 선택됨</span>
+        ✅ ${catName} ${no}번 선택됨
         <button type="button" onclick="showCtLockerGrid()"
-          style="margin-left:8px;padding:3px 10px;font-size:11px;border:1px solid var(--border);background:var(--card);border-radius:20px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-          변경
+          style="margin-left:8px;padding:3px 10px;font-size:11px;border:1px solid var(--border);background:var(--card);border-radius:20px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;color:var(--text);">
+          목록 다시보기
         </button>`;
     }
+    if (displayWrap) displayWrap.style.display = '';
+    // 그리드 숨기기
     if (gridWrap) gridWrap.style.display = 'none';
   }
 
-  // 락카 그리드 다시 표시 (변경 버튼 클릭 시)
+  // 락카 그리드 다시 표시 (목록 다시보기 버튼 클릭 시) - 선택 유지
   function showCtLockerGrid() {
     const gridWrap = document.getElementById('ct-locker-grid');
-    const display  = document.getElementById('ct-locker-no-display');
-    const noInput  = document.getElementById('ct-locker-no');
-    const catInput = document.getElementById('ct-locker-cat-id');
     if (gridWrap) gridWrap.style.display = '';
-    if (display)  display.innerHTML = '<span style="font-size:13px;color:var(--text-hint);">없음 (나중에 배정)</span>';
-    if (noInput)  noInput.value  = '';
-    if (catInput) catInput.value = '';
   }
   window.showCtLockerGrid = showCtLockerGrid;
 
@@ -3921,16 +3928,16 @@
     if (d.extras) {
       if (d.extras.locker) {
         const e = d.extras.locker;
-        // 락카 종료일 계산
-        let lockerEnd = '-';
-        if (e.startDate && e.months) {
+        // 종료일: 저장된 endDate 우선, 없으면 startDate+months 계산
+        let lockerEnd = e.endDate || '-';
+        if (!e.endDate && e.startDate && e.months) {
           const sd = new Date(e.startDate);
           sd.setMonth(sd.getMonth() + e.months);
           sd.setDate(sd.getDate() - 1);
           lockerEnd = sd.getFullYear()+'-'+String(sd.getMonth()+1).padStart(2,'0')+'-'+String(sd.getDate()).padStart(2,'0');
         }
         const lockerStart = e.startDate || d.signDate || '-';
-        const lockerLabel = e.lockerNo ? e.lockerNo+'번' : '-';
+        const lockerLabel = e.lockerNo ? e.lockerNo+'번' : '미배정';
         const ePaid   = (e.cash||0)+(e.card||0)+(e.transfer||0);
         const eUnpaid = (e.price||0)-ePaid;
         grandTotal    += (e.price||0);
@@ -4214,7 +4221,9 @@ td { border:0.7px solid #aaa; padding:7px 9px; vertical-align:middle; line-heigh
     if (lockerGrid) lockerGrid.style.display = 'none';
     // 락카 번호 표시 초기화
     const lockerDisplay = document.getElementById('ct-locker-no-display');
-    if (lockerDisplay) lockerDisplay.textContent = '없음 (나중에 배정)';
+    if (lockerDisplay) lockerDisplay.innerHTML = '';
+    const lockerDisplayWrap = document.getElementById('ct-locker-no-display-wrap');
+    if (lockerDisplayWrap) lockerDisplayWrap.style.display = 'none';
     ['ct-cloth-summary','ct-locker-summary'].forEach(id => {
       const el = document.getElementById(id);
       if (el) { el.textContent = '미선택'; el.style.color = 'var(--text-sub)'; }

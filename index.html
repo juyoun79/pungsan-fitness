@@ -2961,14 +2961,13 @@
                         <span style="font-size:11px;color:#9e9e9e;">⚫ 사용불가</span>
                       </div>
                       <div id="ct-locker-grid-items" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
-                      <!-- 선택된 번호 표시 -->
-                      <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
-                        <div style="font-size:11px;color:var(--text-sub);">선택한 번호:</div>
-                        <div id="ct-locker-no-display" style="font-size:13px;font-weight:700;color:#1a6fd4;">없음 (나중에 배정)</div>
-                        <input type="hidden" id="ct-locker-no" value="" />
-                        <input type="hidden" id="ct-locker-cat-id" value="" />
-                      </div>
                     </div>
+                    <!-- 선택된 번호 표시 (그리드 밖) -->
+                    <div id="ct-locker-no-display-wrap" style="margin-bottom:8px;display:none;">
+                      <div id="ct-locker-no-display" style="font-size:13px;font-weight:700;color:#185FA5;"></div>
+                    </div>
+                    <input type="hidden" id="ct-locker-no" value="" />
+                    <input type="hidden" id="ct-locker-cat-id" value="" />
                     <!-- 시작일 + 종료일 -->
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
                       <div>
