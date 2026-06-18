@@ -3078,19 +3078,31 @@
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
               <div>
-                <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">현금</div>
+                <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;">
+                  <div style="font-size:10px;color:var(--text-sub);">현금</div>
+                  <button type="button" onclick="ctSetFullPayPkg(${pkg.id},'${prog}','cash')"
+                    style="padding:1px 6px;background:#e3f0fb;color:#185FA5;border:0.5px solid #185FA5;border-radius:10px;font-size:9px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전액</button>
+                </div>
                 <input type="number" id="ct-pkg-${pkg.id}-${prog}-cash" min="0" placeholder="0" value="${it.cash||''}"
                   style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
                   onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','cash',this.value)" />
               </div>
               <div>
-                <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">카드</div>
+                <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;">
+                  <div style="font-size:10px;color:var(--text-sub);">카드</div>
+                  <button type="button" onclick="ctSetFullPayPkg(${pkg.id},'${prog}','card')"
+                    style="padding:1px 6px;background:#e3f0fb;color:#185FA5;border:0.5px solid #185FA5;border-radius:10px;font-size:9px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전액</button>
+                </div>
                 <input type="number" id="ct-pkg-${pkg.id}-${prog}-card" min="0" placeholder="0" value="${it.card||''}"
                   style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
                   onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','card',this.value)" />
               </div>
               <div>
-                <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">계좌이체</div>
+                <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;">
+                  <div style="font-size:10px;color:var(--text-sub);">계좌이체</div>
+                  <button type="button" onclick="ctSetFullPayPkg(${pkg.id},'${prog}','transfer')"
+                    style="padding:1px 6px;background:#e3f0fb;color:#185FA5;border:0.5px solid #185FA5;border-radius:10px;font-size:9px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전액</button>
+                </div>
                 <input type="number" id="ct-pkg-${pkg.id}-${prog}-transfer" min="0" placeholder="0" value="${it.transfer||''}"
                   style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
                   onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','transfer',this.value)" />
@@ -3131,6 +3143,28 @@
     });
     return { total, cash, card, transfer };
   }
+
+  // ── 전액 버튼 — 단독 프로그램 ──
+  function ctSetFullPay(prog, method) {
+    const priceEl = document.getElementById('ct-' + prog + '-price');
+    const targetEl = document.getElementById('ct-' + prog + '-' + method);
+    if (!priceEl || !targetEl) return;
+    const price = parseInt(priceEl.value) || 0;
+    targetEl.value = price;
+    calcCtTotal();
+  }
+  window.ctSetFullPay = ctSetFullPay;
+
+  // ── 전액 버튼 — 패키지 프로그램 ──
+  function ctSetFullPayPkg(pkgId, prog, method) {
+    const priceEl = document.getElementById('ct-pkg-' + pkgId + '-' + prog + '-price');
+    const targetEl = document.getElementById('ct-pkg-' + pkgId + '-' + prog + '-' + method);
+    if (!priceEl || !targetEl) return;
+    const price = parseInt(priceEl.value) || 0;
+    targetEl.value = price;
+    updateCtPkgField(pkgId, prog, method, price);
+  }
+  window.ctSetFullPayPkg = ctSetFullPayPkg;
 
   function toggleCtCard(prog) {
     const chk  = document.getElementById('ct-chk-' + prog);
@@ -3219,17 +3253,29 @@
         <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:8px;">💳 결제방법 (혼합 가능)</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
           <div>
-            <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">현금</div>
+            <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+              <div style="font-size:11px;color:var(--text-sub);">현금</div>
+              <button type="button" onclick="ctSetFullPay('${prog}','cash')"
+                style="padding:1px 7px;background:#e3f0fb;color:#185FA5;border:0.5px solid #185FA5;border-radius:10px;font-size:10px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전액</button>
+            </div>
             <input type="number" id="ct-${prog}-cash" min="0" placeholder="0"
               style="${inStyle}" onwheel="this.blur()" oninput="calcCtTotal()" />
           </div>
           <div>
-            <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">카드</div>
+            <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+              <div style="font-size:11px;color:var(--text-sub);">카드</div>
+              <button type="button" onclick="ctSetFullPay('${prog}','card')"
+                style="padding:1px 7px;background:#e3f0fb;color:#185FA5;border:0.5px solid #185FA5;border-radius:10px;font-size:10px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전액</button>
+            </div>
             <input type="number" id="ct-${prog}-card" min="0" placeholder="0"
               style="${inStyle}" onwheel="this.blur()" oninput="calcCtTotal()" />
           </div>
           <div>
-            <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">계좌이체</div>
+            <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+              <div style="font-size:11px;color:var(--text-sub);">계좌이체</div>
+              <button type="button" onclick="ctSetFullPay('${prog}','transfer')"
+                style="padding:1px 7px;background:#e3f0fb;color:#185FA5;border:0.5px solid #185FA5;border-radius:10px;font-size:10px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전액</button>
+            </div>
             <input type="number" id="ct-${prog}-transfer" min="0" placeholder="0"
               style="${inStyle}" onwheel="this.blur()" oninput="calcCtTotal()" />
           </div>
@@ -4346,25 +4392,25 @@
 <style>
 * { box-sizing:border-box; margin:0; padding:0; }
 body { background:#f0f0f0; font-family:'Noto Sans KR','Malgun Gothic','맑은 고딕',sans-serif; }
-.a4 { width:210mm; min-height:297mm; background:white; margin:10mm auto; padding:12mm 14mm; font-size:12.5pt; color:#111; }
-@media print { body{background:white;} .a4{margin:0; padding:12mm 14mm;} .btn-wrap{display:none;} }
-.title-row { display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #185FA5; padding-bottom:8px; margin-bottom:14px; }
-.title-main { font-size:21pt; font-weight:700; color:#185FA5; }
-.title-sub { font-size:11pt; color:#555; text-align:right; line-height:1.9; }
-.section { margin-bottom:12px; }
-.sec-head { background:#185FA5; color:white; font-size:12pt; font-weight:700; padding:6px 10px; margin-bottom:6px; }
-table { width:100%; border-collapse:collapse; font-size:11pt; }
-td { border:0.7px solid #aaa; padding:7px 9px; vertical-align:middle; line-height:1.6; }
-.lbl { background:#eef2f7; color:#333; font-weight:700; white-space:nowrap; width:72px; }
-.prog-head { background:#d6e4f0; font-weight:700; font-size:11pt; color:#185FA5; text-align:center; padding:7px 4px; white-space:nowrap; }
+.a4 { width:210mm; min-height:297mm; background:white; margin:10mm auto; padding:9mm 11mm; font-size:10.5pt; color:#111; }
+@media print { body{background:white;} .a4{margin:0; padding:9mm 11mm;} .btn-wrap{display:none;} }
+.title-row { display:flex; justify-content:space-between; align-items:center; border-bottom:2.5px solid #185FA5; padding-bottom:5px; margin-bottom:9px; }
+.title-main { font-size:17pt; font-weight:700; color:#185FA5; }
+.title-sub { font-size:9.5pt; color:#555; text-align:right; line-height:1.6; }
+.section { margin-bottom:7px; }
+.sec-head { background:#185FA5; color:white; font-size:10pt; font-weight:700; padding:4px 8px; margin-bottom:4px; }
+table { width:100%; border-collapse:collapse; font-size:9.5pt; }
+td { border:0.7px solid #aaa; padding:4px 6px; vertical-align:middle; line-height:1.5; }
+.lbl { background:#eef2f7; color:#333; font-weight:700; white-space:nowrap; width:58px; }
+.prog-head { background:#d6e4f0; font-weight:700; font-size:9.5pt; color:#185FA5; text-align:center; padding:4px 3px; white-space:nowrap; }
 .total-row { background:#e4eef8; font-weight:700; }
-.terms-box { border:0.7px solid #aaa; padding:10px 12px; font-size:9pt; line-height:2.0; color:#222; column-count:2; column-gap:16px; }
-.sign-row { display:flex; gap:10px; margin-top:8px; align-items:stretch; }
-.sign-box { flex:1; border:0.7px solid #aaa; padding:10px 12px; min-height:88px; }
-.stamp { width:74px; height:74px; border:2.5px solid #ef4444; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:10.5pt; color:#ef4444; font-weight:700; text-align:center; line-height:1.5; flex-shrink:0; align-self:center; }
-.unpaid-box { background:#fef2f2; border:0.7px solid #fca5a5; border-radius:6px; padding:9px 12px; margin-top:8px; font-size:11pt; color:#991b1b; }
-.btn-wrap { text-align:center; margin:12px 0; }
-.btn-pdf { background:#185FA5; color:white; border:none; padding:10px 28px; font-size:13pt; border-radius:6px; cursor:pointer; font-family:inherit; }
+.terms-box { border:0.7px solid #aaa; padding:6px 8px; font-size:7.5pt; line-height:1.6; color:#222; column-count:2; column-gap:10px; }
+.sign-row { display:flex; gap:8px; margin-top:5px; align-items:stretch; }
+.sign-box { flex:1; border:0.7px solid #aaa; padding:7px 10px; min-height:65px; }
+.stamp { width:58px; height:58px; border:2px solid #ef4444; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:8.5pt; color:#ef4444; font-weight:700; text-align:center; line-height:1.5; flex-shrink:0; align-self:center; }
+.unpaid-box { background:#fef2f2; border:0.7px solid #fca5a5; border-radius:5px; padding:5px 9px; margin-top:6px; font-size:9.5pt; color:#991b1b; }
+.btn-wrap { text-align:center; margin:10px 0; }
+.btn-pdf { background:#185FA5; color:white; border:none; padding:9px 24px; font-size:12pt; border-radius:6px; cursor:pointer; font-family:inherit; }
 </style>
 </head>
 <body>
