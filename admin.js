@@ -2949,6 +2949,7 @@
     const pkg = ctPackages.find(p => p.id === pkgId);
     if (!pkg || !pkg.items[prog]) return;
     pkg.items[prog][field] = field === 'startDate' || field === 'endDate' ? value : (parseInt(value)||0);
+
     // 종료일 자동계산
     if (field === 'months' || field === 'startDate') {
       const start  = pkg.items[prog].startDate;
@@ -2958,14 +2959,44 @@
         d.setMonth(d.getMonth() + months);
         d.setDate(d.getDate()-1);
         pkg.items[prog].endDate = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-        // 종료일 표시 업데이트
         const endEl = document.getElementById('ct-pkg-'+pkgId+'-'+prog+'-end-display');
-        if (endEl) endEl.textContent = pkg.items[prog].endDate;
+        if (endEl) {
+          endEl.textContent = pkg.items[prog].endDate;
+          endEl.style.color = '#059669';
+        }
       }
     }
+
+    // 패키지 내 프로그램 상단 배지 업데이트
+    updateCtPkgProgBadge(pkgId, prog);
+
+    // 패키지 합계 표시 업데이트
+    const pkgTotal = Object.values(pkg.items).reduce((s,it)=>s+(it.price||0),0);
+    const pkgPaid  = Object.values(pkg.items).reduce((s,it)=>s+(it.cash||0)+(it.card||0)+(it.transfer||0),0);
+    const pkgSumEl = document.getElementById('ct-pkg-'+pkgId+'-total');
+    if (pkgSumEl && pkgTotal > 0) {
+      pkgSumEl.textContent = pkgTotal.toLocaleString()+'원 (결제 '+pkgPaid.toLocaleString()+'원)';
+    }
+
     calcCtTotal();
   }
   window.updateCtPkgField = updateCtPkgField;
+
+  // 패키지 내 프로그램 상단 배지 업데이트
+  function updateCtPkgProgBadge(pkgId, prog) {
+    const pkg = ctPackages.find(p => p.id === pkgId);
+    if (!pkg || !pkg.items[prog]) return;
+    const it      = pkg.items[prog];
+    const badgeEl = document.getElementById('ct-pkg-'+pkgId+'-'+prog+'-badge');
+    if (!badgeEl) return;
+    const parts = [];
+    if (it.months) parts.push(it.months+'개월');
+    if (it.count)  parts.push(it.count+'회');
+    if (it.price)  parts.push(it.price.toLocaleString()+'원');
+    badgeEl.textContent = parts.join(' · ') || '';
+    badgeEl.style.display = parts.length ? '' : 'none';
+  }
+  window.updateCtPkgProgBadge = updateCtPkgProgBadge;
 
   function renderCtPackages() {
     const list  = document.getElementById('ct-package-list');
@@ -2977,29 +3008,37 @@
       const today = new Date().toISOString().slice(0,10);
       const progButtons = CT_PROG_LIST.map(prog => {
         const sel = !!pkg.items[prog];
+        const it  = pkg.items[prog];
+        const badgeParts = sel ? [
+          it.months ? it.months+'개월' : '',
+          it.count  ? it.count+'회'   : '',
+          it.price  ? it.price.toLocaleString()+'원' : '',
+        ].filter(Boolean) : [];
         return `<button type="button" onclick="toggleCtPackageProg(${pkg.id},'${prog}')"
           style="padding:6px 10px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
-          background:${sel?'#185FA5':'var(--card)'};color:${sel?'white':'var(--text-sub)'};border:${sel?'none':'1px solid var(--border)'};">
+          background:${sel?'#185FA5':'var(--card)'};color:${sel?'white':'var(--text-sub)'};border:${sel?'none':'1px solid var(--border)'};display:inline-flex;align-items:center;gap:4px;">
           ${CT_PROG_LABELS[prog]}
+          ${badgeParts.length ? `<span id="ct-pkg-${pkg.id}-${prog}-badge" style="font-size:10px;opacity:0.85;">${badgeParts.join(' · ')}</span>` : `<span id="ct-pkg-${pkg.id}-${prog}-badge" style="font-size:10px;opacity:0.85;display:none;"></span>`}
         </button>`;
       }).join('');
 
       const progInputs = Object.keys(pkg.items).map(prog => {
         const it = pkg.items[prog];
         const hasCount = prog === 'PT' || prog === '기구필라테스개인' || prog === '기구필라테스그룹';
+        const startVal = it.startDate || today;
         return `
           <div style="background:var(--card);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:10px;margin-top:8px;">
             <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;">${CT_PROG_LABELS[prog]}</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
               <div>
                 <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">시작일</div>
-                <input type="date" value="${it.startDate||today}"
+                <input type="date" value="${startVal}"
                   style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
                   oninput="updateCtPkgField(${pkg.id},'${prog}','startDate',this.value)" />
               </div>
               <div>
                 <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">종료일 (자동)</div>
-                <div id="ct-pkg-${pkg.id}-${prog}-end-display" style="padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:#059669;background:var(--bg);">${it.endDate||'자동계산'}</div>
+                <div id="ct-pkg-${pkg.id}-${prog}-end-display" style="padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:${it.endDate?'#059669':'var(--text-hint)'};background:var(--bg);">${it.endDate||'자동계산'}</div>
               </div>
             </div>
             <div style="display:grid;grid-template-columns:${hasCount?'1fr 1fr 1fr':'1fr 1fr'};gap:6px;margin-bottom:6px;">
@@ -3056,11 +3095,10 @@
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">${progButtons}</div>
           ${progInputs}
-          ${pkgTotal > 0 ? `
-            <div style="margin-top:8px;padding:8px 10px;background:#f0f7ff;border-radius:var(--radius-sm);display:flex;justify-content:space-between;font-size:12px;">
-              <span style="color:var(--text-sub);">패키지 합계</span>
-              <span style="color:#185FA5;font-weight:700;">${pkgTotal.toLocaleString()}원 (결제 ${pkgPaid.toLocaleString()}원)</span>
-            </div>` : ''}
+          <div style="margin-top:8px;padding:8px 10px;background:#f0f7ff;border-radius:var(--radius-sm);display:flex;justify-content:space-between;font-size:12px;${pkgTotal > 0 ? '' : 'display:none;'}">
+            <span style="color:var(--text-sub);">패키지 합계</span>
+            <span id="ct-pkg-${pkg.id}-total" style="color:#185FA5;font-weight:700;">${pkgTotal > 0 ? pkgTotal.toLocaleString()+'원 (결제 '+pkgPaid.toLocaleString()+'원)' : ''}</span>
+          </div>
         </div>`;
     }).join('');
   }
@@ -3732,6 +3770,9 @@
       const pkgCash    = Object.values(pkg.items).reduce((s,it)=>s+(it.cash||0),0);
       const pkgCard    = Object.values(pkg.items).reduce((s,it)=>s+(it.card||0),0);
       const pkgTransfer= Object.values(pkg.items).reduce((s,it)=>s+(it.transfer||0),0);
+      const maxMonths  = Object.values(pkg.items).reduce((m,it)=>Math.max(m,it.months||0),0);
+      const totalCount = Object.values(pkg.items).reduce((s,it)=>s+(it.count||0),0);
+      const periodStr  = [maxMonths?maxMonths+'개월':'', totalCount?totalCount+'회':''].filter(Boolean).join(' · ') || '';
       // 기간 범위 (가장 이른 시작일 ~ 가장 늦은 종료일)
       const starts = Object.values(pkg.items).map(it=>it.startDate).filter(Boolean).sort();
       const ends   = Object.values(pkg.items).map(it=>it.endDate).filter(Boolean).sort();
@@ -3742,6 +3783,7 @@
         <div style="margin-bottom:8px;padding:8px;background:white;border-radius:6px;border:1px solid var(--border);">
           <div style="font-size:12px;font-weight:700;color:#185FA5;margin-bottom:4px;">📦 ${pkg.name || '패키지'}</div>
           <div style="font-size:11px;color:var(--text-sub);line-height:1.6;">
+            ${periodStr ? periodStr + '<br>' : ''}
             ${dateRange ? dateRange + '<br>' : ''}
             ${pkgTotal ? '이용요금: ' + pkgTotal.toLocaleString() + '원' : ''}
             ${pkgCash ? '<br><span style="color:#059669;">현금: ' + pkgCash.toLocaleString() + '원</span>' : ''}
@@ -4020,15 +4062,17 @@
       }
 
       // 4. 완료 화면
-      const totalPaid = Object.values(programs).reduce((s,p) => s + (p.cash||0) + (p.card||0) + (p.transfer||0), 0);
-      const totalAmt  = Object.values(programs).reduce((s,p) => s + (p.price||0), 0);
-      const extrasAmt = Object.values(extras).reduce((s,e) => s + (e.price||0), 0);
-      const grandTotal = totalAmt + extrasAmt;
-      const grandPaid  = totalPaid + Object.values(extras).reduce((s,e) => s + (e.cash||0) + (e.card||0) + (e.transfer||0), 0);
+      const totalPaid  = Object.values(programs).reduce((s,p) => s + (p.cash||0) + (p.card||0) + (p.transfer||0), 0);
+      const totalAmt   = Object.values(programs).reduce((s,p) => s + (p.price||0), 0);
+      const extrasAmt  = Object.values(extras).reduce((s,e) => s + (e.price||0), 0);
+      const pkgsAmt    = packages.reduce((s,pkg) => s + (pkg.totalPrice||0), 0);
+      const pkgsPaid   = packages.reduce((s,pkg) => s + (pkg.totalCash||0) + (pkg.totalCard||0) + (pkg.totalTransfer||0), 0);
+      const grandTotal  = totalAmt + extrasAmt + pkgsAmt;
+      const grandPaid   = totalPaid + Object.values(extras).reduce((s,e) => s + (e.cash||0) + (e.card||0) + (e.transfer||0), 0) + pkgsPaid;
       const grandUnpaid = grandTotal - grandPaid;
-      const allCash     = Object.values(programs).reduce((s,p)=>s+(p.cash||0),0) + Object.values(extras).reduce((s,e)=>s+(e.cash||0),0);
-      const allCard     = Object.values(programs).reduce((s,p)=>s+(p.card||0),0) + Object.values(extras).reduce((s,e)=>s+(e.card||0),0);
-      const allTransfer = Object.values(programs).reduce((s,p)=>s+(p.transfer||0),0) + Object.values(extras).reduce((s,e)=>s+(e.transfer||0),0);
+      const allCash     = Object.values(programs).reduce((s,p)=>s+(p.cash||0),0) + Object.values(extras).reduce((s,e)=>s+(e.cash||0),0) + packages.reduce((s,pkg)=>s+(pkg.totalCash||0),0);
+      const allCard     = Object.values(programs).reduce((s,p)=>s+(p.card||0),0) + Object.values(extras).reduce((s,e)=>s+(e.card||0),0) + packages.reduce((s,pkg)=>s+(pkg.totalCard||0),0);
+      const allTransfer = Object.values(programs).reduce((s,p)=>s+(p.transfer||0),0) + Object.values(extras).reduce((s,e)=>s+(e.transfer||0),0) + packages.reduce((s,pkg)=>s+(pkg.totalTransfer||0),0);
 
       const progLabelsComplete = {
         '헬스':'🏋️ 헬스', 'GX':'🎶 GX', 'PT':'💪 PT',
@@ -4183,11 +4227,14 @@
     if (d.packages && d.packages.length > 0) {
       d.packages.forEach(pkg => {
         const pkgUnpaid = pkg.totalPrice - (pkg.totalCash + pkg.totalCard + pkg.totalTransfer);
-        // 기간 범위 계산
         const allItems  = Object.values(pkg.items || {});
         const starts    = allItems.map(it=>it.startDate).filter(Boolean).sort();
         const ends      = allItems.map(it=>it.endDate).filter(Boolean).sort();
         const dateRange = starts.length ? starts[0] + ' ~ ' + (ends[ends.length-1]||'') : '-';
+        // 기간: 가장 긴 기간 / 횟수: 합산
+        const maxMonths = allItems.reduce((m,it)=>Math.max(m,it.months||0),0);
+        const totalCount= allItems.reduce((s,it)=>s+(it.count||0),0);
+        const periodStr = [maxMonths?maxMonths+'개월':'', totalCount?totalCount+'회':''].filter(Boolean).join('·') || '-';
         grandTotal    += pkg.totalPrice;
         grandUnpaid   += pkgUnpaid;
         grandCash     += pkg.totalCash;
@@ -4197,7 +4244,7 @@
           <tr>
             <td style="font-size:10pt;color:#185FA5;font-weight:500;">📦 ${pkg.name||'패키지'}</td>
             <td style="white-space:nowrap;font-size:10pt;">${dateRange}</td>
-            <td style="text-align:center;font-size:10pt;">-</td>
+            <td style="text-align:center;font-size:10pt;">${periodStr}</td>
             <td style="text-align:right;font-size:10pt;">${pkg.totalPrice?pkg.totalPrice.toLocaleString()+'원':'-'}</td>
             <td style="text-align:right;color:#059669;font-size:10pt;">${pkg.totalCash?pkg.totalCash.toLocaleString():'-'}</td>
             <td style="text-align:right;color:#185FA5;font-size:10pt;">${pkg.totalCard?pkg.totalCard.toLocaleString():'-'}</td>
