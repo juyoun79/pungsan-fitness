@@ -3373,9 +3373,10 @@
       // 카드별 결제금액 표시
       const paidDisp = document.getElementById('ct-' + prog + '-paid-display');
       if (paidDisp) paidDisp.textContent = (cash + card + transfer).toLocaleString() + '원';
+      const count = parseInt(document.getElementById('ct-' + prog + '-count')?.value) || 0;
       if (price || cash || card || transfer) {
         breakdownItems.push({
-          label: (progLabels[prog] || prog) + (months ? ' ' + months + '개월' : ''),
+          label: (progLabels[prog] || prog) + (months ? ' ' + months + '개월' : '') + (count ? ' · ' + count + '회' : ''),
           price, cash, card, transfer
         });
       }
@@ -3393,8 +3394,14 @@
       const pkgCard  = Object.values(pkg.items).reduce((s,it)=>s+(it.card||0),0);
       const pkgTr    = Object.values(pkg.items).reduce((s,it)=>s+(it.transfer||0),0);
       if (pkgTotal > 0 || pkgCash > 0 || pkgCard > 0 || pkgTr > 0) {
+        const pkgProgLabels = {'pilatesP':'기구P개인','pilatesG':'기구P그룹','pt':'PT','gx':'GX','health':'헬스','기구필라테스개인':'기구P개인','기구필라테스그룹':'기구P그룹'};
+        const pkgPeriodParts = Object.entries(pkg.items||{}).map(([p,it])=>{
+          const lbl = pkgProgLabels[p]||p;
+          return lbl + (it.months?' '+it.months+'개월':'') + (it.count?' '+it.count+'회':'');
+        }).filter(Boolean);
+        const pkgDetailStr = pkgPeriodParts.length ? ' (' + pkgPeriodParts.join(' / ') + ')' : '';
         breakdownItems.push({
-          label: '📦 ' + (pkg.name || '패키지'),
+          label: '📦 ' + (pkg.name || '패키지') + pkgDetailStr,
           price: pkgTotal, cash: pkgCash, card: pkgCard, transfer: pkgTr,
         });
       }
@@ -4172,20 +4179,33 @@
         const progPaid   = (p.cash||0)+(p.card||0)+(p.transfer||0);
         const progUnpaid = (p.price||0) - progPaid;
         summaryHtml += `
-          <div style="display:grid;grid-template-columns:1fr auto auto;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);gap:8px;">
-            <span style="font-size:13px;font-weight:600;">${progLabelsComplete[prog]||prog}</span>
-            <span style="font-size:12px;color:var(--text-sub);text-align:right;">${p.months?p.months+'개월':''}${p.count?' · '+p.count+'회':''}</span>
-            ${progUnpaid>0 ? `<span style="font-size:12px;font-weight:700;color:#ef4444;text-align:right;">미수금 ${progUnpaid.toLocaleString()}원</span>` : `<span style="font-size:12px;color:#059669;text-align:right;">✓ 완납</span>`}
+          <div style="padding:6px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+              <span style="font-size:13px;font-weight:600;">${progLabelsComplete[prog]||prog}</span>
+              ${progUnpaid>0 ? `<span style="font-size:12px;font-weight:700;color:#ef4444;">미수금 ${progUnpaid.toLocaleString()}원</span>` : `<span style="font-size:12px;color:#059669;">✓ 완납</span>`}
+            </div>
+            <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">
+              ${p.months?p.months+'개월':''}${p.count?' · '+p.count+'회':''}${p.price?' · '+p.price.toLocaleString()+'원':''}
+            </div>
           </div>`; });
 
-      // 패키지 (패키지명+합산금액만)
+      // 패키지 (개월+횟수+금액 통일 표기)
+      const pkgProgLabelsComplete = {'pilatesP':'기구P개인','pilatesG':'기구P그룹','pt':'PT','gx':'GX','health':'헬스','기구필라테스개인':'기구P개인','기구필라테스그룹':'기구P그룹'};
       packages.forEach(pkg => {
         const pkgUnpaid = pkg.totalPrice - (pkg.totalCash + pkg.totalCard + pkg.totalTransfer);
+        const pkgPeriodParts = Object.entries(pkg.items||{}).map(([p,it])=>{
+          const lbl = pkgProgLabelsComplete[p]||p;
+          return lbl+(it.months?' '+it.months+'개월':'')+(it.count?' '+it.count+'회':'');
+        }).filter(Boolean);
         summaryHtml += `
-          <div style="display:grid;grid-template-columns:1fr auto auto;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);gap:8px;">
-            <span style="font-size:13px;font-weight:600;">📦 ${pkg.name||'패키지'}</span>
-            <span style="font-size:12px;color:var(--text-sub);text-align:right;">${pkg.totalPrice.toLocaleString()}원</span>
-            ${pkgUnpaid>0 ? `<span style="font-size:12px;font-weight:700;color:#ef4444;text-align:right;">미수금 ${pkgUnpaid.toLocaleString()}원</span>` : `<span style="font-size:12px;color:#059669;text-align:right;">✓ 완납</span>`}
+          <div style="padding:6px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+              <span style="font-size:13px;font-weight:600;">📦 ${pkg.name||'패키지'}</span>
+              ${pkgUnpaid>0 ? `<span style="font-size:12px;font-weight:700;color:#ef4444;">미수금 ${pkgUnpaid.toLocaleString()}원</span>` : `<span style="font-size:12px;color:#059669;">✓ 완납</span>`}
+            </div>
+            <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">
+              ${pkgPeriodParts.join(' / ')}${pkg.totalPrice?' · '+pkg.totalPrice.toLocaleString()+'원':''}
+            </div>
           </div>`; });
 
       // 부가서비스
@@ -4266,7 +4286,8 @@
     let totalPrice=0, totalCash=0, totalCard=0, totalTransfer=0;
     const progNameMap = {
       '헬스':'헬스', 'GX':'GX', 'PT':'PT',
-      '기구필라테스개인':'기구P 개인', '기구필라테스그룹':'기구P 그룹'
+      '기구필라테스개인':'기구P개인', '기구필라테스그룹':'기구P그룹',
+      'pilatesP':'기구P개인', 'pilatesG':'기구P그룹', 'pt':'PT', 'gx':'GX', 'health':'헬스'
     };
     if (d.programs) {
       Object.entries(d.programs).forEach(([prog, p]) => {
@@ -4297,38 +4318,36 @@
     let   grandCard   = totalCard;
     let   grandTransfer = totalTransfer;
 
-    // 패키지 행 (패키지명 + 합산금액만 표시)
+    // 패키지 행 (프로그램별 행 분리, 마지막 행에 합산금액)
     let pkgRows = '';
+    const pdfProgNameMap = {'pilatesP':'기구P개인','pilatesG':'기구P그룹','pt':'PT','gx':'GX','health':'헬스','기구필라테스개인':'기구P개인','기구필라테스그룹':'기구P그룹'};
     if (d.packages && d.packages.length > 0) {
       d.packages.forEach(pkg => {
         const pkgUnpaid = pkg.totalPrice - (pkg.totalCash + pkg.totalCard + pkg.totalTransfer);
-        const allItems  = Object.values(pkg.items || {});
-        const starts    = allItems.map(it=>it.startDate).filter(Boolean).sort();
-        const ends      = allItems.map(it=>it.endDate).filter(Boolean).sort();
-        const dateRange = starts.length ? starts[0] + ' ~ ' + (ends[ends.length-1]||'') : '-';
-        // 기간: 가장 긴 기간 / 횟수: 프로그램별 개별 표기
-        const maxMonths = allItems.reduce((m,it)=>Math.max(m,it.months||0),0);
-        const countParts = Object.entries(pkg.items||{}).filter(([,it])=>it.count).map(([prog,it])=>{
-          const label = {'pilatesP':'개인','pilatesG':'그룹','pt':'PT','gx':'GX','health':'헬스'}[prog]||prog;
-          return label+' '+it.count+'회';
-        });
-        const periodStr = [maxMonths?maxMonths+'개월':'', countParts.length?countParts.join('·'):''].filter(Boolean).join('·') || '-';
         grandTotal    += pkg.totalPrice;
         grandUnpaid   += pkgUnpaid;
         grandCash     += pkg.totalCash;
         grandCard     += pkg.totalCard;
         grandTransfer += pkg.totalTransfer;
-        pkgRows += `
+        const pkgEntries = Object.entries(pkg.items||{});
+        pkgEntries.forEach(([prog, it], idx) => {
+          const isLast   = idx === pkgEntries.length - 1;
+          const progLabel = pdfProgNameMap[prog]||prog;
+          const pkgLabel  = idx===0 ? '📦 '+progLabel : '　 '+progLabel;
+          const dateStr   = (it.startDate||'-') + ' ~ ' + (it.endDate||'-');
+          const periodStr = (it.months?it.months+'개월':'') + (it.count?(it.months?' · ':'')+it.count+'회':'') || '-';
+          pkgRows += `
           <tr>
-            <td style="font-size:10pt;color:#185FA5;font-weight:500;">📦 ${pkg.name||'패키지'}</td>
-            <td style="white-space:nowrap;font-size:10pt;">${dateRange}</td>
+            <td style="font-size:10pt;color:#185FA5;font-weight:${idx===0?'600':'400'};">${pkgLabel}</td>
+            <td style="white-space:nowrap;font-size:10pt;">${dateStr}</td>
             <td style="text-align:center;font-size:10pt;">${periodStr}</td>
-            <td style="text-align:right;font-size:10pt;">${pkg.totalPrice?pkg.totalPrice.toLocaleString()+'원':'-'}</td>
-            <td style="text-align:right;color:#059669;font-size:10pt;">${pkg.totalCash?pkg.totalCash.toLocaleString():'-'}</td>
-            <td style="text-align:right;color:#185FA5;font-size:10pt;">${pkg.totalCard?pkg.totalCard.toLocaleString():'-'}</td>
-            <td style="text-align:right;color:#7c3aed;font-size:10pt;">${pkg.totalTransfer?pkg.totalTransfer.toLocaleString():'-'}</td>
-            <td style="text-align:right;color:#ef4444;font-weight:700;font-size:10pt;">${pkgUnpaid>0?pkgUnpaid.toLocaleString():'-'}</td>
+            <td style="text-align:right;font-size:10pt;">${isLast?(pkg.totalPrice?pkg.totalPrice.toLocaleString()+'원':'-'):''}</td>
+            <td style="text-align:right;color:#059669;font-size:10pt;">${isLast?(pkg.totalCash?pkg.totalCash.toLocaleString():'-'):''}</td>
+            <td style="text-align:right;color:#185FA5;font-size:10pt;">${isLast?(pkg.totalCard?pkg.totalCard.toLocaleString():'-'):''}</td>
+            <td style="text-align:right;color:#7c3aed;font-size:10pt;">${isLast?(pkg.totalTransfer?pkg.totalTransfer.toLocaleString():'-'):''}</td>
+            <td style="text-align:right;color:#ef4444;font-weight:700;font-size:10pt;">${isLast?(pkgUnpaid>0?pkgUnpaid.toLocaleString():'-'):''}</td>
           </tr>`;
+        });
       });
     }
 
