@@ -2929,7 +2929,8 @@
     if (pkg.items[prog]) {
       delete pkg.items[prog];
     } else {
-      pkg.items[prog] = { months:0, count:0, price:0, cash:0, card:0, transfer:0, startDate:'', endDate:'' };
+      const today = new Date().toISOString().slice(0,10);
+      pkg.items[prog] = { months:0, count:0, price:0, cash:0, card:0, transfer:0, startDate:today, endDate:'' };
     }
     updateCtPackageName(pkg);
     renderCtPackages();
@@ -3004,6 +3005,19 @@
     if (!list) return;
     if (empty) empty.style.display = ctPackages.length === 0 ? '' : 'none';
 
+    // 렌더링 전 현재 DOM 입력값을 pkg.items에 저장 (값 보존)
+    ctPackages.forEach(pkg => {
+      Object.keys(pkg.items).forEach(prog => {
+        const fields = ['months','count','price','cash','card','transfer'];
+        fields.forEach(f => {
+          const el = document.getElementById('ct-pkg-'+pkg.id+'-'+prog+'-'+f);
+          if (el) pkg.items[prog][f] = parseInt(el.value)||0;
+        });
+        const startEl = document.getElementById('ct-pkg-'+pkg.id+'-'+prog+'-start');
+        if (startEl && startEl.value) pkg.items[prog].startDate = startEl.value;
+      });
+    });
+
     list.innerHTML = ctPackages.map(pkg => {
       const today = new Date().toISOString().slice(0,10);
       const progButtons = CT_PROG_LIST.map(prog => {
@@ -3032,9 +3046,10 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
               <div>
                 <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">시작일</div>
-                <input type="date" value="${startVal}"
+                <input type="date" id="ct-pkg-${pkg.id}-${prog}-start" value="${startVal}"
                   style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
-                  oninput="updateCtPkgField(${pkg.id},'${prog}','startDate',this.value)" />
+                  oninput="updateCtPkgField(${pkg.id},'${prog}','startDate',this.value)"
+                  onchange="updateCtPkgField(${pkg.id},'${prog}','startDate',this.value)" />
               </div>
               <div>
                 <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">종료일 (자동)</div>
@@ -3044,19 +3059,19 @@
             <div style="display:grid;grid-template-columns:${hasCount?'1fr 1fr 1fr':'1fr 1fr'};gap:6px;margin-bottom:6px;">
               <div>
                 <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">기간(개월)</div>
-                <input type="number" min="1" max="36" placeholder="개월" value="${it.months||''}"
+                <input type="number" id="ct-pkg-${pkg.id}-${prog}-months" min="1" max="36" placeholder="개월" value="${it.months||''}"
                   style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
                   onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','months',this.value)" />
               </div>
               ${hasCount ? `<div>
                 <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">횟수</div>
-                <input type="number" min="1" placeholder="회" value="${it.count||''}"
+                <input type="number" id="ct-pkg-${pkg.id}-${prog}-count" min="1" placeholder="회" value="${it.count||''}"
                   style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
                   onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','count',this.value)" />
               </div>` : ''}
               <div>
                 <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">이용요금</div>
-                <input type="number" min="0" placeholder="0" value="${it.price||''}"
+                <input type="number" id="ct-pkg-${pkg.id}-${prog}-price" min="0" placeholder="0" value="${it.price||''}"
                   style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
                   onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','price',this.value)" />
               </div>
@@ -3064,19 +3079,19 @@
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
               <div>
                 <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">현금</div>
-                <input type="number" min="0" placeholder="0" value="${it.cash||''}"
+                <input type="number" id="ct-pkg-${pkg.id}-${prog}-cash" min="0" placeholder="0" value="${it.cash||''}"
                   style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
                   onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','cash',this.value)" />
               </div>
               <div>
                 <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">카드</div>
-                <input type="number" min="0" placeholder="0" value="${it.card||''}"
+                <input type="number" id="ct-pkg-${pkg.id}-${prog}-card" min="0" placeholder="0" value="${it.card||''}"
                   style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
                   onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','card',this.value)" />
               </div>
               <div>
                 <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">계좌이체</div>
-                <input type="number" min="0" placeholder="0" value="${it.transfer||''}"
+                <input type="number" id="ct-pkg-${pkg.id}-${prog}-transfer" min="0" placeholder="0" value="${it.transfer||''}"
                   style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
                   onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','transfer',this.value)" />
               </div>
