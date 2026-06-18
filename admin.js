@@ -3144,6 +3144,17 @@
     return { total, cash, card, transfer };
   }
 
+  // ── 전액 버튼 — 부가서비스 (운동복/락카) ──
+  function ctSetFullPayExtra(type, method) {
+    const priceEl  = document.getElementById('ct-' + type + '-price');
+    const targetEl = document.getElementById('ct-' + type + '-' + method);
+    if (!priceEl || !targetEl) return;
+    const price = parseInt(priceEl.value) || 0;
+    targetEl.value = price;
+    calcCtTotal();
+  }
+  window.ctSetFullPayExtra = ctSetFullPayExtra;
+
   // ── 전액 버튼 — 단독 프로그램 ──
   function ctSetFullPay(prog, method) {
     const priceEl = document.getElementById('ct-' + prog + '-price');

@@ -2929,19 +2929,31 @@
                     <!-- 결제방법 -->
                     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px;">
                       <div>
-                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">현금</div>
+                        <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+                          <div style="font-size:11px;color:var(--text-sub);">현금</div>
+                          <button type="button" onclick="ctSetFullPayExtra('cloth','cash')"
+                            style="padding:1px 6px;background:#e3f0fb;color:#185FA5;border:0.5px solid #185FA5;border-radius:10px;font-size:9px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전액</button>
+                        </div>
                         <input type="number" id="ct-cloth-cash" placeholder="0" min="0"
                           style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
                           onwheel="this.blur()" oninput="calcCtTotal()" />
                       </div>
                       <div>
-                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">카드</div>
+                        <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+                          <div style="font-size:11px;color:var(--text-sub);">카드</div>
+                          <button type="button" onclick="ctSetFullPayExtra('cloth','card')"
+                            style="padding:1px 6px;background:#e3f0fb;color:#185FA5;border:0.5px solid #185FA5;border-radius:10px;font-size:9px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전액</button>
+                        </div>
                         <input type="number" id="ct-cloth-card" placeholder="0" min="0"
                           style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
                           onwheel="this.blur()" oninput="calcCtTotal()" />
                       </div>
                       <div>
-                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">계좌이체</div>
+                        <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+                          <div style="font-size:11px;color:var(--text-sub);">계좌이체</div>
+                          <button type="button" onclick="ctSetFullPayExtra('cloth','transfer')"
+                            style="padding:1px 6px;background:#e3f0fb;color:#185FA5;border:0.5px solid #185FA5;border-radius:10px;font-size:9px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전액</button>
+                        </div>
                         <input type="number" id="ct-cloth-transfer" placeholder="0" min="0"
                           style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
                           onwheel="this.blur()" oninput="calcCtTotal()" />
@@ -3009,19 +3021,31 @@
                     <!-- 결제방법 -->
                     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px;">
                       <div>
-                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">현금</div>
+                        <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+                          <div style="font-size:11px;color:var(--text-sub);">현금</div>
+                          <button type="button" onclick="ctSetFullPayExtra('locker','cash')"
+                            style="padding:1px 6px;background:#e3f0fb;color:#185FA5;border:0.5px solid #185FA5;border-radius:10px;font-size:9px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전액</button>
+                        </div>
                         <input type="number" id="ct-locker-cash" placeholder="0" min="0"
                           style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
                           onwheel="this.blur()" oninput="calcCtTotal()" />
                       </div>
                       <div>
-                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">카드</div>
+                        <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+                          <div style="font-size:11px;color:var(--text-sub);">카드</div>
+                          <button type="button" onclick="ctSetFullPayExtra('locker','card')"
+                            style="padding:1px 6px;background:#e3f0fb;color:#185FA5;border:0.5px solid #185FA5;border-radius:10px;font-size:9px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전액</button>
+                        </div>
                         <input type="number" id="ct-locker-card" placeholder="0" min="0"
                           style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
                           onwheel="this.blur()" oninput="calcCtTotal()" />
                       </div>
                       <div>
-                        <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">계좌이체</div>
+                        <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+                          <div style="font-size:11px;color:var(--text-sub);">계좌이체</div>
+                          <button type="button" onclick="ctSetFullPayExtra('locker','transfer')"
+                            style="padding:1px 6px;background:#e3f0fb;color:#185FA5;border:0.5px solid #185FA5;border-radius:10px;font-size:9px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전액</button>
+                        </div>
                         <input type="number" id="ct-locker-transfer" placeholder="0" min="0"
                           style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;"
                           onwheel="this.blur()" oninput="calcCtTotal()" />
