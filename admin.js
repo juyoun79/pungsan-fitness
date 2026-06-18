@@ -4178,6 +4178,11 @@
       Object.entries(programs).forEach(([prog, p]) => {
         const progPaid   = (p.cash||0)+(p.card||0)+(p.transfer||0);
         const progUnpaid = (p.price||0) - progPaid;
+        const progPayStr = [
+          p.cash   ? '<span style="color:#059669;">현금 '+p.cash.toLocaleString()+'원</span>'   : '',
+          p.card   ? '<span style="color:#1a6fd4;">카드 '+p.card.toLocaleString()+'원</span>'   : '',
+          p.transfer ? '<span style="color:#7c3aed;">계좌 '+p.transfer.toLocaleString()+'원</span>' : ''
+        ].filter(Boolean).join(' · ');
         summaryHtml += `
           <div style="padding:6px 0;border-bottom:1px solid var(--border);">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
@@ -4186,6 +4191,7 @@
             </div>
             <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">
               ${p.months?p.months+'개월':''}${p.count?' · '+p.count+'회':''}${p.price?' · '+p.price.toLocaleString()+'원':''}
+              ${progPayStr ? '<br>'+progPayStr : ''}
             </div>
           </div>`; });
 
@@ -4197,6 +4203,11 @@
           const lbl = pkgProgLabelsComplete[p]||p;
           return lbl+(it.months?' '+it.months+'개월':'')+(it.count?' '+it.count+'회':'');
         }).filter(Boolean);
+        const pkgPayStr = [
+          pkg.totalCash     ? '<span style="color:#059669;">현금 '+pkg.totalCash.toLocaleString()+'원</span>'     : '',
+          pkg.totalCard     ? '<span style="color:#1a6fd4;">카드 '+pkg.totalCard.toLocaleString()+'원</span>'     : '',
+          pkg.totalTransfer ? '<span style="color:#7c3aed;">계좌 '+pkg.totalTransfer.toLocaleString()+'원</span>' : ''
+        ].filter(Boolean).join(' · ');
         summaryHtml += `
           <div style="padding:6px 0;border-bottom:1px solid var(--border);">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
@@ -4205,25 +4216,48 @@
             </div>
             <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">
               ${pkgPeriodParts.join(' / ')}${pkg.totalPrice?' · '+pkg.totalPrice.toLocaleString()+'원':''}
+              ${pkgPayStr ? '<br>'+pkgPayStr : ''}
             </div>
           </div>`; });
 
       // 부가서비스
       if (extras.cloth) {
+        const clothPaid = (extras.cloth.cash||0)+(extras.cloth.card||0)+(extras.cloth.transfer||0);
+        const clothUnpaid = (extras.cloth.price||0) - clothPaid;
+        const clothPayStr = [
+          extras.cloth.cash     ? '<span style="color:#059669;">현금 '+extras.cloth.cash.toLocaleString()+'원</span>'     : '',
+          extras.cloth.card     ? '<span style="color:#1a6fd4;">카드 '+extras.cloth.card.toLocaleString()+'원</span>'     : '',
+          extras.cloth.transfer ? '<span style="color:#7c3aed;">계좌 '+extras.cloth.transfer.toLocaleString()+'원</span>' : ''
+        ].filter(Boolean).join(' · ');
         summaryHtml += `
-          <div style="display:grid;grid-template-columns:1fr auto auto;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);gap:8px;">
-            <span style="font-size:13px;font-weight:600;">👕 운동복</span>
-            <span style="font-size:12px;color:var(--text-sub);text-align:right;">${extras.cloth.months||0}개월</span>
-            <span style="font-size:12px;color:#059669;text-align:right;">${extras.cloth.price===0?'무료':'✓'}</span>
+          <div style="padding:6px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+              <span style="font-size:13px;font-weight:600;">👕 운동복</span>
+              ${clothUnpaid>0 ? `<span style="font-size:12px;font-weight:700;color:#ef4444;">미수금 ${clothUnpaid.toLocaleString()}원</span>` : `<span style="font-size:12px;color:#059669;">${extras.cloth.price===0?'무료':'✓ 완납'}</span>`}
+            </div>
+            <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">
+              ${extras.cloth.months||0}개월${extras.cloth.price?' · '+extras.cloth.price.toLocaleString()+'원':''}
+              ${clothPayStr ? '<br>'+clothPayStr : ''}
+            </div>
           </div>`; }
       if (extras.locker) {
         const lPaid   = (extras.locker.cash||0)+(extras.locker.card||0)+(extras.locker.transfer||0);
         const lUnpaid = (extras.locker.price||0)-lPaid;
+        const lockerPayStr = [
+          extras.locker.cash     ? '<span style="color:#059669;">현금 '+extras.locker.cash.toLocaleString()+'원</span>'     : '',
+          extras.locker.card     ? '<span style="color:#1a6fd4;">카드 '+extras.locker.card.toLocaleString()+'원</span>'     : '',
+          extras.locker.transfer ? '<span style="color:#7c3aed;">계좌 '+extras.locker.transfer.toLocaleString()+'원</span>' : ''
+        ].filter(Boolean).join(' · ');
         summaryHtml += `
-          <div style="display:grid;grid-template-columns:1fr auto auto;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);gap:8px;">
-            <span style="font-size:13px;font-weight:600;">🔑 개인 락카${extras.locker.lockerNo?' ('+extras.locker.lockerNo+'번)':''}</span>
-            <span style="font-size:12px;color:var(--text-sub);text-align:right;">${extras.locker.months||0}개월</span>
-            ${lUnpaid>0 ? `<span style="font-size:12px;font-weight:700;color:#ef4444;text-align:right;">미수금 ${lUnpaid.toLocaleString()}원</span>` : `<span style="font-size:12px;color:#059669;text-align:right;">✓ 완납</span>`}
+          <div style="padding:6px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+              <span style="font-size:13px;font-weight:600;">🔑 개인 락카${extras.locker.lockerNo?' ('+extras.locker.lockerNo+'번)':''}</span>
+              ${lUnpaid>0 ? `<span style="font-size:12px;font-weight:700;color:#ef4444;">미수금 ${lUnpaid.toLocaleString()}원</span>` : `<span style="font-size:12px;color:#059669;">✓ 완납</span>`}
+            </div>
+            <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">
+              ${extras.locker.months||0}개월${extras.locker.price?' · '+extras.locker.price.toLocaleString()+'원':''}
+              ${lockerPayStr ? '<br>'+lockerPayStr : ''}
+            </div>
           </div>`; }
 
       // 합계
@@ -4336,16 +4370,17 @@
           const pkgLabel  = idx===0 ? '📦 '+progLabel : '　 '+progLabel;
           const dateStr   = (it.startDate||'-') + ' ~ ' + (it.endDate||'-');
           const periodStr = (it.months?it.months+'개월':'') + (it.count?(it.months?' · ':'')+it.count+'회':'') || '-';
+          const innerBorder = idx===0 ? '' : 'border-top:none;';
           pkgRows += `
           <tr>
-            <td style="font-size:10pt;color:#185FA5;font-weight:${idx===0?'600':'400'};">${pkgLabel}</td>
-            <td style="white-space:nowrap;font-size:10pt;">${dateStr}</td>
-            <td style="text-align:center;font-size:10pt;">${periodStr}</td>
-            <td style="text-align:right;font-size:10pt;">${isLast?(pkg.totalPrice?pkg.totalPrice.toLocaleString()+'원':'-'):''}</td>
-            <td style="text-align:right;color:#059669;font-size:10pt;">${isLast?(pkg.totalCash?pkg.totalCash.toLocaleString():'-'):''}</td>
-            <td style="text-align:right;color:#185FA5;font-size:10pt;">${isLast?(pkg.totalCard?pkg.totalCard.toLocaleString():'-'):''}</td>
-            <td style="text-align:right;color:#7c3aed;font-size:10pt;">${isLast?(pkg.totalTransfer?pkg.totalTransfer.toLocaleString():'-'):''}</td>
-            <td style="text-align:right;color:#ef4444;font-weight:700;font-size:10pt;">${isLast?(pkgUnpaid>0?pkgUnpaid.toLocaleString():'-'):''}</td>
+            <td style="font-size:10pt;color:#185FA5;font-weight:${idx===0?'600':'400'};${innerBorder}">${pkgLabel}</td>
+            <td style="white-space:nowrap;font-size:10pt;${innerBorder}">${dateStr}</td>
+            <td style="text-align:center;font-size:10pt;${innerBorder}">${periodStr}</td>
+            <td style="text-align:right;font-size:10pt;${innerBorder}">${isLast?(pkg.totalPrice?pkg.totalPrice.toLocaleString()+'원':'-'):''}</td>
+            <td style="text-align:right;color:#059669;font-size:10pt;${innerBorder}">${isLast?(pkg.totalCash?pkg.totalCash.toLocaleString():'-'):''}</td>
+            <td style="text-align:right;color:#185FA5;font-size:10pt;${innerBorder}">${isLast?(pkg.totalCard?pkg.totalCard.toLocaleString():'-'):''}</td>
+            <td style="text-align:right;color:#7c3aed;font-size:10pt;${innerBorder}">${isLast?(pkg.totalTransfer?pkg.totalTransfer.toLocaleString():'-'):''}</td>
+            <td style="text-align:right;color:#ef4444;font-weight:700;font-size:10pt;${innerBorder}">${isLast?(pkgUnpaid>0?pkgUnpaid.toLocaleString():'-'):''}</td>
           </tr>`;
         });
       });
@@ -4512,7 +4547,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     <div class="sec-head">동의 및 서명</div>
     <div style="font-size:10.5pt;padding:6px 0;line-height:1.6;">본인은 위의 이용약관을 준수할 것에 동의하며 상기와 같이 회원가입을 신청합니다.</div>
     <div class="sign-row">
-      <div class="sign-box" style="width:100px;flex:none;">
+      <div class="sign-box" style="width:130px;flex:none;">
         <div style="font-size:9.5pt;color:#666;margin-bottom:8px;">신청일</div>
         <div style="font-size:12pt;font-weight:700;">${d.signDate||'-'}</div>
       </div>
