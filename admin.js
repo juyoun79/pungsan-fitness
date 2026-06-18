@@ -4491,9 +4491,9 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         <div style="font-size:9.5pt;color:#666;margin-bottom:8px;">신청일</div>
         <div style="font-size:12pt;font-weight:700;">${d.signDate||'-'}</div>
       </div>
-      <div class="sign-box" style="flex:3;">
+      <div class="sign-box" style="width:140px;flex:none;">
         <div style="font-size:9.5pt;color:#666;margin-bottom:6px;">회원 서명</div>
-        ${d.signUrl ? `<img src="${d.signUrl}" style="max-height:32px;max-width:100%;">` : '<div style="height:32px;display:flex;align-items:center;color:#aaa;font-size:9pt;">서명 없음</div>'}
+        ${d.signUrl ? `<img src="${d.signUrl}" style="height:32px;max-width:100%;object-fit:contain;">` : '<div style="height:32px;display:flex;align-items:center;color:#aaa;font-size:9pt;">서명 없음</div>'}
       </div>
       <div class="stamp">서명<br>완료</div>
     </div>
