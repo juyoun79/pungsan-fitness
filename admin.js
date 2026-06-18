@@ -3843,8 +3843,11 @@
       const pkgCard    = Object.values(pkg.items).reduce((s,it)=>s+(it.card||0),0);
       const pkgTransfer= Object.values(pkg.items).reduce((s,it)=>s+(it.transfer||0),0);
       const maxMonths  = Object.values(pkg.items).reduce((m,it)=>Math.max(m,it.months||0),0);
-      const totalCount = Object.values(pkg.items).reduce((s,it)=>s+(it.count||0),0);
-      const periodStr  = [maxMonths?maxMonths+'개월':'', totalCount?totalCount+'회':''].filter(Boolean).join(' · ') || '';
+      const countParts = Object.entries(pkg.items).filter(([,it])=>it.count).map(([prog,it])=>{
+        const label = {'pilatesP':'개인','pilatesG':'그룹','pt':'PT','gx':'GX','health':'헬스'}[prog]||prog;
+        return label+' '+it.count+'회';
+      });
+      const periodStr  = [maxMonths?maxMonths+'개월':'', countParts.length?countParts.join(' · '):''].filter(Boolean).join(' · ') || '';
       // 기간 범위 (가장 이른 시작일 ~ 가장 늦은 종료일)
       const starts = Object.values(pkg.items).map(it=>it.startDate).filter(Boolean).sort();
       const ends   = Object.values(pkg.items).map(it=>it.endDate).filter(Boolean).sort();
@@ -4303,10 +4306,13 @@
         const starts    = allItems.map(it=>it.startDate).filter(Boolean).sort();
         const ends      = allItems.map(it=>it.endDate).filter(Boolean).sort();
         const dateRange = starts.length ? starts[0] + ' ~ ' + (ends[ends.length-1]||'') : '-';
-        // 기간: 가장 긴 기간 / 횟수: 합산
+        // 기간: 가장 긴 기간 / 횟수: 프로그램별 개별 표기
         const maxMonths = allItems.reduce((m,it)=>Math.max(m,it.months||0),0);
-        const totalCount= allItems.reduce((s,it)=>s+(it.count||0),0);
-        const periodStr = [maxMonths?maxMonths+'개월':'', totalCount?totalCount+'회':''].filter(Boolean).join('·') || '-';
+        const countParts = Object.entries(pkg.items||{}).filter(([,it])=>it.count).map(([prog,it])=>{
+          const label = {'pilatesP':'개인','pilatesG':'그룹','pt':'PT','gx':'GX','health':'헬스'}[prog]||prog;
+          return label+' '+it.count+'회';
+        });
+        const periodStr = [maxMonths?maxMonths+'개월':'', countParts.length?countParts.join('·'):''].filter(Boolean).join('·') || '-';
         grandTotal    += pkg.totalPrice;
         grandUnpaid   += pkgUnpaid;
         grandCash     += pkg.totalCash;
@@ -4487,7 +4493,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     <div class="sec-head">동의 및 서명</div>
     <div style="font-size:10.5pt;padding:6px 0;line-height:1.6;">본인은 위의 이용약관을 준수할 것에 동의하며 상기와 같이 회원가입을 신청합니다.</div>
     <div class="sign-row">
-      <div class="sign-box" style="flex:1.2;">
+      <div class="sign-box" style="width:100px;flex:none;">
         <div style="font-size:9.5pt;color:#666;margin-bottom:8px;">신청일</div>
         <div style="font-size:12pt;font-weight:700;">${d.signDate||'-'}</div>
       </div>
