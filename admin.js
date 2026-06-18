@@ -4403,25 +4403,26 @@
 <style>
 * { box-sizing:border-box; margin:0; padding:0; }
 body { background:#f0f0f0; font-family:'Noto Sans KR','Malgun Gothic','맑은 고딕',sans-serif; }
-.a4 { width:210mm; min-height:297mm; background:white; margin:10mm auto; padding:9mm 11mm; font-size:10.5pt; color:#111; }
-@media print { body{background:white;} .a4{margin:0; padding:9mm 11mm;} .btn-wrap{display:none;} }
-.title-row { display:flex; justify-content:space-between; align-items:center; border-bottom:2.5px solid #185FA5; padding-bottom:5px; margin-bottom:9px; }
-.title-main { font-size:17pt; font-weight:700; color:#185FA5; }
-.title-sub { font-size:9.5pt; color:#555; text-align:right; line-height:1.6; }
-.section { margin-bottom:7px; }
-.sec-head { background:#185FA5; color:white; font-size:10pt; font-weight:700; padding:4px 8px; margin-bottom:4px; }
-table { width:100%; border-collapse:collapse; font-size:9.5pt; }
-td { border:0.7px solid #aaa; padding:4px 6px; vertical-align:middle; line-height:1.5; }
-.lbl { background:#eef2f7; color:#333; font-weight:700; white-space:nowrap; width:58px; }
-.prog-head { background:#d6e4f0; font-weight:700; font-size:9.5pt; color:#185FA5; text-align:center; padding:4px 3px; white-space:nowrap; }
+.a4 { width:210mm; min-height:297mm; background:white; margin:10mm auto; padding:7mm 10mm; font-size:9.5pt; color:#111; }
+@media print { body{background:white;} .a4{margin:0; padding:7mm 10mm;} .btn-wrap{display:none;} }
+.title-row { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #185FA5; padding-bottom:4px; margin-bottom:7px; }
+.title-main { font-size:15pt; font-weight:700; color:#185FA5; }
+.title-sub { font-size:8.5pt; color:#555; text-align:right; line-height:1.5; }
+.section { margin-bottom:5px; }
+.sec-head { background:#185FA5; color:white; font-size:9pt; font-weight:700; padding:3px 7px; margin-bottom:3px; }
+table { width:100%; border-collapse:collapse; font-size:8.5pt; }
+td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-height:1.4; }
+.lbl { background:#eef2f7; color:#333; font-weight:700; white-space:nowrap; width:52px; }
+.prog-head { background:#d6e4f0; font-weight:700; font-size:8.5pt; color:#185FA5; text-align:center; padding:3px 2px; white-space:nowrap; }
 .total-row { background:#e4eef8; font-weight:700; }
-.terms-box { border:0.7px solid #aaa; padding:6px 8px; font-size:7.5pt; line-height:1.6; color:#222; column-count:2; column-gap:10px; }
-.sign-row { display:flex; gap:8px; margin-top:5px; align-items:stretch; }
-.sign-box { flex:1; border:0.7px solid #aaa; padding:7px 10px; min-height:65px; }
-.stamp { width:58px; height:58px; border:2px solid #ef4444; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:8.5pt; color:#ef4444; font-weight:700; text-align:center; line-height:1.5; flex-shrink:0; align-self:center; }
-.unpaid-box { background:#fef2f2; border:0.7px solid #fca5a5; border-radius:5px; padding:5px 9px; margin-top:6px; font-size:9.5pt; color:#991b1b; }
+.terms-box { border:0.5px solid #aaa; padding:5px 7px; font-size:7pt; line-height:1.5; color:#222; column-count:2; column-gap:9px; }
+.sign-row { display:flex; gap:6px; margin-top:4px; align-items:center; }
+.sign-box { flex:1; border:0.5px solid #aaa; padding:4px 8px; min-height:36px; }
+.stamp { width:44px; height:44px; border:1.5px solid #ef4444; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:7.5pt; color:#ef4444; font-weight:700; text-align:center; line-height:1.4; flex-shrink:0; }
+.unpaid-box { background:#fef2f2; border:0.5px solid #fca5a5; border-radius:4px; padding:4px 8px; margin-top:5px; font-size:8.5pt; color:#991b1b; }
 .btn-wrap { text-align:center; margin:10px 0; }
 .btn-pdf { background:#185FA5; color:white; border:none; padding:9px 24px; font-size:12pt; border-radius:6px; cursor:pointer; font-family:inherit; }
+@media print { .section { page-break-inside:avoid; } }
 </style>
 </head>
 <body>
@@ -4492,7 +4493,7 @@ td { border:0.7px solid #aaa; padding:4px 6px; vertical-align:middle; line-heigh
       </div>
       <div class="sign-box" style="flex:3;">
         <div style="font-size:9.5pt;color:#666;margin-bottom:6px;">회원 서명</div>
-        ${d.signUrl ? `<img src="${d.signUrl}" style="max-height:52px;max-width:100%;">` : '<div style="height:52px;display:flex;align-items:center;color:#aaa;font-size:10pt;">서명 없음</div>'}
+        ${d.signUrl ? `<img src="${d.signUrl}" style="max-height:32px;max-width:100%;">` : '<div style="height:32px;display:flex;align-items:center;color:#aaa;font-size:9pt;">서명 없음</div>'}
       </div>
       <div class="stamp">서명<br>완료</div>
     </div>
