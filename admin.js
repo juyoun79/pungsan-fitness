@@ -1667,17 +1667,33 @@
     });
   }
 
+  // 계약서 하나에 들어있는 모든 "프로그램" 항목을 한 줄로 펼쳐줌
+  // - 개별로 선택한 프로그램(c.programs)과
+  // - 같은 날 묶음판매로 등록한 패키지 안의 프로그램(c.packages[].items)을 모두 합쳐서 반환
+  function _flattenContractItems(c) {
+    const list = [];
+    Object.entries(c.programs || {}).forEach(([progKey, data]) => {
+      list.push({ progKey, data, pkgName: null, pkgIndex: null });
+    });
+    (c.packages || []).forEach((pkg, idx) => {
+      Object.entries(pkg.items || {}).forEach(([progKey, data]) => {
+        list.push({ progKey, data, pkgName: pkg.name || null, pkgIndex: idx });
+      });
+    });
+    return list;
+  }
+
   // 단독 계약 카드 (다른 계약서와 패키지로 묶이지 않은 일반 계약서)
   function _renderSingleContractCard(phone, c, progLabels) {
-    const programs = c.programs || {};
-    const totalAmt = Object.values(programs).reduce((s, p) => s + (p.price || 0), 0);
-    const totalPaid = Object.values(programs).reduce((s, p) => s + (p.cash||0) + (p.card||0) + (p.transfer||0), 0);
+    const items = _flattenContractItems(c);
+    const totalAmt = items.reduce((s, it) => s + (it.data.price || 0), 0);
+    const totalPaid = items.reduce((s, it) => s + (it.data.cash||0) + (it.data.card||0) + (it.data.transfer||0), 0);
     const extrasAmt = Object.values(c.extras || {}).reduce((s, e) => s + (e.price || 0), 0);
     const grandTotal = totalAmt + extrasAmt;
     const grandPaid = totalPaid + Object.values(c.extras || {}).reduce((s, e) => s + (e.cash||0) + (e.card||0) + (e.transfer||0), 0);
     const grandUnpaid = grandTotal - grandPaid;
 
-    const progNames = Object.keys(programs).map(p => progLabels[p] || p).join(', ');
+    const progNames = items.map(it => progLabels[it.progKey] || it.progKey).join(', ');
     const menuId = 'cmenu-' + c.key;
 
     return `<div style="background:var(--card);border-radius:10px;padding:16px;border:1px solid var(--border);">
@@ -1712,8 +1728,9 @@
 
     let grandTotal = 0, grandPaid = 0;
     const rows = sorted.map(c => {
-      const programs = c.programs || {};
-      return Object.entries(programs).map(([progKey, p]) => {
+      const items = _flattenContractItems(c);
+      return items.map(it => {
+        const progKey = it.progKey, p = it.data;
         const amt = p.price || 0;
         const paid = (p.cash||0) + (p.card||0) + (p.transfer||0);
         const unpaid = amt - paid;
@@ -1724,7 +1741,7 @@
         return `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;">
             <div>
-              <div style="font-size:12.5px;font-weight:700;color:var(--text);">${progLabels[progKey] || progKey}</div>
+              <div style="font-size:12.5px;font-weight:700;color:var(--text);">${progLabels[progKey] || progKey}${it.pkgName ? ` <span style="color:var(--text-hint);font-weight:500;">(📦 ${it.pkgName})</span>` : ''}</div>
               <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${c.signDate || '-'} 결제 · ${c.type === 're' ? '재등록' : '신규'}</div>
             </div>
             <div style="text-align:right;">
@@ -1799,14 +1816,16 @@
       db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
         if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
         const c = snap.val();
-        const programs = c.programs || {};
-        // 각 프로그램의 미수금을 현금으로 처리
         const updates = {};
-        Object.entries(programs).forEach(([prog, p]) => {
+        // 개별 프로그램 + 패키지 안의 프로그램 모두 미수금을 현금으로 처리
+        _flattenContractItems(c).forEach(it => {
+          const p = it.data;
           const progUnpaid = (p.price || 0) - (p.cash||0) - (p.card||0) - (p.transfer||0);
           if (progUnpaid > 0) {
-            updates['contracts/' + phone + '/' + contractKey + '/programs/' + prog + '/cash'] =
-              (p.cash || 0) + progUnpaid;
+            const path = it.pkgIndex === null
+              ? 'contracts/' + phone + '/' + contractKey + '/programs/' + it.progKey + '/cash'
+              : 'contracts/' + phone + '/' + contractKey + '/packages/' + it.pkgIndex + '/items/' + it.progKey + '/cash';
+            updates[path] = (p.cash || 0) + progUnpaid;
           }
         });
         const extras = c.extras || {};
