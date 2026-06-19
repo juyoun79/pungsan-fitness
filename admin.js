@@ -4370,7 +4370,10 @@
           const pkgLabel  = idx===0 ? '📦 '+progLabel : '　 '+progLabel;
           const dateStr   = (it.startDate||'-') + ' ~ ' + (it.endDate||'-');
           const periodStr = (it.months?it.months+'개월':'') + (it.count?(it.months?' · ':'')+it.count+'회':'') || '-';
-          const innerBorder = idx===0 ? '' : 'border-top:none;';
+          // idx===0(첫 행)은 아래쪽 선 제거, 그 다음 행들은 위쪽 선 제거 → 패키지 내부 선 완전히 사라짐
+          const topBorder    = idx===0 ? '' : 'border-top:none;';
+          const bottomBorder = isLast ? '' : 'border-bottom:none;';
+          const innerBorder  = topBorder + bottomBorder;
           pkgRows += `
           <tr>
             <td style="font-size:10pt;color:#185FA5;font-weight:${idx===0?'600':'400'};${innerBorder}">${pkgLabel}</td>
