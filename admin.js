@@ -1640,38 +1640,157 @@
         '기구필라테스개인':'🧘 기구필라테스 개인', '기구필라테스그룹':'👥 기구필라테스 그룹'
       };
 
-      el.innerHTML = contracts.map((c, idx) => {
-        const programs = c.programs || {};
-        const totalAmt = Object.values(programs).reduce((s, p) => s + (p.price || 0), 0);
-        const totalPaid = Object.values(programs).reduce((s, p) => s + (p.cash||0) + (p.card||0) + (p.transfer||0), 0);
-        const totalUnpaid = totalAmt - totalPaid;
-        const extrasAmt = Object.values(c.extras || {}).reduce((s, e) => s + (e.price || 0), 0);
-        const grandTotal = totalAmt + extrasAmt;
-        const grandPaid = totalPaid + Object.values(c.extras || {}).reduce((s, e) => s + (e.cash||0) + (e.card||0) + (e.transfer||0), 0);
-        const grandUnpaid = grandTotal - grandPaid;
+      // 연계패키지(packageGroup) 기준으로 묶기 — 같은 packageGroup 값을 가진 계약서끼리 그룹화
+      const groups = [];
+      const groupMap = {};
+      contracts.forEach(c => {
+        const gKey = c.packageGroup ? c.packageGroup : ('__single__' + c.key);
+        if (!groupMap[gKey]) {
+          groupMap[gKey] = { isPackage: !!c.packageGroup, contracts: [] };
+          groups.push(groupMap[gKey]);
+        }
+        groupMap[gKey].contracts.push(c);
+      });
+      // 그룹은 그룹 내 가장 최근 계약 기준으로 최신순 정렬
+      groups.sort((a, b) => {
+        const aLatest = Math.max.apply(null, a.contracts.map(c => c.createdAt || 0));
+        const bLatest = Math.max.apply(null, b.contracts.map(c => c.createdAt || 0));
+        return bLatest - aLatest;
+      });
 
-        const progNames = Object.keys(programs).map(p => progLabels[p] || p).join(', ');
-
-        return `<div style="background:var(--card);border-radius:10px;padding:16px;border:1px solid var(--border);">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-            <div>
-              <div style="font-size:13px;font-weight:700;color:var(--text);">${c.signDate || '-'} · ${c.type === 're' ? '재등록' : '신규'}</div>
-              <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${progNames || '-'}</div>
-            </div>
-            <div style="text-align:right;">
-              <div style="font-size:13px;font-weight:700;color:var(--text);">${grandTotal.toLocaleString()}원</div>
-              ${grandUnpaid > 0 ? `<div style="font-size:11px;color:#ef4444;font-weight:700;">미수금 ${grandUnpaid.toLocaleString()}원</div>` : `<div style="font-size:11px;color:#22c55e;font-weight:600;">완납 ✓</div>`}
-            </div>
-          </div>
-          ${c.memo ? `<div style="background:var(--bg);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text-sub);margin-bottom:10px;">📌 ${c.memo}</div>` : ''}
-          ${grandUnpaid > 0 ? `
-          <button onclick="payMemberUnpaid('${phone}','${c.key}',${grandUnpaid})"
-            style="width:100%;padding:8px;background:#fff7ed;color:#ea580c;border:1.5px solid #fed7aa;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-            💳 미수금 ${grandUnpaid.toLocaleString()}원 결제처리
-          </button>` : ''}
-        </div>`;
+      el.innerHTML = groups.map(g => {
+        if (g.isPackage && g.contracts.length > 1) {
+          return _renderPackageCard(phone, g.contracts, progLabels);
+        }
+        return _renderSingleContractCard(phone, g.contracts[0], progLabels);
       }).join('');
     });
+  }
+
+  // 단독 계약 카드 (다른 계약서와 패키지로 묶이지 않은 일반 계약서)
+  function _renderSingleContractCard(phone, c, progLabels) {
+    const programs = c.programs || {};
+    const totalAmt = Object.values(programs).reduce((s, p) => s + (p.price || 0), 0);
+    const totalPaid = Object.values(programs).reduce((s, p) => s + (p.cash||0) + (p.card||0) + (p.transfer||0), 0);
+    const extrasAmt = Object.values(c.extras || {}).reduce((s, e) => s + (e.price || 0), 0);
+    const grandTotal = totalAmt + extrasAmt;
+    const grandPaid = totalPaid + Object.values(c.extras || {}).reduce((s, e) => s + (e.cash||0) + (e.card||0) + (e.transfer||0), 0);
+    const grandUnpaid = grandTotal - grandPaid;
+
+    const progNames = Object.keys(programs).map(p => progLabels[p] || p).join(', ');
+    const menuId = 'cmenu-' + c.key;
+
+    return `<div style="background:var(--card);border-radius:10px;padding:16px;border:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);">${c.signDate || '-'} · ${c.type === 're' ? '재등록' : '신규'}</div>
+          <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${progNames || '-'}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);">${grandTotal.toLocaleString()}원</div>
+          ${grandUnpaid > 0 ? `<div style="font-size:11px;color:#ef4444;font-weight:700;">미수금 ${grandUnpaid.toLocaleString()}원</div>` : `<div style="font-size:11px;color:#22c55e;font-weight:600;">완납 ✓</div>`}
+        </div>
+      </div>
+      ${c.memo ? `<div style="background:var(--bg);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text-sub);margin-bottom:10px;">📌 ${c.memo}</div>` : ''}
+      ${grandUnpaid > 0 ? `
+      <button onclick="payMemberUnpaid('${phone}','${c.key}',${grandUnpaid})"
+        style="width:100%;padding:8px;background:#fff7ed;color:#ea580c;border:1.5px solid #fed7aa;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;">
+        💳 미수금 ${grandUnpaid.toLocaleString()}원 결제처리
+      </button>` : ''}
+      ${_renderContractMenuButton(menuId, phone, c.key, null, '처리')}
+    </div>`;
+  }
+
+  // 패키지(연계계약) 카드 — packageGroup으로 묶인 여러 계약서를 하나로 합쳐서 표시
+  function _renderPackageCard(phone, contractsInGroup, progLabels) {
+    const progPlain = {
+      '헬스':'헬스', 'GX':'GX', 'PT':'PT',
+      '기구필라테스개인':'기구필라테스 개인', '기구필라테스그룹':'기구필라테스 그룹'
+    };
+    // 등록된 순서(오래된 것 → 최근 추가된 것)대로 보여주는 게 이해하기 쉬움
+    const sorted = contractsInGroup.slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+    let grandTotal = 0, grandPaid = 0;
+    const rows = sorted.map(c => {
+      const programs = c.programs || {};
+      return Object.entries(programs).map(([progKey, p]) => {
+        const amt = p.price || 0;
+        const paid = (p.cash||0) + (p.card||0) + (p.transfer||0);
+        const unpaid = amt - paid;
+        grandTotal += amt;
+        grandPaid += paid;
+        const menuId = 'cmenu-' + c.key + '-' + progKey;
+        const label = (progPlain[progKey] || progKey) + '만';
+        return `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div>
+              <div style="font-size:12.5px;font-weight:700;color:var(--text);">${progLabels[progKey] || progKey}</div>
+              <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${c.signDate || '-'} 결제 · ${c.type === 're' ? '재등록' : '신규'}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:12.5px;font-weight:700;color:var(--text);">${amt.toLocaleString()}원</div>
+              ${unpaid > 0 ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">미수금 ${unpaid.toLocaleString()}원</div>` : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">완납 ✓</div>`}
+            </div>
+          </div>
+          ${_renderContractMenuButton(menuId, phone, c.key, progKey, label)}
+        </div>`;
+      }).join('');
+    }).join('');
+
+    const grandUnpaid = grandTotal - grandPaid;
+    const allKeys = sorted.map(c => c.key).join(',');
+    const pkgMenuId = 'cmenu-pkg-' + sorted[0].key;
+
+    return `<div style="background:var(--card);border-radius:10px;padding:16px;border:1.5px solid var(--blue);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="background:var(--blue-light);color:var(--blue);font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;">🔗 연계 패키지</span>
+        <div style="text-align:right;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);">${grandTotal.toLocaleString()}원</div>
+          ${grandUnpaid > 0 ? `<div style="font-size:11px;color:#ef4444;font-weight:700;">미수금 ${grandUnpaid.toLocaleString()}원</div>` : `<div style="font-size:11px;color:#22c55e;font-weight:600;">완납 ✓</div>`}
+        </div>
+      </div>
+      ${rows}
+      ${_renderContractMenuButton(pkgMenuId, phone, allKeys, null, '패키지 전체')}
+    </div>`;
+  }
+
+  // 처리▾ 버튼 + 펼침 메뉴 (단독카드/패키지프로그램별/패키지전체 공통으로 사용)
+  function _renderContractMenuButton(menuId, phone, contractKeyOrKeys, progKey, label) {
+    const actions = [
+      { icon: '✏️', name: '정보 수정', act: 'edit' },
+      { icon: '💰', name: '환불', act: 'refund' },
+      { icon: '🔁', name: '양도', act: 'transfer' },
+      { icon: '🔄', name: '프로그램 변경', act: 'change' },
+      { icon: '⏸️', name: '정지/휴회', act: 'pause' },
+    ];
+    const progArg = progKey ? `'${progKey}'` : 'null';
+    const itemsHtml = actions.map(a =>
+      `<button onclick="handleContractAction('${a.act}','${phone}','${contractKeyOrKeys}',${progArg})"
+        style="width:100%;text-align:left;padding:9px 12px;background:none;border:none;border-top:1px solid var(--border);font-size:12.5px;color:var(--text);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">${a.icon} ${a.name}</button>`
+    ).join('');
+    return `<div style="position:relative;">
+        <button onclick="toggleContractMenu('${menuId}')"
+          style="width:100%;padding:8px;background:var(--card);color:var(--text-sub);border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">${label} ▾</button>
+        <div id="${menuId}" class="contract-action-menu" style="display:none;margin-top:4px;background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+          ${itemsHtml}
+        </div>
+      </div>`;
+  }
+
+  // 처리▾ 메뉴 펼치기/접기 (다른 곳에서 열려있던 메뉴는 자동으로 닫음)
+  function toggleContractMenu(menuId) {
+    document.querySelectorAll('.contract-action-menu').forEach(m => {
+      if (m.id !== menuId) m.style.display = 'none';
+    });
+    const menu = document.getElementById(menuId);
+    if (!menu) return;
+    menu.style.display = (menu.style.display === 'none' || !menu.style.display) ? 'block' : 'none';
+  }
+
+  // 처리 메뉴 항목 클릭 시 실행 (환불/양도/프로그램변경/정지휴회/정보수정 실제 기능은 다음 단계에서 차례로 채워질 예정)
+  function handleContractAction(act, phone, contractKeyOrKeys, progKey) {
+    const names = { edit: '정보 수정', refund: '환불', transfer: '양도', change: '프로그램 변경', pause: '정지/휴회' };
+    showToast((names[act] || act) + ' 기능은 다음 업데이트에서 추가될 예정이에요!', 'info');
   }
 
   // 미수금 결제처리
