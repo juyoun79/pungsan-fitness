@@ -1636,8 +1636,8 @@
       contracts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
       const progLabels = {
-        '헬스':'🏋️ 헬스', 'GX':'🎶 GX', 'PT':'💪 PT',
-        '기구필라테스개인':'🧘 기구필라테스 개인', '기구필라테스그룹':'👥 기구필라테스 그룹'
+        '헬스':'헬스', 'GX':'GX', 'PT':'PT',
+        '기구필라테스개인':'기구필라테스 개인', '기구필라테스그룹':'기구필라테스 그룹'
       };
 
       // 연계패키지(packageGroup) 기준으로 묶기 — 같은 packageGroup 값을 가진 계약서끼리 그룹화
@@ -1683,6 +1683,23 @@
     return list;
   }
 
+  // 개월수/횟수를 "3개월 · 4회" 같은 형태로 표시
+  function _formatPeriodLabel(data) {
+    const m = data.months || 0;
+    const cnt = data.count || 0;
+    let label = '';
+    if (m) label += m + '개월';
+    if (cnt) label += (label ? ' · ' : '') + cnt + '회';
+    return label || '-';
+  }
+
+  // 단독 / 패키지 구분 뱃지
+  function _renderPkgBadge(pkgName) {
+    return pkgName
+      ? `<span style="background:var(--blue-light);color:var(--blue);font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;white-space:nowrap;">📦 ${pkgName}</span>`
+      : `<span style="background:var(--bg);color:var(--text-hint);font-size:10px;font-weight:600;padding:2px 6px;border-radius:5px;white-space:nowrap;">단독</span>`;
+  }
+
   // 단독 계약 카드 (다른 계약서와 패키지로 묶이지 않은 일반 계약서)
   function _renderSingleContractCard(phone, c, progLabels) {
     const items = _flattenContractItems(c);
@@ -1692,25 +1709,37 @@
     const grandTotal = totalAmt + extrasAmt;
     const grandPaid = totalPaid + Object.values(c.extras || {}).reduce((s, e) => s + (e.cash||0) + (e.card||0) + (e.transfer||0), 0);
     const grandUnpaid = grandTotal - grandPaid;
-
-    const progNames = items.map(it => progLabels[it.progKey] || it.progKey).join(', ');
     const menuId = 'cmenu-' + c.key;
 
-    return `<div style="background:var(--card);border-radius:10px;padding:16px;border:1px solid var(--border);">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+    const itemRows = items.map(it => {
+      const amt = it.data.price || 0;
+      const paid = (it.data.cash||0) + (it.data.card||0) + (it.data.transfer||0);
+      const unpaid = amt - paid;
+      return `<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-top:1px solid var(--border);">
         <div>
-          <div style="font-size:13px;font-weight:700;color:var(--text);">${c.signDate || '-'} · ${c.type === 're' ? '재등록' : '신규'}</div>
-          <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${progNames || '-'}</div>
+          <div style="font-size:12.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px;">${progLabels[it.progKey] || it.progKey} ${_renderPkgBadge(it.pkgName)}</div>
+          <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${_formatPeriodLabel(it.data)}</div>
         </div>
+        <div style="text-align:right;">
+          <div style="font-size:12.5px;font-weight:700;color:var(--text);">${amt.toLocaleString()}원</div>
+          ${unpaid > 0 ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">미수금 ${unpaid.toLocaleString()}원</div>` : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">완납 ✓</div>`}
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<div style="background:var(--card);border-radius:10px;padding:16px;border:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);">${c.signDate || '-'} · ${c.type === 're' ? '재등록' : '신규'}</div>
         <div style="text-align:right;">
           <div style="font-size:13px;font-weight:700;color:var(--text);">${grandTotal.toLocaleString()}원</div>
           ${grandUnpaid > 0 ? `<div style="font-size:11px;color:#ef4444;font-weight:700;">미수금 ${grandUnpaid.toLocaleString()}원</div>` : `<div style="font-size:11px;color:#22c55e;font-weight:600;">완납 ✓</div>`}
         </div>
       </div>
-      ${c.memo ? `<div style="background:var(--bg);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text-sub);margin-bottom:10px;">📌 ${c.memo}</div>` : ''}
+      ${itemRows}
+      ${c.memo ? `<div style="background:var(--bg);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text-sub);margin-top:10px;margin-bottom:10px;">📌 ${c.memo}</div>` : ''}
       ${grandUnpaid > 0 ? `
       <button onclick="payMemberUnpaid('${phone}','${c.key}',${grandUnpaid})"
-        style="width:100%;padding:8px;background:#fff7ed;color:#ea580c;border:1.5px solid #fed7aa;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;">
+        style="width:100%;padding:8px;background:#fff7ed;color:#ea580c;border:1.5px solid #fed7aa;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:10px;margin-bottom:8px;">
         💳 미수금 ${grandUnpaid.toLocaleString()}원 결제처리
       </button>` : ''}
       ${_renderContractMenuButton(menuId, phone, c.key, null, '처리')}
@@ -1741,8 +1770,8 @@
         return `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;">
             <div>
-              <div style="font-size:12.5px;font-weight:700;color:var(--text);">${progLabels[progKey] || progKey}${it.pkgName ? ` <span style="color:var(--text-hint);font-weight:500;">(📦 ${it.pkgName})</span>` : ''}</div>
-              <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${c.signDate || '-'} 결제 · ${c.type === 're' ? '재등록' : '신규'}</div>
+              <div style="font-size:12.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px;">${progLabels[progKey] || progKey} ${_renderPkgBadge(it.pkgName)}</div>
+              <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${c.signDate || '-'} 결제 · ${c.type === 're' ? '재등록' : '신규'} · ${_formatPeriodLabel(p)}</div>
             </div>
             <div style="text-align:right;">
               <div style="font-size:12.5px;font-weight:700;color:var(--text);">${amt.toLocaleString()}원</div>
