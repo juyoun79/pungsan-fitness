@@ -2148,6 +2148,7 @@
         db.ref('coupons/' + phone),           // 쿠폰
         db.ref('notifications/' + phone),     // 알림
         db.ref('point_tier_issued/' + phone), // 포인트 구간 쿠폰 발행 기록
+        db.ref('contracts/' + phone),         // 계약서 이력
       ];
 
       // 2. 강사 담당 연결 삭제 (모든 강사에서 해당 회원 제거)
