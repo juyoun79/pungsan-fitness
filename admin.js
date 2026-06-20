@@ -1700,6 +1700,20 @@
       : `<span style="background:var(--bg);color:var(--text-hint);font-size:10px;font-weight:600;padding:2px 6px;border-radius:5px;white-space:nowrap;">단독</span>`;
   }
 
+  // 미수금/완납/환불완료 상태 표시 (환불이 처리된 항목은 환불완료로 표시)
+  function _renderItemStatusBadge(data) {
+    if (data.refund) {
+      const methodNames = { cash: '현금', card: '카드', transfer: '계좌' };
+      return `<div style="font-size:10.5px;color:#a855f7;font-weight:700;">🔻 환불완료 ${(data.refund.refundAmount||0).toLocaleString()}원 · ${methodNames[data.refund.method] || data.refund.method}</div>`;
+    }
+    const amt = data.price || 0;
+    const paid = (data.cash||0) + (data.card||0) + (data.transfer||0);
+    const unpaid = amt - paid;
+    return unpaid > 0
+      ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">미수금 ${unpaid.toLocaleString()}원</div>`
+      : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">완납 ✓</div>`;
+  }
+
   // 단독 계약 카드 (다른 계약서와 패키지로 묶이지 않은 일반 계약서)
   function _renderSingleContractCard(phone, c, progLabels) {
     const items = _flattenContractItems(c);
@@ -1713,8 +1727,6 @@
 
     const itemRows = items.map(it => {
       const amt = it.data.price || 0;
-      const paid = (it.data.cash||0) + (it.data.card||0) + (it.data.transfer||0);
-      const unpaid = amt - paid;
       return `<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-top:1px solid var(--border);">
         <div>
           <div style="font-size:12.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px;">${progLabels[it.progKey] || it.progKey} ${_renderPkgBadge(it.pkgName)}</div>
@@ -1722,7 +1734,7 @@
         </div>
         <div style="text-align:right;">
           <div style="font-size:12.5px;font-weight:700;color:var(--text);">${amt.toLocaleString()}원</div>
-          ${unpaid > 0 ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">미수금 ${unpaid.toLocaleString()}원</div>` : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">완납 ✓</div>`}
+          ${_renderItemStatusBadge(it.data)}
         </div>
       </div>`;
     }).join('');
@@ -1775,7 +1787,7 @@
             </div>
             <div style="text-align:right;">
               <div style="font-size:12.5px;font-weight:700;color:var(--text);">${amt.toLocaleString()}원</div>
-              ${unpaid > 0 ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">미수금 ${unpaid.toLocaleString()}원</div>` : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">완납 ✓</div>`}
+              ${_renderItemStatusBadge(p)}
             </div>
           </div>
           ${_renderContractMenuButton(menuId, phone, c.key, progKey, label)}
@@ -1833,13 +1845,236 @@
     menu.style.display = (menu.style.display === 'none' || !menu.style.display) ? 'block' : 'none';
   }
 
-  // 처리 메뉴 항목 클릭 시 실행 (환불/양도/프로그램변경/정지휴회/정보수정 실제 기능은 다음 단계에서 차례로 채워질 예정)
+  // 처리 메뉴 항목 클릭 시 실행 (환불은 실제 동작, 나머지는 다음 단계에서 차례로 채워질 예정)
   function handleContractAction(act, phone, contractKeyOrKeys, progKey) {
+    if (act === 'refund' && contractKeyOrKeys.indexOf(',') === -1) {
+      document.querySelectorAll('.contract-action-menu').forEach(m => m.style.display = 'none');
+      startRefund(phone, contractKeyOrKeys, progKey);
+      return;
+    }
     const names = { edit: '정보 수정', refund: '환불', transfer: '양도', change: '프로그램 변경', pause: '정지/휴회' };
+    if (act === 'refund') {
+      showToast('패키지 전체 환불 기능은 다음 업데이트에서 추가될 예정이에요! 프로그램별로 따로 환불해주세요.', 'info');
+      return;
+    }
     showToast((names[act] || act) + ' 기능은 다음 업데이트에서 추가될 예정이에요!', 'info');
   }
 
-  // 미수금 결제처리
+  // ══════════════ 환불 기능 ══════════════
+  const REFUND_PERIOD_PROGS = ['헬스', 'GX']; // 기간제 — 위약금10%+사용일수 자동계산 / 그 외는 횟수제(직접입력)
+  const REFUND_PROG_NAMES = { '헬스':'헬스', 'GX':'GX', 'PT':'PT', '기구필라테스개인':'기구필라테스 개인', '기구필라테스그룹':'기구필라테스 그룹' };
+
+  // 환불 시작 — progKey가 없으면(여러 프로그램이 있는 계약서) 먼저 어떤 프로그램을 환불할지 선택하게 함
+  function startRefund(phone, contractKey, progKey) {
+    db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
+      if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      const items = _flattenContractItems(snap.val());
+      if (progKey) {
+        openRefundModal(phone, contractKey, progKey);
+      } else if (items.length === 1) {
+        openRefundModal(phone, contractKey, items[0].progKey);
+      } else if (items.length > 1) {
+        _showRefundItemPicker(phone, contractKey, items);
+      } else {
+        showToast('환불할 프로그램이 없어요.', 'error');
+      }
+    });
+  }
+
+  // 계약서 안에 프로그램이 여러 개일 때 — 환불할 프로그램 선택 팝업
+  function _showRefundItemPicker(phone, contractKey, items) {
+    document.getElementById('app-refund-picker')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-refund-picker';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+    const itemBtns = items.map(it => {
+      const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
+      return `<button onclick="openRefundModal('${phone}','${contractKey}','${it.progKey}')"
+        style="width:100%;text-align:left;padding:12px;margin-bottom:8px;background:var(--bg,#f7f7f7);border:1px solid #e0e0e0;border-radius:10px;font-size:14px;color:var(--text,#1a1a1a);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+        ${label} · ${(it.data.price||0).toLocaleString()}원</button>`;
+    }).join('');
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:300px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">환불할 프로그램을 선택하세요</div>
+      ${itemBtns}
+      <button onclick="document.getElementById('app-refund-picker').remove()"
+        style="width:100%;padding:10px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:13px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:4px;">취소</button>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+
+  // 환불 입력 화면 열기
+  function openRefundModal(phone, contractKey, progKey) {
+    document.getElementById('app-refund-picker')?.remove();
+    db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
+      if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      const items = _flattenContractItems(snap.val());
+      const item = items.find(it => it.progKey === progKey);
+      if (!item) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
+      _renderRefundForm(phone, contractKey, item);
+    });
+  }
+
+  function _renderRefundForm(phone, contractKey, item) {
+    const progKey = item.progKey;
+    const data = item.data;
+    const isPeriod = REFUND_PERIOD_PROGS.includes(progKey);
+    const price = data.price || 0;
+    const startDate = data.startDate || '';
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+
+    document.getElementById('app-refund-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-refund-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+
+    let body = `<div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">💰 환불 — ${REFUND_PROG_NAMES[progKey]||progKey}${item.pkgName ? ' (📦 '+item.pkgName+')' : ''}</div>
+      <div style="font-size:12px;color:#888;margin-bottom:16px;">등록금액 ${price.toLocaleString()}원 · 등록일 ${startDate || '-'}</div>`;
+
+    if (isPeriod) {
+      body += `
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">환불 처리일</div>
+        <input id="rf-date" type="date" value="${todayStr}" onchange="_onRefundDateChange()"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:6px;font-family:'Noto Sans KR',sans-serif;">
+        <div id="rf-days-display" style="font-size:11px;color:#aaa;margin-bottom:10px;"></div>
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">위약금 (등록금액의 10%, 수정 가능)</div>
+        <input id="rf-penalty" type="number" value="${Math.round(price*0.1)}" oninput="_recalcRefund()"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">사용일수 공제액 (일 3,300원 기준, 수정 가능)</div>
+        <input id="rf-deduct" type="number" value="0" oninput="_recalcRefund()"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:14px;font-family:'Noto Sans KR',sans-serif;">
+      `;
+    } else {
+      body += `
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">위약금 (직접 입력)</div>
+        <input id="rf-penalty" type="number" value="0" oninput="_recalcRefund()"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">사용횟수</div>
+        <input id="rf-usedcount" type="number" value="0" oninput="_recalcRefund()"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:6px;font-family:'Noto Sans KR',sans-serif;">
+        <div id="rf-ref-display" style="font-size:11px;color:#aaa;margin-bottom:10px;"></div>
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">사용횟수 차감액 (직접 입력)</div>
+        <input id="rf-deduct" type="number" value="0" oninput="_recalcRefund()"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:14px;font-family:'Noto Sans KR',sans-serif;">
+      `;
+    }
+
+    body += `
+      <div style="font-size:12px;color:#888;margin-bottom:6px;">환불 수단</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button id="rf-method-cash" onclick="_selectRefundMethod('cash')" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--blue,#3b82f6);background:var(--blue,#3b82f6);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">현금</button>
+        <button id="rf-method-card" onclick="_selectRefundMethod('card')" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #e0e0e0;background:none;color:#888;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">카드</button>
+        <button id="rf-method-transfer" onclick="_selectRefundMethod('transfer')" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #e0e0e0;background:none;color:#888;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">계좌</button>
+      </div>
+      <div style="background:var(--bg,#f7f7f7);border-radius:10px;padding:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:13px;color:#888;">환불 금액</span>
+        <span id="rf-total" style="font-size:18px;font-weight:700;color:#ef4444;">0원</span>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button onclick="document.getElementById('app-refund-modal').remove()" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button onclick="_confirmRefund('${phone}','${contractKey}','${progKey}')" style="flex:1;padding:12px;background:#ef4444;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">환불 처리</button>
+      </div>
+    `;
+
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">${body}</div>`;
+    document.body.appendChild(modal);
+
+    window._refundCtx = { price, isPeriod, startDate, count: data.count || 0, method: 'cash' };
+    if (isPeriod) _onRefundDateChange(); else _recalcRefund();
+  }
+
+  // 기간제 — 환불처리일 바뀌면 사용일수/공제액 자동 갱신
+  function _onRefundDateChange() {
+    const ctx = window._refundCtx;
+    if (!ctx) return;
+    const dateEl = document.getElementById('rf-date');
+    const display = document.getElementById('rf-days-display');
+    const deductEl = document.getElementById('rf-deduct');
+    if (dateEl && ctx.startDate) {
+      const start = new Date(ctx.startDate);
+      const sel = new Date(dateEl.value);
+      const days = Math.max(0, Math.round((sel - start) / 86400000));
+      if (display) display.textContent = '사용일수 ' + days + '일 (3,300원 × ' + days + '일)';
+      if (deductEl) deductEl.value = days * 3300;
+    }
+    _recalcRefund();
+  }
+
+  // 환불 금액 실시간 계산
+  function _recalcRefund() {
+    const ctx = window._refundCtx;
+    if (!ctx) return;
+    const penalty = parseInt(document.getElementById('rf-penalty')?.value) || 0;
+    const deduct = parseInt(document.getElementById('rf-deduct')?.value) || 0;
+    if (!ctx.isPeriod) {
+      const usedCount = parseInt(document.getElementById('rf-usedcount')?.value) || 0;
+      const perUnit = ctx.count ? Math.round(ctx.price / ctx.count) : 0;
+      const refDisplay = document.getElementById('rf-ref-display');
+      if (refDisplay) refDisplay.textContent = '참고: 1회 정가 ' + perUnit.toLocaleString() + '원 × 사용 ' + usedCount + '회 = ' + (perUnit*usedCount).toLocaleString() + '원';
+    }
+    const refundAmt = Math.max(0, ctx.price - penalty - deduct);
+    const totalEl = document.getElementById('rf-total');
+    if (totalEl) totalEl.textContent = refundAmt.toLocaleString() + '원';
+  }
+
+  function _selectRefundMethod(method) {
+    if (!window._refundCtx) return;
+    window._refundCtx.method = method;
+    ['cash','card','transfer'].forEach(m => {
+      const btn = document.getElementById('rf-method-' + m);
+      if (!btn) return;
+      if (m === method) {
+        btn.style.background = 'var(--blue, #3b82f6)';
+        btn.style.color = 'white';
+        btn.style.border = '1.5px solid var(--blue, #3b82f6)';
+      } else {
+        btn.style.background = 'none';
+        btn.style.color = '#888';
+        btn.style.border = '1.5px solid #e0e0e0';
+      }
+    });
+  }
+
+  // 환불 확정 처리 — Firebase에 환불 기록 저장 (잔여횟수/이용기간은 자동으로 건드리지 않음 — 점장님이 수동 종료처리)
+  function _confirmRefund(phone, contractKey, progKey) {
+    const ctx = window._refundCtx;
+    if (!ctx) return;
+    const penalty = parseInt(document.getElementById('rf-penalty')?.value) || 0;
+    const deduct = parseInt(document.getElementById('rf-deduct')?.value) || 0;
+    const refundAmt = Math.max(0, ctx.price - penalty - deduct);
+    const method = ctx.method || 'cash';
+    const refundDate = ctx.isPeriod ? (document.getElementById('rf-date')?.value || '') : '';
+
+    showConfirm('환불 ' + refundAmt.toLocaleString() + '원을 처리할까요?\n(위약금 ' + penalty.toLocaleString() + '원, 공제 ' + deduct.toLocaleString() + '원)\n\n※ 잔여횟수/이용기간 종료는 자동으로 처리되지 않으니, 필요하면 따로 처리해주세요.', () => {
+      db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
+        if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+        const items = _flattenContractItems(snap.val());
+        const item = items.find(it => it.progKey === progKey);
+        if (!item) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
+        const basePath = item.pkgIndex === null
+          ? 'contracts/' + phone + '/' + contractKey + '/programs/' + progKey
+          : 'contracts/' + phone + '/' + contractKey + '/packages/' + item.pkgIndex + '/items/' + progKey;
+        const updates = {};
+        updates[basePath + '/refund'] = {
+          penalty, deduct, refundAmount: refundAmt, method,
+          date: refundDate || new Date().toISOString().slice(0,10),
+          processedAt: Date.now()
+        };
+        db.ref().update(updates).then(() => {
+          document.getElementById('app-refund-modal')?.remove();
+          showToast('✅ 환불 처리 완료! (' + refundAmt.toLocaleString() + '원)', 'success');
+          _renderMdContracts(phone);
+        });
+      });
+    });
+  }
+  window.openRefundModal = openRefundModal;
+  window._onRefundDateChange = _onRefundDateChange;
+  window._recalcRefund = _recalcRefund;
+  window._selectRefundMethod = _selectRefundMethod;
+  window._confirmRefund = _confirmRefund;
+
+
   function payMemberUnpaid(phone, contractKey, unpaidAmt) {
     showConfirm(`미수금 ${unpaidAmt.toLocaleString()}원을 결제처리 할까요?`, () => {
       db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
