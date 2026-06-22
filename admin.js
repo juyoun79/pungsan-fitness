@@ -1704,7 +1704,8 @@
   function _renderItemStatusBadge(data) {
     if (data.refund) {
       const methodNames = { cash: '현금', card: '카드', transfer: '계좌' };
-      return `<div style="font-size:10.5px;color:#a855f7;font-weight:700;">🔻 환불완료 ${(data.refund.refundAmount||0).toLocaleString()}원 · ${methodNames[data.refund.method] || data.refund.method}</div>`;
+      const dateLabel = data.refund.date ? ' · ' + data.refund.date : '';
+      return `<div style="font-size:10.5px;color:#a855f7;font-weight:700;">🔻 환불완료 ${(data.refund.refundAmount||0).toLocaleString()}원 · ${methodNames[data.refund.method] || data.refund.method}${dateLabel}</div>`;
     }
     const amt = data.price || 0;
     const paid = (data.cash||0) + (data.card||0) + (data.transfer||0);
