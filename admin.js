@@ -1858,6 +1858,11 @@
       showToast('패키지 전체 환불 기능은 다음 업데이트에서 추가될 예정이에요! 프로그램별로 따로 환불해주세요.', 'info');
       return;
     }
+    if (act === 'transfer' && contractKeyOrKeys.indexOf(',') === -1) {
+      document.querySelectorAll('.contract-action-menu').forEach(m => m.style.display = 'none');
+      startTransfer(phone, contractKeyOrKeys, progKey);
+      return;
+    }
     showToast((names[act] || act) + ' 기능은 다음 업데이트에서 추가될 예정이에요!', 'info');
   }
 
@@ -2074,6 +2079,140 @@
   window._recalcRefund = _recalcRefund;
   window._selectRefundMethod = _selectRefundMethod;
   window._confirmRefund = _confirmRefund;
+
+  // ══════════════ 양도 기능 (1/4단계: 양수인 정보) ══════════════
+  function startTransfer(phone, contractKey, progKey) {
+    db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
+      if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      const items = _flattenContractItems(snap.val());
+      if (progKey) {
+        openTransferModal(phone, contractKey, progKey);
+      } else if (items.length === 1) {
+        openTransferModal(phone, contractKey, items[0].progKey);
+      } else if (items.length > 1) {
+        _showTransferItemPicker(phone, contractKey, items);
+      } else {
+        showToast('양도할 프로그램이 없어요.', 'error');
+      }
+    });
+  }
+
+  function _showTransferItemPicker(phone, contractKey, items) {
+    document.getElementById('app-transfer-picker')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-transfer-picker';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+    const itemBtns = items.map(it => {
+      const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
+      return `<button onclick="openTransferModal('${phone}','${contractKey}','${it.progKey}')"
+        style="width:100%;text-align:left;padding:12px;margin-bottom:8px;background:var(--bg,#f7f7f7);border:1px solid #e0e0e0;border-radius:10px;font-size:14px;color:var(--text,#1a1a1a);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+        ${label} · ${(it.data.price||0).toLocaleString()}원</button>`;
+    }).join('');
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:300px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">양도할 프로그램을 선택하세요</div>
+      ${itemBtns}
+      <button onclick="document.getElementById('app-transfer-picker').remove()"
+        style="width:100%;padding:10px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:13px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:4px;">취소</button>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+
+  function openTransferModal(phone, contractKey, progKey) {
+    document.getElementById('app-transfer-picker')?.remove();
+    db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
+      if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      const items = _flattenContractItems(snap.val());
+      const item = items.find(it => it.progKey === progKey);
+      if (!item) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
+      if (item.data.refund) { showToast('이미 환불된 프로그램은 양도할 수 없어요.', 'error'); return; }
+      if (item.data.transferOut) { showToast('이미 양도된 프로그램이에요.', 'error'); return; }
+      window._transferCtx = { fromPhone: phone, contractKey, progKey, item };
+      _renderTransferStep1();
+    });
+  }
+
+  function _renderTransferStep1() {
+    document.getElementById('app-transfer-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-transfer-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">🔁 양도 — 1/4 양수인 정보</div>
+      <div style="font-size:12px;color:#888;margin-bottom:16px;">양도받을 분의 전화번호를 입력하고 조회해주세요.</div>
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">양수인 전화번호</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <input id="tf-phone" type="tel" placeholder="01012345678"
+          style="flex:1;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
+        <button onclick="_lookupTransferRecipient()" style="padding:10px 16px;background:var(--blue,#3b82f6);border:none;border-radius:8px;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">조회</button>
+      </div>
+      <div id="tf-result"></div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button onclick="document.getElementById('app-transfer-modal').remove()" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button id="tf-next-btn" onclick="_transferStep1Next()" disabled style="flex:1;padding:12px;background:#ccc;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:not-allowed;font-family:'Noto Sans KR',sans-serif;">다음</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+
+  function _lookupTransferRecipient() {
+    const ctx = window._transferCtx;
+    const phone = document.getElementById('tf-phone')?.value.trim();
+    const resultEl = document.getElementById('tf-result');
+    const nextBtn = document.getElementById('tf-next-btn');
+    if (!phone || phone.length < 10) {
+      resultEl.innerHTML = '<div style="font-size:12px;color:#ef4444;">전화번호를 정확히 입력해주세요.</div>';
+      return;
+    }
+    if (ctx && phone === ctx.fromPhone) {
+      resultEl.innerHTML = '<div style="font-size:12px;color:#ef4444;">양도하는 회원과 같은 번호예요.</div>';
+      return;
+    }
+    resultEl.innerHTML = '<div style="font-size:12px;color:#888;">조회 중...</div>';
+    db.ref('members/' + phone).once('value').then(snap => {
+      if (snap.exists()) {
+        const m = snap.val();
+        ctx.toPhone = phone;
+        ctx.toIsNew = false;
+        ctx.toName = (m.name || '').replace(/\(\d{4}\)$/, '');
+        resultEl.innerHTML = `<div style="background:var(--bg,#f7f7f7);border-radius:8px;padding:12px;font-size:13px;color:var(--text,#1a1a1a);">
+          ✅ 기존 회원이에요: <b>${ctx.toName}</b>
+        </div>`;
+      } else {
+        ctx.toPhone = phone;
+        ctx.toIsNew = true;
+        resultEl.innerHTML = `<div style="font-size:12px;color:#888;margin-bottom:8px;">처음 등록하는 분이에요. 정보를 입력해주세요.</div>
+          <input id="tf-new-name" type="text" placeholder="이름"
+            style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:8px;font-family:'Noto Sans KR',sans-serif;">
+          <select id="tf-new-gender" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:8px;font-family:'Noto Sans KR',sans-serif;">
+            <option value="남">남</option><option value="여">여</option>
+          </select>
+          <input id="tf-new-birth" type="date"
+            style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:8px;font-family:'Noto Sans KR',sans-serif;">
+          <input id="tf-new-address" type="text" placeholder="주소 (선택)"
+            style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:4px;font-family:'Noto Sans KR',sans-serif;">`;
+      }
+      if (nextBtn) { nextBtn.disabled = false; nextBtn.style.background = '#3b82f6'; nextBtn.style.cursor = 'pointer'; }
+    });
+  }
+
+  function _transferStep1Next() {
+    const ctx = window._transferCtx;
+    if (!ctx || !ctx.toPhone) return;
+    if (ctx.toIsNew) {
+      const name = document.getElementById('tf-new-name')?.value.trim();
+      if (!name) { showToast('양수인 이름을 입력해주세요.', 'error'); return; }
+      ctx.toName = name;
+      ctx.toGender = document.getElementById('tf-new-gender')?.value || '남';
+      ctx.toBirth = document.getElementById('tf-new-birth')?.value || '';
+      ctx.toAddress = document.getElementById('tf-new-address')?.value.trim() || '';
+    }
+    // ②프로그램 정보 확인 단계는 다음 업데이트에서 이어집니다
+    showToast('1단계 완료! (양수인: ' + ctx.toName + ') 다음 단계는 곧 이어집니다 🙂', 'success');
+  }
+  window.startTransfer = startTransfer;
+  window.openTransferModal = openTransferModal;
+  window._lookupTransferRecipient = _lookupTransferRecipient;
+  window._transferStep1Next = _transferStep1Next;
 
 
   function payMemberUnpaid(phone, contractKey, unpaidAmt) {
