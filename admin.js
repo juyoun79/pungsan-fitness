@@ -2217,13 +2217,93 @@
       ctx.toBirth = document.getElementById('tf-new-birth')?.value || '';
       ctx.toAddress = document.getElementById('tf-new-address')?.value.trim() || '';
     }
-    // ②프로그램 정보 확인 단계는 다음 업데이트에서 이어집니다
-    showToast('1단계 완료! (양수인: ' + ctx.toName + ') 다음 단계는 곧 이어집니다 🙂', 'success');
+    _renderTransferStep2();
+  }
+
+  // 2/4단계: 양도되는 프로그램 정보(잔여기간/횟수) + 양도비
+  function _renderTransferStep2() {
+    const ctx = window._transferCtx;
+    const progKey = ctx.progKey;
+    const data = ctx.item.data;
+    const isPeriod = REFUND_PERIOD_PROGS.includes(progKey);
+    const defaultFee = isPeriod ? 10000 : 30000;
+
+    document.getElementById('app-transfer-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-transfer-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+
+    let body = `<div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">🔁 양도 — 2/4 양도 프로그램 정보</div>
+      <div style="font-size:12px;color:#888;margin-bottom:16px;">${REFUND_PROG_NAMES[progKey]||progKey} · ${ctx.fromPhone} → ${ctx.toName}(${ctx.toPhone})</div>
+      <div style="background:var(--bg,#f7f7f7);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#888;">
+        원래 등록 정보: ${data.startDate||'-'} ~ ${data.endDate||'-'} ${data.count ? '· ' + data.count + '회' : ''} (${(data.price||0).toLocaleString()}원)
+      </div>
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">양수인에게 적용할 종료일</div>
+      <input id="tf-end-date" type="date" value="${data.endDate || ''}"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+    `;
+
+    if (!isPeriod) {
+      body += `
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">양수인에게 적용할 잔여 횟수</div>
+      <input id="tf-count" type="number" value="${data.count || 0}"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+      `;
+    }
+
+    body += `
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">양도비 (헬스·GX 1만원 / PT·기구필라테스 3만원, 수정 가능)</div>
+      <input id="tf-fee" type="number" value="${defaultFee}"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:12px;color:#888;margin-bottom:6px;">양도비 결제수단</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button id="tf-method-cash" onclick="_selectTransferMethod('cash')" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--blue,#3b82f6);background:var(--blue,#3b82f6);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">현금</button>
+        <button id="tf-method-card" onclick="_selectTransferMethod('card')" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #e0e0e0;background:none;color:#888;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">카드</button>
+        <button id="tf-method-transfer" onclick="_selectTransferMethod('transfer')" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #e0e0e0;background:none;color:#888;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">계좌</button>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button onclick="_renderTransferStep1()" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
+        <button onclick="_transferStep2Next()" style="flex:1;padding:12px;background:#3b82f6;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">다음</button>
+      </div>
+    `;
+
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">${body}</div>`;
+    document.body.appendChild(modal);
+    ctx.transferMethod = 'cash';
+  }
+
+  function _selectTransferMethod(method) {
+    const ctx = window._transferCtx;
+    if (!ctx) return;
+    ctx.transferMethod = method;
+    ['cash','card','transfer'].forEach(m => {
+      const btn = document.getElementById('tf-method-' + m);
+      if (!btn) return;
+      if (m === method) {
+        btn.style.background = 'var(--blue, #3b82f6)'; btn.style.color = 'white'; btn.style.border = '1.5px solid var(--blue, #3b82f6)';
+      } else {
+        btn.style.background = 'none'; btn.style.color = '#888'; btn.style.border = '1.5px solid #e0e0e0';
+      }
+    });
+  }
+
+  function _transferStep2Next() {
+    const ctx = window._transferCtx;
+    if (!ctx) return;
+    const isPeriod = REFUND_PERIOD_PROGS.includes(ctx.progKey);
+    ctx.newEndDate = document.getElementById('tf-end-date')?.value || ctx.item.data.endDate || '';
+    ctx.newCount = isPeriod ? (ctx.item.data.count || 0) : (parseInt(document.getElementById('tf-count')?.value) || 0);
+    ctx.transferFee = parseInt(document.getElementById('tf-fee')?.value) || 0;
+    // 3단계(약관동의+서명)는 다음 업데이트에서 이어집니다
+    showToast('2단계 완료! (양도비 ' + ctx.transferFee.toLocaleString() + '원, 종료일 ' + ctx.newEndDate + ') 다음 단계는 곧 이어집니다 🙂', 'success');
   }
   window.startTransfer = startTransfer;
   window.openTransferModal = openTransferModal;
   window._lookupTransferRecipient = _lookupTransferRecipient;
   window._transferStep1Next = _transferStep1Next;
+  window._renderTransferStep2 = _renderTransferStep2;
+  window._selectTransferMethod = _selectTransferMethod;
+  window._transferStep2Next = _transferStep2Next;
 
 
   function payMemberUnpaid(phone, contractKey, unpaidAmt) {
