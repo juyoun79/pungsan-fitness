@@ -1874,6 +1874,11 @@
       startTransfer(phone, contractKeyOrKeys, progKey);
       return;
     }
+    if (act === 'change' && contractKeyOrKeys.indexOf(',') === -1) {
+      document.querySelectorAll('.contract-action-menu').forEach(m => m.style.display = 'none');
+      startProgChange(phone, contractKeyOrKeys, progKey);
+      return;
+    }
     showToast((names[act] || act) + ' 기능은 다음 업데이트에서 추가될 예정이에요!', 'info');
   }
 
@@ -2513,6 +2518,124 @@
   window._updateTfStep3Btn = _updateTfStep3Btn;
   window._transferStep3Next = _transferStep3Next;
   window._confirmTransfer = _confirmTransfer;
+
+  // ══════════════ 프로그램 변경 (1/4단계: 잔여가치 확인) ══════════════
+  function startProgChange(phone, contractKey, progKey) {
+    db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
+      if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      if (progKey) {
+        openProgChangeModal(phone, contractKey, progKey);
+        return;
+      }
+      const items = _flattenContractItems(snap.val()).filter(it => _isItemEligible(it.data));
+      if (items.length === 1) {
+        openProgChangeModal(phone, contractKey, items[0].progKey);
+      } else if (items.length > 1) {
+        _showProgChangeItemPicker(phone, contractKey, items);
+      } else {
+        showToast('변경할 프로그램이 없어요.', 'error');
+      }
+    });
+  }
+
+  function _showProgChangeItemPicker(phone, contractKey, items) {
+    document.getElementById('app-change-picker')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-change-picker';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+    const itemBtns = items.map(it => {
+      const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
+      return `<button onclick="openProgChangeModal('${phone}','${contractKey}','${it.progKey}')"
+        style="width:100%;text-align:left;padding:12px;margin-bottom:8px;background:var(--bg,#f7f7f7);border:1px solid #e0e0e0;border-radius:10px;font-size:14px;color:var(--text,#1a1a1a);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+        ${label} · ${(it.data.price||0).toLocaleString()}원</button>`;
+    }).join('');
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:300px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">변경할 프로그램을 선택하세요</div>
+      ${itemBtns}
+      <button onclick="document.getElementById('app-change-picker').remove()"
+        style="width:100%;padding:10px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:13px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:4px;">취소</button>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+
+  function openProgChangeModal(phone, contractKey, progKey) {
+    document.getElementById('app-change-picker')?.remove();
+    db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
+      if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      const items = _flattenContractItems(snap.val());
+      const item = items.find(it => it.progKey === progKey);
+      if (!item) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
+      if (!_isItemEligible(item.data)) { showToast('이미 처리된 프로그램이에요.', 'error'); return; }
+      window._changeCtx = { phone, contractKey, progKey, item };
+      _renderProgChangeStep1();
+    });
+  }
+
+  function _renderProgChangeStep1() {
+    const ctx = window._changeCtx;
+    const data = ctx.item.data;
+    const progKey = ctx.progKey;
+    const isPeriod = REFUND_PERIOD_PROGS.includes(progKey);
+    let totalUnit, unitLabel;
+    if (isPeriod) {
+      const sd = data.startDate ? new Date(data.startDate) : null;
+      const ed = data.endDate ? new Date(data.endDate) : null;
+      totalUnit = (sd && ed) ? Math.max(1, Math.round((ed - sd) / 86400000)) : 0;
+      unitLabel = '일';
+    } else {
+      totalUnit = data.count || 0;
+      unitLabel = '회';
+    }
+    const perUnit = totalUnit ? (data.price || 0) / totalUnit : 0;
+    ctx.totalUnit = totalUnit; ctx.unitLabel = unitLabel; ctx.perUnit = perUnit;
+
+    document.getElementById('app-change-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-change-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+
+    const body = `<div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">🔄 프로그램 변경 — 1/4 잔여가치 확인</div>
+      <div style="font-size:12px;color:#888;margin-bottom:14px;">${REFUND_PROG_NAMES[progKey]||progKey} · 등록금액 ${(data.price||0).toLocaleString()}원 · 총 ${totalUnit}${unitLabel}</div>
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">잔여 ${unitLabel}수 (직접 입력)</div>
+      <input id="pc-remain" type="number" value="0" oninput="_recalcProgChange()"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:6px;font-family:'Noto Sans KR',sans-serif;">
+      <div id="pc-ref-display" style="font-size:11px;color:#aaa;margin-bottom:10px;"></div>
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">잔여가치 (자동계산, 수정 가능)</div>
+      <input id="pc-value" type="number" value="0"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="display:flex;gap:10px;">
+        <button onclick="document.getElementById('app-change-modal').remove()" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button onclick="_progChangeStep1Next()" style="flex:1;padding:12px;background:#3b82f6;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">다음</button>
+      </div>`;
+
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">${body}</div>`;
+    document.body.appendChild(modal);
+  }
+
+  function _recalcProgChange() {
+    const ctx = window._changeCtx;
+    if (!ctx) return;
+    const remain = parseFloat(document.getElementById('pc-remain')?.value) || 0;
+    const value = Math.round(ctx.perUnit * remain);
+    const valueEl = document.getElementById('pc-value');
+    if (valueEl) valueEl.value = value;
+    const ref = document.getElementById('pc-ref-display');
+    if (ref) ref.textContent = '참고: 1' + ctx.unitLabel + '당 ' + Math.round(ctx.perUnit).toLocaleString() + '원 × ' + remain + ctx.unitLabel + ' = ' + value.toLocaleString() + '원';
+  }
+
+  function _progChangeStep1Next() {
+    const ctx = window._changeCtx;
+    if (!ctx) return;
+    ctx.remainUnit = parseFloat(document.getElementById('pc-remain')?.value) || 0;
+    ctx.remainValue = parseInt(document.getElementById('pc-value')?.value) || 0;
+    // 2단계(새 프로그램 선택+차액처리)는 다음 업데이트에서 이어집니다
+    showToast('1단계 완료! (잔여가치 ' + ctx.remainValue.toLocaleString() + '원) 다음 단계는 곧 이어집니다 🙂', 'success');
+  }
+  window.startProgChange = startProgChange;
+  window.openProgChangeModal = openProgChangeModal;
+  window._recalcProgChange = _recalcProgChange;
+  window._progChangeStep1Next = _progChangeStep1Next;
+
 
   window.startTransfer = startTransfer;
   window.openTransferModal = openTransferModal;
