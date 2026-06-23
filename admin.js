@@ -1683,6 +1683,11 @@
     return list;
   }
 
+  // 이미 환불됐거나 양도되어 나간 항목은 환불/양도 대상에서 제외
+  function _isItemEligible(data) {
+    return !data.refund && !data.transferOut;
+  }
+
   // 개월수/횟수를 "3개월 · 4회" 같은 형태로 표시
   function _formatPeriodLabel(data) {
     const m = data.months || 0;
@@ -1874,10 +1879,12 @@
   function startRefund(phone, contractKey, progKey) {
     db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
       if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
-      const items = _flattenContractItems(snap.val());
       if (progKey) {
         openRefundModal(phone, contractKey, progKey);
-      } else if (items.length === 1) {
+        return;
+      }
+      const items = _flattenContractItems(snap.val()).filter(it => _isItemEligible(it.data));
+      if (items.length === 1) {
         openRefundModal(phone, contractKey, items[0].progKey);
       } else if (items.length > 1) {
         _showRefundItemPicker(phone, contractKey, items);
@@ -1916,6 +1923,8 @@
       const items = _flattenContractItems(snap.val());
       const item = items.find(it => it.progKey === progKey);
       if (!item) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
+      if (item.data.refund) { showToast('이미 환불된 프로그램이에요.', 'error'); return; }
+      if (item.data.transferOut) { showToast('양도된 프로그램은 환불할 수 없어요.', 'error'); return; }
       _renderRefundForm(phone, contractKey, item);
     });
   }
@@ -2084,10 +2093,12 @@
   function startTransfer(phone, contractKey, progKey) {
     db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
       if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
-      const items = _flattenContractItems(snap.val());
       if (progKey) {
         openTransferModal(phone, contractKey, progKey);
-      } else if (items.length === 1) {
+        return;
+      }
+      const items = _flattenContractItems(snap.val()).filter(it => _isItemEligible(it.data));
+      if (items.length === 1) {
         openTransferModal(phone, contractKey, items[0].progKey);
       } else if (items.length > 1) {
         _showTransferItemPicker(phone, contractKey, items);
