@@ -2624,7 +2624,11 @@
 
           <!-- 계약이력 -->
           <div style="background:var(--card);padding:16px;margin-bottom:8px;">
-            <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:10px;">계약이력</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <div style="font-size:12px;font-weight:700;color:var(--text-sub);">계약이력</div>
+              <button onclick="addNewContractForMember(currentMemberPhone)"
+                style="padding:5px 10px;background:var(--blue-light);color:var(--blue);border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">➕ 새 계약서 추가</button>
+            </div>
             <div id="md-contracts" style="display:flex;flex-direction:column;gap:10px;">
               <div style="text-align:center;color:var(--text-hint);font-size:13px;padding:12px 0;">불러오는 중...</div>
             </div>

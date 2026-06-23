@@ -1621,6 +1621,35 @@
     });
   }
 
+  // 회원상세에서 "새 계약서 추가" 클릭 시 — 계약서 작성화면으로 이동 + 이 회원 정보 자동 채움
+  async function addNewContractForMember(phone) {
+    if (!phone) { showToast('회원 정보를 찾을 수 없어요.', 'error'); return; }
+    try {
+      const snap = await db.ref('members/' + phone).once('value');
+      if (!snap.exists()) { showToast('회원 정보를 찾을 수 없어요.', 'error'); return; }
+      const data = snap.val();
+      resetContract();
+      switchAdminTab('tab-register');
+      const rawName = (data.name || '').replace(/\(\d{4}\)$/, '').trim();
+      document.getElementById('ct-name').value = rawName;
+      document.getElementById('ct-phone').value = phone;
+      document.getElementById('ct-birth').value = data.birth || '';
+      document.getElementById('ct-address').value = data.address || '';
+      if (data.memo) document.getElementById('ct-memo').value = data.memo;
+      selectCtGender(data['body/gender'] || 'male');
+      selectCtType('re');
+      if (data.photoUrl) {
+        const preview = document.getElementById('ct-photo-preview');
+        if (preview) preview.innerHTML = `<img src="${data.photoUrl}" style="width:100%;height:100%;object-fit:cover;" />`;
+        updateCtPhotoUI(true);
+      }
+      showToast('✅ ' + (rawName || '회원') + '님 정보를 불러왔어요. 프로그램을 선택해주세요.', 'success');
+    } catch(e) {
+      showToast('정보를 불러오지 못했어요: ' + e.message, 'error');
+    }
+  }
+  window.addNewContractForMember = addNewContractForMember;
+
   // 계약이력
   function _renderMdContracts(phone) {
     const el = document.getElementById('md-contracts');
