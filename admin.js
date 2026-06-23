@@ -1712,6 +1712,12 @@
       const dateLabel = data.refund.date ? ' · ' + data.refund.date : '';
       return `<div style="font-size:10.5px;color:#a855f7;font-weight:700;">🔻 환불완료 ${(data.refund.refundAmount||0).toLocaleString()}원 · ${methodNames[data.refund.method] || data.refund.method}${dateLabel}</div>`;
     }
+    if (data.transferOut) {
+      return `<div style="font-size:10.5px;color:#f59e0b;font-weight:700;">🔁 양도됨 → ${data.transferOut.toName || ''} · ${data.transferOut.date || ''}</div>`;
+    }
+    if (data.transferIn) {
+      return `<div style="font-size:10.5px;color:#3b82f6;font-weight:700;">🔁 ${data.transferIn.fromName || ''}님으로부터 양도받음</div>`;
+    }
     const amt = data.price || 0;
     const paid = (data.cash||0) + (data.card||0) + (data.transfer||0);
     const unpaid = amt - paid;
@@ -2325,7 +2331,7 @@
       <button onclick="_clearTfSign()" style="width:100%;padding:8px;background:none;border:1px solid #e0e0e0;border-radius:8px;font-size:12px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:16px;">서명 지우기</button>
       <div style="display:flex;gap:10px;">
         <button onclick="_renderTransferStep2()" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
-        <button id="tf-step3-next" onclick="_transferStep3Next()" disabled style="flex:1;padding:12px;background:#ccc;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:not-allowed;font-family:'Noto Sans KR',sans-serif;">다음</button>
+        <button id="tf-step3-next" onclick="_transferStep3Next()" disabled style="flex:1;padding:12px;background:#ccc;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:not-allowed;font-family:'Noto Sans KR',sans-serif;">양도 완료</button>
       </div>`;
 
     modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">${body}</div>`;
@@ -2390,17 +2396,123 @@
     btn.style.cursor = ok ? 'pointer' : 'not-allowed';
   }
 
-  function _transferStep3Next() {
+  async function _transferStep3Next() {
     const ctx = window._transferCtx;
     if (!ctx || !tfHasSigned) return;
     try { ctx.signUrl = tfSignCanvas.toDataURL('image/png'); } catch(e) { ctx.signUrl = ''; }
-    // 4단계(최종 확정 — Firebase 저장 + PDF)는 다음 업데이트에서 이어집니다
-    showToast('3단계 완료! 서명까지 받았어요. 마지막 단계(완료처리)는 곧 이어집니다 🙂', 'success');
+    const btn = document.getElementById('tf-step3-next');
+    if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
+    await _confirmTransfer();
+  }
+
+  // 4/4단계: 최종 확정 — 양도인측 마킹 + 양수인측 계정/계약 생성 + 완료화면
+  async function _confirmTransfer() {
+    const ctx = window._transferCtx;
+    if (!ctx || !ctx.signUrl) return;
+    try {
+      const fromSnap = await db.ref('contracts/' + ctx.fromPhone + '/' + ctx.contractKey).once('value');
+      if (!fromSnap.exists()) { showToast('원본 계약 정보를 찾을 수 없어요.', 'error'); return; }
+      const fromContract = fromSnap.val();
+      const items = _flattenContractItems(fromContract);
+      const fromItem = items.find(it => it.progKey === ctx.progKey);
+      if (!fromItem) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
+      if (!_isItemEligible(fromItem.data)) { showToast('이미 처리된 프로그램이에요.', 'error'); return; }
+
+      const fromBasePath = fromItem.pkgIndex === null
+        ? 'contracts/' + ctx.fromPhone + '/' + ctx.contractKey + '/programs/' + ctx.progKey
+        : 'contracts/' + ctx.fromPhone + '/' + ctx.contractKey + '/packages/' + fromItem.pkgIndex + '/items/' + ctx.progKey;
+
+      const updates = {};
+      const todayDate = new Date();
+      const todayStr = todayDate.getFullYear() + '-' + String(todayDate.getMonth()+1).padStart(2,'0') + '-' + String(todayDate.getDate()).padStart(2,'0');
+
+      updates[fromBasePath + '/transferOut'] = {
+        toPhone: ctx.toPhone, toName: ctx.toName, fee: ctx.transferFee, method: ctx.transferMethod,
+        date: todayStr, processedAt: Date.now()
+      };
+
+      // 양수인 계정 생성/업데이트
+      const toSnap = await db.ref('members/' + ctx.toPhone).once('value');
+      const toExisted = toSnap.exists();
+      if (!toExisted) {
+        const pw = hashPw(ctx.toPhone.slice(-4));
+        const newMember = { name: ctx.toName + '(' + ctx.toPhone.slice(-4) + ')', pw, programs: [ctx.progKey] };
+        if (ctx.toBirth) newMember.birth = ctx.toBirth;
+        if (ctx.toAddress) newMember.address = ctx.toAddress;
+        newMember['body/gender'] = ctx.toGender === '여' ? 'female' : 'male';
+        await db.ref('members/' + ctx.toPhone).update(newMember);
+      } else {
+        const toMember = toSnap.val();
+        const progs = toMember.programs || [];
+        if (!progs.includes(ctx.progKey)) {
+          progs.push(ctx.progKey);
+          await db.ref('members/' + ctx.toPhone + '/programs').set(progs);
+        }
+      }
+
+      // 양수인 쪽 새 계약서(0원, 양도받음 표시)
+      const newProgramData = {
+        months: fromItem.data.months || 0,
+        count: ctx.newCount || 0,
+        price: 0, cash: 0, card: 0, transfer: 0,
+        startDate: todayStr,
+        endDate: ctx.newEndDate || fromItem.data.endDate || '',
+        transferIn: {
+          fromPhone: ctx.fromPhone, fromName: fromContract.name || '', fee: ctx.transferFee,
+          method: ctx.transferMethod, date: todayStr, processedAt: Date.now()
+        }
+      };
+      const newContractData = {
+        name: ctx.toName,
+        phone: ctx.toPhone,
+        birth: ctx.toBirth || (toExisted ? (toSnap.val().birth||'') : ''),
+        gender: ctx.toGender === '여' ? 'female' : 'male',
+        address: ctx.toAddress || (toExisted ? (toSnap.val().address||'') : ''),
+        memo: (REFUND_PROG_NAMES[ctx.progKey]||ctx.progKey) + ' — ' + (fromContract.name||ctx.fromPhone) + '님으로부터 양도받음 (양도비 ' + (ctx.transferFee||0).toLocaleString() + '원)',
+        type: 'new',
+        signDate: todayStr,
+        signUrl: ctx.signUrl,
+        programs: { [ctx.progKey]: newProgramData },
+        createdAt: Date.now()
+      };
+      const newKey = todayStr + '_' + Date.now();
+      updates['contracts/' + ctx.toPhone + '/' + newKey] = newContractData;
+
+      await db.ref().update(updates);
+
+      window._lastContractData = newContractData;
+      document.getElementById('app-transfer-modal')?.remove();
+      _renderTransferDone(ctx);
+      _renderMdContracts(ctx.fromPhone);
+    } catch(e) {
+      showToast('양도 처리 실패: ' + e.message, 'error');
+      const btn = document.getElementById('tf-step3-next');
+      if (btn) { btn.disabled = false; btn.textContent = '양도 완료'; }
+    }
+  }
+
+  function _renderTransferDone(ctx) {
+    document.getElementById('app-transfer-done')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-transfer-done';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:320px;text-align:center;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:36px;margin-bottom:8px;">🎉</div>
+      <div style="font-size:17px;font-weight:700;color:var(--text,#1a1a1a);margin-bottom:6px;">양도 완료!</div>
+      <div style="font-size:13px;color:#888;line-height:1.6;margin-bottom:16px;">${ctx.toName}님에게 ${REFUND_PROG_NAMES[ctx.progKey]||ctx.progKey} 양도가 완료됐어요.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+        <button onclick="openContractPdf()" style="padding:12px;background:#185FA5;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📄 PDF 저장</button>
+        <button onclick="sendContractToMember()" style="padding:12px;background:#059669;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📱 앱 전송</button>
+      </div>
+      <button onclick="document.getElementById('app-transfer-done').remove();" style="width:100%;padding:10px;background:none;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">닫기</button>
+    </div>`;
+    document.body.appendChild(modal);
   }
   window._renderTransferStep3 = _renderTransferStep3;
   window._clearTfSign = _clearTfSign;
   window._updateTfStep3Btn = _updateTfStep3Btn;
   window._transferStep3Next = _transferStep3Next;
+  window._confirmTransfer = _confirmTransfer;
 
   window.startTransfer = startTransfer;
   window.openTransferModal = openTransferModal;
