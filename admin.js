@@ -5663,7 +5663,8 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     if (ctFileInput) ctFileInput.value = '';
     updateCtPhotoUI(false);
     document.querySelectorAll('.ct-prog-btn').forEach(b => b.classList.remove('selected'));
-    document.getElementById('ct-prog-details').innerHTML = '';
+    const ctProgDetails = document.getElementById('ct-prog-details');
+    if (ctProgDetails) ctProgDetails.innerHTML = '';
     document.getElementById('ct-total-amt').textContent = '0원';
     document.getElementById('ct-paid-amt').textContent = '0원';
     ['ct-cloth-check','ct-locker-check'].forEach(id => {
