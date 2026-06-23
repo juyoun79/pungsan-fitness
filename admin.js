@@ -1621,28 +1621,35 @@
     });
   }
 
-  // 회원상세에서 "새 계약서 추가" 클릭 시 — 계약서 작성화면으로 이동 + 이 회원 정보 자동 채움
+  // 회원상세에서 "새 계약서 추가" 클릭 시 — 이미 아는 정보이므로 1단계(기본정보)는 건너뛰고 바로 2단계(프로그램선택)로 이동
   async function addNewContractForMember(phone) {
     if (!phone) { showToast('회원 정보를 찾을 수 없어요.', 'error'); return; }
     try {
       const snap = await db.ref('members/' + phone).once('value');
       if (!snap.exists()) { showToast('회원 정보를 찾을 수 없어요.', 'error'); return; }
       const data = snap.val();
-      resetContract();
-      switchAdminTab('tab-register');
       const rawName = (data.name || '').replace(/\(\d{4}\)$/, '').trim();
-      document.getElementById('ct-name').value = rawName;
-      document.getElementById('ct-phone').value = phone;
-      document.getElementById('ct-birth').value = data.birth || '';
-      document.getElementById('ct-address').value = data.address || '';
-      if (data.memo) document.getElementById('ct-memo').value = data.memo;
-      selectCtGender(data['body/gender'] || 'male');
-      selectCtType('re');
+
+      try { resetContract(); } catch(e) { console.error('resetContract 오류(무시):', e); }
+      try { switchAdminTab('tab-register'); } catch(e) { console.error('switchAdminTab 오류(무시):', e); }
+
+      const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+      setVal('ct-name', rawName);
+      setVal('ct-phone', phone);
+      setVal('ct-birth', data.birth);
+      setVal('ct-address', data.address);
+      if (data.memo) setVal('ct-memo', data.memo);
+      try { selectCtGender(data['body/gender'] || 'male'); } catch(e) { console.error('selectCtGender 오류(무시):', e); }
+      try { selectCtType('re'); } catch(e) { console.error('selectCtType 오류(무시):', e); }
       if (data.photoUrl) {
-        const preview = document.getElementById('ct-photo-preview');
-        if (preview) preview.innerHTML = `<img src="${data.photoUrl}" style="width:100%;height:100%;object-fit:cover;" />`;
-        updateCtPhotoUI(true);
+        try {
+          const preview = document.getElementById('ct-photo-preview');
+          if (preview) preview.innerHTML = `<img src="${data.photoUrl}" style="width:100%;height:100%;object-fit:cover;" />`;
+          updateCtPhotoUI(true);
+        } catch(e) { console.error('사진 미리보기 오류(무시):', e); }
       }
+      // 1단계는 건너뛰고 바로 2단계(프로그램 선택)로 이동
+      try { ctGoStep(2); } catch(e) { console.error('ctGoStep 오류:', e); }
       showToast('✅ ' + (rawName || '회원') + '님 정보를 불러왔어요. 프로그램을 선택해주세요.', 'success');
     } catch(e) {
       showToast('정보를 불러오지 못했어요: ' + e.message, 'error');
