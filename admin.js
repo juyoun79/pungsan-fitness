@@ -2298,9 +2298,110 @@
     ctx.newEndDate = document.getElementById('tf-end-date')?.value || ctx.item.data.endDate || '';
     ctx.newCount = isPeriod ? (ctx.item.data.count || 0) : (parseInt(document.getElementById('tf-count')?.value) || 0);
     ctx.transferFee = parseInt(document.getElementById('tf-fee')?.value) || 0;
-    // 3단계(약관동의+서명)는 다음 업데이트에서 이어집니다
-    showToast('2단계 완료! (양도비 ' + ctx.transferFee.toLocaleString() + '원, 종료일 ' + ctx.newEndDate + ') 다음 단계는 곧 이어집니다 🙂', 'success');
+    _renderTransferStep3();
   }
+
+  const TRANSFER_TERMS_TEXT = '▶ 회원권은 양도 가능하며 양도비(헬스·GX 1만원 / 레슨 3만원)가 발생합니다.\n▶ 양도받은 회원권은 환불 및 재양도가 불가합니다.';
+
+  // 3/4단계: 약관동의 + 서명
+  function _renderTransferStep3() {
+    const ctx = window._transferCtx;
+    document.getElementById('app-transfer-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-transfer-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+
+    const body = `<div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">🔁 양도 — 3/4 약관동의 및 서명</div>
+      <div style="font-size:12px;color:#888;margin-bottom:14px;">${REFUND_PROG_NAMES[ctx.progKey]||ctx.progKey} · ${ctx.fromPhone} → ${ctx.toName}(${ctx.toPhone}) · 양도비 ${(ctx.transferFee||0).toLocaleString()}원</div>
+      <div style="background:var(--bg,#f7f7f7);border-radius:8px;padding:12px;font-size:12px;color:#555;white-space:pre-line;margin-bottom:10px;max-height:110px;overflow-y:auto;">${TRANSFER_TERMS_TEXT}</div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text,#1a1a1a);margin-bottom:14px;cursor:pointer;">
+        <input id="tf-agree" type="checkbox" onchange="_updateTfStep3Btn()" style="width:16px;height:16px;"> 위 내용에 동의합니다
+      </label>
+      <div style="font-size:12px;color:#888;margin-bottom:6px;">확인 서명</div>
+      <div style="position:relative;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:8px;">
+        <canvas id="tf-sign-canvas" width="400" height="160" style="width:100%;height:160px;display:block;touch-action:none;cursor:crosshair;"></canvas>
+        <div id="tf-sign-placeholder" style="position:absolute;top:50%;left:0;right:0;text-align:center;transform:translateY(-50%);color:#bbb;font-size:12px;pointer-events:none;">여기에 서명해주세요</div>
+      </div>
+      <button onclick="_clearTfSign()" style="width:100%;padding:8px;background:none;border:1px solid #e0e0e0;border-radius:8px;font-size:12px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:16px;">서명 지우기</button>
+      <div style="display:flex;gap:10px;">
+        <button onclick="_renderTransferStep2()" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
+        <button id="tf-step3-next" onclick="_transferStep3Next()" disabled style="flex:1;padding:12px;background:#ccc;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:not-allowed;font-family:'Noto Sans KR',sans-serif;">다음</button>
+      </div>`;
+
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">${body}</div>`;
+    document.body.appendChild(modal);
+    _initTfSign();
+  }
+
+  let tfSignCanvas, tfSignCtx, tfSigning = false, tfHasSigned = false;
+
+  function _initTfSign() {
+    tfSignCanvas = document.getElementById('tf-sign-canvas');
+    if (!tfSignCanvas) return;
+    tfSignCtx = tfSignCanvas.getContext('2d');
+    tfSignCtx.strokeStyle = '#1a1a2e';
+    tfSignCtx.lineWidth = 2.5;
+    tfSignCtx.lineCap = 'round';
+    tfSignCtx.lineJoin = 'round';
+    tfSigning = false; tfHasSigned = false;
+
+    function getPos(e) {
+      const r = tfSignCanvas.getBoundingClientRect();
+      const scaleX = tfSignCanvas.width / r.width;
+      const scaleY = tfSignCanvas.height / r.height;
+      const src = e.touches ? e.touches[0] : e;
+      return { x: (src.clientX - r.left) * scaleX, y: (src.clientY - r.top) * scaleY };
+    }
+    function start(e) {
+      tfSigning = true; tfHasSigned = true;
+      const p = getPos(e); tfSignCtx.beginPath(); tfSignCtx.moveTo(p.x, p.y);
+      const ph = document.getElementById('tf-sign-placeholder'); if (ph) ph.style.display = 'none';
+      _updateTfStep3Btn();
+    }
+    function move(e) {
+      if (!tfSigning) return;
+      const p = getPos(e); tfSignCtx.lineTo(p.x, p.y); tfSignCtx.stroke();
+    }
+    function end() { tfSigning = false; }
+
+    tfSignCanvas.addEventListener('mousedown', start);
+    tfSignCanvas.addEventListener('mousemove', move);
+    tfSignCanvas.addEventListener('mouseup', end);
+    tfSignCanvas.addEventListener('mouseleave', end);
+    tfSignCanvas.addEventListener('touchstart', e => { e.preventDefault(); start(e); }, { passive: false });
+    tfSignCanvas.addEventListener('touchmove', e => { e.preventDefault(); move(e); }, { passive: false });
+    tfSignCanvas.addEventListener('touchend', end);
+  }
+
+  function _clearTfSign() {
+    if (tfSignCtx) tfSignCtx.clearRect(0, 0, tfSignCanvas.width, tfSignCanvas.height);
+    tfHasSigned = false;
+    const ph = document.getElementById('tf-sign-placeholder'); if (ph) ph.style.display = '';
+    _updateTfStep3Btn();
+  }
+
+  function _updateTfStep3Btn() {
+    const agree = document.getElementById('tf-agree')?.checked;
+    const btn = document.getElementById('tf-step3-next');
+    if (!btn) return;
+    const ok = agree && tfHasSigned;
+    btn.disabled = !ok;
+    btn.style.background = ok ? '#3b82f6' : '#ccc';
+    btn.style.cursor = ok ? 'pointer' : 'not-allowed';
+  }
+
+  function _transferStep3Next() {
+    const ctx = window._transferCtx;
+    if (!ctx || !tfHasSigned) return;
+    try { ctx.signUrl = tfSignCanvas.toDataURL('image/png'); } catch(e) { ctx.signUrl = ''; }
+    // 4단계(최종 확정 — Firebase 저장 + PDF)는 다음 업데이트에서 이어집니다
+    showToast('3단계 완료! 서명까지 받았어요. 마지막 단계(완료처리)는 곧 이어집니다 🙂', 'success');
+  }
+  window._renderTransferStep3 = _renderTransferStep3;
+  window._clearTfSign = _clearTfSign;
+  window._updateTfStep3Btn = _updateTfStep3Btn;
+  window._transferStep3Next = _transferStep3Next;
+
   window.startTransfer = startTransfer;
   window.openTransferModal = openTransferModal;
   window._lookupTransferRecipient = _lookupTransferRecipient;
