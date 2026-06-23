@@ -2200,7 +2200,7 @@
             <option value="남">남</option><option value="여">여</option>
           </select>
           <div style="font-size:11px;color:#aaa;margin-bottom:3px;">생년월일 (선택)</div>
-          <input id="tf-new-birth" type="date"
+          <input id="tf-new-birth" type="text" inputmode="numeric" placeholder="19900101" maxlength="8"
             style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:8px;font-family:'Noto Sans KR',sans-serif;">
           <div style="font-size:11px;color:#aaa;margin-bottom:3px;">주소 (선택)</div>
           <input id="tf-new-address" type="text" placeholder="주소"
