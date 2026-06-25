@@ -1756,10 +1756,18 @@
       return `<div style="font-size:10.5px;color:#3b82f6;font-weight:700;">🔁 ${data.transferIn.fromName || ''}님으로부터 양도받음</div>`;
     }
     if (data.progChangeOut) {
-      return `<div style="font-size:10.5px;color:#f59e0b;font-weight:700;">🔄 ${REFUND_PROG_NAMES[data.progChangeOut.toProgKey]||data.progChangeOut.toProgKey}로 변경됨 · ${data.progChangeOut.date || ''}</div>`;
+      const o = data.progChangeOut;
+      const settleLabel = o.diff > 0 ? ' · 추가결제 ' + (o.settleAmount||0).toLocaleString() + '원'
+        : o.diff < 0 ? ' · 환불 ' + (o.settleAmount||0).toLocaleString() + '원'
+        : '';
+      return `<div style="font-size:10.5px;color:#f59e0b;font-weight:700;">🔄 ${REFUND_PROG_NAMES[o.toProgKey]||o.toProgKey}로 변경됨${settleLabel} · ${o.date || ''}</div>`;
     }
     if (data.progChangeIn) {
-      return `<div style="font-size:10.5px;color:#3b82f6;font-weight:700;">🔄 ${REFUND_PROG_NAMES[data.progChangeIn.fromProgKey]||data.progChangeIn.fromProgKey}에서 변경됨 (잔여가치 ${(data.progChangeIn.remainValueCarried||0).toLocaleString()}원 이전)</div>`;
+      const i = data.progChangeIn;
+      const settleLabel = i.diff > 0 ? ' · 추가결제 ' + (i.settleAmount||0).toLocaleString() + '원'
+        : i.diff < 0 ? ' · 환불 ' + (i.settleAmount||0).toLocaleString() + '원'
+        : '';
+      return `<div style="font-size:10.5px;color:#3b82f6;font-weight:700;">🔄 ${REFUND_PROG_NAMES[i.fromProgKey]||i.fromProgKey}에서 변경됨 (잔여가치 ${(i.remainValueCarried||0).toLocaleString()}원 이전${settleLabel})</div>`;
     }
     const amt = data.price || 0;
     const paid = (data.cash||0) + (data.card||0) + (data.transfer||0);
