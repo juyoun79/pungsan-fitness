@@ -2290,9 +2290,13 @@
       <div style="background:var(--bg,#f7f7f7);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#888;">
         원래 등록 정보: ${data.startDate||'-'} ~ ${data.endDate||'-'} ${data.count ? '· ' + data.count + '회' : ''} (${(data.price||0).toLocaleString()}원)
       </div>
-      <div style="font-size:12px;color:#888;margin-bottom:4px;">양수인에게 적용할 종료일</div>
-      <input id="tf-end-date" type="date" value="${data.endDate || ''}"
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">양도 시작일</div>
+      <input id="tf-start-date" type="date" value="${getToday()}" onchange="_onTfDateChange()"
         style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">잔여일수 (원래 종료일 기준 자동계산, 수정 가능)</div>
+      <input id="tf-remain-days" type="number" value="${(() => { if (!data.endDate) return 0; const d = Math.round((new Date(data.endDate) - new Date(getToday())) / 86400000); return Math.max(0, d); })()}" oninput="_onTfDateChange()"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:6px;font-family:'Noto Sans KR',sans-serif;">
+      <div id="tf-end-display" style="font-size:12px;color:#3b82f6;font-weight:700;margin-bottom:10px;"></div>
     `;
 
     if (!isPeriod) {
@@ -2322,6 +2326,22 @@
     modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">${body}</div>`;
     document.body.appendChild(modal);
     ctx.transferMethod = 'cash';
+    _onTfDateChange();
+  }
+
+  // 양도 시작일 + 잔여일수 → 종료일 자동계산
+  function _onTfDateChange() {
+    const startEl = document.getElementById('tf-start-date');
+    const daysEl = document.getElementById('tf-remain-days');
+    const display = document.getElementById('tf-end-display');
+    if (!startEl || !daysEl || !display) return;
+    const days = Math.max(0, parseInt(daysEl.value) || 0);
+    const start = new Date(startEl.value);
+    if (isNaN(start.getTime())) { display.textContent = ''; return; }
+    const end = new Date(start.getTime() + days * 86400000);
+    const endStr = end.getFullYear() + '-' + String(end.getMonth()+1).padStart(2,'0') + '-' + String(end.getDate()).padStart(2,'0');
+    display.textContent = '→ 종료일: ' + endStr + ' (자동계산)';
+    display.dataset.endDate = endStr;
   }
 
   function _selectTransferMethod(method) {
@@ -2343,7 +2363,8 @@
     const ctx = window._transferCtx;
     if (!ctx) return;
     const isPeriod = REFUND_PERIOD_PROGS.includes(ctx.progKey);
-    ctx.newEndDate = document.getElementById('tf-end-date')?.value || ctx.item.data.endDate || '';
+    ctx.newStartDate = document.getElementById('tf-start-date')?.value || getToday();
+    ctx.newEndDate = document.getElementById('tf-end-display')?.dataset.endDate || ctx.item.data.endDate || '';
     ctx.newCount = isPeriod ? (ctx.item.data.count || 0) : (parseInt(document.getElementById('tf-count')?.value) || 0);
     ctx.transferFee = parseInt(document.getElementById('tf-fee')?.value) || 0;
     _renderTransferStep3();
@@ -2497,7 +2518,7 @@
         months: fromItem.data.months || 0,
         count: ctx.newCount || 0,
         price: 0, cash: 0, card: 0, transfer: 0,
-        startDate: todayStr,
+        startDate: ctx.newStartDate || todayStr,
         endDate: ctx.newEndDate || fromItem.data.endDate || '',
         transferIn: {
           fromPhone: ctx.fromPhone, fromName: fromContract.name || '', fee: ctx.transferFee,
@@ -2772,6 +2793,7 @@
   window._renderTransferStep2 = _renderTransferStep2;
   window._selectTransferMethod = _selectTransferMethod;
   window._transferStep2Next = _transferStep2Next;
+  window._onTfDateChange = _onTfDateChange;
 
 
   function payMemberUnpaid(phone, contractKey, unpaidAmt) {
