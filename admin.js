@@ -1632,6 +1632,7 @@
 
       try { resetContract(); } catch(e) { console.error('resetContract 오류(무시):', e); }
       try { switchAdminTab('tab-register'); } catch(e) { console.error('switchAdminTab 오류(무시):', e); }
+      window._ctReturnPhone = phone; // 2단계에서 "이전" 누르면 이 회원 상세화면으로 복귀
 
       const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
       setVal('ct-name', rawName);
@@ -3918,6 +3919,7 @@
 
   function ctNext(step) {
     if (step === 1) {
+      window._ctReturnPhone = null; // 1단계를 정상적으로 거쳐가는 일반 흐름이므로 복귀플래그 해제
       const name  = document.getElementById('ct-name').value.trim();
       const phone = document.getElementById('ct-phone').value.trim().replace(/-/g,'');
       const birth = document.getElementById('ct-birth').value.trim();
@@ -3967,6 +3969,13 @@
   }
 
   function ctPrev(step) {
+    if (step === 2 && window._ctReturnPhone) {
+      const returnPhone = window._ctReturnPhone;
+      window._ctReturnPhone = null;
+      try { switchAdminTab('tab-members'); } catch(e) { console.error('switchAdminTab 오류(무시):', e); }
+      try { openMemberModal(returnPhone); } catch(e) { console.error('openMemberModal 오류(무시):', e); }
+      return;
+    }
     ctGoStep(step - 1);
   }
 
