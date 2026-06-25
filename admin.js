@@ -1704,6 +1704,17 @@
     });
   }
 
+  // 0을 채운 정확한 날짜형식(YYYY-MM-DD)을 만들어주는 헬퍼 — getToday()(workout.js, 0안채움)와는 다른 용도로,
+  // endDate 비교/계산처럼 정확한 형식이 필요한 곳에서 사용
+  function _isoDate(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function _todayISO() { return _isoDate(new Date()); }
+  // 날짜문자열 두 개 사이의 일수차이 (a - b, 일 단위)
+  function _dateDiffDays(a, b) {
+    return Math.round((new Date(a) - new Date(b)) / 86400000);
+  }
+
   // 계약서 하나에 들어있는 모든 "프로그램" 항목을 한 줄로 펼쳐줌
   // - 개별로 선택한 프로그램(c.programs)과
   // - 같은 날 묶음판매로 등록한 패키지 안의 프로그램(c.packages[].items)을 모두 합쳐서 반환
@@ -1769,12 +1780,19 @@
         : '';
       return `<div style="font-size:10.5px;color:#3b82f6;font-weight:700;">🔄 ${REFUND_PROG_NAMES[i.fromProgKey]||i.fromProgKey}에서 변경됨 (잔여가치 ${(i.remainValueCarried||0).toLocaleString()}원 이전${settleLabel})</div>`;
     }
+    if (data.activeHold) {
+      const h = data.activeHold;
+      return `<div style="font-size:10.5px;color:#8b5cf6;font-weight:700;">⏸️ 휴회중 (${h.startDate}~예정 ${h.newEndDate}, ${h.days}일)</div>`;
+    }
     const amt = data.price || 0;
     const paid = (data.cash||0) + (data.card||0) + (data.transfer||0);
     const unpaid = amt - paid;
+    const holdNote = (data.holdHistory && Object.keys(data.holdHistory).length)
+      ? ' · 휴회누적 ' + Object.values(data.holdHistory).reduce((s,x)=>s+(x.actualDays||0),0) + '일'
+      : '';
     return unpaid > 0
-      ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">미수금 ${unpaid.toLocaleString()}원</div>`
-      : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">완납 ✓</div>`;
+      ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">미수금 ${unpaid.toLocaleString()}원${holdNote}</div>`
+      : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">완납 ✓${holdNote}</div>`;
   }
 
   // 단독 계약 카드 (다른 계약서와 패키지로 묶이지 않은 일반 계약서)
@@ -1928,6 +1946,11 @@
     if (act === 'change' && contractKeyOrKeys.indexOf(',') === -1) {
       document.querySelectorAll('.contract-action-menu').forEach(m => m.style.display = 'none');
       startProgChange(phone, contractKeyOrKeys, progKey);
+      return;
+    }
+    if (act === 'pause' && contractKeyOrKeys.indexOf(',') === -1) {
+      document.querySelectorAll('.contract-action-menu').forEach(m => m.style.display = 'none');
+      startHold(phone, contractKeyOrKeys, progKey);
       return;
     }
     showToast((names[act] || act) + ' 기능은 다음 업데이트에서 추가될 예정이에요!', 'info');
@@ -2305,10 +2328,10 @@
         원래 등록 정보: ${data.startDate||'-'} ~ ${data.endDate||'-'} ${data.count ? '· ' + data.count + '회' : ''} (${(data.price||0).toLocaleString()}원)
       </div>
       <div style="font-size:12px;color:#888;margin-bottom:4px;">양도 시작일</div>
-      <input id="tf-start-date" type="date" value="${getToday()}" onchange="_onTfDateChange()"
+      <input id="tf-start-date" type="date" value="${_todayISO()}" onchange="_onTfDateChange()"
         style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
       <div style="font-size:12px;color:#888;margin-bottom:4px;">잔여일수 (원래 종료일 기준 자동계산, 수정 가능)</div>
-      <input id="tf-remain-days" type="number" value="${(() => { if (!data.endDate) return 0; const d = Math.round((new Date(data.endDate) - new Date(getToday())) / 86400000); return Math.max(0, d); })()}" oninput="_onTfDateChange()"
+      <input id="tf-remain-days" type="number" value="${(() => { if (!data.endDate) return 0; const d = _dateDiffDays(data.endDate, _todayISO()); return Math.max(0, d); })()}" oninput="_onTfDateChange()"
         style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:6px;font-family:'Noto Sans KR',sans-serif;">
       <div id="tf-end-display" style="font-size:12px;color:#3b82f6;font-weight:700;margin-bottom:10px;"></div>
     `;
@@ -2377,7 +2400,7 @@
     const ctx = window._transferCtx;
     if (!ctx) return;
     const isPeriod = REFUND_PERIOD_PROGS.includes(ctx.progKey);
-    ctx.newStartDate = document.getElementById('tf-start-date')?.value || getToday();
+    ctx.newStartDate = document.getElementById('tf-start-date')?.value || _todayISO();
     ctx.newEndDate = document.getElementById('tf-end-display')?.dataset.endDate || ctx.item.data.endDate || '';
     ctx.newCount = isPeriod ? (ctx.item.data.count || 0) : (parseInt(document.getElementById('tf-count')?.value) || 0);
     ctx.transferFee = parseInt(document.getElementById('tf-fee')?.value) || 0;
@@ -2993,6 +3016,153 @@
   window._progChangeStep3Next = _progChangeStep3Next;
   window._renderProgChangeStep4 = _renderProgChangeStep4;
   window._confirmProgChange = _confirmProgChange;
+
+  // ══════════════ 정지/휴회 ══════════════
+  // 모든 프로그램(기간제/횟수제 전체) 허용 — 추가결제 없이 종료일만 미뤄주는 기능
+  function startHold(phone, contractKey, progKey) {
+    db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
+      if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      if (progKey) {
+        openHoldModal(phone, contractKey, progKey);
+        return;
+      }
+      const items = _flattenContractItems(snap.val()).filter(it => _isItemEligible(it.data));
+      if (items.length === 1) {
+        openHoldModal(phone, contractKey, items[0].progKey);
+      } else if (items.length > 1) {
+        _showHoldItemPicker(phone, contractKey, items);
+      } else {
+        showToast('정지/휴회할 수 있는 프로그램이 없어요.', 'error');
+      }
+    });
+  }
+
+  function _showHoldItemPicker(phone, contractKey, items) {
+    document.getElementById('app-hold-picker')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-hold-picker';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+    const itemBtns = items.map(it => {
+      const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
+      return `<button onclick="openHoldModal('${phone}','${contractKey}','${it.progKey}')"
+        style="width:100%;text-align:left;padding:12px;margin-bottom:8px;background:var(--bg,#f7f7f7);border:1px solid #e0e0e0;border-radius:10px;font-size:14px;color:var(--text,#1a1a1a);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+        ${label} · 종료일 ${it.data.endDate||'-'}</button>`;
+    }).join('');
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:300px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">정지/휴회할 프로그램을 선택하세요</div>
+      ${itemBtns}
+      <button onclick="document.getElementById('app-hold-picker').remove()"
+        style="width:100%;padding:10px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:13px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:4px;">취소</button>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+
+  function openHoldModal(phone, contractKey, progKey) {
+    document.getElementById('app-hold-picker')?.remove();
+    db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
+      if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      const items = _flattenContractItems(snap.val());
+      const item = items.find(it => it.progKey === progKey);
+      if (!item) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
+      if (!_isItemEligible(item.data)) { showToast('이미 처리된 프로그램이에요.', 'error'); return; }
+      if (item.data.activeHold) { showToast('이미 휴회중인 프로그램이에요.', 'error'); return; }
+      window._holdCtx = { phone, contractKey, progKey, item };
+      _renderHoldForm();
+    });
+  }
+
+  function _renderHoldForm() {
+    const ctx = window._holdCtx;
+    const data = ctx.item.data;
+    document.getElementById('app-hold-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-hold-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+
+    const body = `<div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">⏸️ 정지/휴회</div>
+      <div style="font-size:12px;color:#888;margin-bottom:14px;">${REFUND_PROG_NAMES[ctx.progKey]||ctx.progKey} · 현재 종료일 ${data.endDate||'-'}</div>
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">휴회 시작일</div>
+      <input id="ph-start-date" type="date" value="${_todayISO()}" onchange="_onHoldDateChange()"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">휴회일수</div>
+      <input id="ph-days" type="number" value="7" oninput="_onHoldDateChange()"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:6px;font-family:'Noto Sans KR',sans-serif;">
+      <div id="ph-end-display" style="font-size:12px;color:#3b82f6;font-weight:700;margin-bottom:16px;"></div>
+      <div style="display:flex;gap:10px;">
+        <button onclick="document.getElementById('app-hold-modal').remove()" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button id="ph-confirm-btn" onclick="_confirmHold()" style="flex:1;padding:12px;background:#3b82f6;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">휴회 확정</button>
+      </div>`;
+
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">${body}</div>`;
+    document.body.appendChild(modal);
+    _onHoldDateChange();
+  }
+
+  // 휴회 시작일+휴회일수 → 새 종료일 자동계산 (기존 종료일 + 휴회일수)
+  function _onHoldDateChange() {
+    const ctx = window._holdCtx;
+    const startEl = document.getElementById('ph-start-date');
+    const daysEl = document.getElementById('ph-days');
+    const display = document.getElementById('ph-end-display');
+    if (!ctx || !startEl || !daysEl || !display) return;
+    const days = Math.max(0, parseInt(daysEl.value) || 0);
+    const prevEndDate = ctx.item.data.endDate;
+    if (!prevEndDate) { display.textContent = ''; return; }
+    const d = new Date(prevEndDate);
+    d.setDate(d.getDate() + days);
+    const endStr = _isoDate(d);
+    display.textContent = '→ 새 종료일: ' + endStr + ' (' + days + '일 연장)';
+    display.dataset.newEndDate = endStr;
+  }
+
+  async function _confirmHold() {
+    const ctx = window._holdCtx;
+    if (!ctx) return;
+    const btn = document.getElementById('ph-confirm-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
+    try {
+      const startDate = document.getElementById('ph-start-date')?.value || _todayISO();
+      const days = Math.max(0, parseInt(document.getElementById('ph-days')?.value) || 0);
+      const snap = await db.ref('contracts/' + ctx.phone + '/' + ctx.contractKey).once('value');
+      if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      const contract = snap.val();
+      const items = _flattenContractItems(contract);
+      const item = items.find(it => it.progKey === ctx.progKey);
+      if (!item) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
+      if (!_isItemEligible(item.data)) { showToast('이미 처리된 프로그램이에요.', 'error'); return; }
+      if (item.data.activeHold) { showToast('이미 휴회중인 프로그램이에요.', 'error'); return; }
+
+      const basePath = item.pkgIndex === null
+        ? 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/programs/' + ctx.progKey
+        : 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/packages/' + item.pkgIndex + '/items/' + ctx.progKey;
+
+      const prevEndDate = item.data.endDate || _todayISO();
+      const d = new Date(prevEndDate);
+      d.setDate(d.getDate() + days);
+      const newEndDate = _isoDate(d);
+
+      const holdKey = String(Date.now());
+      const updates = {};
+      updates[basePath + '/endDate'] = newEndDate;
+      updates[basePath + '/activeHold'] = {
+        key: holdKey, startDate, days, prevEndDate, newEndDate, processedAt: Date.now()
+      };
+
+      await db.ref().update(updates);
+      document.getElementById('app-hold-modal')?.remove();
+      showToast('✅ 휴회 처리 완료! (새 종료일: ' + newEndDate + ')', 'success');
+      _renderMdContracts(ctx.phone);
+    } catch(e) {
+      showToast('휴회 처리 실패: ' + e.message, 'error');
+      const btn2 = document.getElementById('ph-confirm-btn');
+      if (btn2) { btn2.disabled = false; btn2.textContent = '휴회 확정'; }
+    }
+  }
+
+  window.startHold = startHold;
+  window.openHoldModal = openHoldModal;
+  window._onHoldDateChange = _onHoldDateChange;
+  window._confirmHold = _confirmHold;
 
 
   window.startTransfer = startTransfer;
@@ -10597,8 +10767,59 @@ async function kioskPress(k) {
   }
 }
 
+// 휴회 자동해제 + 회원의 유효한 프로그램이 하나라도 있는지 확인 (만료회원 출석 차단용)
+async function _resolveHoldsAndCheckEligibility(phone) {
+  const todayISO = _isoDate(new Date());
+  const snap = await db.ref('contracts/' + phone).once('value');
+  const contracts = snap.val() || {};
+  const updates = {};
+  let resolvedMsg = '';
+  let hasEligible = false;
+
+  Object.entries(contracts).forEach(([contractKey, c]) => {
+    const items = _flattenContractItems(c);
+    items.forEach(it => {
+      const basePath = it.pkgIndex === null
+        ? 'contracts/' + phone + '/' + contractKey + '/programs/' + it.progKey
+        : 'contracts/' + phone + '/' + contractKey + '/packages/' + it.pkgIndex + '/items/' + it.progKey;
+      let data = it.data;
+
+      // 휴회중인데 출석함 → "실제로 쉰 날수"만큼만 휴회 인정하고 자동해제
+      if (data.activeHold) {
+        const hold = data.activeHold;
+        const actualDays = Math.max(0, _dateDiffDays(todayISO, hold.startDate));
+        let newEnd;
+        if (actualDays <= 0) {
+          newEnd = hold.prevEndDate; // 휴회 시작일 당일/이전 출석 → 휴회 전 원래 종료일로 완전복구
+        } else {
+          const d = new Date(hold.prevEndDate);
+          d.setDate(d.getDate() + actualDays);
+          newEnd = _isoDate(d);
+        }
+        updates[basePath + '/endDate'] = newEnd;
+        updates[basePath + '/activeHold'] = null;
+        updates[basePath + '/holdHistory/' + (hold.key || String(Date.now()))] = {
+          startDate: hold.startDate, plannedDays: hold.days, actualDays,
+          prevEndDate: hold.prevEndDate, resolvedEndDate: newEnd,
+          createdAt: hold.processedAt, resolvedAt: Date.now()
+        };
+        data = Object.assign({}, data, { endDate: newEnd, activeHold: null });
+        resolvedMsg = '⏸️ 휴회가 해제됐어요 (실제 ' + actualDays + '일 휴회)';
+      }
+
+      if (!_isItemEligible(data)) return; // 환불/양도/변경 등으로 이미 끝난 항목은 제외
+      if (!data.endDate || data.endDate >= todayISO) hasEligible = true; // 사용기한 안 지났으면 유효
+    });
+  });
+
+  if (Object.keys(updates).length) {
+    await db.ref().update(updates);
+  }
+  return { hasEligible, resolvedMsg };
+}
+
 async function _kioskCheckIn(phone) {
-  // getToday()와 동일한 unpadded 형식 사용 (예: 2026-6-9)
+  // getToday()와 동일한 unpadded 형식 사용 (예: 2026-6-9) — 출석기록 키 형식은 그대로 유지
   const _d = new Date();
   const today = _d.getFullYear() + '-' + (_d.getMonth()+1) + '-' + _d.getDate();
   const todayPadded = today; // unpadded 형식으로 통일
@@ -10608,6 +10829,12 @@ async function _kioskCheckIn(phone) {
     const member = memberSnap.val();
     if (!member) {
       _kioskShowResult('fail', '등록되지 않은 번호예요', '직원에게 문의해주세요');
+      return;
+    }
+    // 휴회 자동해제 + 이용가능한 프로그램이 하나라도 있는지 확인 (만료회원 출석 차단)
+    const { hasEligible, resolvedMsg } = await _resolveHoldsAndCheckEligibility(phone);
+    if (!hasEligible) {
+      _kioskShowResult('fail', '이용기간이 끝났어요', '등록 후 다시 이용해주세요');
       return;
     }
     // 오늘 출석 여부 확인
@@ -10636,7 +10863,8 @@ async function _kioskCheckIn(phone) {
     if (typeof sendPushToUser === 'function') {
       sendPushToUser(phone, '✅ 출석 완료!', nick + '님 출석이 확인됐어요! +' + pts + 'P 적립', 'attend', { type: 'attend' });
     }
-    _kioskShowResult('success', nick + '님', '출석 완료! 포인트 +' + pts + 'P 적립', member.name.slice(0, 1));
+    const msg2 = resolvedMsg ? (resolvedMsg + ' · 출석 완료! +' + pts + 'P 적립') : ('출석 완료! +' + pts + 'P 적립');
+    _kioskShowResult('success', nick + '님', msg2, member.name.slice(0, 1));
   } catch(e) {
     _kioskShowResult('fail', '오류가 발생했어요', '다시 시도해주세요');
   }
