@@ -1677,30 +1677,7 @@
         '기구필라테스개인':'기구필라테스 개인', '기구필라테스그룹':'기구필라테스 그룹'
       };
 
-      // 연계패키지(packageGroup) 기준으로 묶기 — 같은 packageGroup 값을 가진 계약서끼리 그룹화
-      const groups = [];
-      const groupMap = {};
-      contracts.forEach(c => {
-        const gKey = c.packageGroup ? c.packageGroup : ('__single__' + c.key);
-        if (!groupMap[gKey]) {
-          groupMap[gKey] = { isPackage: !!c.packageGroup, contracts: [] };
-          groups.push(groupMap[gKey]);
-        }
-        groupMap[gKey].contracts.push(c);
-      });
-      // 그룹은 그룹 내 가장 최근 계약 기준으로 최신순 정렬
-      groups.sort((a, b) => {
-        const aLatest = Math.max.apply(null, a.contracts.map(c => c.createdAt || 0));
-        const bLatest = Math.max.apply(null, b.contracts.map(c => c.createdAt || 0));
-        return bLatest - aLatest;
-      });
-
-      el.innerHTML = groups.map(g => {
-        if (g.isPackage && g.contracts.length > 1) {
-          return _renderPackageCard(phone, g.contracts, progLabels);
-        }
-        return _renderSingleContractCard(phone, g.contracts[0], progLabels);
-      }).join('');
+      el.innerHTML = contracts.map(c => _renderSingleContractCard(phone, c, progLabels)).join('');
     });
   }
 
@@ -1840,61 +1817,7 @@
     </div>`;
   }
 
-  // 패키지(연계계약) 카드 — packageGroup으로 묶인 여러 계약서를 하나로 합쳐서 표시
-  function _renderPackageCard(phone, contractsInGroup, progLabels) {
-    const progPlain = {
-      '헬스':'헬스', 'GX':'GX', 'PT':'PT',
-      '기구필라테스개인':'기구필라테스 개인', '기구필라테스그룹':'기구필라테스 그룹'
-    };
-    // 등록된 순서(오래된 것 → 최근 추가된 것)대로 보여주는 게 이해하기 쉬움
-    const sorted = contractsInGroup.slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-
-    let grandTotal = 0, grandPaid = 0;
-    const rows = sorted.map(c => {
-      const items = _flattenContractItems(c);
-      return items.map(it => {
-        const progKey = it.progKey, p = it.data;
-        const amt = p.price || 0;
-        const paid = (p.cash||0) + (p.card||0) + (p.transfer||0);
-        const unpaid = amt - paid;
-        grandTotal += amt;
-        grandPaid += paid;
-        const menuId = 'cmenu-' + c.key + '-' + progKey;
-        const label = (progPlain[progKey] || progKey) + '만';
-        return `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-            <div>
-              <div style="font-size:12.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px;">${progLabels[progKey] || progKey} ${_renderPkgBadge(it.pkgName)}</div>
-              <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${c.signDate || '-'} 결제 · ${c.type === 're' ? '재등록' : '신규'} · ${_formatPeriodLabel(p)}</div>
-            </div>
-            <div style="text-align:right;">
-              <div style="font-size:12.5px;font-weight:700;color:var(--text);">${amt.toLocaleString()}원</div>
-              ${_renderItemStatusBadge(p)}
-            </div>
-          </div>
-          ${_renderContractMenuButton(menuId, phone, c.key, progKey, label)}
-        </div>`;
-      }).join('');
-    }).join('');
-
-    const grandUnpaid = grandTotal - grandPaid;
-    const allKeys = sorted.map(c => c.key).join(',');
-    const pkgMenuId = 'cmenu-pkg-' + sorted[0].key;
-
-    return `<div style="background:var(--card);border-radius:10px;padding:16px;border:1.5px solid var(--blue);">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <span style="background:var(--blue-light);color:var(--blue);font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;">🔗 연계 패키지</span>
-        <div style="text-align:right;">
-          <div style="font-size:13px;font-weight:700;color:var(--text);">${grandTotal.toLocaleString()}원</div>
-          ${grandUnpaid > 0 ? `<div style="font-size:11px;color:#ef4444;font-weight:700;">미수금 ${grandUnpaid.toLocaleString()}원</div>` : `<div style="font-size:11px;color:#22c55e;font-weight:600;">완납 ✓</div>`}
-        </div>
-      </div>
-      ${rows}
-      ${_renderContractMenuButton(pkgMenuId, phone, allKeys, null, '패키지 전체')}
-    </div>`;
-  }
-
-  // 처리▾ 버튼 + 펼침 메뉴 (단독카드/패키지프로그램별/패키지전체 공통으로 사용)
+  // 처리▾ 버튼 + 펼침 메뉴 (단독카드/패키지프로그램별 공통으로 사용)
   function _renderContractMenuButton(menuId, phone, contractKeyOrKeys, progKey, label) {
     const actions = [
       { icon: '✏️', name: '정보 수정', act: 'edit' },
@@ -1942,11 +1865,6 @@
     if (act === 'transfer' && contractKeyOrKeys.indexOf(',') === -1) {
       document.querySelectorAll('.contract-action-menu').forEach(m => m.style.display = 'none');
       startTransfer(phone, contractKeyOrKeys, progKey);
-      return;
-    }
-    if (act === 'change' && contractKeyOrKeys.indexOf(',') !== -1) {
-      document.querySelectorAll('.contract-action-menu').forEach(m => m.style.display = 'none');
-      startPkgProgChange(phone, contractKeyOrKeys);
       return;
     }
     if (act === 'change' && contractKeyOrKeys.indexOf(',') === -1) {
@@ -3043,28 +2961,6 @@
   window.openProgChangeModal = openProgChangeModal;
   window._recalcProgChange = _recalcProgChange;
   window._progChangeStep1Next = _progChangeStep1Next;
-  // 패키지 전체를 하나의 새 프로그램으로 합쳐서 변경 — 패키지 안의 모든 항목(여러 계약서에 걸쳐있을 수 있음)을 모아서 시작
-  async function startPkgProgChange(phone, contractKeysCsv) {
-    const contractKeys = contractKeysCsv.split(',');
-    const allItems = [];
-    for (const ck of contractKeys) {
-      const snap = await db.ref('contracts/' + phone + '/' + ck).once('value');
-      if (!snap.exists()) continue;
-      const c = snap.val();
-      _flattenContractItems(c).forEach(it => {
-        if (_isItemEligible(it.data)) {
-          allItems.push({ contractKey: ck, progKey: it.progKey, pkgIndex: it.pkgIndex, data: it.data });
-        }
-      });
-    }
-    if (!allItems.length) { showToast('변경할 프로그램이 없어요.', 'error'); return; }
-    window._changeCtx = {
-      phone,
-      pkgItems: allItems,
-      progKey: allItems.map(it => REFUND_PROG_NAMES[it.progKey] || it.progKey).join(' + ')
-    };
-    _renderPkgProgChangeStep1();
-  }
 
   function _renderPkgProgChangeStep1() {
     const ctx = window._changeCtx;
@@ -3112,7 +3008,6 @@
   window._progChangeStep3Next = _progChangeStep3Next;
   window._renderProgChangeStep4 = _renderProgChangeStep4;
   window._confirmProgChange = _confirmProgChange;
-  window.startPkgProgChange = startPkgProgChange;
   window._renderPkgProgChangeStep1 = _renderPkgProgChangeStep1;
   window._pkgProgChangeStep1Next = _pkgProgChangeStep1Next;
 
