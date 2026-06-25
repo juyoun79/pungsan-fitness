@@ -1778,7 +1778,8 @@
       const settleLabel = i.diff > 0 ? ' · 추가결제 ' + (i.settleAmount||0).toLocaleString() + '원'
         : i.diff < 0 ? ' · 환불 ' + (i.settleAmount||0).toLocaleString() + '원'
         : '';
-      return `<div style="font-size:10.5px;color:#3b82f6;font-weight:700;">🔄 ${REFUND_PROG_NAMES[i.fromProgKey]||i.fromProgKey}에서 변경됨 (잔여가치 ${(i.remainValueCarried||0).toLocaleString()}원 이전${settleLabel})</div>`;
+      const fromLabel = i.fromLabel || (REFUND_PROG_NAMES[i.fromProgKey]||i.fromProgKey);
+      return `<div style="font-size:10.5px;color:#3b82f6;font-weight:700;">🔄 ${fromLabel}에서 변경됨 (잔여가치 ${(i.remainValueCarried||0).toLocaleString()}원 이전${settleLabel})</div>`;
     }
     if (data.activeHold) {
       const h = data.activeHold;
@@ -1941,6 +1942,11 @@
     if (act === 'transfer' && contractKeyOrKeys.indexOf(',') === -1) {
       document.querySelectorAll('.contract-action-menu').forEach(m => m.style.display = 'none');
       startTransfer(phone, contractKeyOrKeys, progKey);
+      return;
+    }
+    if (act === 'change' && contractKeyOrKeys.indexOf(',') !== -1) {
+      document.querySelectorAll('.contract-action-menu').forEach(m => m.style.display = 'none');
+      startPkgProgChange(phone, contractKeyOrKeys);
       return;
     }
     if (act === 'change' && contractKeyOrKeys.indexOf(',') === -1) {
@@ -2930,27 +2936,50 @@
     const btn = document.getElementById('pc4-confirm-btn');
     if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
     try {
-      const snap = await db.ref('contracts/' + ctx.phone + '/' + ctx.contractKey).once('value');
-      if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
-      const contract = snap.val();
-      const items = _flattenContractItems(contract);
-      const fromItem = items.find(it => it.progKey === ctx.progKey);
-      if (!fromItem) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
-      if (!_isItemEligible(fromItem.data)) { showToast('이미 처리된 프로그램이에요.', 'error'); return; }
-
-      const fromBasePath = fromItem.pkgIndex === null
-        ? 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/programs/' + ctx.progKey
-        : 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/packages/' + fromItem.pkgIndex + '/items/' + ctx.progKey;
-
-      const todayDate = new Date();
-      const todayStr = todayDate.getFullYear() + '-' + String(todayDate.getMonth()+1).padStart(2,'0') + '-' + String(todayDate.getDate()).padStart(2,'0');
-
+      const todayStr = _todayISO();
       const updates = {};
-      updates[fromBasePath + '/progChangeOut'] = {
-        toProgKey: ctx.newProgKey, newPrice: ctx.newPrice, remainValue: ctx.remainValue,
-        diff: ctx.diff, settleAmount: ctx.settleAmount || 0, method: ctx.settleMethod,
-        date: todayStr, processedAt: Date.now()
-      };
+      let contractInfo = null; // 새 계약서에 넣을 이름/생일/성별/주소 참고용
+
+      if (ctx.pkgItems) {
+        // 패키지 전체 모드 — 여러 항목(여러 계약서에 걸쳐있을 수 있음)에 각각 progChangeOut 표시
+        for (const it of ctx.pkgItems) {
+          const snap = await db.ref('contracts/' + ctx.phone + '/' + it.contractKey).once('value');
+          if (!snap.exists()) continue;
+          const contract = snap.val();
+          if (!contractInfo) contractInfo = contract;
+          const freshItems = _flattenContractItems(contract);
+          const fresh = freshItems.find(x => x.progKey === it.progKey && x.pkgIndex === it.pkgIndex);
+          if (!fresh || !_isItemEligible(fresh.data)) continue; // 이미 처리된 항목은 건너뜀
+          const basePath = it.pkgIndex === null
+            ? 'contracts/' + ctx.phone + '/' + it.contractKey + '/programs/' + it.progKey
+            : 'contracts/' + ctx.phone + '/' + it.contractKey + '/packages/' + it.pkgIndex + '/items/' + it.progKey;
+          updates[basePath + '/progChangeOut'] = {
+            toProgKey: ctx.newProgKey, newPrice: ctx.newPrice, remainValue: ctx.remainValue,
+            diff: ctx.diff, settleAmount: ctx.settleAmount || 0, method: ctx.settleMethod,
+            date: todayStr, processedAt: Date.now()
+          };
+        }
+        if (!contractInfo) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      } else {
+        // 단일 항목 모드
+        const snap = await db.ref('contracts/' + ctx.phone + '/' + ctx.contractKey).once('value');
+        if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+        const contract = snap.val();
+        contractInfo = contract;
+        const items = _flattenContractItems(contract);
+        const fromItem = items.find(it => it.progKey === ctx.progKey);
+        if (!fromItem) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
+        if (!_isItemEligible(fromItem.data)) { showToast('이미 처리된 프로그램이에요.', 'error'); return; }
+
+        const fromBasePath = fromItem.pkgIndex === null
+          ? 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/programs/' + ctx.progKey
+          : 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/packages/' + fromItem.pkgIndex + '/items/' + ctx.progKey;
+        updates[fromBasePath + '/progChangeOut'] = {
+          toProgKey: ctx.newProgKey, newPrice: ctx.newPrice, remainValue: ctx.remainValue,
+          diff: ctx.diff, settleAmount: ctx.settleAmount || 0, method: ctx.settleMethod,
+          date: todayStr, processedAt: Date.now()
+        };
+      }
 
       // 새 프로그램 종료일 계산 (기간제만 — 개월수 기준, 기존 계약서 작성과 동일한 방식)
       const isNewPeriod = REFUND_PERIOD_PROGS.includes(ctx.newProgKey);
@@ -2959,11 +2988,23 @@
         const d = new Date(todayStr);
         d.setMonth(d.getMonth() + (ctx.newMonths || 0));
         d.setDate(d.getDate() - 1);
-        endDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        endDate = _isoDate(d);
       }
 
       // 실제로 "오늘 새로 받은 돈"만 새 프로그램 금액으로 기록 (잔여가치 이전분은 0원 처리 — 매출 중복방지)
       const newCharged = ctx.diff > 0 ? (ctx.settleAmount || 0) : 0;
+      const progChangeInObj = {
+        remainValueCarried: ctx.remainValue,
+        diff: ctx.diff, settleAmount: ctx.settleAmount || 0, method: ctx.settleMethod,
+        date: todayStr, processedAt: Date.now()
+      };
+      if (ctx.pkgItems) {
+        progChangeInObj.fromLabel = ctx.progKey; // "기구필라테스 개인 + 기구필라테스 그룹" 처럼 합쳐진 표시용 텍스트
+        progChangeInObj.fromItems = ctx.pkgItems.map(it => ({ contractKey: it.contractKey, progKey: it.progKey }));
+      } else {
+        progChangeInObj.fromProgKey = ctx.progKey;
+        progChangeInObj.fromContractKey = ctx.contractKey;
+      }
       const newProgramData = {
         months: isNewPeriod ? (ctx.newMonths || 0) : 0,
         count: isNewPeriod ? 0 : (ctx.newCount || 0),
@@ -2973,17 +3014,13 @@
         transfer: ctx.settleMethod === 'transfer' ? newCharged : 0,
         startDate: todayStr,
         endDate: endDate,
-        progChangeIn: {
-          fromProgKey: ctx.progKey, fromContractKey: ctx.contractKey, remainValueCarried: ctx.remainValue,
-          diff: ctx.diff, settleAmount: ctx.settleAmount || 0, method: ctx.settleMethod,
-          date: todayStr, processedAt: Date.now()
-        }
+        progChangeIn: progChangeInObj
       };
 
       const newContractData = {
-        name: contract.name || '', phone: ctx.phone,
-        birth: contract.birth || '', gender: contract.gender || '', address: contract.address || '',
-        memo: (REFUND_PROG_NAMES[ctx.progKey]||ctx.progKey) + ' → ' + (REFUND_PROG_NAMES[ctx.newProgKey]||ctx.newProgKey) + ' 프로그램 변경 (잔여가치 ' + ctx.remainValue.toLocaleString() + '원 이전)',
+        name: contractInfo.name || '', phone: ctx.phone,
+        birth: contractInfo.birth || '', gender: contractInfo.gender || '', address: contractInfo.address || '',
+        memo: ctx.progKey + ' → ' + (REFUND_PROG_NAMES[ctx.newProgKey]||ctx.newProgKey) + ' 프로그램 변경 (잔여가치 ' + ctx.remainValue.toLocaleString() + '원 이전)',
         type: 'progChange', signDate: todayStr, createdAt: Date.now(),
         programs: { [ctx.newProgKey]: newProgramData }
       };
@@ -3006,6 +3043,65 @@
   window.openProgChangeModal = openProgChangeModal;
   window._recalcProgChange = _recalcProgChange;
   window._progChangeStep1Next = _progChangeStep1Next;
+  // 패키지 전체를 하나의 새 프로그램으로 합쳐서 변경 — 패키지 안의 모든 항목(여러 계약서에 걸쳐있을 수 있음)을 모아서 시작
+  async function startPkgProgChange(phone, contractKeysCsv) {
+    const contractKeys = contractKeysCsv.split(',');
+    const allItems = [];
+    for (const ck of contractKeys) {
+      const snap = await db.ref('contracts/' + phone + '/' + ck).once('value');
+      if (!snap.exists()) continue;
+      const c = snap.val();
+      _flattenContractItems(c).forEach(it => {
+        if (_isItemEligible(it.data)) {
+          allItems.push({ contractKey: ck, progKey: it.progKey, pkgIndex: it.pkgIndex, data: it.data });
+        }
+      });
+    }
+    if (!allItems.length) { showToast('변경할 프로그램이 없어요.', 'error'); return; }
+    window._changeCtx = {
+      phone,
+      pkgItems: allItems,
+      progKey: allItems.map(it => REFUND_PROG_NAMES[it.progKey] || it.progKey).join(' + ')
+    };
+    _renderPkgProgChangeStep1();
+  }
+
+  function _renderPkgProgChangeStep1() {
+    const ctx = window._changeCtx;
+    document.getElementById('app-change-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-change-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+
+    const itemRows = ctx.pkgItems.map(it => {
+      const d = it.data;
+      return `<div style="font-size:12px;color:#888;padding:4px 0;border-bottom:1px solid #e5e5e5;">
+        ${REFUND_PROG_NAMES[it.progKey]||it.progKey} · ${(d.price||0).toLocaleString()}원 ${d.count ? '· '+d.count+'회':''} (${d.startDate||'-'}~${d.endDate||'-'})
+      </div>`;
+    }).join('');
+
+    const body = `<div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">🔄 프로그램 변경 — 1/4 패키지 잔여가치 확인</div>
+      <div style="font-size:12px;color:#888;margin-bottom:10px;">패키지 안의 프로그램 ${ctx.pkgItems.length}개를 하나로 합쳐서 변경해요</div>
+      <div style="background:var(--bg,#f7f7f7);border-radius:8px;padding:10px 12px;margin-bottom:14px;">${itemRows}</div>
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">전체 잔여가치 (각 프로그램의 남은 가치를 합산해서 직접 입력)</div>
+      <input id="pc-value" type="text" inputmode="numeric" value="0" oninput="_fmtMoneyInput(this)"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="display:flex;gap:10px;">
+        <button onclick="document.getElementById('app-change-modal').remove()" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button onclick="_pkgProgChangeStep1Next()" style="flex:1;padding:12px;background:#3b82f6;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">다음</button>
+      </div>`;
+
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">${body}</div>`;
+    document.body.appendChild(modal);
+  }
+
+  function _pkgProgChangeStep1Next() {
+    const ctx = window._changeCtx;
+    if (!ctx) return;
+    ctx.remainValue = _getMoneyVal('pc-value');
+    _renderProgChangeStep2();
+  }
+
   window._renderProgChangeStep1 = _renderProgChangeStep1;
   window._renderProgChangeStep2 = _renderProgChangeStep2;
   window._renderProgChangeStep2Fields = _renderProgChangeStep2Fields;
@@ -3016,6 +3112,9 @@
   window._progChangeStep3Next = _progChangeStep3Next;
   window._renderProgChangeStep4 = _renderProgChangeStep4;
   window._confirmProgChange = _confirmProgChange;
+  window.startPkgProgChange = startPkgProgChange;
+  window._renderPkgProgChangeStep1 = _renderPkgProgChangeStep1;
+  window._pkgProgChangeStep1Next = _pkgProgChangeStep1Next;
 
   // ══════════════ 정지/휴회 ══════════════
   // 모든 프로그램(기간제/횟수제 전체) 허용 — 추가결제 없이 종료일만 미뤄주는 기능
