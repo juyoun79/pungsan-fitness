@@ -1039,7 +1039,7 @@
       // 전체 등록 목록 (registrations + 현재 등록)
       const allRegs = [];
       if (regSnap.exists()) {
-        regSnap.forEach(child => allRegs.push({ key: child.key, ...child.val() }));
+        regSnap.forEach(child => { allRegs.push({ key: child.key, ...child.val() }); });
         allRegs.sort((a, b) => a.key.localeCompare(b.key));
       }
       allRegs.push({ total: rootTotal, type: rootType });
@@ -1099,7 +1099,7 @@
       }
 
       const allRegs = [];
-      regSnap.forEach(child => allRegs.push({ key: child.key, ...child.val() }));
+      regSnap.forEach(child => { allRegs.push({ key: child.key, ...child.val() }); });
       allRegs.sort((a, b) => a.key.localeCompare(b.key));
       allRegs.push({ key: 'zzz_current', type: rootType, total: rootTotal, date: rootRegDate });
 
@@ -1667,7 +1667,7 @@
         return;
       }
       const contracts = [];
-      snap.forEach(child => contracts.push({ key: child.key, ...child.val() }));
+      snap.forEach(child => { contracts.push({ key: child.key, ...child.val() }); });
       // 최신순 정렬
       contracts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
@@ -2812,7 +2812,7 @@
           return;
         }
         const signs = [];
-        signsSnap.forEach(child => signs.push({ key: child.key, ...child.val() }));
+        signsSnap.forEach(child => { signs.push({ key: child.key, ...child.val() }); });
         signs.sort((a, b) => {
           const toNum = d => { if (!d) return 0; const p = d.split('-'); return parseInt(p[0])*10000+parseInt(p[1]||0)*100+parseInt(p[2]||0); };
           return toNum(b.date) - toNum(a.date);
@@ -9188,7 +9188,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   function loadPointTiers() {
     db.ref('point_tiers').once('value', snap => {
       pointTiers = [];
-      if (snap.exists()) snap.forEach(child => pointTiers.push({ id: child.key, ...child.val() }));
+      if (snap.exists()) snap.forEach(child => { pointTiers.push({ id: child.key, ...child.val() }); });
       if (pointTiers.length === 0) {
         // 기본 구간 2개
         pointTiers = [
