@@ -2664,13 +2664,90 @@
     if (!ctx) return;
     ctx.remainUnit = parseFloat(document.getElementById('pc-remain')?.value) || 0;
     ctx.remainValue = parseInt(document.getElementById('pc-value')?.value) || 0;
-    // 2단계(새 프로그램 선택+차액처리)는 다음 업데이트에서 이어집니다
-    showToast('1단계 완료! (잔여가치 ' + ctx.remainValue.toLocaleString() + '원) 다음 단계는 곧 이어집니다 🙂', 'success');
+    _renderProgChangeStep2();
   }
+
+  // ══════════════ 프로그램 변경 (2/4단계: 새 프로그램 선택) ══════════════
+  function _renderProgChangeStep2() {
+    const ctx = window._changeCtx;
+    document.getElementById('app-change-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-change-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+
+    // 새 프로그램 선택지는 공용 목록(REFUND_PROG_NAMES)에서 자동으로 가져옴
+    const progOptions = Object.keys(REFUND_PROG_NAMES).map(key => {
+      const sel = key === ctx.progKey ? 'selected' : '';
+      return `<option value="${key}" ${sel}>${REFUND_PROG_NAMES[key]}</option>`;
+    }).join('');
+
+    const body = `<div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">🔄 프로그램 변경 — 2/4 새 프로그램 선택</div>
+      <div style="font-size:12px;color:#888;margin-bottom:14px;">잔여가치 ${ctx.remainValue.toLocaleString()}원 (1단계 결과)</div>
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">변경할 새 프로그램</div>
+      <select id="pc2-prog" onchange="_renderProgChangeStep2Fields()"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:14px;font-family:'Noto Sans KR',sans-serif;">
+        ${progOptions}
+      </select>
+      <div id="pc2-fields"></div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button onclick="_renderProgChangeStep1()" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
+        <button onclick="_progChangeStep2Next()" style="flex:1;padding:12px;background:#3b82f6;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">다음</button>
+      </div>`;
+
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">${body}</div>`;
+    document.body.appendChild(modal);
+    _renderProgChangeStep2Fields();
+  }
+
+  function _renderProgChangeStep2Fields() {
+    const progKey = document.getElementById('pc2-prog')?.value;
+    const isPeriod = REFUND_PERIOD_PROGS.includes(progKey);
+    const fieldsEl = document.getElementById('pc2-fields');
+    if (!fieldsEl) return;
+    if (isPeriod) {
+      fieldsEl.innerHTML = `
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">변경 후 금액</div>
+        <input id="pc2-price" type="number" value="0"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">이용기간 (개월)</div>
+        <input id="pc2-months" type="number" value="1"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">`;
+    } else {
+      fieldsEl.innerHTML = `
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">변경 후 금액</div>
+        <input id="pc2-price" type="number" value="0"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">횟수</div>
+        <input id="pc2-count" type="number" value="1"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">`;
+    }
+  }
+
+  function _progChangeStep2Next() {
+    const ctx = window._changeCtx;
+    if (!ctx) return;
+    const newProgKey = document.getElementById('pc2-prog')?.value;
+    const price = parseInt(document.getElementById('pc2-price')?.value) || 0;
+    const isPeriod = REFUND_PERIOD_PROGS.includes(newProgKey);
+    ctx.newProgKey = newProgKey;
+    ctx.newPrice = price;
+    if (isPeriod) {
+      ctx.newMonths = parseFloat(document.getElementById('pc2-months')?.value) || 0;
+    } else {
+      ctx.newCount = parseInt(document.getElementById('pc2-count')?.value) || 0;
+    }
+    // 3단계(잔여가치 vs 변경후금액 비교 → 추가결제/환불 분기)는 다음 업데이트에서 이어집니다
+    showToast('2단계 완료! (변경후금액 ' + price.toLocaleString() + '원) 다음 단계는 곧 이어집니다 🙂', 'success');
+  }
+
   window.startProgChange = startProgChange;
   window.openProgChangeModal = openProgChangeModal;
   window._recalcProgChange = _recalcProgChange;
   window._progChangeStep1Next = _progChangeStep1Next;
+  window._renderProgChangeStep1 = _renderProgChangeStep1;
+  window._renderProgChangeStep2 = _renderProgChangeStep2;
+  window._renderProgChangeStep2Fields = _renderProgChangeStep2Fields;
+  window._progChangeStep2Next = _progChangeStep2Next;
 
 
   window.startTransfer = startTransfer;
