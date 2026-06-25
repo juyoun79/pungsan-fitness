@@ -1722,7 +1722,7 @@
 
   // 이미 환불됐거나 양도되어 나간 항목은 환불/양도 대상에서 제외
   function _isItemEligible(data) {
-    return !data.refund && !data.transferOut;
+    return !data.refund && !data.transferOut && !data.progChangeOut;
   }
 
   // 개월수/횟수를 "3개월 · 4회" 같은 형태로 표시
@@ -1754,6 +1754,12 @@
     }
     if (data.transferIn) {
       return `<div style="font-size:10.5px;color:#3b82f6;font-weight:700;">🔁 ${data.transferIn.fromName || ''}님으로부터 양도받음</div>`;
+    }
+    if (data.progChangeOut) {
+      return `<div style="font-size:10.5px;color:#f59e0b;font-weight:700;">🔄 ${REFUND_PROG_NAMES[data.progChangeOut.toProgKey]||data.progChangeOut.toProgKey}로 변경됨 · ${data.progChangeOut.date || ''}</div>`;
+    }
+    if (data.progChangeIn) {
+      return `<div style="font-size:10.5px;color:#3b82f6;font-weight:700;">🔄 ${REFUND_PROG_NAMES[data.progChangeIn.fromProgKey]||data.progChangeIn.fromProgKey}에서 변경됨 (잔여가치 ${(data.progChangeIn.remainValueCarried||0).toLocaleString()}원 이전)</div>`;
     }
     const amt = data.price || 0;
     const paid = (data.cash||0) + (data.card||0) + (data.transfer||0);
@@ -2771,8 +2777,198 @@
     } else {
       ctx.newCount = parseInt(document.getElementById('pc2-count')?.value) || 0;
     }
-    // 3단계(잔여가치 vs 변경후금액 비교 → 추가결제/환불 분기)는 다음 업데이트에서 이어집니다
-    showToast('2단계 완료! (변경후금액 ' + price.toLocaleString() + '원) 다음 단계는 곧 이어집니다 🙂', 'success');
+    _renderProgChangeStep3();
+  }
+
+  // ══════════════ 프로그램 변경 (3/4단계: 차액 비교 + 결제/환불) ══════════════
+  function _renderProgChangeStep3() {
+    const ctx = window._changeCtx;
+    document.getElementById('app-change-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-change-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+
+    const diff = ctx.newPrice - ctx.remainValue;
+    ctx.diff = diff;
+
+    let diffSection;
+    if (diff > 0) {
+      diffSection = `
+        <div style="background:#fef3e2;border-radius:8px;padding:12px;margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:700;color:#d97706;">➕ 추가결제 필요: ${diff.toLocaleString()}원</div>
+        </div>
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">추가결제 금액 (수정 가능)</div>
+        <input id="pc3-amount" type="text" inputmode="numeric" value="${diff.toLocaleString()}" oninput="_fmtMoneyInput(this)"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+        <div style="font-size:12px;color:#888;margin-bottom:6px;">결제수단</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <button id="pc3-method-cash" onclick="_selectProgChangeMethod('cash')" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--blue,#3b82f6);background:var(--blue,#3b82f6);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">현금</button>
+          <button id="pc3-method-card" onclick="_selectProgChangeMethod('card')" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #e0e0e0;background:none;color:#888;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">카드</button>
+          <button id="pc3-method-transfer" onclick="_selectProgChangeMethod('transfer')" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #e0e0e0;background:none;color:#888;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">계좌</button>
+        </div>`;
+    } else if (diff < 0) {
+      const refundAmt = Math.abs(diff);
+      diffSection = `
+        <div style="background:#e8f4fd;border-radius:8px;padding:12px;margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:700;color:#1a6fd4;">➖ 환불 발생: ${refundAmt.toLocaleString()}원</div>
+        </div>
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">환불 금액 (수정 가능)</div>
+        <input id="pc3-amount" type="text" inputmode="numeric" value="${refundAmt.toLocaleString()}" oninput="_fmtMoneyInput(this)"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+        <div style="font-size:12px;color:#888;margin-bottom:6px;">환불수단</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <button id="pc3-method-cash" onclick="_selectProgChangeMethod('cash')" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--blue,#3b82f6);background:var(--blue,#3b82f6);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">현금</button>
+          <button id="pc3-method-card" onclick="_selectProgChangeMethod('card')" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #e0e0e0;background:none;color:#888;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">카드</button>
+          <button id="pc3-method-transfer" onclick="_selectProgChangeMethod('transfer')" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #e0e0e0;background:none;color:#888;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">계좌</button>
+        </div>`;
+    } else {
+      diffSection = `
+        <div style="background:#f3f4f6;border-radius:8px;padding:12px;margin-bottom:16px;">
+          <div style="font-size:13px;font-weight:700;color:#888;">차액 없음 (잔여가치와 변경후금액이 같아요)</div>
+        </div>`;
+    }
+
+    const body = `<div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">🔄 프로그램 변경 — 3/4 차액 처리</div>
+      <div style="font-size:12px;color:#888;margin-bottom:14px;">잔여가치 ${ctx.remainValue.toLocaleString()}원 → 변경후금액 ${ctx.newPrice.toLocaleString()}원</div>
+      ${diffSection}
+      <div style="display:flex;gap:10px;">
+        <button onclick="_renderProgChangeStep2()" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
+        <button onclick="_progChangeStep3Next()" style="flex:1;padding:12px;background:#3b82f6;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">다음</button>
+      </div>`;
+
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">${body}</div>`;
+    document.body.appendChild(modal);
+    ctx.settleMethod = 'cash';
+  }
+
+  function _selectProgChangeMethod(method) {
+    const ctx = window._changeCtx;
+    if (!ctx) return;
+    ctx.settleMethod = method;
+    ['cash','card','transfer'].forEach(m => {
+      const btn = document.getElementById('pc3-method-' + m);
+      if (!btn) return;
+      if (m === method) {
+        btn.style.background = 'var(--blue, #3b82f6)'; btn.style.color = 'white'; btn.style.border = '1.5px solid var(--blue, #3b82f6)';
+      } else {
+        btn.style.background = 'none'; btn.style.color = '#888'; btn.style.border = '1.5px solid #e0e0e0';
+      }
+    });
+  }
+
+  function _progChangeStep3Next() {
+    const ctx = window._changeCtx;
+    if (!ctx) return;
+    ctx.settleAmount = ctx.diff !== 0 ? _getMoneyVal('pc3-amount') : 0;
+    _renderProgChangeStep4();
+  }
+
+  // ══════════════ 프로그램 변경 (4/4단계: 최종 확인 + 저장) ══════════════
+  function _renderProgChangeStep4() {
+    const ctx = window._changeCtx;
+    document.getElementById('app-change-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-change-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+
+    const methodLabel = { cash:'현금', card:'카드', transfer:'계좌' }[ctx.settleMethod] || '현금';
+    const diffLine = ctx.diff > 0 ? '추가결제 ' + ctx.settleAmount.toLocaleString() + '원 (' + methodLabel + ')'
+      : ctx.diff < 0 ? '환불 ' + ctx.settleAmount.toLocaleString() + '원 (' + methodLabel + ')'
+      : '차액 없음';
+
+    const body = `<div style="font-size:15px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">🔄 프로그램 변경 — 4/4 최종 확인</div>
+      <div style="background:var(--bg,#f7f7f7);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;line-height:1.8;color:var(--text,#1a1a1a);">
+        <div>기존 프로그램: <b>${REFUND_PROG_NAMES[ctx.progKey]||ctx.progKey}</b></div>
+        <div>변경할 프로그램: <b>${REFUND_PROG_NAMES[ctx.newProgKey]||ctx.newProgKey}</b></div>
+        <div>잔여가치: ${ctx.remainValue.toLocaleString()}원</div>
+        <div>변경후금액: ${ctx.newPrice.toLocaleString()}원</div>
+        <div style="margin-top:6px;font-weight:700;color:#3b82f6;">${diffLine}</div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button onclick="_renderProgChangeStep3()" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
+        <button id="pc4-confirm-btn" onclick="_confirmProgChange()" style="flex:1;padding:12px;background:#3b82f6;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">변경 확정</button>
+      </div>`;
+
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">${body}</div>`;
+    document.body.appendChild(modal);
+  }
+
+  async function _confirmProgChange() {
+    const ctx = window._changeCtx;
+    if (!ctx) return;
+    const btn = document.getElementById('pc4-confirm-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
+    try {
+      const snap = await db.ref('contracts/' + ctx.phone + '/' + ctx.contractKey).once('value');
+      if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      const contract = snap.val();
+      const items = _flattenContractItems(contract);
+      const fromItem = items.find(it => it.progKey === ctx.progKey);
+      if (!fromItem) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
+      if (!_isItemEligible(fromItem.data)) { showToast('이미 처리된 프로그램이에요.', 'error'); return; }
+
+      const fromBasePath = fromItem.pkgIndex === null
+        ? 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/programs/' + ctx.progKey
+        : 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/packages/' + fromItem.pkgIndex + '/items/' + ctx.progKey;
+
+      const todayDate = new Date();
+      const todayStr = todayDate.getFullYear() + '-' + String(todayDate.getMonth()+1).padStart(2,'0') + '-' + String(todayDate.getDate()).padStart(2,'0');
+
+      const updates = {};
+      updates[fromBasePath + '/progChangeOut'] = {
+        toProgKey: ctx.newProgKey, newPrice: ctx.newPrice, remainValue: ctx.remainValue,
+        diff: ctx.diff, settleAmount: ctx.settleAmount || 0, method: ctx.settleMethod,
+        date: todayStr, processedAt: Date.now()
+      };
+
+      // 새 프로그램 종료일 계산 (기간제만 — 개월수 기준, 기존 계약서 작성과 동일한 방식)
+      const isNewPeriod = REFUND_PERIOD_PROGS.includes(ctx.newProgKey);
+      let endDate = '';
+      if (isNewPeriod) {
+        const d = new Date(todayStr);
+        d.setMonth(d.getMonth() + (ctx.newMonths || 0));
+        d.setDate(d.getDate() - 1);
+        endDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      }
+
+      // 실제로 "오늘 새로 받은 돈"만 새 프로그램 금액으로 기록 (잔여가치 이전분은 0원 처리 — 매출 중복방지)
+      const newCharged = ctx.diff > 0 ? (ctx.settleAmount || 0) : 0;
+      const newProgramData = {
+        months: isNewPeriod ? (ctx.newMonths || 0) : 0,
+        count: isNewPeriod ? 0 : (ctx.newCount || 0),
+        price: newCharged,
+        cash: ctx.settleMethod === 'cash' ? newCharged : 0,
+        card: ctx.settleMethod === 'card' ? newCharged : 0,
+        transfer: ctx.settleMethod === 'transfer' ? newCharged : 0,
+        startDate: todayStr,
+        endDate: endDate,
+        progChangeIn: {
+          fromProgKey: ctx.progKey, fromContractKey: ctx.contractKey, remainValueCarried: ctx.remainValue,
+          diff: ctx.diff, settleAmount: ctx.settleAmount || 0, method: ctx.settleMethod,
+          date: todayStr, processedAt: Date.now()
+        }
+      };
+
+      const newContractData = {
+        name: contract.name || '', phone: ctx.phone,
+        birth: contract.birth || '', gender: contract.gender || '', address: contract.address || '',
+        memo: (REFUND_PROG_NAMES[ctx.progKey]||ctx.progKey) + ' → ' + (REFUND_PROG_NAMES[ctx.newProgKey]||ctx.newProgKey) + ' 프로그램 변경 (잔여가치 ' + ctx.remainValue.toLocaleString() + '원 이전)',
+        type: 'progChange', signDate: todayStr, createdAt: Date.now(),
+        programs: { [ctx.newProgKey]: newProgramData }
+      };
+      const newKey = todayStr + '_' + Date.now();
+      updates['contracts/' + ctx.phone + '/' + newKey] = newContractData;
+
+      await db.ref().update(updates);
+
+      document.getElementById('app-change-modal')?.remove();
+      showToast('✅ 프로그램 변경 완료!', 'success');
+      _renderMdContracts(ctx.phone);
+    } catch(e) {
+      showToast('프로그램 변경 처리 실패: ' + e.message, 'error');
+      const btn2 = document.getElementById('pc4-confirm-btn');
+      if (btn2) { btn2.disabled = false; btn2.textContent = '변경 확정'; }
+    }
   }
 
   window.startProgChange = startProgChange;
@@ -2784,6 +2980,11 @@
   window._renderProgChangeStep2Fields = _renderProgChangeStep2Fields;
   window._progChangeStep2Next = _progChangeStep2Next;
   window._fmtMoneyInput = _fmtMoneyInput;
+  window._renderProgChangeStep3 = _renderProgChangeStep3;
+  window._selectProgChangeMethod = _selectProgChangeMethod;
+  window._progChangeStep3Next = _progChangeStep3Next;
+  window._renderProgChangeStep4 = _renderProgChangeStep4;
+  window._confirmProgChange = _confirmProgChange;
 
 
   window.startTransfer = startTransfer;
