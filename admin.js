@@ -2556,6 +2556,19 @@
   window._confirmTransfer = _confirmTransfer;
 
   // ══════════════ 프로그램 변경 (1/4단계: 잔여가치 확인) ══════════════
+  // 금액 입력칸에 콤마(,) 표시해주는 헬퍼 — 입력할 때마다 자동으로 천단위 콤마 적용
+  function _fmtMoneyInput(el) {
+    if (!el) return;
+    const digits = el.value.replace(/[^0-9]/g, '');
+    el.value = digits ? parseInt(digits, 10).toLocaleString() : '';
+  }
+  // 콤마 들어간 입력칸에서 실제 숫자값만 꺼낼 때 사용
+  function _getMoneyVal(id) {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    return parseInt((el.value || '0').replace(/[^0-9]/g, ''), 10) || 0;
+  }
+
   function startProgChange(phone, contractKey, progKey) {
     db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
       if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
@@ -2637,7 +2650,7 @@
         style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:6px;font-family:'Noto Sans KR',sans-serif;">
       <div id="pc-ref-display" style="font-size:11px;color:#aaa;margin-bottom:10px;"></div>
       <div style="font-size:12px;color:#888;margin-bottom:4px;">잔여가치 (자동계산, 수정 가능)</div>
-      <input id="pc-value" type="number" value="0"
+      <input id="pc-value" type="text" inputmode="numeric" value="0" oninput="_fmtMoneyInput(this)"
         style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:'Noto Sans KR',sans-serif;">
       <div style="display:flex;gap:10px;">
         <button onclick="document.getElementById('app-change-modal').remove()" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
@@ -2654,7 +2667,7 @@
     const remain = parseFloat(document.getElementById('pc-remain')?.value) || 0;
     const value = Math.round(ctx.perUnit * remain);
     const valueEl = document.getElementById('pc-value');
-    if (valueEl) valueEl.value = value;
+    if (valueEl) valueEl.value = value.toLocaleString();
     const ref = document.getElementById('pc-ref-display');
     if (ref) ref.textContent = '참고: 1' + ctx.unitLabel + '당 ' + Math.round(ctx.perUnit).toLocaleString() + '원 × ' + remain + ctx.unitLabel + ' = ' + value.toLocaleString() + '원';
   }
@@ -2663,7 +2676,7 @@
     const ctx = window._changeCtx;
     if (!ctx) return;
     ctx.remainUnit = parseFloat(document.getElementById('pc-remain')?.value) || 0;
-    ctx.remainValue = parseInt(document.getElementById('pc-value')?.value) || 0;
+    ctx.remainValue = _getMoneyVal('pc-value');
     _renderProgChangeStep2();
   }
 
@@ -2707,7 +2720,7 @@
     if (isPeriod) {
       fieldsEl.innerHTML = `
         <div style="font-size:12px;color:#888;margin-bottom:4px;">변경 후 금액</div>
-        <input id="pc2-price" type="number" value="0"
+        <input id="pc2-price" type="text" inputmode="numeric" value="0" oninput="_fmtMoneyInput(this)"
           style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
         <div style="font-size:12px;color:#888;margin-bottom:4px;">이용기간 (개월)</div>
         <input id="pc2-months" type="number" value="1"
@@ -2715,7 +2728,7 @@
     } else {
       fieldsEl.innerHTML = `
         <div style="font-size:12px;color:#888;margin-bottom:4px;">변경 후 금액</div>
-        <input id="pc2-price" type="number" value="0"
+        <input id="pc2-price" type="text" inputmode="numeric" value="0" oninput="_fmtMoneyInput(this)"
           style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
         <div style="font-size:12px;color:#888;margin-bottom:4px;">횟수</div>
         <input id="pc2-count" type="number" value="1"
@@ -2727,7 +2740,7 @@
     const ctx = window._changeCtx;
     if (!ctx) return;
     const newProgKey = document.getElementById('pc2-prog')?.value;
-    const price = parseInt(document.getElementById('pc2-price')?.value) || 0;
+    const price = _getMoneyVal('pc2-price');
     const isPeriod = REFUND_PERIOD_PROGS.includes(newProgKey);
     ctx.newProgKey = newProgKey;
     ctx.newPrice = price;
@@ -2748,6 +2761,7 @@
   window._renderProgChangeStep2 = _renderProgChangeStep2;
   window._renderProgChangeStep2Fields = _renderProgChangeStep2Fields;
   window._progChangeStep2Next = _progChangeStep2Next;
+  window._fmtMoneyInput = _fmtMoneyInput;
 
 
   window.startTransfer = startTransfer;
