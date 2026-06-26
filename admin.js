@@ -3061,19 +3061,37 @@
     const modal = document.createElement('div');
     modal.id = 'app-hold-picker';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
-    const itemBtns = items.map(it => {
+    window._holdPickerItems = items; // 체크박스 인덱스로 다시 찾기 위해 임시저장
+    const itemRows = items.map((it, idx) => {
       const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
-      return `<button onclick="openHoldModal('${phone}','${contractKey}','${it.progKey}')"
-        style="width:100%;text-align:left;padding:12px;margin-bottom:8px;background:var(--bg,#f7f7f7);border:1px solid #e0e0e0;border-radius:10px;font-size:14px;color:var(--text,#1a1a1a);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-        ${label} · 종료일 ${it.data.endDate||'-'}</button>`;
+      return `<label style="display:flex;align-items:center;gap:8px;width:100%;padding:12px;margin-bottom:8px;background:var(--bg,#f7f7f7);border:1px solid #e0e0e0;border-radius:10px;font-size:14px;color:var(--text,#1a1a1a);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+        <input type="checkbox" class="ph-pick-item" data-idx="${idx}" style="width:18px;height:18px;flex-shrink:0;">
+        <span style="flex:1;">${label} · 종료일 ${it.data.endDate||'-'}</span>
+      </label>`;
     }).join('');
     modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:300px;font-family:'Noto Sans KR',sans-serif;">
-      <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">정지/휴회할 프로그램을 선택하세요</div>
-      ${itemBtns}
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px;color:var(--text,#1a1a1a);">정지/휴회할 프로그램을 선택하세요</div>
+      <div style="font-size:11.5px;color:#888;margin-bottom:14px;">2개 이상 선택하면 한번에 같이 휴회처리할 수 있어요</div>
+      ${itemRows}
+      <button onclick="_holdPickerNext('${phone}','${contractKey}')"
+        style="width:100%;padding:11px;background:#3b82f6;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:6px;">선택한 프로그램 휴회하기</button>
       <button onclick="document.getElementById('app-hold-picker').remove()"
-        style="width:100%;padding:10px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:13px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:4px;">취소</button>
+        style="width:100%;padding:10px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:13px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:8px;">취소</button>
     </div>`;
     document.body.appendChild(modal);
+  }
+
+  function _holdPickerNext(phone, contractKey) {
+    const items = window._holdPickerItems || [];
+    const checked = Array.from(document.querySelectorAll('.ph-pick-item:checked')).map(el => items[parseInt(el.dataset.idx)]);
+    if (!checked.length) { showToast('하나 이상 선택해주세요.', 'error'); return; }
+    document.getElementById('app-hold-picker')?.remove();
+    if (checked.length === 1) {
+      openHoldModal(phone, contractKey, checked[0].progKey);
+    } else {
+      window._multiHoldCtx = { phone, contractKey, items: checked };
+      _renderMultiHoldForm();
+    }
   }
 
   function openHoldModal(phone, contractKey, progKey) {
@@ -3182,6 +3200,109 @@
   window.openHoldModal = openHoldModal;
   window._onHoldDateChange = _onHoldDateChange;
   window._confirmHold = _confirmHold;
+  window._holdPickerNext = _holdPickerNext;
+
+  // ══════════════ 정지/휴회 (여러 프로그램 한번에 처리) ══════════════
+  function _renderMultiHoldForm() {
+    const ctx = window._multiHoldCtx;
+    document.getElementById('app-hold-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-hold-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+
+    const itemRows = ctx.items.map((it, idx) => {
+      const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
+      return `<div style="font-size:12px;color:#888;padding:6px 0;border-bottom:1px solid #e5e5e5;">
+        ${label} · 현재 종료일 ${it.data.endDate||'-'}
+        <div id="mh-end-${idx}" style="color:#3b82f6;font-weight:700;margin-top:2px;"></div>
+      </div>`;
+    }).join('');
+
+    const body = `<div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">⏸️ 정지/휴회 (${ctx.items.length}개 한번에)</div>
+      <div style="background:var(--bg,#f7f7f7);border-radius:8px;padding:10px 12px;margin-bottom:14px;">${itemRows}</div>
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">휴회 시작일</div>
+      <input id="mh-start-date" type="date" value="${_todayISO()}" onchange="_onMultiHoldDateChange()"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">휴회일수 (선택한 프로그램 전체에 동일하게 적용)</div>
+      <input id="mh-days" type="number" value="7" oninput="_onMultiHoldDateChange()"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:16px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="display:flex;gap:10px;">
+        <button onclick="document.getElementById('app-hold-modal').remove()" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button id="mh-confirm-btn" onclick="_confirmMultiHold()" style="flex:1;padding:12px;background:#3b82f6;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">휴회 확정 (${ctx.items.length}개)</button>
+      </div>`;
+
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">${body}</div>`;
+    document.body.appendChild(modal);
+    _onMultiHoldDateChange();
+  }
+
+  // 공통 시작일+휴회일수 → 항목별로 각자의 현재 종료일 기준 새 종료일 미리보기
+  function _onMultiHoldDateChange() {
+    const ctx = window._multiHoldCtx;
+    const daysEl = document.getElementById('mh-days');
+    if (!ctx || !daysEl) return;
+    const days = Math.max(0, parseInt(daysEl.value) || 0);
+    ctx.items.forEach((it, idx) => {
+      const display = document.getElementById('mh-end-' + idx);
+      if (!display) return;
+      const prevEndDate = it.data.endDate;
+      if (!prevEndDate) { display.textContent = ''; return; }
+      const d = new Date(prevEndDate);
+      d.setDate(d.getDate() + days);
+      const endStr = _isoDate(d);
+      display.textContent = '→ 새 종료일: ' + endStr;
+      display.dataset.newEndDate = endStr;
+    });
+  }
+
+  async function _confirmMultiHold() {
+    const ctx = window._multiHoldCtx;
+    if (!ctx) return;
+    const btn = document.getElementById('mh-confirm-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
+    try {
+      const startDate = document.getElementById('mh-start-date')?.value || _todayISO();
+      const days = Math.max(0, parseInt(document.getElementById('mh-days')?.value) || 0);
+      const snap = await db.ref('contracts/' + ctx.phone + '/' + ctx.contractKey).once('value');
+      if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      const contract = snap.val();
+      const freshItems = _flattenContractItems(contract);
+      const updates = {};
+      let appliedCount = 0;
+
+      ctx.items.forEach(it => {
+        const fresh = freshItems.find(x => x.progKey === it.progKey && x.pkgIndex === it.pkgIndex);
+        if (!fresh || !_isItemEligible(fresh.data) || fresh.data.activeHold) return; // 이미 처리됐거나 이미 휴회중이면 건너뜀
+        const basePath = it.pkgIndex === null
+          ? 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/programs/' + it.progKey
+          : 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/packages/' + it.pkgIndex + '/items/' + it.progKey;
+        const prevEndDate = fresh.data.endDate || _todayISO();
+        const d = new Date(prevEndDate);
+        d.setDate(d.getDate() + days);
+        const newEndDate = _isoDate(d);
+        updates[basePath + '/endDate'] = newEndDate;
+        updates[basePath + '/activeHold'] = {
+          key: String(Date.now()) + '_' + it.progKey, startDate, days, prevEndDate, newEndDate, processedAt: Date.now()
+        };
+        appliedCount++;
+      });
+
+      if (!appliedCount) { showToast('휴회 처리할 수 있는 항목이 없어요 (이미 처리됨/휴회중).', 'error'); return; }
+
+      await db.ref().update(updates);
+      document.getElementById('app-hold-modal')?.remove();
+      showToast('✅ ' + appliedCount + '개 프로그램 휴회 처리 완료!', 'success');
+      _renderMdContracts(ctx.phone);
+    } catch(e) {
+      showToast('휴회 처리 실패: ' + e.message, 'error');
+      const btn2 = document.getElementById('mh-confirm-btn');
+      if (btn2) { btn2.disabled = false; btn2.textContent = '휴회 확정'; }
+    }
+  }
+
+  window._renderMultiHoldForm = _renderMultiHoldForm;
+  window._onMultiHoldDateChange = _onMultiHoldDateChange;
+  window._confirmMultiHold = _confirmMultiHold;
 
 
   window.startTransfer = startTransfer;
