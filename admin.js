@@ -1748,7 +1748,8 @@
       const settleLabel = o.diff > 0 ? ' · 추가결제 ' + (o.settleAmount||0).toLocaleString() + '원'
         : o.diff < 0 ? ' · 환불 ' + (o.settleAmount||0).toLocaleString() + '원'
         : '';
-      return `<div style="font-size:10.5px;color:#f59e0b;font-weight:700;">🔄 ${REFUND_PROG_NAMES[o.toProgKey]||o.toProgKey}로 변경됨${settleLabel} · ${o.date || ''}</div>`;
+      const mergedNote = (o.mergedCount && o.mergedCount > 1) ? ' (' + o.mergedLabel + ' 합산 1회 발생)' : '';
+      return `<div style="font-size:10.5px;color:#f59e0b;font-weight:700;">🔄 ${REFUND_PROG_NAMES[o.toProgKey]||o.toProgKey}로 변경됨${settleLabel}${mergedNote} · ${o.date || ''}</div>`;
     }
     if (data.progChangeIn) {
       const i = data.progChangeIn;
@@ -1786,13 +1787,13 @@
 
     const itemRows = items.map(it => {
       const amt = it.data.price || 0;
-      return `<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-top:1px solid var(--border);">
-        <div>
-          <div style="font-size:12.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px;">${progLabels[it.progKey] || it.progKey} ${_renderPkgBadge(it.pkgName)}</div>
-          <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${_formatPeriodLabel(it.data)}</div>
+      return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid var(--border);">
+        <div style="flex-shrink:0;">
+          <div style="font-size:12.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px;white-space:nowrap;">${progLabels[it.progKey] || it.progKey} ${_renderPkgBadge(it.pkgName)}</div>
+          <div style="font-size:11px;color:var(--text-hint);margin-top:2px;white-space:nowrap;">${_formatPeriodLabel(it.data)}</div>
         </div>
-        <div style="text-align:right;">
-          <div style="font-size:12.5px;font-weight:700;color:var(--text);">${amt.toLocaleString()}원</div>
+        <div style="text-align:right;min-width:0;">
+          <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
           ${_renderItemStatusBadge(it.data)}
         </div>
       </div>`;
@@ -2896,7 +2897,8 @@
           updates[basePath + '/progChangeOut'] = {
             toProgKey: ctx.newProgKey, newPrice: ctx.newPrice, remainValue: ctx.remainValue,
             diff: ctx.diff, settleAmount: ctx.settleAmount || 0, method: ctx.settleMethod,
-            date: todayStr, processedAt: Date.now()
+            date: todayStr, processedAt: Date.now(),
+            mergedLabel: ctx.progKey, mergedCount: ctx.pkgItems.length
           };
         }
         if (!contractInfo) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
