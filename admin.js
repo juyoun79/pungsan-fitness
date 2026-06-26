@@ -1662,13 +1662,32 @@
   function _renderMdContracts(phone) {
     const el = document.getElementById('md-contracts');
     if (!el) return;
-    db.ref('contracts/' + phone).once('value').then(snap => {
+    db.ref('contracts/' + phone).once('value').then(async snap => {
       if (!snap.exists()) {
         el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;background:var(--card);border-radius:10px;">계약 이력이 없어요</div>';
         return;
       }
       const contracts = [];
       snap.forEach(child => { contracts.push({ key: child.key, ...child.val() }); });
+
+      // 화면을 열 때마다 — 예정된 휴회기간이 지났는데 아직 안 정리된 항목 자동마감 (출석여부와 무관)
+      const expiredUpdates = {};
+      contracts.forEach(c => {
+        _flattenContractItems(c).forEach(it => {
+          const basePath = it.pkgIndex === null
+            ? 'contracts/' + phone + '/' + c.key + '/programs/' + it.progKey
+            : 'contracts/' + phone + '/' + c.key + '/packages/' + it.pkgIndex + '/items/' + it.progKey;
+          const upd = _buildExpiredHoldUpdate(basePath, it.data);
+          if (upd) {
+            Object.assign(expiredUpdates, upd);
+            it.data.activeHold = null; // 화면에 바로 정확히 보이도록 로컬에도 즉시 반영
+          }
+        });
+      });
+      if (Object.keys(expiredUpdates).length) {
+        try { await db.ref().update(expiredUpdates); } catch(e) { console.error('휴회 자동마감 실패:', e); }
+      }
+
       // 최신순 정렬
       contracts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
@@ -1711,6 +1730,28 @@
   // 이미 환불됐거나 양도되어 나간 항목은 환불/양도 대상에서 제외
   function _isItemEligible(data) {
     return !data.refund && !data.transferOut && !data.progChangeOut;
+  }
+
+  // 지금 실제로 "휴회중"인지 — 날짜로만 판단 (오늘이 예정된 새종료일을 지났으면 이미 끝난 것)
+  function _isActivelyOnHold(data) {
+    return !!(data.activeHold && _todayISO() <= data.activeHold.newEndDate);
+  }
+
+  // 휴회 예정일이 지났는데 아직 activeHold가 안 정리된 경우, 마감처리용 업데이트 객체를 만들어줌 (없으면 null)
+  // 출석 여부와 상관없이 날짜만 보고 마감 — 계획했던 휴회일수 그대로 기록하고 깨끗하게 정리
+  function _buildExpiredHoldUpdate(basePath, data) {
+    if (!data.activeHold) return null;
+    const todayISO = _todayISO();
+    if (todayISO <= data.activeHold.newEndDate) return null; // 아직 안 끝남
+    const hold = data.activeHold;
+    const upd = {};
+    upd[basePath + '/activeHold'] = null;
+    upd[basePath + '/holdHistory/' + (hold.key || String(Date.now()))] = {
+      startDate: hold.startDate, plannedDays: hold.days, actualDays: hold.days,
+      prevEndDate: hold.prevEndDate, resolvedEndDate: hold.newEndDate,
+      createdAt: hold.processedAt, resolvedAt: Date.now(), autoClosedByDate: true
+    };
+    return upd;
   }
 
   // 개월수/횟수를 "3개월 · 4회" 같은 형태로 표시
@@ -1759,7 +1800,7 @@
       const fromLabel = i.fromLabel || (REFUND_PROG_NAMES[i.fromProgKey]||i.fromProgKey);
       return `<div style="font-size:10.5px;color:#3b82f6;font-weight:700;">🔄 ${fromLabel}에서 변경됨 (잔여가치 ${(i.remainValueCarried||0).toLocaleString()}원 이전${settleLabel})</div>`;
     }
-    if (data.activeHold) {
+    if (_isActivelyOnHold(data)) {
       const h = data.activeHold;
       return `<div style="font-size:10.5px;color:#8b5cf6;font-weight:700;">⏸️ 휴회중 (${h.startDate}~예정 ${h.newEndDate}, ${h.days}일)</div>`;
     }
@@ -3096,13 +3137,18 @@
 
   function openHoldModal(phone, contractKey, progKey) {
     document.getElementById('app-hold-picker')?.remove();
-    db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
+    db.ref('contracts/' + phone + '/' + contractKey).once('value').then(async snap => {
       if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
       const items = _flattenContractItems(snap.val());
       const item = items.find(it => it.progKey === progKey);
       if (!item) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
       if (!_isItemEligible(item.data)) { showToast('이미 처리된 프로그램이에요.', 'error'); return; }
-      if (item.data.activeHold) { showToast('이미 휴회중인 프로그램이에요.', 'error'); return; }
+      const basePath = item.pkgIndex === null
+        ? 'contracts/' + phone + '/' + contractKey + '/programs/' + progKey
+        : 'contracts/' + phone + '/' + contractKey + '/packages/' + item.pkgIndex + '/items/' + progKey;
+      const expiredUpd = _buildExpiredHoldUpdate(basePath, item.data);
+      if (expiredUpd) { await db.ref().update(expiredUpd); item.data.activeHold = null; }
+      if (_isActivelyOnHold(item.data)) { showToast('이미 휴회중인 프로그램이에요.', 'error'); return; }
       window._holdCtx = { phone, contractKey, progKey, item };
       _renderHoldForm();
     });
@@ -3167,11 +3213,12 @@
       const item = items.find(it => it.progKey === ctx.progKey);
       if (!item) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
       if (!_isItemEligible(item.data)) { showToast('이미 처리된 프로그램이에요.', 'error'); return; }
-      if (item.data.activeHold) { showToast('이미 휴회중인 프로그램이에요.', 'error'); return; }
-
       const basePath = item.pkgIndex === null
         ? 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/programs/' + ctx.progKey
         : 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/packages/' + item.pkgIndex + '/items/' + ctx.progKey;
+      const expiredUpd = _buildExpiredHoldUpdate(basePath, item.data);
+      if (expiredUpd) { await db.ref().update(expiredUpd); item.data.activeHold = null; }
+      if (_isActivelyOnHold(item.data)) { showToast('이미 휴회중인 프로그램이에요.', 'error'); return; }
 
       const prevEndDate = item.data.endDate || _todayISO();
       const d = new Date(prevEndDate);
@@ -3267,12 +3314,24 @@
       if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
       const contract = snap.val();
       const freshItems = _flattenContractItems(contract);
+
+      // 1차: 만료된(날짜 지난) 휴회가 아직 안 정리된 항목들 먼저 자동마감
+      const expiredUpdates = {};
+      freshItems.forEach(fi => {
+        const basePath = fi.pkgIndex === null
+          ? 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/programs/' + fi.progKey
+          : 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/packages/' + fi.pkgIndex + '/items/' + fi.progKey;
+        const upd = _buildExpiredHoldUpdate(basePath, fi.data);
+        if (upd) { Object.assign(expiredUpdates, upd); fi.data.activeHold = null; }
+      });
+      if (Object.keys(expiredUpdates).length) { await db.ref().update(expiredUpdates); }
+
       const updates = {};
       let appliedCount = 0;
 
       ctx.items.forEach(it => {
         const fresh = freshItems.find(x => x.progKey === it.progKey && x.pkgIndex === it.pkgIndex);
-        if (!fresh || !_isItemEligible(fresh.data) || fresh.data.activeHold) return; // 이미 처리됐거나 이미 휴회중이면 건너뜀
+        if (!fresh || !_isItemEligible(fresh.data) || _isActivelyOnHold(fresh.data)) return; // 이미 처리됐거나 진짜로 아직 휴회중이면 건너뜀
         const basePath = it.pkgIndex === null
           ? 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/programs/' + it.progKey
           : 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/packages/' + it.pkgIndex + '/items/' + it.progKey;
@@ -10924,13 +10983,16 @@ async function _resolveHoldsAndCheckEligibility(phone) {
         : 'contracts/' + phone + '/' + contractKey + '/packages/' + it.pkgIndex + '/items/' + it.progKey;
       let data = it.data;
 
-      // 휴회중인데 출석함 → "실제로 쉰 날수"만큼만 휴회 인정하고 자동해제
+      // 휴회중인데 출석함 → "실제로 쉰 날수"만큼만 휴회 인정하고 자동해제 (단, 계획된 휴회일수를 넘지는 않음 — 늦게 와도 그 이상 늘어나지 않음)
       if (data.activeHold) {
         const hold = data.activeHold;
-        const actualDays = Math.max(0, _dateDiffDays(todayISO, hold.startDate));
+        const rawDays = Math.max(0, _dateDiffDays(todayISO, hold.startDate));
+        const actualDays = Math.min(hold.days, rawDays);
         let newEnd;
         if (actualDays <= 0) {
           newEnd = hold.prevEndDate; // 휴회 시작일 당일/이전 출석 → 휴회 전 원래 종료일로 완전복구
+        } else if (actualDays >= hold.days) {
+          newEnd = hold.newEndDate; // 예정된 휴회기간을 다 썼거나 그 이후에 옴 → 원래 계획했던 종료일 그대로
         } else {
           const d = new Date(hold.prevEndDate);
           d.setDate(d.getDate() + actualDays);
