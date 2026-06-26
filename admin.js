@@ -1696,7 +1696,7 @@
         '기구필라테스개인':'기구필라테스 개인', '기구필라테스그룹':'기구필라테스 그룹'
       };
 
-      el.innerHTML = contracts.map(c => _renderSingleContractCard(phone, c, progLabels)).join('');
+      el.innerHTML = contracts.filter(c => _flattenContractItems(c).length > 0).map(c => _renderSingleContractCard(phone, c, progLabels)).join('');
     });
   }
 
@@ -1711,16 +1711,18 @@
     return Math.round((new Date(a) - new Date(b)) / 86400000);
   }
 
-  // 계약서 하나에 들어있는 모든 "프로그램" 항목을 한 줄로 펼쳐줌
+  // 계약서 하나에 들어있는 모든 "프로그램" 항목을 한 줄로 펼쳐줌 (삭제된 항목은 제외)
   // - 개별로 선택한 프로그램(c.programs)과
   // - 같은 날 묶음판매로 등록한 패키지 안의 프로그램(c.packages[].items)을 모두 합쳐서 반환
   function _flattenContractItems(c) {
     const list = [];
     Object.entries(c.programs || {}).forEach(([progKey, data]) => {
+      if (data.deleted) return;
       list.push({ progKey, data, pkgName: null, pkgIndex: null });
     });
     (c.packages || []).forEach((pkg, idx) => {
       Object.entries(pkg.items || {}).forEach(([progKey, data]) => {
+        if (data.deleted) return;
         list.push({ progKey, data, pkgName: pkg.name || null, pkgIndex: idx });
       });
     });
@@ -1948,6 +1950,11 @@
       return;
     }
     const names = { edit: '정보 수정', refund: '환불', transfer: '양도', change: '프로그램 변경', pause: '정지/휴회' };
+    if (act === 'edit' && contractKeyOrKeys.indexOf(',') === -1) {
+      document.querySelectorAll('.contract-action-menu').forEach(m => m.style.display = 'none');
+      openItemEditModal(phone, contractKeyOrKeys, progKey);
+      return;
+    }
     if (act === 'refund') {
       showToast('패키지 전체 환불 기능은 다음 업데이트에서 추가될 예정이에요! 프로그램별로 따로 환불해주세요.', 'info');
       return;
@@ -1969,6 +1976,144 @@
     }
     showToast((names[act] || act) + ' 기능은 다음 업데이트에서 추가될 예정이에요!', 'info');
   }
+
+  // ══════════════ 정보 수정 / 항목 삭제 ══════════════
+  function openItemEditModal(phone, contractKey, progKey) {
+    document.getElementById('app-edit-picker')?.remove();
+    db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
+      if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      const items = _flattenContractItems(snap.val());
+      if (progKey) {
+        const item = items.find(it => it.progKey === progKey);
+        if (!item) { showToast('해당 항목을 찾을 수 없어요.', 'error'); return; }
+        _renderItemEditForm(phone, contractKey, item);
+        return;
+      }
+      if (items.length === 1) {
+        _renderItemEditForm(phone, contractKey, items[0]);
+      } else if (items.length > 1) {
+        _showEditItemPicker(phone, contractKey, items);
+      } else {
+        showToast('수정할 항목이 없어요.', 'error');
+      }
+    });
+  }
+
+  function _showEditItemPicker(phone, contractKey, items) {
+    const modal = document.createElement('div');
+    modal.id = 'app-edit-picker';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+    const itemBtns = items.map(it => {
+      const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
+      return `<button onclick="document.getElementById('app-edit-picker').remove();openItemEditModal('${phone}','${contractKey}','${it.progKey}')"
+        style="width:100%;text-align:left;padding:12px;margin-bottom:8px;background:var(--bg,#f7f7f7);border:1px solid #e0e0e0;border-radius:10px;font-size:14px;color:var(--text,#1a1a1a);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+        ${label} · ${(it.data.price||0).toLocaleString()}원</button>`;
+    }).join('');
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:300px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">수정할 항목을 선택하세요</div>
+      ${itemBtns}
+      <button onclick="document.getElementById('app-edit-picker').remove()"
+        style="width:100%;padding:10px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:13px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:4px;">취소</button>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+
+  function _renderItemEditForm(phone, contractKey, item) {
+    window._editCtx = { phone, contractKey, progKey: item.progKey, pkgIndex: item.pkgIndex };
+    const data = item.data;
+    document.getElementById('app-edit-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-edit-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+    const label = (REFUND_PROG_NAMES[item.progKey] || item.progKey) + (item.pkgName ? ' (📦 ' + item.pkgName + ')' : '');
+
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:320px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">✏️ 정보 수정 — ${label}</div>
+
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">시작일</div>
+      <input id="ei-start" type="date" value="${data.startDate || ''}"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">종료일</div>
+      <input id="ei-end" type="date" value="${data.endDate || ''}"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">총 금액</div>
+      <input id="ei-price" type="number" value="${data.price || 0}"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+
+      <div style="display:flex;gap:6px;margin-bottom:14px;">
+        <div style="flex:1;">
+          <div style="font-size:11px;color:#888;margin-bottom:4px;">현금</div>
+          <input id="ei-cash" type="number" value="${data.cash || 0}" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:11px;color:#888;margin-bottom:4px;">카드</div>
+          <input id="ei-card" type="number" value="${data.card || 0}" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:11px;color:#888;margin-bottom:4px;">계좌</div>
+          <input id="ei-transfer" type="number" value="${data.transfer || 0}" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+        </div>
+      </div>
+
+      <button onclick="_saveItemEdit()"
+        style="width:100%;padding:12px;background:#3b82f6;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;">저장</button>
+      <button onclick="document.getElementById('app-edit-modal').remove()"
+        style="width:100%;padding:10px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:13px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:14px;">닫기</button>
+
+      <div style="border-top:1px solid #f0f0f0;padding-top:14px;">
+        <button onclick="deleteContractItem()"
+          style="width:100%;padding:10px;background:#fff1f0;border:1px solid #ffccc7;border-radius:10px;font-size:13px;font-weight:700;color:#cf1322;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑️ 이 항목 삭제</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+
+  async function _saveItemEdit() {
+    const ctx = window._editCtx;
+    if (!ctx) return;
+    try {
+      const basePath = ctx.pkgIndex === null
+        ? 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/programs/' + ctx.progKey
+        : 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/packages/' + ctx.pkgIndex + '/items/' + ctx.progKey;
+      const updates = {};
+      updates[basePath + '/startDate'] = document.getElementById('ei-start')?.value || '';
+      updates[basePath + '/endDate'] = document.getElementById('ei-end')?.value || '';
+      updates[basePath + '/price'] = parseInt(document.getElementById('ei-price')?.value) || 0;
+      updates[basePath + '/cash'] = parseInt(document.getElementById('ei-cash')?.value) || 0;
+      updates[basePath + '/card'] = parseInt(document.getElementById('ei-card')?.value) || 0;
+      updates[basePath + '/transfer'] = parseInt(document.getElementById('ei-transfer')?.value) || 0;
+      await db.ref().update(updates);
+      document.getElementById('app-edit-modal')?.remove();
+      showToast('✅ 정보가 수정됐어요.', 'success');
+      _renderMdContracts(ctx.phone);
+    } catch (e) {
+      showToast('수정 실패: ' + e.message, 'error');
+    }
+  }
+
+  // 항목 삭제 — 소프트삭제(deleted 표시만 남김, 화면에서 숨김 + 추후 매출통계 자동 제외), 같은 계약서의 다른 항목엔 영향 없음
+  function deleteContractItem() {
+    const ctx = window._editCtx;
+    if (!ctx) return;
+    showConfirm('이 항목을 삭제하시겠어요?\n매출통계에서도 제외되고, 되돌릴 수 없어요.\n(같은 계약서의 다른 항목은 그대로 남아요)', async () => {
+      try {
+        const basePath = ctx.pkgIndex === null
+          ? 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/programs/' + ctx.progKey
+          : 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/packages/' + ctx.pkgIndex + '/items/' + ctx.progKey;
+        await db.ref(basePath + '/deleted').set({ at: Date.now() });
+        document.getElementById('app-edit-modal')?.remove();
+        showToast('🗑️ 항목이 삭제됐어요.', 'success');
+        _renderMdContracts(ctx.phone);
+      } catch (e) {
+        showToast('삭제 실패: ' + e.message, 'error');
+      }
+    });
+  }
+  window.openItemEditModal = openItemEditModal;
+  window._saveItemEdit = _saveItemEdit;
+  window.deleteContractItem = deleteContractItem;
 
   // ══════════════ 환불 기능 ══════════════
   const REFUND_PERIOD_PROGS = ['헬스', 'GX']; // 기간제 — 위약금10%+사용일수 자동계산 / 그 외는 횟수제(직접입력)
