@@ -4737,37 +4737,14 @@
       const name  = document.getElementById('ct-name').value.trim();
       const phone = document.getElementById('ct-phone').value.trim().replace(/-/g,'');
       const birth = document.getElementById('ct-birth').value.trim();
-      const type  = document.getElementById('ct-type').value;
       if (!name)  { showToast('성명을 입력해주세요.', 'error'); return; }
       if (!phone || phone.length < 10) { showToast('연락처를 정확히 입력해주세요.', 'error'); return; }
       if (!birth || birth.length !== 8) { showToast('생년월일을 8자리로 입력해주세요.', 'error'); return; }
-      // 연락처 중복 검사
+      // 연락처 중복 검사 (이 화면은 신규 등록 전용 — 재등록은 회원상세 > 새 계약서 추가로)
       db.ref('members/' + phone).once('value').then(snap => {
-        if (type === 'new' && snap.exists()) {
-          showToast('이미 등록된 연락처예요. 재등록을 선택해주세요.', 'error');
+        if (snap.exists()) {
+          showToast('이미 등록된 연락처예요. 회원 탭에서 회원상세 > 새 계약서 추가로 진행해주세요.', 'error');
           return;
-        }
-        if (type === 're' && !snap.exists()) {
-          showToast('등록된 회원이 없어요. 신규를 선택해주세요.', 'error');
-          return;
-        }
-        // 재등록이면 기존 정보 자동 불러오기
-        if (type === 're' && snap.exists()) {
-          const data = snap.val();
-          const rawName = (data.name || '').replace(/\(\d{4}\)$/, '').trim();
-          document.getElementById('ct-name').value    = rawName;
-          document.getElementById('ct-birth').value   = data.birth   || birth;
-          document.getElementById('ct-address').value = data.address || '';
-          if (data.memo) document.getElementById('ct-memo').value = data.memo || '';
-          const gender = data['body/gender'] || 'male';
-          selectCtGender(gender);
-          // 기존 사진이 있으면 미리보기 표시
-          if (data.photoUrl) {
-            const preview = document.getElementById('ct-photo-preview');
-            if (preview) preview.innerHTML = `<img src="${data.photoUrl}" style="width:100%;height:100%;object-fit:cover;" />`;
-            updateCtPhotoUI(true);
-          }
-          showToast('기존 정보를 불러왔어요.', 'info');
         }
         ctGoStep(2);
       }).catch(() => ctGoStep(2));

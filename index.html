@@ -2721,21 +2721,10 @@
               <canvas id="ct-webcam-canvas" style="display:none;"></canvas>
             </div>
 
-            <!-- 신규/재등록 -->
-            <div style="margin-bottom:18px;">
-              <label class="field-label">회원 구분 *</label>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
-                <button type="button" id="ct-type-new" onclick="selectCtType('new')"
-                  style="padding:11px;border:2px solid var(--blue);background:var(--blue);color:white;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-                  🆕 신규
-                </button>
-                <button type="button" id="ct-type-re" onclick="selectCtType('re')"
-                  style="padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-                  🔄 재등록
-                </button>
-              </div>
-              <input type="hidden" id="ct-type" value="new" />
-            </div>
+            <!-- 신규 등록 (재등록은 회원상세 > 새 계약서 추가로 이동, 토글 UI 제거됨) -->
+            <input type="hidden" id="ct-type" value="new" />
+            <input type="hidden" id="ct-type-new" style="display:none" />
+            <input type="hidden" id="ct-type-re" style="display:none" />
 
             <!-- 1행: 성명 + 성별 -->
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
