@@ -2575,19 +2575,41 @@
     const modal = document.createElement('div');
     modal.id = 'app-change-picker';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
-    const itemBtns = items.map(it => {
+    window._progChangePickerItems = items; // 체크박스 인덱스로 다시 찾기 위해 임시저장
+    const itemRows = items.map((it, idx) => {
       const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
-      return `<button onclick="openProgChangeModal('${phone}','${contractKey}','${it.progKey}')"
-        style="width:100%;text-align:left;padding:12px;margin-bottom:8px;background:var(--bg,#f7f7f7);border:1px solid #e0e0e0;border-radius:10px;font-size:14px;color:var(--text,#1a1a1a);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-        ${label} · ${(it.data.price||0).toLocaleString()}원</button>`;
+      return `<label style="display:flex;align-items:center;gap:8px;width:100%;padding:12px;margin-bottom:8px;background:var(--bg,#f7f7f7);border:1px solid #e0e0e0;border-radius:10px;font-size:14px;color:var(--text,#1a1a1a);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+        <input type="checkbox" class="pc-pick-item" data-idx="${idx}" style="width:18px;height:18px;flex-shrink:0;">
+        <span style="flex:1;">${label} · ${(it.data.price||0).toLocaleString()}원</span>
+      </label>`;
     }).join('');
     modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:300px;font-family:'Noto Sans KR',sans-serif;">
-      <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">변경할 프로그램을 선택하세요</div>
-      ${itemBtns}
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px;color:var(--text,#1a1a1a);">변경할 프로그램을 선택하세요</div>
+      <div style="font-size:11.5px;color:#888;margin-bottom:14px;">2개 이상 선택하면 하나로 합쳐서 변경할 수 있어요</div>
+      ${itemRows}
+      <button onclick="_progChangePickerNext('${phone}','${contractKey}')"
+        style="width:100%;padding:11px;background:#3b82f6;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:6px;">선택한 프로그램 변경하기</button>
       <button onclick="document.getElementById('app-change-picker').remove()"
-        style="width:100%;padding:10px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:13px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:4px;">취소</button>
+        style="width:100%;padding:10px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:13px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:8px;">취소</button>
     </div>`;
     document.body.appendChild(modal);
+  }
+
+  function _progChangePickerNext(phone, contractKey) {
+    const items = window._progChangePickerItems || [];
+    const checked = Array.from(document.querySelectorAll('.pc-pick-item:checked')).map(el => items[parseInt(el.dataset.idx)]);
+    if (!checked.length) { showToast('하나 이상 선택해주세요.', 'error'); return; }
+    document.getElementById('app-change-picker')?.remove();
+    if (checked.length === 1) {
+      openProgChangeModal(phone, contractKey, checked[0].progKey);
+    } else {
+      window._changeCtx = {
+        phone,
+        pkgItems: checked.map(it => ({ contractKey, progKey: it.progKey, pkgIndex: it.pkgIndex, data: it.data })),
+        progKey: checked.map(it => REFUND_PROG_NAMES[it.progKey] || it.progKey).join(' + ')
+      };
+      _renderPkgProgChangeStep1();
+    }
   }
 
   function openProgChangeModal(phone, contractKey, progKey) {
@@ -2959,6 +2981,7 @@
 
   window.startProgChange = startProgChange;
   window.openProgChangeModal = openProgChangeModal;
+  window._progChangePickerNext = _progChangePickerNext;
   window._recalcProgChange = _recalcProgChange;
   window._progChangeStep1Next = _progChangeStep1Next;
 
