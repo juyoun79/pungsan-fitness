@@ -1734,11 +1734,11 @@
   function _renderItemStatusBadge(data) {
     if (data.refund) {
       const methodNames = { cash: '현금', card: '카드', transfer: '계좌' };
-      const dateLabel = data.refund.date ? ' · ' + data.refund.date : '';
+      const dateLabel = data.refund.date ? ' · <span style="white-space:nowrap;">' + data.refund.date + '</span>' : '';
       return `<div style="font-size:10.5px;color:#a855f7;font-weight:700;">🔻 환불완료 ${(data.refund.refundAmount||0).toLocaleString()}원 · ${methodNames[data.refund.method] || data.refund.method}${dateLabel}</div>`;
     }
     if (data.transferOut) {
-      return `<div style="font-size:10.5px;color:#f59e0b;font-weight:700;">🔁 양도됨 → ${data.transferOut.toName || ''} · ${data.transferOut.date || ''}</div>`;
+      return `<div style="font-size:10.5px;color:#f59e0b;font-weight:700;">🔁 양도됨 → ${data.transferOut.toName || ''} · <span style="white-space:nowrap;">${data.transferOut.date || ''}</span></div>`;
     }
     if (data.transferIn) {
       return `<div style="font-size:10.5px;color:#3b82f6;font-weight:700;">🔁 ${data.transferIn.fromName || ''}님으로부터 양도받음</div>`;
@@ -1749,7 +1749,7 @@
         : o.diff < 0 ? ' · 환불 ' + (o.settleAmount||0).toLocaleString() + '원'
         : '';
       const mergedNote = (o.mergedCount && o.mergedCount > 1) ? ' (' + o.mergedLabel + ' 합산 1회 발생)' : '';
-      return `<div style="font-size:10.5px;color:#f59e0b;font-weight:700;">🔄 ${REFUND_PROG_NAMES[o.toProgKey]||o.toProgKey}로 변경됨${settleLabel}${mergedNote} · ${o.date || ''}</div>`;
+      return `<div style="font-size:10.5px;color:#f59e0b;font-weight:700;">🔄 ${REFUND_PROG_NAMES[o.toProgKey]||o.toProgKey}로 변경됨${settleLabel}${mergedNote} · <span style="white-space:nowrap;">${o.date || ''}</span></div>`;
     }
     if (data.progChangeIn) {
       const i = data.progChangeIn;
