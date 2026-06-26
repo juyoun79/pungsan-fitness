@@ -2039,21 +2039,21 @@
         style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
 
       <div style="font-size:12px;color:#888;margin-bottom:4px;">총 금액</div>
-      <input id="ei-price" type="number" value="${data.price || 0}"
+      <input id="ei-price" type="text" inputmode="numeric" value="${(data.price || 0).toLocaleString()}" oninput="_formatMoneyInput(this)"
         style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
 
       <div style="display:flex;gap:6px;margin-bottom:14px;">
         <div style="flex:1;">
           <div style="font-size:11px;color:#888;margin-bottom:4px;">현금</div>
-          <input id="ei-cash" type="number" value="${data.cash || 0}" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+          <input id="ei-cash" type="text" inputmode="numeric" value="${(data.cash || 0).toLocaleString()}" oninput="_formatMoneyInput(this)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
         </div>
         <div style="flex:1;">
           <div style="font-size:11px;color:#888;margin-bottom:4px;">카드</div>
-          <input id="ei-card" type="number" value="${data.card || 0}" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+          <input id="ei-card" type="text" inputmode="numeric" value="${(data.card || 0).toLocaleString()}" oninput="_formatMoneyInput(this)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
         </div>
         <div style="flex:1;">
           <div style="font-size:11px;color:#888;margin-bottom:4px;">계좌</div>
-          <input id="ei-transfer" type="number" value="${data.transfer || 0}" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+          <input id="ei-transfer" type="text" inputmode="numeric" value="${(data.transfer || 0).toLocaleString()}" oninput="_formatMoneyInput(this)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
         </div>
       </div>
 
@@ -2070,6 +2070,13 @@
     document.body.appendChild(modal);
   }
 
+  // 금액 입력칸에 입력할 때마다 천단위 콤마를 자동으로 붙여줌
+  function _formatMoneyInput(el) {
+    const digits = el.value.replace(/[^0-9]/g, '');
+    el.value = digits ? parseInt(digits).toLocaleString() : '';
+  }
+  window._formatMoneyInput = _formatMoneyInput;
+
   async function _saveItemEdit() {
     const ctx = window._editCtx;
     if (!ctx) return;
@@ -2077,13 +2084,14 @@
       const basePath = ctx.pkgIndex === null
         ? 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/programs/' + ctx.progKey
         : 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/packages/' + ctx.pkgIndex + '/items/' + ctx.progKey;
+      const num = id => parseInt((document.getElementById(id)?.value || '0').replace(/[^0-9]/g, '')) || 0;
       const updates = {};
       updates[basePath + '/startDate'] = document.getElementById('ei-start')?.value || '';
       updates[basePath + '/endDate'] = document.getElementById('ei-end')?.value || '';
-      updates[basePath + '/price'] = parseInt(document.getElementById('ei-price')?.value) || 0;
-      updates[basePath + '/cash'] = parseInt(document.getElementById('ei-cash')?.value) || 0;
-      updates[basePath + '/card'] = parseInt(document.getElementById('ei-card')?.value) || 0;
-      updates[basePath + '/transfer'] = parseInt(document.getElementById('ei-transfer')?.value) || 0;
+      updates[basePath + '/price'] = num('ei-price');
+      updates[basePath + '/cash'] = num('ei-cash');
+      updates[basePath + '/card'] = num('ei-card');
+      updates[basePath + '/transfer'] = num('ei-transfer');
       await db.ref().update(updates);
       document.getElementById('app-edit-modal')?.remove();
       showToast('✅ 정보가 수정됐어요.', 'success');
