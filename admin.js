@@ -4049,7 +4049,7 @@
     const cat = lockerCategories.find(c => c.id === selectedLockerCatId);
     if (!cat) return;
 
-    const today = getToday();
+    const today = _todayISO();
     const soon = new Date(); soon.setDate(soon.getDate() + 7);
     const soonDate = soon.toISOString().slice(0,10);
 
@@ -4169,7 +4169,7 @@
           <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--text-hint);">자물쇠</span><span style="font-size:13px;font-weight:600;">${d.lockPassword || '-'}</span></div>
         </div>
         <div style="display:flex;gap:8px;">
-          ${d.status === 'expired' || (d.endDate && d.endDate < getToday())
+          ${d.status === 'expired' || (d.endDate && d.endDate < _todayISO())
             ? `<button onclick="collectLocker('${catId}','${no}')" style="flex:1;padding:11px;background:#fff3e0;color:#e65100;border:1.5px solid #ffb74d;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✅ 회수 완료</button>`
             : ''}
           <button onclick="releaseLocker('${catId}','${no}')"
