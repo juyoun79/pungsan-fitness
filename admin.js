@@ -1773,6 +1773,10 @@
 
   // 미수금/완납/환불완료 상태 표시 (환불이 처리된 항목은 환불완료로 표시)
   function _renderItemStatusBadge(data) {
+    if (_isActivelyOnHold(data)) {
+      const h = data.activeHold;
+      return `<div style="font-size:10.5px;color:#8b5cf6;font-weight:700;">⏸️ 휴회중 (${h.startDate}~예정 ${h.newEndDate}, ${h.days}일)</div>`;
+    }
     if (data.refund) {
       const methodNames = { cash: '현금', card: '카드', transfer: '계좌' };
       const dateLabel = data.refund.date ? ' · <span style="white-space:nowrap;">' + data.refund.date + '</span>' : '';
@@ -1799,10 +1803,6 @@
         : '';
       const fromLabel = i.fromLabel || (REFUND_PROG_NAMES[i.fromProgKey]||i.fromProgKey);
       return `<div style="font-size:10.5px;color:#3b82f6;font-weight:700;">🔄 ${fromLabel}에서 변경됨 (잔여가치 ${(i.remainValueCarried||0).toLocaleString()}원 이전${settleLabel})</div>`;
-    }
-    if (_isActivelyOnHold(data)) {
-      const h = data.activeHold;
-      return `<div style="font-size:10.5px;color:#8b5cf6;font-weight:700;">⏸️ 휴회중 (${h.startDate}~예정 ${h.newEndDate}, ${h.days}일)</div>`;
     }
     const amt = data.price || 0;
     const paid = (data.cash||0) + (data.card||0) + (data.transfer||0);
