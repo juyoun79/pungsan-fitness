@@ -732,3 +732,23 @@ body.pc-mode .md-main-card {
 body.pc-mode .md-main-card-body {
   flex: 1;
 }
+
+/* ── PC 모드: 회원상세 기본정보 카드 내부 4열 배치 (이름/생년월일/성별/연락처 한 줄) ── */
+body.pc-mode .md-main-card-body {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px 10px;
+}
+body.pc-mode .md-row-name-birth,
+body.pc-mode .md-row-gender-phone {
+  display: contents;
+}
+body.pc-mode .md-row-address,
+body.pc-mode .md-row-stats {
+  grid-column: 1 / -1;
+}
+
+/* PC 모드: 회원 메모 입력창 높이 확대 */
+body.pc-mode #md-memo {
+  height: 140px;
+}

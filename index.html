@@ -2552,7 +2552,7 @@
             <div style="display:flex;flex-direction:column;gap:10px;" class="md-main-card-body">
 
               <!-- 이름 + 생년월일 (2열) -->
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" class="md-row md-row-name-birth">
                 <div>
                   <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">이름</div>
                   <input id="md-edit-name" type="text" placeholder="이름 입력"
@@ -2568,7 +2568,7 @@
               </div>
 
               <!-- 성별 + 연락처 (2열 한 줄) -->
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" class="md-row md-row-gender-phone">
                 <div>
                   <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">성별</div>
                   <div style="display:flex;gap:5px;">
@@ -2589,7 +2589,7 @@
               </div>
 
               <!-- 주소 -->
-              <div style="display:grid;grid-template-columns:72px 1fr;align-items:start;gap:12px;">
+              <div style="display:grid;grid-template-columns:72px 1fr;align-items:start;gap:12px;" class="md-row md-row-address">
                 <span style="font-size:13px;color:var(--text-hint);padding-top:9px;">주소</span>
                 <textarea id="md-edit-address" placeholder="주소 입력"
                   style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:60px;line-height:1.5;background:var(--bg);color:var(--text);"
@@ -2597,7 +2597,7 @@
               </div>
 
               <!-- 포인트/이번달출석/누적출석 (3열 한 줄) -->
-              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:2px;">
+              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:2px;" class="md-row md-row-stats">
                 <div style="background:var(--bg);border-radius:10px;padding:10px 12px;">
                   <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">포인트</div>
                   <div id="md-points" style="font-size:13px;font-weight:600;color:var(--blue);"></div>
