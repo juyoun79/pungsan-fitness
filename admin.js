@@ -80,6 +80,7 @@
       if (mobileBody) mobileBody.style.display = 'block';
       // PC 모드: max-width 해제
       if (appEl) { appEl.style.maxWidth = '100%'; appEl.style.width = '100%'; }
+      document.body.classList.add('pc-mode');
     } else {
       if (mobileHeader) mobileHeader.style.display = 'block';
       if (pcHeader) pcHeader.style.display = 'none';
@@ -89,6 +90,7 @@
       if (mobileBody) mobileBody.style.display = 'block';
       // 모바일 모드: max-width 복원
       if (appEl) { appEl.style.maxWidth = '430px'; appEl.style.width = ''; }
+      document.body.classList.remove('pc-mode');
     }
   }
 
