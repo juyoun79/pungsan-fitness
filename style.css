@@ -753,18 +753,15 @@ body.pc-mode #md-memo {
   height: 140px;
 }
 
-/* ── PC 모드: 계약이력 카드 내 항목 줄에 결제수단/시작일/종료일 가로 표시 ── */
+/* ── PC 모드: 계약이력 카드 내 항목 줄에 시작일/종료일 표시 ── */
 body.pc-mode .md-item-extra {
   display: flex !important;
-  flex: 1;
-  justify-content: center;
-  gap: 22px;
+  gap: 18px;
   font-size: 11px;
   color: var(--text-sub);
   padding-top: 2px;
 }
 body.pc-mode .md-item-extra > div {
-  text-align: center;
   white-space: nowrap;
 }
 body.pc-mode .md-item-extra > div > span {
