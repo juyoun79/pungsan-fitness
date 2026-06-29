@@ -1545,11 +1545,14 @@
 
     // 사진
     const photoDiv = document.getElementById('md-photo');
+    const mdDelBtn = document.getElementById('md-photo-delete-btn');
     if (info.photoUrl) {
       photoDiv.innerHTML = `<img src="${info.photoUrl}" style="width:100%;height:100%;object-fit:cover;" />`;
+      if (mdDelBtn) mdDelBtn.style.display = 'block';
     } else {
       photoDiv.innerHTML = rawName ? rawName[0] : '👤';
       photoDiv.style.fontSize = '32px';
+      if (mdDelBtn) mdDelBtn.style.display = 'none';
     }
 
     // 회원 메모 불러오기
@@ -1620,6 +1623,126 @@
         ${traineeInfo ? `<div style="margin-top:8px;font-size:12px;color:var(--text-sub);text-align:center;">${type}</div>` : '<div style="margin-top:8px;font-size:12px;color:var(--text-hint);text-align:center;">배정된 강사가 없어요</div>'}`;
     }).catch(() => {
       el.innerHTML = '<div style="text-align:center;color:var(--text-hint);font-size:13px;padding:8px 0;">불러오기 실패</div>';
+    });
+  }
+
+  // ── 회원상세화면 프로필 사진 변경 (계약서탭 사진기능과 완전히 분리된 별도 코드) ──
+
+  function openMdWebcam() {
+    const modal = document.getElementById('md-webcam-modal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        mdWebcamStream = stream;
+        const video = document.getElementById('md-webcam-video');
+        if (video) video.srcObject = stream;
+      })
+      .catch(() => {
+        modal.style.display = 'none';
+        showToast('카메라 권한이 필요해요. 파일 선택을 이용해주세요.', 'error');
+      });
+  }
+
+  function closeMdWebcam() {
+    if (mdWebcamStream) { mdWebcamStream.getTracks().forEach(t => t.stop()); mdWebcamStream = null; }
+    const modal = document.getElementById('md-webcam-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function captureMdWebcam() {
+    const video  = document.getElementById('md-webcam-video');
+    const canvas = document.getElementById('md-webcam-canvas');
+    if (!video || !canvas) return;
+    canvas.width = 300; canvas.height = 300;
+    const ctx  = canvas.getContext('2d');
+    const size = Math.min(video.videoWidth, video.videoHeight);
+    const sx   = (video.videoWidth  - size) / 2;
+    const sy   = (video.videoHeight - size) / 2;
+    ctx.drawImage(video, sx, sy, size, size, 0, 0, 300, 300);
+    canvas.toBlob(blob => {
+      mdPhotoBlob = blob;
+      closeMdWebcam();
+      _uploadMdPhotoNow(blob);
+    }, 'image/jpeg', 0.7);
+  }
+
+  function onMdPhotoFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const img    = new Image();
+    const reader = new FileReader();
+    reader.onload = e => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 300; canvas.height = 300;
+        const ctx  = canvas.getContext('2d');
+        const size = Math.min(img.width, img.height);
+        const sx   = (img.width  - size) / 2;
+        const sy   = (img.height - size) / 2;
+        ctx.drawImage(img, sx, sy, size, size, 0, 0, 300, 300);
+        canvas.toBlob(blob => {
+          mdPhotoBlob = blob;
+          _uploadMdPhotoNow(blob);
+        }, 'image/jpeg', 0.7);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+    input.value = ''; // 같은 파일을 다시 선택해도 onchange가 동작하도록 초기화
+  }
+
+  // 선택/촬영한 사진을 바로 Firebase에 업로드 + 저장 + 화면에 반영
+  async function _uploadMdPhotoNow(blob) {
+    const phone = currentMemberPhone;
+    if (!phone) { showToast('회원 정보를 찾을 수 없어요.', 'error'); return; }
+    showToast('사진 업로드 중...', 'info');
+    try {
+      const storageRef = firebase.storage().ref('members/' + phone + '/profile.jpg');
+      await storageRef.put(blob, { contentType: 'image/jpeg' });
+      const url = await storageRef.getDownloadURL();
+      await db.ref('members/' + phone + '/photoUrl').set(url);
+
+      // 화면 즉시 반영
+      const photoDiv = document.getElementById('md-photo');
+      if (photoDiv) photoDiv.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;" />`;
+      const delBtn = document.getElementById('md-photo-delete-btn');
+      if (delBtn) delBtn.style.display = 'block';
+
+      // 회원목록 캐시에도 반영 (목록으로 돌아갔을 때도 최신 사진이 보이도록)
+      if (cachedMembers[phone]) cachedMembers[phone].photoUrl = url;
+
+      showToast('✅ 사진이 저장됐어요!', 'success');
+    } catch (e) {
+      console.error('회원상세 사진 업로드 실패:', e);
+      showToast('사진 업로드에 실패했어요: ' + e.message, 'error');
+    }
+  }
+
+  // 프로필 사진 삭제
+  function deleteMdPhoto() {
+    const phone = currentMemberPhone;
+    if (!phone) return;
+    showConfirm('프로필 사진을 삭제할까요?', async () => {
+      try {
+        await firebase.storage().ref('members/' + phone + '/profile.jpg').delete().catch(() => {});
+        await db.ref('members/' + phone + '/photoUrl').remove();
+
+        const info = cachedMembers[phone];
+        const rawName = info ? (info.name || '').replace(/\(\d{4}\)$/, '').trim() : '';
+        const photoDiv = document.getElementById('md-photo');
+        if (photoDiv) {
+          photoDiv.innerHTML = rawName ? rawName[0] : '👤';
+          photoDiv.style.fontSize = '26px';
+        }
+        const delBtn = document.getElementById('md-photo-delete-btn');
+        if (delBtn) delBtn.style.display = 'none';
+        if (info) delete info.photoUrl;
+
+        showToast('🗑️ 사진을 삭제했어요.', 'success');
+      } catch (e) {
+        showToast('삭제에 실패했어요: ' + e.message, 'error');
+      }
     });
   }
 
@@ -4603,6 +4726,10 @@
   // ── 계약서 웹캠/사진 관련 ──
   let ctWebcamStream = null;
   let ctPhotoBlob    = null;
+
+  // 회원상세화면 프로필 사진 변경용 (계약서탭의 ctWebcamStream/ctPhotoBlob과 완전히 별도, 절대 혼용하지 말 것)
+  let mdWebcamStream = null;
+  let mdPhotoBlob    = null;
 
   function openCtWebcam() {
     const modal = document.getElementById('ct-webcam-modal');
