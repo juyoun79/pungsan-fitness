@@ -2615,7 +2615,7 @@
             </div>
 
             <!-- 저장 버튼 -->
-            <button onclick="saveMemberBasicInfo()"
+            <button onclick="saveMemberBasicInfo()" class="md-save-btn"
               style="width:100%;margin-top:14px;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 기본정보 저장</button>
           </div>
 
@@ -2623,16 +2623,16 @@
           </div>
 
           <!-- 회원 메모 -->
-          <div style="background:var(--card);padding:16px;margin-bottom:8px;">
+          <div style="background:var(--card);padding:16px;margin-bottom:8px;" class="md-section-card">
             <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:10px;">회원 메모</div>
             <textarea id="md-memo" placeholder="특이사항, 메모 등 자유롭게 입력하세요."
               style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:90px;line-height:1.6;background:var(--bg);"
               onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'"></textarea>
-            <button onclick="saveMemberMemo()" style="width:100%;margin-top:8px;padding:10px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 메모 저장</button>
+            <button onclick="saveMemberMemo()" class="md-save-btn" style="width:100%;margin-top:8px;padding:10px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 메모 저장</button>
           </div>
 
           <!-- 계약이력 -->
-          <div style="background:var(--card);padding:16px;margin-bottom:8px;">
+          <div style="background:var(--card);padding:16px;margin-bottom:8px;" class="md-section-card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
               <div style="font-size:12px;font-weight:700;color:var(--text-sub);">계약이력</div>
               <button onclick="addNewContractForMember(currentMemberPhone)"
@@ -2644,7 +2644,7 @@
           </div>
 
           <!-- 서명기록 -->
-          <div style="background:var(--card);padding:16px;margin-bottom:8px;">
+          <div style="background:var(--card);padding:16px;margin-bottom:8px;" class="md-section-card">
             <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:10px;">서명기록</div>
             <div id="md-signs">
               <div style="text-align:center;color:var(--text-hint);font-size:13px;padding:12px 0;">불러오는 중...</div>
@@ -2652,7 +2652,7 @@
           </div>
 
           <!-- 액션 버튼 -->
-          <div style="background:var(--card);padding:16px;margin-bottom:8px;display:flex;flex-direction:column;gap:8px;">
+          <div style="background:var(--card);padding:16px;margin-bottom:8px;display:flex;flex-direction:column;gap:8px;" class="md-section-card">
             <button onclick="editMemberPw()" style="width:100%;padding:11px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔑 비밀번호 초기화</button>
             <button onclick="editMemberPoint()" style="width:100%;padding:11px;background:#f0fdf4;color:#16a34a;border:1.5px solid #86efac;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💰 포인트 수정</button>
             <button onclick="deleteMember()" style="width:100%;padding:11px;background:#fff0f0;color:#c0392b;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑️ 회원 삭제</button>
