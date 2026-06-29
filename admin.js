@@ -1893,10 +1893,18 @@
 
     const itemRows = items.map(it => {
       const amt = it.data.price || 0;
-      return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid var(--border);">
-        <div style="flex-shrink:0;">
+      const methodLabel = _paymentMethodLabel(it.data) || '-';
+      const startLabel = it.data.startDate || '-';
+      const endLabel = it.data.endDate || '-';
+      return `<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid var(--border);" class="md-item-row">
+        <div style="flex-shrink:0;" class="md-item-label">
           <div style="font-size:12.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px;white-space:nowrap;">${progLabels[it.progKey] || it.progKey} ${_renderPkgBadge(it.pkgName)}</div>
           <div style="font-size:11px;color:var(--text-hint);margin-top:2px;white-space:nowrap;">${_formatPeriodLabel(it.data)}</div>
+        </div>
+        <div class="md-item-extra" style="display:none;">
+          <div>결제수단<br><span>${methodLabel}</span></div>
+          <div>시작일<br><span>${startLabel}</span></div>
+          <div>종료일<br><span>${endLabel}</span></div>
         </div>
         <div style="text-align:right;min-width:0;">
           <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
