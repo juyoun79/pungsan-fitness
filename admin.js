@@ -1952,7 +1952,7 @@
       `<button onclick="handleContractAction('${a.act}','${phone}','${contractKeyOrKeys}',${progArg})"
         style="width:100%;text-align:left;padding:9px 12px;background:none;border:none;border-top:1px solid var(--border);font-size:12.5px;color:var(--text);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">${a.icon} ${a.name}</button>`
     ).join('');
-    return `<div style="position:relative;">
+    return `<div style="position:relative;" class="md-contract-menu">
         <button onclick="toggleContractMenu('${menuId}')"
           style="width:100%;padding:8px;background:var(--card);color:var(--text-sub);border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">${label} ▾</button>
         <div id="${menuId}" class="contract-action-menu" style="display:none;margin-top:4px;background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;">

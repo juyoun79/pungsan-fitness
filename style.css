@@ -808,3 +808,10 @@ body.pc-mode .md-save-btn {
   margin-left: auto !important;
   display: block;
 }
+
+/* ── PC 모드: 계약카드 "처리▾" 버튼 크기 축소 + 우측 정렬 ── */
+body.pc-mode .md-contract-menu {
+  width: fit-content !important;
+  min-width: 180px;
+  margin-left: auto;
+}
