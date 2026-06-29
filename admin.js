@@ -1856,18 +1856,8 @@
       const fromLabel = i.fromLabel || (REFUND_PROG_NAMES[i.fromProgKey]||i.fromProgKey);
       return `<div style="font-size:10.5px;color:#3b82f6;font-weight:700;">🔄 ${fromLabel}에서 변경됨 (잔여가치 ${(i.remainValueCarried||0).toLocaleString()}원 이전${settleLabel})</div>`;
     }
-  // 현금/카드/계좌 중 실제로 결제된 수단만 골라서 표시용 문자열로 만듦 (한 가지면 이름만, 여러 개면 금액과 함께 + 로 연결)
-  function _paymentMethodLabel(data) {
-    const methods = [];
-    if (data.cash) methods.push(['현금', data.cash]);
-    if (data.card) methods.push(['카드', data.card]);
-    if (data.transfer) methods.push(['계좌', data.transfer]);
-    if (methods.length === 0) return '';
-    if (methods.length === 1) return methods[0][0];
-    return methods.map(([n, a]) => n + ' ' + a.toLocaleString()).join(' + ');
-  }
 
-  const amt = data.price || 0;
+    const amt = data.price || 0;
     const paid = (data.cash||0) + (data.card||0) + (data.transfer||0);
     const unpaid = amt - paid;
     const methodLabel = _paymentMethodLabel(data);
@@ -1878,6 +1868,17 @@
     return unpaid > 0
       ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">${methodPrefix}미수금 ${unpaid.toLocaleString()}원${holdNote}</div>`
       : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">${methodPrefix}완납 ✓${holdNote}</div>`;
+  }
+
+  // 현금/카드/계좌 중 실제로 결제된 수단만 골라서 표시용 문자열로 만듦 (한 가지면 이름만, 여러 개면 금액과 함께 + 로 연결)
+  function _paymentMethodLabel(data) {
+    const methods = [];
+    if (data.cash) methods.push(['현금', data.cash]);
+    if (data.card) methods.push(['카드', data.card]);
+    if (data.transfer) methods.push(['계좌', data.transfer]);
+    if (methods.length === 0) return '';
+    if (methods.length === 1) return methods[0][0];
+    return methods.map(([n, a]) => n + ' ' + a.toLocaleString()).join(' + ');
   }
 
   // 단독 계약 카드 (다른 계약서와 패키지로 묶이지 않은 일반 계약서)
