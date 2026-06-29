@@ -1896,21 +1896,27 @@
       const amt = it.data.price || 0;
       const startLabel = it.data.startDate || '-';
       const endLabel = it.data.endDate || '-';
-      return `<div style="display:flex;align-items:flex-start;gap:14px;padding:8px 0;border-top:1px solid var(--border);" class="md-item-row">
-        <div style="flex-shrink:0;" class="md-item-label">
-          <div style="font-size:12.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px;white-space:nowrap;">${progLabels[it.progKey] || it.progKey} ${_renderPkgBadge(it.pkgName)}</div>
-          <div style="font-size:11px;color:var(--text-hint);margin-top:2px;white-space:nowrap;">${_formatPeriodLabel(it.data)}</div>
-        </div>
-        <div class="md-item-extra" style="display:none;">
-          <div>시작일<br><span>${startLabel}</span></div>
-          <div>종료일<br><span>${endLabel}</span></div>
-        </div>
-        <div style="text-align:right;min-width:0;margin-left:auto;">
-          <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
-          ${_renderItemStatusBadge(it.data, phone, c.key, it.progKey)}
+      return `<div class="md-item-row" style="padding:8px 0;border-top:1px solid var(--border);">
+        <div style="display:flex;align-items:flex-start;gap:14px;" class="md-item-flexwrap">
+          <div style="flex-shrink:0;" class="md-item-label">
+            <div style="font-size:12.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px;white-space:nowrap;">${progLabels[it.progKey] || it.progKey} ${_renderPkgBadge(it.pkgName)}</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;white-space:nowrap;">${_formatPeriodLabel(it.data)}</div>
+          </div>
+          <div class="md-item-extra" style="display:none;">
+            <div><span class="md-item-extra-label">시작일</span> <span>${startLabel}</span></div>
+            <div><span class="md-item-extra-label">종료일</span> <span>${endLabel}</span></div>
+          </div>
+          <div style="text-align:right;min-width:0;margin-left:auto;" class="md-item-amount">
+            <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
+            ${_renderItemStatusBadge(it.data, phone, c.key, it.progKey)}
+          </div>
         </div>
       </div>`;
     }).join('');
+
+    const itemHeader = `<div class="md-item-colhead" style="display:none;">
+      <div>프로그램</div><div>시작일</div><div>종료일</div><div style="text-align:right;">결제 / 상태</div>
+    </div>`;
 
     return `<div style="background:var(--card);border-radius:10px;padding:16px;border:1px solid var(--border);">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
@@ -1920,6 +1926,7 @@
           ${grandUnpaid > 0 ? `<div style="font-size:11px;color:#ef4444;font-weight:700;">미수금 ${grandUnpaid.toLocaleString()}원</div>` : `<div style="font-size:11px;color:#22c55e;font-weight:600;">완납 ✓</div>`}
         </div>
       </div>
+      ${itemHeader}
       ${itemRows}
       ${c.memo ? `<div style="background:var(--bg);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text-sub);margin-top:10px;margin-bottom:10px;">📌 ${c.memo}</div>` : ''}
       ${grandUnpaid > 0 ? `
