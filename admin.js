@@ -2350,7 +2350,7 @@
   }
 
   function _renderExtraEditForm(phone, contractKey, extraKey, e) {
-    window._extraEditCtx = { phone, contractKey, extraKey };
+    window._extraEditCtx = { phone, contractKey, extraKey, lockerKey: e.lockerKey || null };
     document.getElementById('app-extra-edit-modal')?.remove();
     const modal = document.createElement('div');
     modal.id = 'app-extra-edit-modal';
@@ -2406,13 +2406,24 @@
     try {
       const basePath = 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/extras/' + ctx.extraKey;
       const num = id => parseInt((document.getElementById(id)?.value || '0').replace(/[^0-9]/g, '')) || 0;
+      const newStart = document.getElementById('ee-start')?.value || '';
+      const newEnd   = document.getElementById('ee-end')?.value || '';
       const updates = {};
-      updates[basePath + '/startDate'] = document.getElementById('ee-start')?.value || '';
-      updates[basePath + '/endDate'] = document.getElementById('ee-end')?.value || '';
+      updates[basePath + '/startDate'] = newStart;
+      updates[basePath + '/endDate'] = newEnd;
       updates[basePath + '/price'] = num('ee-price');
       updates[basePath + '/cash'] = num('ee-cash');
       updates[basePath + '/card'] = num('ee-card');
       updates[basePath + '/transfer'] = num('ee-transfer');
+      // 락카 항목이고 연결된 락카(lockers/)가 있으면 — 날짜를 거기에도 같이 반영 (양방향 동기화)
+      if (ctx.lockerKey) {
+        updates['lockers/' + ctx.lockerKey + '/startDate'] = newStart;
+        updates['lockers/' + ctx.lockerKey + '/endDate'] = newEnd;
+        if (lockerData[ctx.lockerKey]) {
+          lockerData[ctx.lockerKey].startDate = newStart;
+          lockerData[ctx.lockerKey].endDate = newEnd;
+        }
+      }
       await db.ref().update(updates);
       document.getElementById('app-extra-edit-modal')?.remove();
       showToast('✅ 정보가 수정됐어요.', 'success');
@@ -4711,6 +4722,8 @@
           <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--text-hint);">기간</span><span style="font-size:13px;font-weight:600;">${d.startDate||'-'} ~ ${d.endDate||'-'}</span></div>
           <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--text-hint);">자물쇠</span><span style="font-size:13px;font-weight:600;">${d.lockPassword || '-'}</span></div>
         </div>
+        <button onclick="editLockerSlot('${catId}','${no}')"
+          style="width:100%;padding:11px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;">✏️ 정보 수정</button>
         <div style="display:flex;gap:8px;">
           ${d.status === 'expired' || (d.endDate && d.endDate < _todayISO())
             ? `<button onclick="collectLocker('${catId}','${no}')" style="flex:1;padding:11px;background:#fff3e0;color:#e65100;border:1.5px solid #ffb74d;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✅ 회수 완료</button>`
@@ -4725,6 +4738,108 @@
 
     showLockerDetail(html);
   }
+
+  // 배정된 락카 정보 수정 화면 — 운영정보(이름/연락처/기간/자물쇠번호)만 수정. 금액/결제수단은 회원상세 계약이력에서 별도 관리
+  function editLockerSlot(catId, no) {
+    const key = catId + '_' + no;
+    const d = lockerData[key];
+    if (!d) { showToast('락카 정보를 찾을 수 없어요.', 'error'); return; }
+    const cat = lockerCategories.find(c => c.id === catId);
+    const catName = cat ? cat.name : '';
+
+    const html = `
+      <div style="padding:4px 0;">
+        <div style="font-size:15px;font-weight:700;margin-bottom:14px;">✏️ ${catName} ${no}번 정보 수정</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">회원 연락처</div>
+              <input id="le-phone" type="text" value="${d.phone || ''}"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">이름</div>
+              <input id="le-name" type="text" value="${d.name || ''}"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">시작일</div>
+              <input id="le-start" type="date" value="${d.startDate || ''}"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">종료일</div>
+              <input id="le-end" type="date" value="${d.endDate || ''}"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+            </div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">자물쇠 번호</div>
+            <input id="le-lock" type="text" value="${d.lockPassword || ''}"
+              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+          </div>
+          ${d.linkedContract ? `<div style="font-size:11px;color:var(--text-hint);">📌 시작일/종료일을 바꾸면 연결된 계약이력에도 자동으로 함께 반영돼요.</div>` : ''}
+        </div>
+        <div style="display:flex;gap:8px;margin-top:16px;">
+          <button onclick="saveLockerEdit('${catId}','${no}')"
+            style="flex:1;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 저장</button>
+          <button onclick="openLockerDetail('${catId}','${no}')"
+            style="flex:1;padding:11px;background:#f5f5f5;color:#666;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        </div>
+      </div>`;
+
+    showLockerDetail(html);
+  }
+
+  // 락카 정보수정 저장 — 시작일/종료일이 바뀌면 연결된 계약이력(extras.locker)에도 같이 반영 (양방향 동기화)
+  async function saveLockerEdit(catId, no) {
+    const key = catId + '_' + no;
+    const d = lockerData[key];
+    if (!d) { showToast('락카 정보를 찾을 수 없어요.', 'error'); return; }
+
+    const newPhone = document.getElementById('le-phone')?.value.trim();
+    const newName  = document.getElementById('le-name')?.value.trim();
+    const newStart = document.getElementById('le-start')?.value || '';
+    const newEnd   = document.getElementById('le-end')?.value || '';
+    const newLock  = document.getElementById('le-lock')?.value.trim();
+    if (!newPhone) { showToast('연락처를 입력해주세요.', 'error'); return; }
+
+    try {
+      const updates = {};
+      updates['lockers/' + key + '/phone'] = newPhone;
+      updates['lockers/' + key + '/name'] = newName;
+      updates['lockers/' + key + '/startDate'] = newStart;
+      updates['lockers/' + key + '/endDate'] = newEnd;
+      updates['lockers/' + key + '/lockPassword'] = newLock;
+
+      // 연락처가 바뀌었으면 — 회원 데이터의 lockerKey도 옮겨줌
+      if (newPhone !== d.phone) {
+        if (d.phone) updates['members/' + d.phone + '/lockerKey'] = null;
+        updates['members/' + newPhone + '/lockerKey'] = key;
+      }
+
+      // 시작일/종료일이 바뀌었고, 연결된 계약이력이 있으면 — 그쪽 날짜도 같이 업데이트
+      const dateChanged = newStart !== (d.startDate || '') || newEnd !== (d.endDate || '');
+      if (dateChanged && d.linkedContract?.phone && d.linkedContract?.contractKey) {
+        const lc = d.linkedContract;
+        updates['contracts/' + lc.phone + '/' + lc.contractKey + '/extras/locker/startDate'] = newStart;
+        updates['contracts/' + lc.phone + '/' + lc.contractKey + '/extras/locker/endDate'] = newEnd;
+      }
+
+      await db.ref().update(updates);
+
+      lockerData[key] = { ...d, phone: newPhone, name: newName, startDate: newStart, endDate: newEnd, lockPassword: newLock };
+      closeLockerDetail();
+      renderLockerStatus();
+      showToast('✅ 락카 정보가 수정됐어요.', 'success');
+    } catch (e) {
+      showToast('수정 실패: ' + e.message, 'error');
+    }
+  }
+  window.editLockerSlot = editLockerSlot;
+  window.saveLockerEdit = saveLockerEdit;
 
   // 연락처 입력 시 이름 자동 불러오기
   let _autoFillTimer = null;
@@ -4763,25 +4878,29 @@
     }
 
     const key = catId + '_' + no;
-    await db.ref('lockers/' + key).set({
+    // 결제내역이 하나라도 입력됐으면 — 회원상세 계약이력에도 보이도록 별도 계약 레코드를 같이 만들고, 락카-계약 서로 연결고리(linkedContract/lockerKey)를 남겨 시작일/종료일 양방향 동기화가 되게 함
+    const hasPayment = price > 0 || cash > 0 || card > 0 || transfer > 0;
+    const signDate = _todayISO();
+    const contractKey = hasPayment ? (signDate + '_' + Date.now()) : null;
+
+    const lockerEntry = {
       phone, name: memberName, startDate: start, endDate: end,
       lockPassword: lock, status: 'active', categoryId: catId, lockerNo: no
-    });
+    };
+    if (contractKey) lockerEntry.linkedContract = { phone, contractKey };
+    await db.ref('lockers/' + key).set(lockerEntry);
     // 회원 데이터에도 락카 번호 저장
     await db.ref('members/' + phone + '/lockerKey').set(key);
-    lockerData[key] = { phone, name: memberName, startDate: start, endDate: end, lockPassword: lock, status: 'active', categoryId: catId, lockerNo: no };
+    lockerData[key] = lockerEntry;
 
-    // 결제내역이 하나라도 입력됐으면 — 회원상세 계약이력에도 보이도록 별도 계약 레코드로 함께 저장 (락카탭 직접배정용)
-    if (price > 0 || cash > 0 || card > 0 || transfer > 0) {
-      const signDate = _todayISO();
-      const contractKey = signDate + '_' + Date.now();
+    if (contractKey) {
       try {
         await db.ref('contracts/' + phone + '/' + contractKey).set({
           name: memberName, phone,
           programs: {}, packages: [],
           extras: {
             locker: {
-              lockerNo: no, lockerCatId: catId,
+              lockerNo: no, lockerCatId: catId, lockerKey: key,
               startDate: start || '', endDate: end || '',
               price, cash, card, transfer,
             }
@@ -6324,9 +6443,12 @@
     if (document.getElementById('ct-locker-check')?.checked) {
       const lockerStart  = document.getElementById('ct-locker-start')?.value || signDate;
       const lockerMonths = parseInt(document.getElementById('ct-locker-months')?.value) || 0;
+      const ctLockerNo    = document.getElementById('ct-locker-no')?.value.trim()     || '';
+      const ctLockerCatId = document.getElementById('ct-locker-cat-id')?.value.trim() || '';
       extras.locker = {
-        lockerNo    : document.getElementById('ct-locker-no')?.value.trim()     || '',
-        lockerCatId : document.getElementById('ct-locker-cat-id')?.value.trim() || '',
+        lockerNo    : ctLockerNo,
+        lockerCatId : ctLockerCatId,
+        lockerKey   : (ctLockerNo && ctLockerCatId) ? (ctLockerCatId + '_' + ctLockerNo) : '', // 락카탭 lockers/ 데이터와 양방향 동기화용 연결고리
         startDate   : lockerStart,
         endDate     : calcEndDate(lockerStart, lockerMonths),
         months      : lockerMonths,
@@ -6406,6 +6528,7 @@
           endDate   : extras.locker.endDate,
           categoryId: lockerCatId,
           status    : 'active',
+          linkedContract: { phone, contractKey }, // 계약이력 ↔ 락카탭 시작일/종료일 양방향 동기화용 연결고리
         });
         await db.ref('members/' + phone + '/lockerKey').set(lockerKey);
       }
