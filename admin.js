@@ -1821,7 +1821,7 @@
         '기구필라테스개인':'기구필라테스 개인', '기구필라테스그룹':'기구필라테스 그룹'
       };
 
-      el.innerHTML = contracts.filter(c => _flattenContractItems(c).length > 0).map(c => _renderSingleContractCard(phone, c, progLabels)).join('');
+      el.innerHTML = contracts.filter(c => _flattenContractItems(c).length > 0 || Object.values(c.extras || {}).some(e => !e.deleted)).map(c => _renderSingleContractCard(phone, c, progLabels)).join('');
     });
   }
 
@@ -2009,9 +2009,11 @@
     const items = _flattenContractItems(c);
     const totalAmt = items.reduce((s, it) => s + (it.data.price || 0), 0);
     const totalPaid = items.reduce((s, it) => s + (it.data.cash||0) + (it.data.card||0) + (it.data.transfer||0), 0);
-    const extrasAmt = Object.values(c.extras || {}).reduce((s, e) => s + (e.price || 0), 0);
+    // 소프트삭제된 부가서비스는 금액 합산/표시에서 제외
+    const extrasList = Object.entries(c.extras || {}).filter(([, e]) => !e.deleted);
+    const extrasAmt = extrasList.reduce((s, [, e]) => s + (e.price || 0), 0);
     const grandTotal = totalAmt + extrasAmt;
-    const grandPaid = totalPaid + Object.values(c.extras || {}).reduce((s, e) => s + (e.cash||0) + (e.card||0) + (e.transfer||0), 0);
+    const grandPaid = totalPaid + extrasList.reduce((s, [, e]) => s + (e.cash||0) + (e.card||0) + (e.transfer||0), 0);
     const grandUnpaid = grandTotal - grandPaid;
     const menuId = 'cmenu-' + c.key;
 
@@ -2037,13 +2039,19 @@
       </div>`;
     }).join('');
 
-    const itemHeader = `<div class="md-item-colhead" style="display:none;">
+    // 부가서비스(운동복/락카) 행 — 프로그램과 달리 환불/양도/휴회는 지원하지 않고 정보수정/삭제만 가능
+    const extraRows = extrasList.map(([extKey, e]) => _renderExtraRow(phone, c.key, extKey, e)).join('');
+
+    const itemHeader = (items.length || extrasList.length) ? `<div class="md-item-colhead" style="display:none;">
       <div>프로그램</div><div>시작일</div><div>종료일</div><div style="text-align:right;">결제 / 상태</div>
-    </div>`;
+    </div>` : '';
+
+    // 프로그램 없이 부가서비스만 있는 계약(락카탭 직접배정 등)은 신규/재등록 대신 "부가서비스"로 표시
+    const typeLabel = items.length === 0 && extrasList.length > 0 ? '부가서비스' : (c.type === 're' ? '재등록' : '신규');
 
     return `<div style="background:var(--card);border-radius:10px;padding:16px;border:1px solid var(--border);">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div style="font-size:13px;font-weight:700;color:var(--text);">${c.signDate || '-'} · ${c.type === 're' ? '재등록' : '신규'}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);">${c.signDate || '-'} · ${typeLabel}</div>
         <div style="text-align:right;">
           <div style="font-size:13px;font-weight:700;color:var(--text);">${grandTotal.toLocaleString()}원</div>
           ${grandUnpaid > 0 ? `<div style="font-size:11px;color:#ef4444;font-weight:700;">미수금 ${grandUnpaid.toLocaleString()}원</div>` : `<div style="font-size:11px;color:#22c55e;font-weight:600;">완납 ✓</div>`}
@@ -2051,13 +2059,51 @@
       </div>
       ${itemHeader}
       ${itemRows}
+      ${extraRows}
       ${c.memo ? `<div style="background:var(--bg);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text-sub);margin-top:10px;margin-bottom:10px;">📌 ${c.memo}</div>` : ''}
       ${grandUnpaid > 0 ? `
       <button onclick="payMemberUnpaid('${phone}','${c.key}',${grandUnpaid})"
         style="width:100%;padding:8px;background:#fff7ed;color:#ea580c;border:1.5px solid #fed7aa;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:10px;margin-bottom:8px;">
         💳 미수금 ${grandUnpaid.toLocaleString()}원 결제처리
       </button>` : ''}
-      ${_renderContractMenuButton(menuId, phone, c.key, null, '처리')}
+      ${items.length > 0 ? _renderContractMenuButton(menuId, phone, c.key, null, '처리') : ''}
+    </div>`;
+  }
+
+  // 부가서비스(운동복/락카) 라벨
+  function _extraLabel(key, e) {
+    if (key === 'cloth') return '👕 운동복';
+    if (key === 'locker') return '🔑 개인 락카' + (e.lockerNo ? ' (' + e.lockerNo + '번)' : '');
+    return key;
+  }
+
+  // 부가서비스 항목 한 줄 렌더링 — 프로그램용 환불/양도/휴회 시스템과 완전히 분리된 단순 결제관리(수정/삭제)만 지원
+  function _renderExtraRow(phone, contractKey, extKey, e) {
+    const amt = e.price || 0;
+    const paid = (e.cash||0) + (e.card||0) + (e.transfer||0);
+    const unpaid = amt - paid;
+    const startLabel = e.startDate || '-';
+    const endLabel = e.endDate || '-';
+    const statusHtml = unpaid > 0
+      ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">미수금 ${unpaid.toLocaleString()}원</div>`
+      : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">완납 ✓</div>`;
+    return `<div class="md-item-row" style="padding:8px 0;border-top:1px solid var(--border);">
+      <div style="display:flex;align-items:flex-start;gap:14px;" class="md-item-flexwrap">
+        <div style="flex-shrink:0;" class="md-item-label">
+          <div style="font-size:12.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px;white-space:nowrap;">${_extraLabel(extKey, e)}</div>
+          <div style="font-size:11px;color:var(--text-hint);margin-top:2px;white-space:nowrap;">${startLabel} ~ ${endLabel}</div>
+        </div>
+        <div class="md-item-extra" style="display:none;">
+          <div><span class="md-item-extra-label">시작일</span> <span>${startLabel}</span></div>
+          <div><span class="md-item-extra-label">종료일</span> <span>${endLabel}</span></div>
+        </div>
+        <div style="text-align:right;min-width:0;margin-left:auto;" class="md-item-amount">
+          <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
+          ${statusHtml}
+          <button onclick="openExtraEditModal('${phone}','${contractKey}','${extKey}')"
+            style="margin-top:3px;font-size:10px;color:var(--text-sub);background:none;border:1px solid var(--border);border-radius:5px;padding:2px 7px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 수정</button>
+        </div>
+      </div>
     </div>`;
   }
 
@@ -2274,6 +2320,108 @@
   window.openItemEditModal = openItemEditModal;
   window._saveItemEdit = _saveItemEdit;
   window.deleteContractItem = deleteContractItem;
+
+  // ══════════════ 부가서비스(운동복/락카) 정보 수정 / 삭제 ══════════════
+  // 프로그램용 환불/양도/휴회 시스템(pkgIndex 기반)과는 완전히 분리된 별도 함수들 — extras/{key} 경로만 사용
+  function openExtraEditModal(phone, contractKey, extraKey) {
+    db.ref('contracts/' + phone + '/' + contractKey + '/extras/' + extraKey).once('value').then(snap => {
+      if (!snap.exists()) { showToast('해당 항목을 찾을 수 없어요.', 'error'); return; }
+      _renderExtraEditForm(phone, contractKey, extraKey, snap.val());
+    });
+  }
+
+  function _renderExtraEditForm(phone, contractKey, extraKey, e) {
+    window._extraEditCtx = { phone, contractKey, extraKey };
+    document.getElementById('app-extra-edit-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-extra-edit-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+    const label = _extraLabel(extraKey, e);
+
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:320px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">✏️ 정보 수정 — ${label}</div>
+
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">시작일</div>
+      <input id="ee-start" type="date" value="${e.startDate || ''}"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">종료일</div>
+      <input id="ee-end" type="date" value="${e.endDate || ''}"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">총 금액</div>
+      <input id="ee-price" type="text" inputmode="numeric" value="${(e.price || 0).toLocaleString()}" oninput="_formatMoneyInput(this)"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+
+      <div style="display:flex;gap:6px;margin-bottom:14px;">
+        <div style="flex:1;">
+          <div style="font-size:11px;color:#888;margin-bottom:4px;">현금</div>
+          <input id="ee-cash" type="text" inputmode="numeric" value="${(e.cash || 0).toLocaleString()}" oninput="_formatMoneyInput(this)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:11px;color:#888;margin-bottom:4px;">카드</div>
+          <input id="ee-card" type="text" inputmode="numeric" value="${(e.card || 0).toLocaleString()}" oninput="_formatMoneyInput(this)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:11px;color:#888;margin-bottom:4px;">계좌</div>
+          <input id="ee-transfer" type="text" inputmode="numeric" value="${(e.transfer || 0).toLocaleString()}" oninput="_formatMoneyInput(this)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+        </div>
+      </div>
+
+      <button onclick="_saveExtraEdit()"
+        style="width:100%;padding:12px;background:#3b82f6;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;">저장</button>
+      <button onclick="document.getElementById('app-extra-edit-modal').remove()"
+        style="width:100%;padding:10px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:13px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:14px;">닫기</button>
+
+      <div style="border-top:1px solid #f0f0f0;padding-top:14px;">
+        <button onclick="deleteExtraItem()"
+          style="width:100%;padding:10px;background:#fff1f0;border:1px solid #ffccc7;border-radius:10px;font-size:13px;font-weight:700;color:#cf1322;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑️ 이 항목 삭제</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+
+  async function _saveExtraEdit() {
+    const ctx = window._extraEditCtx;
+    if (!ctx) return;
+    try {
+      const basePath = 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/extras/' + ctx.extraKey;
+      const num = id => parseInt((document.getElementById(id)?.value || '0').replace(/[^0-9]/g, '')) || 0;
+      const updates = {};
+      updates[basePath + '/startDate'] = document.getElementById('ee-start')?.value || '';
+      updates[basePath + '/endDate'] = document.getElementById('ee-end')?.value || '';
+      updates[basePath + '/price'] = num('ee-price');
+      updates[basePath + '/cash'] = num('ee-cash');
+      updates[basePath + '/card'] = num('ee-card');
+      updates[basePath + '/transfer'] = num('ee-transfer');
+      await db.ref().update(updates);
+      document.getElementById('app-extra-edit-modal')?.remove();
+      showToast('✅ 정보가 수정됐어요.', 'success');
+      _renderMdContracts(ctx.phone);
+    } catch (e) {
+      showToast('수정 실패: ' + e.message, 'error');
+    }
+  }
+
+  // 부가서비스 항목 삭제 — 소프트삭제(결제기록만 숨김). 실제 배정된 락카(lockers/)는 건드리지 않음 — 락카 자체 해제는 락카탭에서 별도로
+  function deleteExtraItem() {
+    const ctx = window._extraEditCtx;
+    if (!ctx) return;
+    showConfirm('이 항목을 삭제하시겠어요?\n매출통계에서도 제외되고, 되돌릴 수 없어요.\n(실제 배정된 락카는 그대로 유지돼요 — 락카를 해제하려면 락카탭에서 해제해주세요)', async () => {
+      try {
+        const basePath = 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/extras/' + ctx.extraKey;
+        await db.ref(basePath + '/deleted').set({ at: Date.now() });
+        document.getElementById('app-extra-edit-modal')?.remove();
+        showToast('🗑️ 항목이 삭제됐어요.', 'success');
+        _renderMdContracts(ctx.phone);
+      } catch (e) {
+        showToast('삭제 실패: ' + e.message, 'error');
+      }
+    });
+  }
+  window.openExtraEditModal = openExtraEditModal;
+  window._saveExtraEdit = _saveExtraEdit;
+  window.deleteExtraItem = deleteExtraItem;
 
   // ══════════════ 환불 기능 ══════════════
   const REFUND_PERIOD_PROGS = ['헬스', 'GX']; // 기간제 — 위약금10%+사용일수 자동계산 / 그 외는 횟수제(직접입력)
@@ -3746,6 +3894,7 @@
         });
         const extras = c.extras || {};
         Object.entries(extras).forEach(([ext, e]) => {
+          if (e.deleted) return;
           const extUnpaid = (e.price || 0) - (e.cash||0) - (e.card||0) - (e.transfer||0);
           if (extUnpaid > 0) {
             updates['contracts/' + phone + '/' + contractKey + '/extras/' + ext + '/cash'] =
@@ -4505,6 +4654,28 @@
             <input id="ld-lock" type="text" placeholder="자물쇠 번호"
               style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
           </div>
+          <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:10px;">
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">총 금액 (선택, 입력 시 계약이력에 결제내역으로 기록돼요)</div>
+            <input id="ld-price" type="text" inputmode="numeric" placeholder="0" oninput="_formatMoneyInput(this)"
+              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-bottom:8px;" />
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+              <div>
+                <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">현금</div>
+                <input id="ld-cash" type="text" inputmode="numeric" placeholder="0" oninput="_formatMoneyInput(this)"
+                  style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+              </div>
+              <div>
+                <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">카드</div>
+                <input id="ld-card" type="text" inputmode="numeric" placeholder="0" oninput="_formatMoneyInput(this)"
+                  style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+              </div>
+              <div>
+                <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">계좌</div>
+                <input id="ld-transfer" type="text" inputmode="numeric" placeholder="0" oninput="_formatMoneyInput(this)"
+                  style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+              </div>
+            </div>
+          </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:16px;">
           <button onclick="assignLocker('${catId}','${no}')"
@@ -4559,6 +4730,12 @@
     const lock  = document.getElementById('ld-lock')?.value.trim();
     if (!phone) { showToast('연락처를 입력해주세요.', 'error'); return; }
 
+    const numField = id => parseInt((document.getElementById(id)?.value || '0').replace(/[^0-9]/g, '')) || 0;
+    const price    = numField('ld-price');
+    const cash     = numField('ld-cash');
+    const card     = numField('ld-card');
+    const transfer = numField('ld-transfer');
+
     // 입력된 이름 우선, 없으면 Firebase에서 불러오기
     let memberName = inputName;
     if (!memberName) {
@@ -4574,6 +4751,32 @@
     // 회원 데이터에도 락카 번호 저장
     await db.ref('members/' + phone + '/lockerKey').set(key);
     lockerData[key] = { phone, name: memberName, startDate: start, endDate: end, lockPassword: lock, status: 'active', categoryId: catId, lockerNo: no };
+
+    // 결제내역이 하나라도 입력됐으면 — 회원상세 계약이력에도 보이도록 별도 계약 레코드로 함께 저장 (락카탭 직접배정용)
+    if (price > 0 || cash > 0 || card > 0 || transfer > 0) {
+      const signDate = _todayISO();
+      const contractKey = signDate + '_' + Date.now();
+      try {
+        await db.ref('contracts/' + phone + '/' + contractKey).set({
+          name: memberName, phone,
+          programs: {}, packages: [],
+          extras: {
+            locker: {
+              lockerNo: no, lockerCatId: catId,
+              startDate: start || '', endDate: end || '',
+              price, cash, card, transfer,
+            }
+          },
+          signDate,
+          createdAt: Date.now(),
+          registeredBy: localStorage.getItem('current_user') || 'admin',
+          source: 'locker_tab',
+        });
+      } catch (e) {
+        console.error('락카 결제내역 계약이력 저장 실패:', e);
+      }
+    }
+
     closeLockerDetail();
     renderLockerStatus();
     showToast('✅ 락카 배정 완료!', 'success');
@@ -4894,8 +5097,9 @@
       return; // Firebase 조회 비동기라 여기서 return
     }
     if (step === 2) {
-      if (ctSelectedProgs.length === 0 && ctPackages.length === 0) {
-        showToast('프로그램 또는 패키지를 1개 이상 선택해주세요.', 'error'); return;
+      const hasExtra = document.getElementById('ct-cloth-check')?.checked || document.getElementById('ct-locker-check')?.checked;
+      if (ctSelectedProgs.length === 0 && ctPackages.length === 0 && !hasExtra) {
+        showToast('프로그램, 패키지, 또는 부가서비스를 1개 이상 선택해주세요.', 'error'); return;
       }
     }
     ctGoStep(step + 1);
