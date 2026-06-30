@@ -5267,6 +5267,16 @@
     if (step === 2) loadCtTerms();
   }
 
+  // 완료화면에서 "회원상세로 돌아가기" 클릭 시
+  function _returnToMemberDetailFromContract() {
+    const returnPhone = window._ctReturnPhone;
+    window._ctReturnPhone = null;
+    if (!returnPhone) { resetContract(); return; }
+    try { switchAdminTab('tab-members'); } catch(e) { console.error('switchAdminTab 오류(무시):', e); }
+    try { openMemberModal(returnPhone); } catch(e) { console.error('openMemberModal 오류(무시):', e); }
+  }
+  window._returnToMemberDetailFromContract = _returnToMemberDetailFromContract;
+
   function ctPrev(step) {
     if (step === 2 && window._ctReturnPhone) {
       const returnPhone = window._ctReturnPhone;
@@ -6577,6 +6587,18 @@
       document.getElementById('ct-complete-msg').textContent =
         isNew ? name + ' 회원 계정이 생성됐어요. (아이디: ' + phone + ' / 초기비번: ' + phone.slice(-4) + ')'
               : name + ' 회원 재등록이 완료됐어요.';
+
+      // 회원상세 "새 계약서 추가"로 들어온 경우 — "➕ 새 계약서" 대신 "↩ 회원상세로 돌아가기" 버튼으로 전환
+      const step5Btn = document.getElementById('ct-step5-secondary-btn');
+      if (step5Btn) {
+        if (window._ctReturnPhone) {
+          step5Btn.textContent = '↩ 회원상세로 돌아가기';
+          step5Btn.onclick = _returnToMemberDetailFromContract;
+        } else {
+          step5Btn.textContent = '➕ 새 계약서';
+          step5Btn.onclick = resetContract;
+        }
+      }
 
       // 5단계 등록 정보 요약 (간략)
       let summaryHtml = `
