@@ -1587,11 +1587,30 @@
     // 수업현황 렌더링
     _renderMdClassStatus(phone, info);
 
+    // 락카 미니카드 렌더링 — 비밀번호만 간단히 표시 (상세 기간/결제 정보는 계약이력 또는 락카탭에서 확인)
+    _renderMdLockerMini(phone, info);
+
     // 계약이력 렌더링
     _renderMdContracts(phone);
 
     // 서명기록 렌더링
     _renderMdSigns(phone);
+  }
+
+  // 락카 미니카드 — 락카탭 데이터(lockerData)에 의존하지 않고 Firebase에서 직접 조회 (회원상세는 락카탭 진입 여부와 무관하게 열릴 수 있어서)
+  function _renderMdLockerMini(phone, info) {
+    const el = document.getElementById('md-locker-mini');
+    if (!el) return;
+    el.textContent = '-';
+    const lockerKey = info.lockerKey;
+    if (!lockerKey) { el.textContent = '미배정'; el.style.color = 'var(--text-hint)'; return; }
+    db.ref('lockers/' + lockerKey).once('value').then(snap => {
+      if (!snap.exists()) { el.textContent = '미배정'; el.style.color = 'var(--text-hint)'; return; }
+      const d = snap.val();
+      const lockerNo = d.lockerNo || lockerKey.split('_').pop();
+      el.style.color = 'var(--text)';
+      el.textContent = lockerNo + '번' + (d.lockPassword ? ' · ' + d.lockPassword : '');
+    }).catch(() => { el.textContent = '-'; });
   }
 
   // 수업현황
