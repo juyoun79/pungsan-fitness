@@ -4690,17 +4690,29 @@
               style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-bottom:8px;" />
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
               <div>
-                <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">현금</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+                  <span style="font-size:11px;color:var(--text-hint);">현금</span>
+                  <button type="button" onclick="_fillLockerFullAmount('cash')"
+                    style="font-size:9.5px;color:var(--blue);background:none;border:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif;padding:0;">전액</button>
+                </div>
                 <input id="ld-cash" type="text" inputmode="numeric" placeholder="0" oninput="_formatMoneyInput(this)"
                   style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
               </div>
               <div>
-                <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">카드</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+                  <span style="font-size:11px;color:var(--text-hint);">카드</span>
+                  <button type="button" onclick="_fillLockerFullAmount('card')"
+                    style="font-size:9.5px;color:var(--blue);background:none;border:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif;padding:0;">전액</button>
+                </div>
                 <input id="ld-card" type="text" inputmode="numeric" placeholder="0" oninput="_formatMoneyInput(this)"
                   style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
               </div>
               <div>
-                <div style="font-size:11px;color:var(--text-hint);margin-bottom:3px;">계좌</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+                  <span style="font-size:11px;color:var(--text-hint);">계좌</span>
+                  <button type="button" onclick="_fillLockerFullAmount('transfer')"
+                    style="font-size:9.5px;color:var(--blue);background:none;border:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif;padding:0;">전액</button>
+                </div>
                 <input id="ld-transfer" type="text" inputmode="numeric" placeholder="0" oninput="_formatMoneyInput(this)"
                   style="width:100%;box-sizing:border-box;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
               </div>
@@ -4855,6 +4867,17 @@
       }
     }, 500);
   }
+
+  // 락카 배정 결제입력: "전액" 버튼 — 총금액을 클릭한 칸에 채우고 나머지 두 칸은 0으로 정리
+  function _fillLockerFullAmount(field) {
+    const price = parseInt((document.getElementById('ld-price')?.value || '0').replace(/[^0-9]/g, '')) || 0;
+    ['cash', 'card', 'transfer'].forEach(f => {
+      const el = document.getElementById('ld-' + f);
+      if (!el) return;
+      el.value = (f === field ? price : 0).toLocaleString();
+    });
+  }
+  window._fillLockerFullAmount = _fillLockerFullAmount;
 
   async function assignLocker(catId, no) {
     const phone = document.getElementById('ld-phone')?.value.trim();
