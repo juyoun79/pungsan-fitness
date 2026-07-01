@@ -6613,16 +6613,15 @@
         isNew ? name + ' 회원 계정이 생성됐어요. (아이디: ' + phone + ' / 초기비번: ' + phone.slice(-4) + ')'
               : name + ' 회원 재등록이 완료됐어요.';
 
-      // 회원상세 "새 계약서 추가"로 들어온 경우 — "➕ 새 계약서" 대신 "↩ 회원상세로 돌아가기" 버튼으로 전환
+      // 완료 후 항상 "↩ 회원상세로 돌아가기" — 어디서 들어왔든 방금 등록한 회원 상세화면으로 바로 이동
       const step5Btn = document.getElementById('ct-step5-secondary-btn');
       if (step5Btn) {
-        if (window._ctReturnPhone) {
-          step5Btn.textContent = '↩ 회원상세로 돌아가기';
-          step5Btn.onclick = _returnToMemberDetailFromContract;
-        } else {
-          step5Btn.textContent = '➕ 새 계약서';
-          step5Btn.onclick = resetContract;
-        }
+        step5Btn.textContent = '↩ 회원상세로 돌아가기';
+        step5Btn.onclick = () => {
+          window._ctReturnPhone = null;
+          try { switchAdminTab('tab-members'); } catch(e) { console.error(e); }
+          try { openMemberModal(phone); } catch(e) { console.error(e); }
+        };
       }
 
       // 5단계 등록 정보 요약 (간략)
