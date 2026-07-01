@@ -5444,7 +5444,7 @@
         const fields = ['months','count','price','cash','card','transfer'];
         fields.forEach(f => {
           const el = document.getElementById('ct-pkg-'+pkg.id+'-'+prog+'-'+f);
-          if (el) pkg.items[prog][f] = parseInt(el.value)||0;
+          if (el) pkg.items[prog][f] = parseInt((el.value || '0').replace(/[^0-9]/g,''))||0;
         });
         const startEl = document.getElementById('ct-pkg-'+pkg.id+'-'+prog+'-start');
         if (startEl && startEl.value) pkg.items[prog].startDate = startEl.value;
@@ -5750,7 +5750,7 @@
   function updateCtSummary(prog) {
     const months  = parseInt(document.getElementById('ct-' + prog + '-months')?.value) || 0;
     const count   = parseInt(document.getElementById('ct-' + prog + '-count')?.value) || 0;
-    const price   = parseInt(document.getElementById('ct-' + prog + '-price')?.value) || 0;
+    const price   = parseInt((document.getElementById('ct-' + prog + '-price')?.value || '0').replace(/[^0-9]/g,'')) || 0;
     const sumEl   = document.getElementById('ct-summary-' + prog);
     if (!sumEl) return;
     if (months || price) {
@@ -6104,7 +6104,7 @@
     if (!check || !summary) return;
     if (!check.checked) { summary.textContent = '미선택'; summary.style.color = 'var(--text-sub)'; return; }
     const months = parseInt(document.getElementById('ct-' + type + '-months')?.value) || 0;
-    const price  = parseInt(document.getElementById('ct-' + type + '-price')?.value)  || 0;
+    const price  = parseInt((document.getElementById('ct-' + type + '-price')?.value || '0').replace(/[^0-9]/g,'')) || 0;
     let text = '';
     if (months) text += months + '개월';
     if (price === 0) text += (text ? '·' : '') + '무료';
