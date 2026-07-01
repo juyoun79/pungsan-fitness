@@ -40,6 +40,7 @@
       loadMemberList();
     }
     if (tabId === 'tab-notice') loadNoticeListAdmin();
+    if (tabId === 'tab-register') { try { resetContract(); } catch(e) { console.error('resetContract 오류(무시):', e); } }
     if (tabId === 'tab-community-admin') loadAdminCommunityFeed('전체');
     if (tabId === 'tab-trainer-admin') loadAdminTrainerSchedule();
     if (tabId === 'tab-coupon') loadMemberSelectOptions();
