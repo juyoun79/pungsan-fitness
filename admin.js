@@ -2490,12 +2490,13 @@
     });
   }
 
-  // 계약서 안에 프로그램이 여러 개일 때 — 환불할 프로그램 선택 팝업
+  // 계약서 안에 프로그램이 여러 개일 때 — 환불할 프로그램 선택 팝업 (전체 패키지 환불 옵션 포함)
   function _showRefundItemPicker(phone, contractKey, items) {
     document.getElementById('app-refund-picker')?.remove();
     const modal = document.createElement('div');
     modal.id = 'app-refund-picker';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+    const totalPrice = items.reduce((s, it) => s + (it.data.price || 0), 0);
     const itemBtns = items.map(it => {
       const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
       return `<button onclick="openRefundModal('${phone}','${contractKey}','${it.progKey}')"
@@ -2503,7 +2504,11 @@
         ${label} · ${(it.data.price||0).toLocaleString()}원</button>`;
     }).join('');
     modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:300px;font-family:'Noto Sans KR',sans-serif;">
-      <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">환불할 프로그램을 선택하세요</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">💰 환불 방식을 선택하세요</div>
+      <button onclick="startPkgRefund('${phone}','${contractKey}')"
+        style="width:100%;text-align:left;padding:13px;margin-bottom:12px;background:#fff0f0;border:1.5px solid #fca5a5;border-radius:10px;font-size:14px;font-weight:700;color:#dc2626;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+        📦 전체 패키지 환불 · ${totalPrice.toLocaleString()}원</button>
+      <div style="font-size:11px;color:#aaa;margin-bottom:8px;text-align:center;">또는 개별 프로그램 선택</div>
       ${itemBtns}
       <button onclick="document.getElementById('app-refund-picker').remove()"
         style="width:100%;padding:10px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:13px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:4px;">취소</button>
@@ -2685,6 +2690,102 @@
   window._selectRefundMethod = _selectRefundMethod;
   window._confirmRefund = _confirmRefund;
 
+  // ══════════════ 전체 패키지 환불 ══════════════
+  // 관리자가 총 환불금액을 직접 입력 → 패키지 내 모든 항목에 한번에 환불 처리
+  function startPkgRefund(phone, contractKey) {
+    document.getElementById('app-refund-picker')?.remove();
+    db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
+      if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      const c = snap.val();
+      const items = _flattenContractItems(c).filter(it => _isItemEligible(it.data));
+      if (items.length === 0) { showToast('환불할 항목이 없어요.', 'error'); return; }
+      const totalPrice = items.reduce((s, it) => s + (it.data.price || 0), 0);
+      const itemListHtml = items.map(it =>
+        `<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #f0f0f0;">
+          <span style="color:var(--text-sub)">${REFUND_PROG_NAMES[it.progKey] || it.progKey}${it.pkgName ? ' ('+it.pkgName+')' : ''}</span>
+          <span style="font-weight:600;">${(it.data.price||0).toLocaleString()}원</span>
+        </div>`).join('');
+
+      document.getElementById('app-pkg-refund-modal')?.remove();
+      const modal = document.createElement('div');
+      modal.id = 'app-pkg-refund-modal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+      modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">
+        <div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">💰 전체 패키지 환불</div>
+        <div style="font-size:12px;color:#888;margin-bottom:12px;">패키지 내 모든 프로그램에 환불이 처리돼요.</div>
+        <div style="background:var(--bg,#f7f7f7);border-radius:8px;padding:10px 12px;margin-bottom:14px;">
+          ${itemListHtml}
+          <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding-top:6px;margin-top:4px;">
+            <span>합계</span><span>${totalPrice.toLocaleString()}원</span>
+          </div>
+        </div>
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">환불 처리일</div>
+        <input id="pkgrf-date" type="date" value="${_todayISO()}"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">환불 금액 (직접 입력)</div>
+        <input id="pkgrf-amount" type="text" inputmode="numeric" placeholder="0" oninput="_formatMoneyInput(this)"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+        <div style="font-size:12px;color:#888;margin-bottom:6px;">환불 수단</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <button id="pkgrf-cash" onclick="_selectPkgRefundMethod('cash')" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--blue,#3b82f6);background:var(--blue,#3b82f6);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">현금</button>
+          <button id="pkgrf-card" onclick="_selectPkgRefundMethod('card')" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #e0e0e0;background:none;color:#888;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">카드</button>
+          <button id="pkgrf-transfer" onclick="_selectPkgRefundMethod('transfer')" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #e0e0e0;background:none;color:#888;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">계좌</button>
+        </div>
+        <div style="font-size:11px;color:#aaa;margin-bottom:14px;">※ 잔여횟수/이용기간 종료는 자동으로 처리되지 않으니 필요하면 따로 처리해주세요.</div>
+        <div style="display:flex;gap:10px;">
+          <button onclick="document.getElementById('app-pkg-refund-modal').remove()" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+          <button onclick="_confirmPkgRefund('${phone}','${contractKey}')" style="flex:1;padding:12px;background:#ef4444;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">환불 처리</button>
+        </div>
+      </div>`;
+      document.body.appendChild(modal);
+      window._pkgRefundMethod = 'cash';
+    });
+  }
+
+  function _selectPkgRefundMethod(method) {
+    window._pkgRefundMethod = method;
+    ['cash','card','transfer'].forEach(m => {
+      const btn = document.getElementById('pkgrf-' + m);
+      if (!btn) return;
+      if (m === method) {
+        btn.style.background = 'var(--blue,#3b82f6)'; btn.style.color = 'white'; btn.style.border = '1.5px solid var(--blue,#3b82f6)';
+      } else {
+        btn.style.background = 'none'; btn.style.color = '#888'; btn.style.border = '1.5px solid #e0e0e0';
+      }
+    });
+  }
+
+  async function _confirmPkgRefund(phone, contractKey) {
+    const amount = parseInt((document.getElementById('pkgrf-amount')?.value || '0').replace(/[^0-9]/g,'')) || 0;
+    const date = document.getElementById('pkgrf-date')?.value || _todayISO();
+    const method = window._pkgRefundMethod || 'cash';
+    if (!amount) { showToast('환불 금액을 입력해주세요.', 'error'); return; }
+    showConfirm(`패키지 전체 환불 ${amount.toLocaleString()}원을 처리할까요?\n패키지 내 모든 항목에 환불 처리가 됩니다.`, async () => {
+      try {
+        const snap = await db.ref('contracts/' + phone + '/' + contractKey).once('value');
+        if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+        const items = _flattenContractItems(snap.val()).filter(it => _isItemEligible(it.data));
+        const updates = {};
+        const refundRecord = { refundAmount: amount, method, date, processedAt: Date.now(), pkgRefund: true };
+        items.forEach(it => {
+          const basePath = it.pkgIndex === null
+            ? 'contracts/' + phone + '/' + contractKey + '/programs/' + it.progKey
+            : 'contracts/' + phone + '/' + contractKey + '/packages/' + it.pkgIndex + '/items/' + it.progKey;
+          updates[basePath + '/refund'] = refundRecord;
+        });
+        await db.ref().update(updates);
+        document.getElementById('app-pkg-refund-modal')?.remove();
+        showToast('✅ 패키지 전체 환불 완료! (' + amount.toLocaleString() + '원)', 'success');
+        _renderMdContracts(phone);
+      } catch (e) {
+        showToast('환불 처리 실패: ' + e.message, 'error');
+      }
+    });
+  }
+  window.startPkgRefund = startPkgRefund;
+  window._selectPkgRefundMethod = _selectPkgRefundMethod;
+  window._confirmPkgRefund = _confirmPkgRefund;
+
   // ══════════════ 양도 기능 (1/4단계: 양수인 정보) ══════════════
   function startTransfer(phone, contractKey, progKey) {
     db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
@@ -2709,6 +2810,7 @@
     const modal = document.createElement('div');
     modal.id = 'app-transfer-picker';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+    const totalPrice = items.reduce((s, it) => s + (it.data.price || 0), 0);
     const itemBtns = items.map(it => {
       const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
       return `<button onclick="openTransferModal('${phone}','${contractKey}','${it.progKey}')"
@@ -2716,7 +2818,11 @@
         ${label} · ${(it.data.price||0).toLocaleString()}원</button>`;
     }).join('');
     modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:300px;font-family:'Noto Sans KR',sans-serif;">
-      <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">양도할 프로그램을 선택하세요</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">🔁 양도 방식을 선택하세요</div>
+      <button onclick="startPkgTransfer('${phone}','${contractKey}')"
+        style="width:100%;text-align:left;padding:13px;margin-bottom:12px;background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;font-size:14px;font-weight:700;color:#1d4ed8;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+        📦 전체 패키지 양도 · ${totalPrice.toLocaleString()}원</button>
+      <div style="font-size:11px;color:#aaa;margin-bottom:8px;text-align:center;">또는 개별 프로그램 선택</div>
       ${itemBtns}
       <button onclick="document.getElementById('app-transfer-picker').remove()"
         style="width:100%;padding:10px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:13px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:4px;">취소</button>
@@ -3020,6 +3126,8 @@
   async function _confirmTransfer() {
     const ctx = window._transferCtx;
     if (!ctx || !ctx.signUrl) return;
+    // 패키지 전체 양도 분기
+    if (ctx.isPkgTransfer) { await _confirmPkgTransfer(); return; }
     try {
       const fromSnap = await db.ref('contracts/' + ctx.fromPhone + '/' + ctx.contractKey).once('value');
       if (!fromSnap.exists()) { showToast('원본 계약 정보를 찾을 수 없어요.', 'error'); return; }
@@ -3102,6 +3210,94 @@
     }
   }
 
+  // 패키지 전체 양도 저장 — 모든 항목에 transferOut 마킹 + 양수인 계정/계약 생성
+  async function _confirmPkgTransfer() {
+    const ctx = window._transferCtx;
+    try {
+      const todayStr = _todayISO();
+      const updates = {};
+
+      // 1. 양수인 계정 생성/업데이트
+      const toSnap = await db.ref('members/' + ctx.toPhone).once('value');
+      const toExisted = toSnap.exists();
+      if (!toExisted) {
+        const pw = hashPw(ctx.toPhone.slice(-4));
+        const newMember = { name: ctx.toName + '(' + ctx.toPhone.slice(-4) + ')', pw, programs: ctx.pkgItems.map(it => it.progKey) };
+        if (ctx.toBirth) newMember.birth = ctx.toBirth;
+        if (ctx.toAddress) newMember.address = ctx.toAddress;
+        newMember['body/gender'] = ctx.toGender === '여' ? 'female' : 'male';
+        await db.ref('members/' + ctx.toPhone).update(newMember);
+      } else {
+        const toMember = toSnap.val();
+        const progs = toMember.programs || [];
+        ctx.pkgItems.forEach(it => { if (!progs.includes(it.progKey)) progs.push(it.progKey); });
+        await db.ref('members/' + ctx.toPhone + '/programs').set(progs);
+      }
+
+      // 2. 양도인 측 — 모든 항목에 transferOut 마킹
+      const fromSnap = await db.ref('contracts/' + ctx.fromPhone + '/' + ctx.contractKey).once('value');
+      const fromContract = fromSnap.val();
+      const transferOutRecord = { toPhone: ctx.toPhone, toName: ctx.toName, fee: ctx.transferFee, method: ctx.transferMethod, date: todayStr, processedAt: Date.now() };
+      ctx.pkgItems.forEach(it => {
+        const basePath = it.pkgIndex === null
+          ? 'contracts/' + ctx.fromPhone + '/' + ctx.contractKey + '/programs/' + it.progKey
+          : 'contracts/' + ctx.fromPhone + '/' + ctx.contractKey + '/packages/' + it.pkgIndex + '/items/' + it.progKey;
+        updates[basePath + '/transferOut'] = transferOutRecord;
+      });
+
+      // 3. 양수인 측 — 패키지 내 모든 항목을 포함한 새 계약 생성 (0원, 양도받음 표시)
+      const newPrograms = {};
+      ctx.pkgItems.forEach(it => {
+        newPrograms[it.progKey] = {
+          months: it.data.months || 0,
+          count: it.data.count || 0,
+          price: 0, cash: 0, card: 0, transfer: 0,
+          startDate: ctx.newStartDate || todayStr,
+          endDate: it.data.endDate || '',
+          transferIn: { fromPhone: ctx.fromPhone, fromName: fromContract?.name || '', fee: ctx.transferFee, method: ctx.transferMethod, date: todayStr, processedAt: Date.now() }
+        };
+      });
+      const newKey = todayStr + '_' + Date.now();
+      const pkgLabel = ctx.pkgItems.map(it => REFUND_PROG_NAMES[it.progKey] || it.progKey).join('+');
+      updates['contracts/' + ctx.toPhone + '/' + newKey] = {
+        name: ctx.toName, phone: ctx.toPhone,
+        birth: ctx.toBirth || (toExisted ? (toSnap.val().birth||'') : ''),
+        gender: ctx.toGender === '여' ? 'female' : 'male',
+        address: ctx.toAddress || (toExisted ? (toSnap.val().address||'') : ''),
+        memo: '[패키지 양도] ' + pkgLabel + ' — ' + (fromContract?.name||ctx.fromPhone) + '님으로부터 양도받음 (양도비 ' + (ctx.transferFee||0).toLocaleString() + '원)',
+        type: 'new', signDate: todayStr, signUrl: ctx.signUrl,
+        programs: newPrograms, createdAt: Date.now(),
+      };
+
+      await db.ref().update(updates);
+
+      // 완료 처리 — 완료 모달의 텍스트만 패키지 전체임을 표시
+      window._lastContractData = updates['contracts/' + ctx.toPhone + '/' + newKey];
+      document.getElementById('app-transfer-modal')?.remove();
+      _renderPkgTransferDone(ctx);
+      _renderMdContracts(ctx.fromPhone);
+    } catch(e) {
+      showToast('패키지 양도 처리 실패: ' + e.message, 'error');
+      const btn = document.getElementById('tf-step3-next');
+      if (btn) { btn.disabled = false; btn.textContent = '양도 완료'; }
+    }
+  }
+
+  function _renderPkgTransferDone(ctx) {
+    document.getElementById('app-transfer-done')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-transfer-done';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    const pkgLabel = ctx.pkgItems.map(it => REFUND_PROG_NAMES[it.progKey] || it.progKey).join('+');
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:320px;text-align:center;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:36px;margin-bottom:8px;">🎉</div>
+      <div style="font-size:17px;font-weight:700;color:var(--text,#1a1a1a);margin-bottom:6px;">패키지 양도 완료!</div>
+      <div style="font-size:13px;color:#888;line-height:1.6;margin-bottom:16px;">${ctx.toName}님에게 [${pkgLabel}] 패키지 전체 양도가 완료됐어요.</div>
+      <button onclick="document.getElementById('app-transfer-done').remove();" style="width:100%;padding:10px;background:none;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">닫기</button>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+
   function _renderTransferDone(ctx) {
     document.getElementById('app-transfer-done')?.remove();
     const modal = document.createElement('div');
@@ -3124,6 +3320,28 @@
   window._updateTfStep3Btn = _updateTfStep3Btn;
   window._transferStep3Next = _transferStep3Next;
   window._confirmTransfer = _confirmTransfer;
+
+  // ══════════════ 전체 패키지 양도 ══════════════
+  // 패키지 내 모든 항목을 한번에 양수인에게 이동 — 기존 4단계 양도 흐름 재활용
+  function startPkgTransfer(phone, contractKey) {
+    document.getElementById('app-transfer-picker')?.remove();
+    db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
+      if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      const c = snap.val();
+      const items = _flattenContractItems(c).filter(it => _isItemEligible(it.data));
+      if (items.length === 0) { showToast('양도할 항목이 없어요.', 'error'); return; }
+      // 패키지 양도용 컨텍스트 — isPkgTransfer:true로 표시해서 _confirmTransfer에서 분기 처리
+      window._transferCtx = {
+        fromPhone: phone, contractKey,
+        progKey: items[0].progKey, // step2 UI용 대표 progKey (기간제/횟수제 판단에만 사용)
+        item: items[0],            // step2 UI용 대표 item
+        pkgItems: items,           // 패키지 전체 항목 (저장 시 모두 처리)
+        isPkgTransfer: true,
+      };
+      _renderTransferStep1();
+    });
+  }
+  window.startPkgTransfer = startPkgTransfer;
 
   // ══════════════ 프로그램 변경 (1/4단계: 잔여가치 확인) ══════════════
   // 금액 입력칸에 콤마(,) 표시해주는 헬퍼 — 입력할 때마다 자동으로 천단위 콤마 적용
