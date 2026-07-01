@@ -5845,9 +5845,20 @@
           return lbl + (it.months?' '+it.months+'개월':'') + (it.count?' '+it.count+'회':'');
         }).filter(Boolean);
         const pkgDetailStr = pkgPeriodParts.length ? ' (' + pkgPeriodParts.join(' / ') + ')' : '';
+        // 프로그램별 소계 — 패키지 합계 아래 들여쓰기 행으로 표시
+        const subItems = Object.entries(pkg.items||{})
+          .filter(([,it]) => it.months || it.count || it.price || it.cash || it.card || it.transfer)
+          .map(([p, it]) => {
+            const lbl = pkgProgLabels[p] || p;
+            return {
+              label: lbl + (it.months ? ' ' + it.months + '개월' : '') + (it.count ? ' · ' + it.count + '회' : '') + (it.price === 0 && it.months ? ' (무료)' : ''),
+              price: it.price || 0, cash: it.cash || 0, card: it.card || 0, transfer: it.transfer || 0,
+            };
+          });
         breakdownItems.push({
           label: '📦 ' + (pkg.name || '패키지') + pkgDetailStr,
           price: pkgTotal, cash: pkgCash, card: pkgCard, transfer: pkgTr,
+          subItems,
         });
       }
     });
@@ -5901,6 +5912,17 @@
             </div>
             ${breakdownItems.map(item => {
               const itemUnpaid = item.price - (item.cash + item.card + item.transfer);
+              const subRows = (item.subItems && item.subItems.length > 1) ? item.subItems.map(sub => `
+              <div style="background:#f8fafc;">
+                <div style="padding:3px 10px 2px 20px;font-size:11px;color:var(--text-sub);">ㄴ ${sub.label}</div>
+                <div style="display:grid;grid-template-columns:75px 65px 65px 65px 70px;gap:0;padding:1px 10px 5px 20px;font-size:11px;">
+                  <div style="text-align:right;color:var(--text-sub);">${sub.price ? sub.price.toLocaleString() : '-'}</div>
+                  <div style="text-align:right;color:${sub.cash ? '#059669' : 'var(--text-hint)'};">${sub.cash ? sub.cash.toLocaleString() : '-'}</div>
+                  <div style="text-align:right;color:${sub.card ? '#1a6fd4' : 'var(--text-hint)'};">${sub.card ? sub.card.toLocaleString() : '-'}</div>
+                  <div style="text-align:right;color:${sub.transfer ? '#7c3aed' : 'var(--text-hint)'};">${sub.transfer ? sub.transfer.toLocaleString() : '-'}</div>
+                  <div style="text-align:right;color:var(--text-hint);">-</div>
+                </div>
+              </div>`).join('') : '';
               return `
               <div style="border-top:1px solid #f1f5f9;">
                 <div style="padding:6px 10px 2px;font-size:12px;font-weight:700;color:var(--text);">${item.label}</div>
@@ -5911,6 +5933,7 @@
                   <div style="text-align:right;color:${item.transfer ? '#7c3aed' : 'var(--text-hint)'};">${item.transfer ? item.transfer.toLocaleString() : '-'}</div>
                   <div style="text-align:right;font-weight:700;color:${itemUnpaid > 0 ? '#ef4444' : 'var(--text-hint)'};">${itemUnpaid > 0 ? itemUnpaid.toLocaleString() : '-'}</div>
                 </div>
+                ${subRows}
               </div>`;
             }).join('')}
           </div>`;
