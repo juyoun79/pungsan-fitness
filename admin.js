@@ -2115,9 +2115,10 @@
     const unpaid = amt - paid;
     const startLabel = _normDate(e.startDate);
     const endLabel = _normDate(e.endDate);
+    const methodLabel = _paymentMethodLabel(e);
     const statusHtml = unpaid > 0
       ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">미수금 ${unpaid.toLocaleString()}원</div>`
-      : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">완납 ✓</div>`;
+      : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">${methodLabel ? methodLabel + ' · ' : ''}완납 ✓</div>`;
     return `<div class="md-item-row" style="padding:8px 0;border-top:1px solid var(--border);">
       <div style="display:flex;align-items:flex-start;gap:14px;" class="md-item-flexwrap">
         <div style="flex-shrink:0;" class="md-item-label">
@@ -5380,7 +5381,8 @@
   function updateCtPkgField(pkgId, prog, field, value) {
     const pkg = ctPackages.find(p => p.id === pkgId);
     if (!pkg || !pkg.items[prog]) return;
-    pkg.items[prog][field] = field === 'startDate' || field === 'endDate' ? value : (parseInt(value)||0);
+    // type=text+콤마포맷으로 변경됐으므로 콤마 제거 후 숫자 변환
+    pkg.items[prog][field] = field === 'startDate' || field === 'endDate' ? value : (parseInt(String(value).replace(/[^0-9]/g,''))||0);
 
     // 종료일 자동계산
     if (field === 'months' || field === 'startDate') {
@@ -5502,9 +5504,9 @@
               </div>` : ''}
               <div>
                 <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">이용요금</div>
-                <input type="number" id="ct-pkg-${pkg.id}-${prog}-price" min="0" placeholder="0" value="${it.price||''}"
+                <input type="text" inputmode="numeric" id="ct-pkg-${pkg.id}-${prog}-price" placeholder="0" value="${it.price ? it.price.toLocaleString() : ''}"
                   style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
-                  onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','price',this.value)" />
+                  oninput="_formatMoneyInput(this);updateCtPkgField(${pkg.id},'${prog}','price',this.value)" />
               </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
@@ -5514,9 +5516,9 @@
                   <button type="button" onclick="ctSetFullPayPkg(${pkg.id},'${prog}','cash')"
                     style="padding:1px 6px;background:#e3f0fb;color:#185FA5;border:0.5px solid #185FA5;border-radius:10px;font-size:9px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전액</button>
                 </div>
-                <input type="number" id="ct-pkg-${pkg.id}-${prog}-cash" min="0" placeholder="0" value="${it.cash||''}"
+                <input type="text" inputmode="numeric" id="ct-pkg-${pkg.id}-${prog}-cash" placeholder="0" value="${it.cash ? it.cash.toLocaleString() : ''}"
                   style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
-                  onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','cash',this.value)" />
+                  oninput="_formatMoneyInput(this);updateCtPkgField(${pkg.id},'${prog}','cash',this.value)" />
               </div>
               <div>
                 <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;">
@@ -5524,9 +5526,9 @@
                   <button type="button" onclick="ctSetFullPayPkg(${pkg.id},'${prog}','card')"
                     style="padding:1px 6px;background:#e3f0fb;color:#185FA5;border:0.5px solid #185FA5;border-radius:10px;font-size:9px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전액</button>
                 </div>
-                <input type="number" id="ct-pkg-${pkg.id}-${prog}-card" min="0" placeholder="0" value="${it.card||''}"
+                <input type="text" inputmode="numeric" id="ct-pkg-${pkg.id}-${prog}-card" placeholder="0" value="${it.card ? it.card.toLocaleString() : ''}"
                   style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
-                  onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','card',this.value)" />
+                  oninput="_formatMoneyInput(this);updateCtPkgField(${pkg.id},'${prog}','card',this.value)" />
               </div>
               <div>
                 <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;">
@@ -5534,9 +5536,9 @@
                   <button type="button" onclick="ctSetFullPayPkg(${pkg.id},'${prog}','transfer')"
                     style="padding:1px 6px;background:#e3f0fb;color:#185FA5;border:0.5px solid #185FA5;border-radius:10px;font-size:9px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전액</button>
                 </div>
-                <input type="number" id="ct-pkg-${pkg.id}-${prog}-transfer" min="0" placeholder="0" value="${it.transfer||''}"
+                <input type="text" inputmode="numeric" id="ct-pkg-${pkg.id}-${prog}-transfer" placeholder="0" value="${it.transfer ? it.transfer.toLocaleString() : ''}"
                   style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;"
-                  onwheel="this.blur()" oninput="updateCtPkgField(${pkg.id},'${prog}','transfer',this.value)" />
+                  oninput="_formatMoneyInput(this);updateCtPkgField(${pkg.id},'${prog}','transfer',this.value)" />
               </div>
             </div>
           </div>`;
@@ -5577,11 +5579,13 @@
 
   // ── 전액 버튼 — 부가서비스 (운동복/락카) ──
   function ctSetFullPayExtra(type, method) {
-    const priceEl  = document.getElementById('ct-' + type + '-price');
-    const targetEl = document.getElementById('ct-' + type + '-' + method);
-    if (!priceEl || !targetEl) return;
-    const price = parseInt(priceEl.value) || 0;
-    targetEl.value = price;
+    const priceEl = document.getElementById('ct-' + type + '-price');
+    if (!priceEl) return;
+    const price = parseInt(priceEl.value.replace(/[^0-9]/g,'')) || 0;
+    ['cash','card','transfer'].forEach(f => {
+      const el = document.getElementById('ct-' + type + '-' + f);
+      if (el) el.value = (f === method ? price : 0).toLocaleString();
+    });
     calcCtTotal();
   }
   window.ctSetFullPayExtra = ctSetFullPayExtra;
@@ -5591,8 +5595,11 @@
     const priceEl = document.getElementById('ct-' + prog + '-price');
     const targetEl = document.getElementById('ct-' + prog + '-' + method);
     if (!priceEl || !targetEl) return;
-    const price = parseInt(priceEl.value) || 0;
-    targetEl.value = price;
+    const price = parseInt(priceEl.value.replace(/[^0-9]/g,'')) || 0;
+    ['cash','card','transfer'].forEach(f => {
+      const el = document.getElementById('ct-' + prog + '-' + f);
+      if (el) el.value = (f === method ? price : 0).toLocaleString();
+    });
     calcCtTotal();
   }
   window.ctSetFullPay = ctSetFullPay;
@@ -5600,11 +5607,13 @@
   // ── 전액 버튼 — 패키지 프로그램 ──
   function ctSetFullPayPkg(pkgId, prog, method) {
     const priceEl = document.getElementById('ct-pkg-' + pkgId + '-' + prog + '-price');
-    const targetEl = document.getElementById('ct-pkg-' + pkgId + '-' + prog + '-' + method);
-    if (!priceEl || !targetEl) return;
-    const price = parseInt(priceEl.value) || 0;
-    targetEl.value = price;
-    updateCtPkgField(pkgId, prog, method, price);
+    if (!priceEl) return;
+    const price = parseInt(priceEl.value.replace(/[^0-9]/g,'')) || 0;
+    ['cash','card','transfer'].forEach(f => {
+      const el = document.getElementById('ct-pkg-' + pkgId + '-' + prog + '-' + f);
+      if (el) el.value = (f === method ? price : 0).toLocaleString();
+      updateCtPkgField(pkgId, prog, f, f === method ? price : 0);
+    });
   }
   window.ctSetFullPayPkg = ctSetFullPayPkg;
 
@@ -5684,8 +5693,8 @@
           </div>
           <div>
             <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">💰 이용요금(원)</div>
-            <input type="number" id="ct-${prog}-price" min="0" placeholder="이용요금 입력"
-              style="${inStyle}font-weight:700;" onwheel="this.blur()" oninput="calcCtTotal();updateCtSummary('${prog}')" />
+            <input type="text" inputmode="numeric" id="ct-${prog}-price" placeholder="이용요금 입력"
+              style="${inStyle}font-weight:700;" oninput="_formatMoneyInput(this);calcCtTotal();updateCtSummary('${prog}')" />
           </div>
         </div>
       </div>
@@ -5700,8 +5709,8 @@
               <button type="button" onclick="ctSetFullPay('${prog}','cash')"
                 style="padding:1px 7px;background:#e3f0fb;color:#185FA5;border:0.5px solid #185FA5;border-radius:10px;font-size:10px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전액</button>
             </div>
-            <input type="number" id="ct-${prog}-cash" min="0" placeholder="0"
-              style="${inStyle}" onwheel="this.blur()" oninput="calcCtTotal()" />
+            <input type="text" inputmode="numeric" id="ct-${prog}-cash" placeholder="0"
+              style="${inStyle}" oninput="_formatMoneyInput(this);calcCtTotal()" />
           </div>
           <div>
             <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
@@ -5709,8 +5718,8 @@
               <button type="button" onclick="ctSetFullPay('${prog}','card')"
                 style="padding:1px 7px;background:#e3f0fb;color:#185FA5;border:0.5px solid #185FA5;border-radius:10px;font-size:10px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전액</button>
             </div>
-            <input type="number" id="ct-${prog}-card" min="0" placeholder="0"
-              style="${inStyle}" onwheel="this.blur()" oninput="calcCtTotal()" />
+            <input type="text" inputmode="numeric" id="ct-${prog}-card" placeholder="0"
+              style="${inStyle}" oninput="_formatMoneyInput(this);calcCtTotal()" />
           </div>
           <div>
             <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
@@ -5718,8 +5727,8 @@
               <button type="button" onclick="ctSetFullPay('${prog}','transfer')"
                 style="padding:1px 7px;background:#e3f0fb;color:#185FA5;border:0.5px solid #185FA5;border-radius:10px;font-size:10px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">전액</button>
             </div>
-            <input type="number" id="ct-${prog}-transfer" min="0" placeholder="0"
-              style="${inStyle}" onwheel="this.blur()" oninput="calcCtTotal()" />
+            <input type="text" inputmode="numeric" id="ct-${prog}-transfer" placeholder="0"
+              style="${inStyle}" oninput="_formatMoneyInput(this);calcCtTotal()" />
           </div>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;background:white;border-radius:8px;padding:8px 12px;">
@@ -5794,11 +5803,12 @@
       '기구필라테스개인':'🧘 기구필라테스 개인', '기구필라테스그룹':'👥 기구필라테스 그룹'
     };
     ctSelectedProgs.forEach(prog => {
-      const price    = parseInt(document.getElementById('ct-' + prog + '-price')?.value)    || 0;
-      const cash     = parseInt(document.getElementById('ct-' + prog + '-cash')?.value)     || 0;
-      const card     = parseInt(document.getElementById('ct-' + prog + '-card')?.value)     || 0;
-      const transfer = parseInt(document.getElementById('ct-' + prog + '-transfer')?.value) || 0;
-      const months   = parseInt(document.getElementById('ct-' + prog + '-months')?.value)   || 0;
+      const num = id => parseInt((document.getElementById('ct-' + prog + '-' + id)?.value || '0').replace(/[^0-9]/g,'')) || 0;
+      const price    = num('price');
+      const cash     = num('cash');
+      const card     = num('card');
+      const transfer = num('transfer');
+      const months   = parseInt(document.getElementById('ct-' + prog + '-months')?.value) || 0;
       totalContract += price;
       sumCash += cash; sumCard += card; sumTransfer += transfer;
       // 카드별 결제금액 표시
@@ -5846,11 +5856,12 @@
     extraConfigs.forEach(({ key, label }) => {
       const check = document.getElementById('ct-' + key + '-check');
       if (!check?.checked) return;
-      const price    = parseInt(document.getElementById('ct-' + key + '-price')?.value)    || 0;
-      const cash     = parseInt(document.getElementById('ct-' + key + '-cash')?.value)     || 0;
-      const card     = parseInt(document.getElementById('ct-' + key + '-card')?.value)     || 0;
-      const transfer = parseInt(document.getElementById('ct-' + key + '-transfer')?.value) || 0;
-      const months   = parseInt(document.getElementById('ct-' + key + '-months')?.value)   || 0;
+      const numE = id => parseInt((document.getElementById('ct-' + key + '-' + id)?.value || '0').replace(/[^0-9]/g,'')) || 0;
+      const price    = numE('price');
+      const cash     = numE('cash');
+      const card     = numE('card');
+      const transfer = numE('transfer');
+      const months   = parseInt(document.getElementById('ct-' + key + '-months')?.value) || 0;
       totalContract += price;
       sumCash += cash; sumCard += card; sumTransfer += transfer;
       // 결제금액 표시
@@ -6444,6 +6455,7 @@
     // 프로그램별 데이터 수집
     const programs = {};
     ctSelectedProgs.forEach(prog => {
+      const numVal = id => parseInt((document.getElementById('ct-' + prog + '-' + id)?.value || '0').replace(/[^0-9]/g,'')) || 0;
       programs[prog] = {
         startDate : document.getElementById('ct-' + prog + '-start')?.value || '',
         months    : parseInt(document.getElementById('ct-' + prog + '-months')?.value) || 0,
@@ -6451,10 +6463,10 @@
         extraNum  : parseInt(document.getElementById('ct-' + prog + '-extra-num')?.value) || 0,
         extraUnit : document.getElementById('ct-' + prog + '-extra-unit')?.value || '개월',
         endDate   : document.getElementById('ct-' + prog + '-end')?.value || '',
-        price     : parseInt(document.getElementById('ct-' + prog + '-price')?.value) || 0,
-        cash      : parseInt(document.getElementById('ct-' + prog + '-cash')?.value) || 0,
-        card      : parseInt(document.getElementById('ct-' + prog + '-card')?.value) || 0,
-        transfer  : parseInt(document.getElementById('ct-' + prog + '-transfer')?.value) || 0,
+        price     : numVal('price'),
+        cash      : numVal('cash'),
+        card      : numVal('card'),
+        transfer  : numVal('transfer'),
       };
     });
 
@@ -6472,6 +6484,7 @@
 
     // 부가서비스
     const extras = {};
+    const numExtra = id => parseInt((document.getElementById(id)?.value || '0').replace(/[^0-9]/g,'')) || 0;
     if (document.getElementById('ct-cloth-check')?.checked) {
       const clothStart  = document.getElementById('ct-cloth-start')?.value || signDate;
       const clothMonths = parseInt(document.getElementById('ct-cloth-months')?.value) || 0;
@@ -6479,10 +6492,10 @@
         startDate : clothStart,
         endDate   : calcEndDate(clothStart, clothMonths),
         months    : clothMonths,
-        price     : parseInt(document.getElementById('ct-cloth-price')?.value)    || 0,
-        cash      : parseInt(document.getElementById('ct-cloth-cash')?.value)     || 0,
-        card      : parseInt(document.getElementById('ct-cloth-card')?.value)     || 0,
-        transfer  : parseInt(document.getElementById('ct-cloth-transfer')?.value) || 0,
+        price     : numExtra('ct-cloth-price'),
+        cash      : numExtra('ct-cloth-cash'),
+        card      : numExtra('ct-cloth-card'),
+        transfer  : numExtra('ct-cloth-transfer'),
       };
     }
     if (document.getElementById('ct-locker-check')?.checked) {
@@ -6497,10 +6510,10 @@
         startDate   : lockerStart,
         endDate     : calcEndDate(lockerStart, lockerMonths),
         months      : lockerMonths,
-        price       : parseInt(document.getElementById('ct-locker-price')?.value)    || 0,
-        cash        : parseInt(document.getElementById('ct-locker-cash')?.value)     || 0,
-        card        : parseInt(document.getElementById('ct-locker-card')?.value)     || 0,
-        transfer    : parseInt(document.getElementById('ct-locker-transfer')?.value) || 0,
+        price       : numExtra('ct-locker-price'),
+        cash        : numExtra('ct-locker-cash'),
+        card        : numExtra('ct-locker-card'),
+        transfer    : numExtra('ct-locker-transfer'),
       };
     }
 
