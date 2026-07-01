@@ -5768,7 +5768,7 @@
       else if (extraUnit === '일') d.setDate(d.getDate() + extraNum);
     }
     d.setDate(d.getDate() - 1);
-    endEl.value = d.getFullYear() + '년 ' + (d.getMonth()+1) + '월 ' + d.getDate() + '일';
+    endEl.value = _isoDate(d); // ISO 형식(YYYY-MM-DD)으로 저장 — 한글 형식으로 저장하면 날짜 비교 오류 발생
   }
 
   // 합계 계산 (현금/카드/계좌 분리 + 미수금 + 항목별 breakdown)
