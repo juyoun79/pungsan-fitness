@@ -5816,9 +5816,10 @@
       const paidDisp = document.getElementById('ct-' + prog + '-paid-display');
       if (paidDisp) paidDisp.textContent = (cash + card + transfer).toLocaleString() + '원';
       const count = parseInt(document.getElementById('ct-' + prog + '-count')?.value) || 0;
-      if (price || cash || card || transfer) {
+      // 기간/횟수/금액 중 하나라도 있으면 breakdown에 표시 (0원짜리도 선택됐으면 보여줘야 함)
+      if (months || count || price || cash || card || transfer) {
         breakdownItems.push({
-          label: (progLabels[prog] || prog) + (months ? ' ' + months + '개월' : '') + (count ? ' · ' + count + '회' : ''),
+          label: (progLabels[prog] || prog) + (months ? ' ' + months + '개월' : '') + (count ? ' · ' + count + '회' : '') + (price === 0 && months ? ' (무료)' : ''),
           price, cash, card, transfer
         });
       }
@@ -5835,7 +5836,9 @@
       const pkgCash  = Object.values(pkg.items).reduce((s,it)=>s+(it.cash||0),0);
       const pkgCard  = Object.values(pkg.items).reduce((s,it)=>s+(it.card||0),0);
       const pkgTr    = Object.values(pkg.items).reduce((s,it)=>s+(it.transfer||0),0);
-      if (pkgTotal > 0 || pkgCash > 0 || pkgCard > 0 || pkgTr > 0) {
+      // 패키지 내 항목이 하나라도 기간 설정되어 있으면 0원이어도 breakdown에 표시
+      const pkgHasItems = Object.values(pkg.items).some(it => it.months || it.count || it.price);
+      if (pkgTotal > 0 || pkgCash > 0 || pkgCard > 0 || pkgTr > 0 || pkgHasItems) {
         const pkgProgLabels = {'pilatesP':'기구P개인','pilatesG':'기구P그룹','pt':'PT','gx':'GX','health':'헬스','기구필라테스개인':'기구P개인','기구필라테스그룹':'기구P그룹'};
         const pkgPeriodParts = Object.entries(pkg.items||{}).map(([p,it])=>{
           const lbl = pkgProgLabels[p]||p;
@@ -5868,9 +5871,10 @@
       // 결제금액 표시
       const paidDisp = document.getElementById('ct-' + key + '-paid-display');
       if (paidDisp) paidDisp.textContent = (cash + card + transfer).toLocaleString() + '원';
-      if (price || cash || card || transfer) {
+      // 체크됐으면 0원이어도 breakdown에 표시 (무료 표기)
+      if (check.checked) {
         breakdownItems.push({
-          label: label + (months ? ' ' + months + '개월' : '') + (price === 0 && check.checked ? ' (무료)' : ''),
+          label: label + (months ? ' ' + months + '개월' : '') + (price === 0 ? ' (무료)' : ''),
           price, cash, card, transfer
         });
       }
