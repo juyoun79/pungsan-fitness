@@ -6624,8 +6624,19 @@
         step5Btn.textContent = '↩ 회원상세로 돌아가기';
         step5Btn.onclick = () => {
           window._ctReturnPhone = null;
-          try { switchAdminTab('tab-members'); } catch(e) { console.error(e); }
-          try { openMemberModal(phone); } catch(e) { console.error(e); }
+          // 회원탭으로 전환하되, 회원목록 로딩 완료 후 바로 해당 회원 상세화면으로 이동
+          document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+          document.querySelectorAll('.admin-tab, .admin-side-tab').forEach(t => t.classList.remove('active'));
+          const memberSection = document.getElementById('tab-members');
+          if (memberSection) memberSection.classList.add('active');
+          const adminBody = document.getElementById('admin-mobile-body');
+          if (adminBody) { adminBody.style.paddingLeft = ''; adminBody.style.paddingRight = ''; }
+          getMemberDB().then(members => {
+            cachedMembers = members;
+            openMemberModal(phone);
+          }).catch(() => {
+            try { openMemberModal(phone); } catch(e) { console.error(e); }
+          });
         };
       }
 
