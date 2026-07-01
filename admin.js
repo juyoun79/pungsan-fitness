@@ -2083,7 +2083,11 @@
 
     return `<div style="background:var(--card);border-radius:10px;padding:16px;border:1px solid var(--border);">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div style="font-size:13px;font-weight:700;color:var(--text);">${c.signDate || '-'} · ${typeLabel}</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);">${c.signDate || '-'} · ${typeLabel}</div>
+          <button onclick="openSignDateEdit('${phone}','${c.key}','${c.signDate||''}')"
+            style="font-size:10px;color:var(--text-hint);background:none;border:1px solid var(--border);border-radius:5px;padding:1px 6px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;line-height:1.6;">✏️</button>
+        </div>
         <div style="text-align:right;">
           <div style="font-size:13px;font-weight:700;color:var(--text);">${grandTotal.toLocaleString()}원</div>
           ${grandUnpaid > 0 ? `<div style="font-size:11px;color:#ef4444;font-weight:700;">미수금 ${grandUnpaid.toLocaleString()}원</div>` : `<div style="font-size:11px;color:#22c55e;font-weight:600;">완납 ✓</div>`}
@@ -2101,6 +2105,42 @@
       ${items.length > 0 ? _renderContractMenuButton(menuId, phone, c.key, null, '처리') : ''}
     </div>`;
   }
+
+  // 계약이력 결제일(signDate) 수정
+  function openSignDateEdit(phone, contractKey, currentDate) {
+    document.getElementById('app-signdate-edit')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-signdate-edit';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:280px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">📅 결제일 수정</div>
+      <div style="font-size:12px;color:#888;margin-bottom:6px;">변경할 결제일</div>
+      <input id="sde-date" type="date" value="${currentDate}"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:18px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="display:flex;gap:10px;">
+        <button onclick="document.getElementById('app-signdate-edit').remove()"
+          style="flex:1;padding:11px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button onclick="_saveSignDate('${phone}','${contractKey}')"
+          style="flex:1;padding:11px;background:var(--blue,#3b82f6);border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+
+  async function _saveSignDate(phone, contractKey) {
+    const newDate = document.getElementById('sde-date')?.value;
+    if (!newDate) { showToast('날짜를 선택해주세요.', 'error'); return; }
+    try {
+      await db.ref('contracts/' + phone + '/' + contractKey + '/signDate').set(newDate);
+      document.getElementById('app-signdate-edit')?.remove();
+      showToast('✅ 결제일이 수정됐어요.', 'success');
+      _renderMdContracts(phone);
+    } catch(e) {
+      showToast('수정 실패: ' + e.message, 'error');
+    }
+  }
+  window.openSignDateEdit = openSignDateEdit;
+  window._saveSignDate = _saveSignDate;
 
   // 부가서비스(운동복/락카) 라벨
   function _extraLabel(key, e) {
