@@ -1850,6 +1850,18 @@
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   }
   function _todayISO() { return _isoDate(new Date()); }
+
+  // 날짜 표시 정규화 — "2026년 7월 31일" 같은 한글 형식을 "2026-07-31" ISO 형식으로 통일
+  // 이미 저장된 한글 데이터도 화면에서 일관되게 ISO 형식으로 표시됨
+  function _normDate(val) {
+    if (!val || val === '-') return val || '-';
+    // 이미 ISO 형식이면 그대로
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    // 한글 형식("2026년 7월 31일") → ISO 변환
+    const m = val.match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
+    if (m) return m[1] + '-' + String(m[2]).padStart(2,'0') + '-' + String(m[3]).padStart(2,'0');
+    return val; // 그 외 형식은 그대로 반환
+  }
   // 날짜문자열 두 개 사이의 일수차이 (a - b, 일 단위)
   function _dateDiffDays(a, b) {
     return Math.round((new Date(a) - new Date(b)) / 86400000);
@@ -2038,8 +2050,8 @@
 
     const itemRows = items.map(it => {
       const amt = it.data.price || 0;
-      const startLabel = it.data.startDate || '-';
-      const endLabel = it.data.endDate || '-';
+      const startLabel = _normDate(it.data.startDate);
+      const endLabel = _normDate(it.data.endDate);
       return `<div class="md-item-row" style="padding:8px 0;border-top:1px solid var(--border);">
         <div style="display:flex;align-items:flex-start;gap:14px;" class="md-item-flexwrap">
           <div style="flex-shrink:0;" class="md-item-label">
@@ -2101,8 +2113,8 @@
     const amt = e.price || 0;
     const paid = (e.cash||0) + (e.card||0) + (e.transfer||0);
     const unpaid = amt - paid;
-    const startLabel = e.startDate || '-';
-    const endLabel = e.endDate || '-';
+    const startLabel = _normDate(e.startDate);
+    const endLabel = _normDate(e.endDate);
     const statusHtml = unpaid > 0
       ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">미수금 ${unpaid.toLocaleString()}원</div>`
       : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">완납 ✓</div>`;
