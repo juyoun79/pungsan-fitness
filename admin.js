@@ -2335,15 +2335,24 @@
 
       <div style="display:flex;gap:6px;margin-bottom:14px;">
         <div style="flex:1;">
-          <div style="font-size:11px;color:#888;margin-bottom:4px;">현금</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-size:11px;color:#888;">현금</span>
+            <button type="button" onclick="_setFullPayment('ei','cash')" style="font-size:10px;color:#3b82f6;background:none;border:none;padding:0;cursor:pointer;font-family:'Noto Sans KR',sans-serif;text-decoration:underline;">전액</button>
+          </div>
           <input id="ei-cash" type="text" inputmode="numeric" value="${(data.cash || 0).toLocaleString()}" oninput="_formatMoneyInput(this)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
         </div>
         <div style="flex:1;">
-          <div style="font-size:11px;color:#888;margin-bottom:4px;">카드</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-size:11px;color:#888;">카드</span>
+            <button type="button" onclick="_setFullPayment('ei','card')" style="font-size:10px;color:#3b82f6;background:none;border:none;padding:0;cursor:pointer;font-family:'Noto Sans KR',sans-serif;text-decoration:underline;">전액</button>
+          </div>
           <input id="ei-card" type="text" inputmode="numeric" value="${(data.card || 0).toLocaleString()}" oninput="_formatMoneyInput(this)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
         </div>
         <div style="flex:1;">
-          <div style="font-size:11px;color:#888;margin-bottom:4px;">계좌</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-size:11px;color:#888;">계좌</span>
+            <button type="button" onclick="_setFullPayment('ei','transfer')" style="font-size:10px;color:#3b82f6;background:none;border:none;padding:0;cursor:pointer;font-family:'Noto Sans KR',sans-serif;text-decoration:underline;">전액</button>
+          </div>
           <input id="ei-transfer" type="text" inputmode="numeric" value="${(data.transfer || 0).toLocaleString()}" oninput="_formatMoneyInput(this)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
         </div>
       </div>
@@ -2367,6 +2376,17 @@
     el.value = digits ? parseInt(digits).toLocaleString() : '';
   }
   window._formatMoneyInput = _formatMoneyInput;
+
+  // "전액" 버튼 — 클릭한 결제수단 칸에 총 금액 전부를 넣고 나머지 두 칸은 0으로 정리 (ei-/ee- 두 정보수정 모달 공용, prefix로 구분)
+  function _setFullPayment(prefix, method) {
+    const total = parseInt((document.getElementById(prefix + '-price')?.value || '0').replace(/[^0-9]/g, '')) || 0;
+    ['cash', 'card', 'transfer'].forEach(m => {
+      const el = document.getElementById(prefix + '-' + m);
+      if (!el) return;
+      el.value = (m === method ? total : 0).toLocaleString();
+    });
+  }
+  window._setFullPayment = _setFullPayment;
 
   async function _saveItemEdit() {
     const ctx = window._editCtx;
@@ -2448,15 +2468,24 @@
 
       <div style="display:flex;gap:6px;margin-bottom:14px;">
         <div style="flex:1;">
-          <div style="font-size:11px;color:#888;margin-bottom:4px;">현금</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-size:11px;color:#888;">현금</span>
+            <button type="button" onclick="_setFullPayment('ee','cash')" style="font-size:10px;color:#3b82f6;background:none;border:none;padding:0;cursor:pointer;font-family:'Noto Sans KR',sans-serif;text-decoration:underline;">전액</button>
+          </div>
           <input id="ee-cash" type="text" inputmode="numeric" value="${(e.cash || 0).toLocaleString()}" oninput="_formatMoneyInput(this)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
         </div>
         <div style="flex:1;">
-          <div style="font-size:11px;color:#888;margin-bottom:4px;">카드</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-size:11px;color:#888;">카드</span>
+            <button type="button" onclick="_setFullPayment('ee','card')" style="font-size:10px;color:#3b82f6;background:none;border:none;padding:0;cursor:pointer;font-family:'Noto Sans KR',sans-serif;text-decoration:underline;">전액</button>
+          </div>
           <input id="ee-card" type="text" inputmode="numeric" value="${(e.card || 0).toLocaleString()}" oninput="_formatMoneyInput(this)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
         </div>
         <div style="flex:1;">
-          <div style="font-size:11px;color:#888;margin-bottom:4px;">계좌</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-size:11px;color:#888;">계좌</span>
+            <button type="button" onclick="_setFullPayment('ee','transfer')" style="font-size:10px;color:#3b82f6;background:none;border:none;padding:0;cursor:pointer;font-family:'Noto Sans KR',sans-serif;text-decoration:underline;">전액</button>
+          </div>
           <input id="ee-transfer" type="text" inputmode="numeric" value="${(e.transfer || 0).toLocaleString()}" oninput="_formatMoneyInput(this)" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
         </div>
       </div>
