@@ -767,38 +767,36 @@ body.pc-mode .md-item-colhead {
 body.pc-mode .md-item-colhead + .md-item-row {
   border-top: none !important;
 }
-body.pc-mode .md-item-flexwrap {
+/* PC모드: 행 자체를 7컬럼 그리드로 변환 (display:contents 미사용, 명시적 7셀 구조) */
+body.pc-mode .md-item-row {
   display: grid !important;
   grid-template-columns: 220px 55px 55px 90px 90px 90px 1fr;
   gap: 10px;
-  align-items: start;
+  align-items: center;
 }
-body.pc-mode .md-item-extra {
-  display: contents !important;
-}
-body.pc-mode .md-item-label > div:nth-child(2) {
-  display: none; /* 기간/횟수 서브텍스트 — PC모드에선 전용 컬럼에 표시되므로 숨김 */
-}
-body.pc-mode .md-item-extra > div {
+body.pc-mode .md-col-months,
+body.pc-mode .md-col-count,
+body.pc-mode .md-col-start,
+body.pc-mode .md-col-end {
+  display: block !important;
   font-size: 12px;
   color: var(--text);
-  font-weight: 600;
 }
-body.pc-mode .md-item-extra-label {
-  display: none;
+body.pc-mode .md-col-prog-sub {
+  display: none; /* PC에선 기간/횟수가 전용 컬럼에 표시되므로 서브텍스트 숨김 */
 }
-/* 금액+결제상태 wrapper — display:contents로 풀어서 각각 별도 그리드 셀로 */
-body.pc-mode .md-item-right-wrap {
+/* md-col-right: PC모드에서 display:contents로 금액(셀6)+결제상태(셀7) 분리 */
+body.pc-mode .md-col-right {
   display: contents;
 }
-body.pc-mode .md-item-amount {
+body.pc-mode .md-col-amount {
   margin-left: 0 !important;
   text-align: right;
   font-size: 12.5px;
   font-weight: 700;
   white-space: nowrap;
 }
-body.pc-mode .md-item-status {
+body.pc-mode .md-col-status {
   font-size: 11px;
   text-align: right;
 }

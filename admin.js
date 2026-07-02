@@ -2053,24 +2053,21 @@
       const amt = it.data.price || 0;
       const startLabel = _normDate(it.data.startDate);
       const endLabel = _normDate(it.data.endDate);
+      const monthsLabel = it.data.months ? it.data.months + '개월' : '-';
+      const countLabel  = it.data.count  ? it.data.count  + '회'   : '-';
       return `<div class="md-item-row" style="padding:8px 0;border-top:1px solid var(--border);">
-        <div style="display:flex;align-items:flex-start;gap:14px;" class="md-item-flexwrap">
-          <div style="flex-shrink:0;" class="md-item-label">
-            <div style="font-size:12.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px;white-space:nowrap;">${progLabels[it.progKey] || it.progKey} ${_renderPkgBadge(it.pkgName)}</div>
-            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;white-space:nowrap;">${_formatPeriodLabel(it.data)}</div>
-          </div>
-          <div class="md-item-extra" style="display:none;">
-            <div><span class="md-item-extra-label">기간</span> <span>${it.data.months ? it.data.months + '개월' : '-'}</span></div>
-            <div><span class="md-item-extra-label">횟수</span> <span>${it.data.count ? it.data.count + '회' : '-'}</span></div>
-            <div><span class="md-item-extra-label">시작일</span> <span>${startLabel}</span></div>
-            <div><span class="md-item-extra-label">종료일</span> <span>${endLabel}</span></div>
-          </div>
-          <div class="md-item-right-wrap" style="margin-left:auto;text-align:right;min-width:0;">
-            <div class="md-item-amount" style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
-            <div class="md-item-status" style="min-width:0;">
-              ${_renderItemStatusBadge(it.data, phone, c.key, it.progKey)}
-            </div>
-          </div>
+        <!-- 모바일: flex | PC: grid 7컬럼 (md-col-* 직접 배치, display:contents 미사용) -->
+        <div class="md-col-prog">
+          <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${progLabels[it.progKey] || it.progKey} ${_renderPkgBadge(it.pkgName)}</div>
+          <div class="md-col-prog-sub" style="font-size:11px;color:var(--text-hint);margin-top:2px;">${_formatPeriodLabel(it.data)}</div>
+        </div>
+        <div class="md-col-months" style="display:none;font-size:12px;color:var(--text);">${monthsLabel}</div>
+        <div class="md-col-count"  style="display:none;font-size:12px;color:var(--text);">${countLabel}</div>
+        <div class="md-col-start"  style="display:none;font-size:12px;color:var(--text);">${startLabel}</div>
+        <div class="md-col-end"    style="display:none;font-size:12px;color:var(--text);">${endLabel}</div>
+        <div class="md-col-right" style="margin-left:auto;text-align:right;">
+          <div class="md-col-amount" style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
+          <div class="md-col-status" style="font-size:11px;">${_renderItemStatusBadge(it.data, phone, c.key, it.progKey)}</div>
         </div>
       </div>`;
     }).join('');
@@ -2165,23 +2162,19 @@
       ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">미수금 ${unpaid.toLocaleString()}원</div>`
       : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">${methodLabel ? methodLabel + ' · ' : ''}완납 ✓</div>`;
     return `<div class="md-item-row" style="padding:8px 0;border-top:1px solid var(--border);">
-      <div style="display:flex;align-items:flex-start;gap:14px;" class="md-item-flexwrap">
-        <div style="flex-shrink:0;" class="md-item-label">
-          <div style="font-size:12.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px;white-space:nowrap;">${_extraLabel(extKey, e)}</div>
-        </div>
-        <div class="md-item-extra" style="display:none;">
-          <div><span class="md-item-extra-label">기간</span> <span>-</span></div>
-          <div><span class="md-item-extra-label">횟수</span> <span>-</span></div>
-          <div><span class="md-item-extra-label">시작일</span> <span>${startLabel}</span></div>
-          <div><span class="md-item-extra-label">종료일</span> <span>${endLabel}</span></div>
-        </div>
-        <div class="md-item-right-wrap" style="margin-left:auto;text-align:right;min-width:0;">
-          <div class="md-item-amount" style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
-          <div class="md-item-status" style="min-width:0;">
-            ${statusHtml}
-            <button onclick="openExtraEditModal('${phone}','${contractKey}','${extKey}')"
-              style="margin-top:3px;font-size:10px;color:var(--text-sub);background:none;border:1px solid var(--border);border-radius:5px;padding:2px 7px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 수정</button>
-          </div>
+      <div class="md-col-prog">
+        <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${_extraLabel(extKey, e)}</div>
+      </div>
+      <div class="md-col-months" style="display:none;font-size:12px;color:var(--text-hint);">-</div>
+      <div class="md-col-count"  style="display:none;font-size:12px;color:var(--text-hint);">-</div>
+      <div class="md-col-start"  style="display:none;font-size:12px;color:var(--text);">${startLabel}</div>
+      <div class="md-col-end"    style="display:none;font-size:12px;color:var(--text);">${endLabel}</div>
+      <div class="md-col-right" style="margin-left:auto;text-align:right;">
+        <div class="md-col-amount" style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
+        <div class="md-col-status" style="font-size:11px;">
+          ${statusHtml}
+          <button onclick="openExtraEditModal('${phone}','${contractKey}','${extKey}')"
+            style="margin-top:3px;font-size:10px;color:var(--text-sub);background:none;border:1px solid var(--border);border-radius:5px;padding:2px 7px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 수정</button>
         </div>
       </div>
     </div>`;
