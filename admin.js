@@ -2108,7 +2108,7 @@
         style="width:100%;padding:8px;background:#fff7ed;color:#ea580c;border:1.5px solid #fed7aa;border-radius:var(--radius-sm);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:10px;margin-bottom:8px;">
         💳 미수금 ${grandUnpaid.toLocaleString()}원 결제처리
       </button>` : ''}
-      ${items.length > 0 ? _renderContractMenuButton(menuId, phone, c.key, null, '처리') : ''}
+      ${(items.length > 0 || extrasList.length > 0) ? _renderContractMenuButton(menuId, phone, c.key, null, '처리') : ''}
     </div>`;
   }
 
@@ -2178,8 +2178,6 @@
         <div class="md-col-amount" style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
         <div class="md-col-status" style="font-size:11px;white-space:nowrap;text-align:right;">
           ${statusHtml}
-          <button onclick="openExtraEditModal('${phone}','${contractKey}','${extKey}')"
-            style="margin-top:3px;font-size:10px;color:var(--text-sub);background:none;border:1px solid var(--border);border-radius:5px;padding:2px 7px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 수정</button>
         </div>
       </div>
     </div>`;
@@ -2258,24 +2256,33 @@
     document.getElementById('app-edit-picker')?.remove();
     db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
       if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
-      const items = _flattenContractItems(snap.val());
+      const c = snap.val();
+      const items = _flattenContractItems(c);
+      // 부가서비스(운동복/락카)도 "정보 수정" 대상에 함께 포함 — 삭제된 항목은 제외
+      const extrasList = Object.entries(c.extras || {}).filter(([, e]) => !e.deleted);
       if (progKey) {
         const item = items.find(it => it.progKey === progKey);
         if (!item) { showToast('해당 항목을 찾을 수 없어요.', 'error'); return; }
         _renderItemEditForm(phone, contractKey, item);
         return;
       }
-      if (items.length === 1) {
-        _renderItemEditForm(phone, contractKey, items[0]);
-      } else if (items.length > 1) {
-        _showEditItemPicker(phone, contractKey, items);
+      const totalCount = items.length + extrasList.length;
+      if (totalCount === 1) {
+        if (items.length === 1) {
+          _renderItemEditForm(phone, contractKey, items[0]);
+        } else {
+          openExtraEditModal(phone, contractKey, extrasList[0][0]);
+        }
+      } else if (totalCount > 1) {
+        _showEditItemPicker(phone, contractKey, items, extrasList);
       } else {
         showToast('수정할 항목이 없어요.', 'error');
       }
     });
   }
 
-  function _showEditItemPicker(phone, contractKey, items) {
+  function _showEditItemPicker(phone, contractKey, items, extrasList) {
+    extrasList = extrasList || [];
     const modal = document.createElement('div');
     modal.id = 'app-edit-picker';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
@@ -2285,9 +2292,17 @@
         style="width:100%;text-align:left;padding:12px;margin-bottom:8px;background:var(--bg,#f7f7f7);border:1px solid #e0e0e0;border-radius:10px;font-size:14px;color:var(--text,#1a1a1a);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
         ${label} · ${(it.data.price||0).toLocaleString()}원</button>`;
     }).join('');
+    // 부가서비스(운동복/락카) — 클릭 시 기존 부가서비스 전용 수정화면(openExtraEditModal)으로 연결
+    const extraBtns = extrasList.map(([extKey, e]) => {
+      const label = _extraLabel(extKey, e);
+      return `<button onclick="document.getElementById('app-edit-picker').remove();openExtraEditModal('${phone}','${contractKey}','${extKey}')"
+        style="width:100%;text-align:left;padding:12px;margin-bottom:8px;background:var(--bg,#f7f7f7);border:1px solid #e0e0e0;border-radius:10px;font-size:14px;color:var(--text,#1a1a1a);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+        ${label} · ${(e.price||0).toLocaleString()}원</button>`;
+    }).join('');
     modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:300px;font-family:'Noto Sans KR',sans-serif;">
       <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">수정할 항목을 선택하세요</div>
       ${itemBtns}
+      ${extraBtns}
       <button onclick="document.getElementById('app-edit-picker').remove()"
         style="width:100%;padding:10px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:13px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:4px;">취소</button>
     </div>`;
