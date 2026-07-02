@@ -2065,9 +2065,9 @@
         <div class="md-col-count"  style="display:none;font-size:12px;color:var(--text);">${countLabel}</div>
         <div class="md-col-start"  style="display:none;font-size:12px;color:var(--text);">${startLabel}</div>
         <div class="md-col-end"    style="display:none;font-size:12px;color:var(--text);">${endLabel}</div>
-        <div class="md-col-right" style="margin-left:auto;text-align:right;">
+        <div class="md-col-right" style="margin-left:auto;display:flex;align-items:center;justify-content:flex-end;gap:10px;">
           <div class="md-col-amount" style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
-          <div class="md-col-status" style="font-size:11px;">${_renderItemStatusBadge(it.data, phone, c.key, it.progKey)}</div>
+          <div class="md-col-status" style="font-size:11px;white-space:nowrap;">${_renderItemStatusBadge(it.data, phone, c.key, it.progKey)}</div>
         </div>
       </div>`;
     }).join('');
@@ -2076,7 +2076,12 @@
     const extraRows = extrasList.map(([extKey, e]) => _renderExtraRow(phone, c.key, extKey, e)).join('');
 
     const itemHeader = (items.length || extrasList.length) ? `<div class="md-item-colhead" style="display:none;">
-      <div>프로그램</div><div>기간</div><div>횟수</div><div>시작일</div><div>종료일</div><div style="text-align:right;">금액</div><div style="text-align:right;">결제상태</div>
+      <div style="text-align:left;">프로그램</div>
+      <div style="text-align:center;">기간</div>
+      <div style="text-align:center;">횟수</div>
+      <div style="text-align:center;">시작일</div>
+      <div style="text-align:center;">종료일</div>
+      <div style="text-align:right;">금액 · 결제상태</div>
     </div>` : '';
 
     // 프로그램 없이 부가서비스만 있는 계약(락카탭 직접배정 등)은 신규/재등록 대신 "부가서비스"로 표시
@@ -2169,9 +2174,9 @@
       <div class="md-col-count"  style="display:none;font-size:12px;color:var(--text-hint);">-</div>
       <div class="md-col-start"  style="display:none;font-size:12px;color:var(--text);">${startLabel}</div>
       <div class="md-col-end"    style="display:none;font-size:12px;color:var(--text);">${endLabel}</div>
-      <div class="md-col-right" style="margin-left:auto;text-align:right;">
+      <div class="md-col-right" style="margin-left:auto;display:flex;align-items:center;justify-content:flex-end;gap:10px;">
         <div class="md-col-amount" style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
-        <div class="md-col-status" style="font-size:11px;">
+        <div class="md-col-status" style="font-size:11px;white-space:nowrap;text-align:right;">
           ${statusHtml}
           <button onclick="openExtraEditModal('${phone}','${contractKey}','${extKey}')"
             style="margin-top:3px;font-size:10px;color:var(--text-sub);background:none;border:1px solid var(--border);border-radius:5px;padding:2px 7px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 수정</button>

@@ -756,21 +756,31 @@ body.pc-mode #md-memo {
 /* ── PC 모드: 계약이력 항목 — 고정폭 그리드로 줄 맞춤 (프로그램/시작일/종료일/결제·상태) ── */
 body.pc-mode .md-item-colhead {
   display: grid !important;
-  grid-template-columns: 220px 55px 55px 90px 90px 90px 1fr;
+  grid-template-columns: 220px 55px 55px 90px 90px 1fr;
   gap: 10px;
   font-size: 11px;
   font-weight: 700;
   color: var(--text-sub);
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border);
+  align-items: center;
+}
+body.pc-mode .md-item-colhead > div {
+  text-align: center;
+}
+body.pc-mode .md-item-colhead > div:first-child {
+  text-align: left;
+}
+body.pc-mode .md-item-colhead > div:last-child {
+  text-align: right;
 }
 body.pc-mode .md-item-colhead + .md-item-row {
   border-top: none !important;
 }
-/* PC모드: 행 자체를 7컬럼 그리드로 변환 (display:contents 미사용, 명시적 7셀 구조) */
+/* PC모드: 행 자체를 6컬럼 그리드로 변환 */
 body.pc-mode .md-item-row {
   display: grid !important;
-  grid-template-columns: 220px 55px 55px 90px 90px 90px 1fr;
+  grid-template-columns: 220px 55px 55px 90px 90px 1fr;
   gap: 10px;
   align-items: center;
 }
@@ -781,24 +791,27 @@ body.pc-mode .md-col-end {
   display: block !important;
   font-size: 12px;
   color: var(--text);
+  text-align: center;
 }
 body.pc-mode .md-col-prog-sub {
-  display: none; /* PC에선 기간/횟수가 전용 컬럼에 표시되므로 서브텍스트 숨김 */
+  display: none;
 }
-/* md-col-right: PC모드에서 display:contents로 금액(셀6)+결제상태(셀7) 분리 */
+/* 금액+결제상태: flex row로 우측 정렬 — display:contents 미사용 */
 body.pc-mode .md-col-right {
-  display: contents;
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-left: 0 !important;
 }
 body.pc-mode .md-col-amount {
-  margin-left: 0 !important;
-  text-align: right;
   font-size: 12.5px;
   font-weight: 700;
   white-space: nowrap;
 }
 body.pc-mode .md-col-status {
   font-size: 11px;
-  text-align: right;
+  white-space: nowrap;
 }
 
 /* ── PC 모드: 카드 간 경계 명확화 (테두리+모서리) ── */
