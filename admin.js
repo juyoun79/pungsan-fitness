@@ -2065,9 +2065,9 @@
             <div><span class="md-item-extra-label">시작일</span> <span>${startLabel}</span></div>
             <div><span class="md-item-extra-label">종료일</span> <span>${endLabel}</span></div>
           </div>
-          <div class="md-item-right-wrap" style="text-align:right;min-width:0;margin-left:auto;">
+          <div class="md-item-right-wrap" style="margin-left:auto;text-align:right;min-width:0;">
             <div class="md-item-amount" style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
-            <div class="md-item-status">
+            <div class="md-item-status" style="min-width:0;">
               ${_renderItemStatusBadge(it.data, phone, c.key, it.progKey)}
             </div>
           </div>
@@ -2079,7 +2079,7 @@
     const extraRows = extrasList.map(([extKey, e]) => _renderExtraRow(phone, c.key, extKey, e)).join('');
 
     const itemHeader = (items.length || extrasList.length) ? `<div class="md-item-colhead" style="display:none;">
-      <div>프로그램</div><div>기간</div><div>횟수</div><div>시작일</div><div>종료일</div><div style="text-align:right;">결제 / 상태</div>
+      <div>프로그램</div><div>기간</div><div>횟수</div><div>시작일</div><div>종료일</div><div style="text-align:right;">금액</div><div style="text-align:right;">결제상태</div>
     </div>` : '';
 
     // 프로그램 없이 부가서비스만 있는 계약(락카탭 직접배정 등)은 신규/재등록 대신 "부가서비스"로 표시
@@ -2175,9 +2175,9 @@
           <div><span class="md-item-extra-label">시작일</span> <span>${startLabel}</span></div>
           <div><span class="md-item-extra-label">종료일</span> <span>${endLabel}</span></div>
         </div>
-        <div class="md-item-right-wrap" style="text-align:right;min-width:0;margin-left:auto;">
+        <div class="md-item-right-wrap" style="margin-left:auto;text-align:right;min-width:0;">
           <div class="md-item-amount" style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
-          <div class="md-item-status">
+          <div class="md-item-status" style="min-width:0;">
             ${statusHtml}
             <button onclick="openExtraEditModal('${phone}','${contractKey}','${extKey}')"
               style="margin-top:3px;font-size:10px;color:var(--text-sub);background:none;border:1px solid var(--border);border-radius:5px;padding:2px 7px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 수정</button>
