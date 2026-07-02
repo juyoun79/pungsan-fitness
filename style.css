@@ -756,7 +756,7 @@ body.pc-mode #md-memo {
 /* ── PC 모드: 계약이력 항목 — 고정폭 그리드로 줄 맞춤 (프로그램/시작일/종료일/결제·상태) ── */
 body.pc-mode .md-item-colhead {
   display: grid !important;
-  grid-template-columns: 220px 55px 55px 90px 90px 90px 120px;
+  grid-template-columns: 220px 55px 55px 90px 90px 90px 1fr;
   gap: 10px;
   font-size: 11px;
   font-weight: 700;
@@ -769,7 +769,7 @@ body.pc-mode .md-item-colhead + .md-item-row {
 }
 body.pc-mode .md-item-flexwrap {
   display: grid !important;
-  grid-template-columns: 220px 55px 55px 90px 90px 90px 120px;
+  grid-template-columns: 220px 55px 55px 90px 90px 90px 1fr;
   gap: 10px;
   align-items: start;
 }
