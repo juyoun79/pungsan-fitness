@@ -756,7 +756,7 @@ body.pc-mode #md-memo {
 /* ── PC 모드: 계약이력 항목 — 고정폭 그리드로 줄 맞춤 (프로그램/시작일/종료일/결제·상태) ── */
 body.pc-mode .md-item-colhead {
   display: grid !important;
-  grid-template-columns: 220px 55px 55px 90px 90px 1fr;
+  grid-template-columns: 220px 55px 55px 90px 90px 88px 1fr;
   gap: 10px;
   font-size: 11px;
   font-weight: 700;
@@ -769,7 +769,7 @@ body.pc-mode .md-item-colhead + .md-item-row {
 }
 body.pc-mode .md-item-flexwrap {
   display: grid !important;
-  grid-template-columns: 220px 55px 55px 90px 90px 1fr;
+  grid-template-columns: 220px 55px 55px 90px 90px 88px 1fr;
   gap: 10px;
   align-items: start;
 }
@@ -787,12 +787,23 @@ body.pc-mode .md-item-extra > div {
 body.pc-mode .md-item-extra-label {
   display: none; /* 헤더가 컬럼 제목 역할을 하므로 행마다 캡션은 숨기고 값만 표시 */
 }
+/* PC모드: wrapper를 contents로 풀어서 금액/결제상태가 각각 별도 그리드 셀이 되도록 */
+body.pc-mode .md-item-right-wrap {
+  display: contents;
+}
 body.pc-mode .md-item-amount {
   margin-left: 0 !important;
   white-space: normal;
+  text-align: right;
+  font-size: 12.5px;
+  font-weight: 700;
 }
 body.pc-mode .md-item-amount > div {
   white-space: normal !important;
+}
+body.pc-mode .md-item-status {
+  font-size: 11px;
+  text-align: left;
 }
 
 /* ── PC 모드: 카드 간 경계 명확화 (테두리+모서리) ── */
