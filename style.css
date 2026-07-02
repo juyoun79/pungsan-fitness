@@ -756,8 +756,8 @@ body.pc-mode #md-memo {
 /* ── PC 모드: 계약이력 항목 — 고정폭 그리드로 줄 맞춤 (프로그램/시작일/종료일/결제·상태) ── */
 body.pc-mode .md-item-colhead {
   display: grid !important;
-  grid-template-columns: 240px 110px 110px 1fr;
-  gap: 14px;
+  grid-template-columns: 220px 55px 55px 90px 90px 1fr;
+  gap: 10px;
   font-size: 11px;
   font-weight: 700;
   color: var(--text-sub);
@@ -769,12 +769,15 @@ body.pc-mode .md-item-colhead + .md-item-row {
 }
 body.pc-mode .md-item-flexwrap {
   display: grid !important;
-  grid-template-columns: 240px 110px 110px 1fr;
-  gap: 14px;
+  grid-template-columns: 220px 55px 55px 90px 90px 1fr;
+  gap: 10px;
   align-items: start;
 }
 body.pc-mode .md-item-extra {
   display: contents !important;
+}
+body.pc-mode .md-item-label > div:nth-child(2) {
+  display: none; /* 기간/횟수 서브텍스트 — PC모드에선 전용 컬럼에 표시되므로 숨김 */
 }
 body.pc-mode .md-item-extra > div {
   font-size: 12px;

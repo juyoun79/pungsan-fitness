@@ -2060,6 +2060,8 @@
             <div style="font-size:11px;color:var(--text-hint);margin-top:2px;white-space:nowrap;">${_formatPeriodLabel(it.data)}</div>
           </div>
           <div class="md-item-extra" style="display:none;">
+            <div><span class="md-item-extra-label">기간</span> <span>${it.data.months ? it.data.months + '개월' : '-'}</span></div>
+            <div><span class="md-item-extra-label">횟수</span> <span>${it.data.count ? it.data.count + '회' : '-'}</span></div>
             <div><span class="md-item-extra-label">시작일</span> <span>${startLabel}</span></div>
             <div><span class="md-item-extra-label">종료일</span> <span>${endLabel}</span></div>
           </div>
@@ -2075,7 +2077,7 @@
     const extraRows = extrasList.map(([extKey, e]) => _renderExtraRow(phone, c.key, extKey, e)).join('');
 
     const itemHeader = (items.length || extrasList.length) ? `<div class="md-item-colhead" style="display:none;">
-      <div>프로그램</div><div>시작일</div><div>종료일</div><div style="text-align:right;">결제 / 상태</div>
+      <div>프로그램</div><div>기간</div><div>횟수</div><div>시작일</div><div>종료일</div><div style="text-align:right;">결제 / 상태</div>
     </div>` : '';
 
     // 프로그램 없이 부가서비스만 있는 계약(락카탭 직접배정 등)은 신규/재등록 대신 "부가서비스"로 표시
@@ -2164,9 +2166,10 @@
       <div style="display:flex;align-items:flex-start;gap:14px;" class="md-item-flexwrap">
         <div style="flex-shrink:0;" class="md-item-label">
           <div style="font-size:12.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:5px;white-space:nowrap;">${_extraLabel(extKey, e)}</div>
-          <div style="font-size:11px;color:var(--text-hint);margin-top:2px;white-space:nowrap;">${startLabel} ~ ${endLabel}</div>
         </div>
         <div class="md-item-extra" style="display:none;">
+          <div><span class="md-item-extra-label">기간</span> <span>-</span></div>
+          <div><span class="md-item-extra-label">횟수</span> <span>-</span></div>
           <div><span class="md-item-extra-label">시작일</span> <span>${startLabel}</span></div>
           <div><span class="md-item-extra-label">종료일</span> <span>${endLabel}</span></div>
         </div>
