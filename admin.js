@@ -4443,7 +4443,6 @@
     const phone = currentMemberPhone;
     const info = cachedMembers[phone];
     if (!info) return;
-    document.getElementById('edit-member-name').value = info.name || '';
     document.getElementById('edit-member-phone').value = phone;
     // 프로그램 체크박스 초기화
     document.querySelectorAll('#edit-member-programs input').forEach(cb => {
@@ -4463,20 +4462,18 @@
   }
 
   function saveEditMember() {
-    const newName     = document.getElementById('edit-member-name').value.trim();
     const newPhone    = document.getElementById('edit-member-phone').value.trim().replace(/-/g, '');
     const newNickname = (document.getElementById('edit-member-nickname')?.value || '').trim();
     const programs    = [...document.querySelectorAll('#edit-member-programs input:checked')].map(el => el.value);
     const oldPhone    = currentMemberPhone;
     const info        = cachedMembers[oldPhone];
 
-    if (!newName)  { showToast('이름을 입력해주세요.', 'error'); return; }
     if (!newPhone || newPhone.length < 10) { showToast('전화번호를 정확히 입력해주세요.', 'error'); return; }
 
     const phoneChanged = newPhone !== oldPhone;
 
     const doSave = () => {
-      const updateData = { name: newName, programs };
+      const updateData = { programs };
       if (newNickname) updateData.nickname = newNickname;
 
       if (phoneChanged) {
@@ -4485,7 +4482,6 @@
           db.ref('members/' + oldPhone).remove();
           // users에도 닉네임 업데이트
           if (newNickname) db.ref('users/' + newPhone + '/nickname').set(newNickname);
-          localStorage.setItem('name_' + newPhone, newName);
           if (newNickname) localStorage.setItem('nickname_' + newPhone, newNickname);
           closeEditMemberModal();
           closeMemberModal();
@@ -4496,7 +4492,6 @@
         db.ref('members/' + oldPhone).update(updateData).then(() => {
           // users에도 닉네임 업데이트
           if (newNickname) db.ref('users/' + oldPhone + '/nickname').set(newNickname);
-          localStorage.setItem('name_' + oldPhone, newName);
           if (newNickname) localStorage.setItem('nickname_' + oldPhone, newNickname);
           cachedMembers[oldPhone] = { ...info, ...updateData };
           closeEditMemberModal();

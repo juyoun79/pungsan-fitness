@@ -737,14 +737,14 @@ body.pc-mode .md-main-card-body {
   flex: 1;
 }
 
-/* ── PC 모드: 회원상세 기본정보 카드 내부 4열 배치 (이름/생년월일/성별/연락처 한 줄) ── */
+/* ── PC 모드: 회원상세 기본정보 카드 내부 3열 배치 (이름/생년월일/성별 한 줄, 연락처는 프로필카드로 이동함) ── */
 body.pc-mode .md-main-card-body {
   display: grid !important;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 14px 10px;
 }
-body.pc-mode .md-row-name-birth,
-body.pc-mode .md-row-gender-phone {
+body.pc-mode .md-row-name,
+body.pc-mode .md-row-birth-gender {
   display: contents !important;
 }
 body.pc-mode .md-row-address,

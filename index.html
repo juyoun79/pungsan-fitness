@@ -2535,6 +2535,7 @@
                   <button type="button" onclick="openEditMemberModal()"
                     style="padding:3px 9px;background:var(--card);color:var(--text-sub);border:1.5px solid var(--border);border-radius:6px;font-size:10.5px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">✏️ 변경</button>
                 </div>
+                <div id="md-phone" style="font-size:12.5px;color:var(--text-sub);margin-top:3px;"></div>
                 <div id="md-nick" style="font-size:12px;color:var(--text-sub);margin:3px 0 8px;"></div>
                 <div id="md-programs" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
               </div>
@@ -2572,24 +2573,24 @@
             </div>
             <div style="display:flex;flex-direction:column;gap:10px;" class="md-main-card-body">
 
-              <!-- 이름 + 생년월일 (2열) -->
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" class="md-row md-row-name-birth">
+              <!-- 이름 (단독 1열) -->
+              <div class="md-row md-row-name">
                 <div>
                   <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">이름</div>
                   <input id="md-edit-name" type="text" placeholder="이름 입력"
                     style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
                     onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
                 </div>
+              </div>
+
+              <!-- 생년월일 + 성별 (2열 한 줄) -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" class="md-row md-row-birth-gender">
                 <div>
                   <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">생년월일</div>
                   <input id="md-edit-birth" type="text" placeholder="19900101"
                     style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--bg);color:var(--text);"
                     onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
                 </div>
-              </div>
-
-              <!-- 성별 + 연락처 (2열 한 줄) -->
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" class="md-row md-row-gender-phone">
                 <div>
                   <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">성별</div>
                   <div style="display:flex;gap:5px;">
@@ -2598,10 +2599,6 @@
                     <button id="md-gender-female" onclick="selectMdGender('female')"
                       style="flex:1;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);">여성</button>
                   </div>
-                </div>
-                <div>
-                  <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">연락처</div>
-                  <div id="md-phone" style="width:100%;box-sizing:border-box;padding:8px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--text-sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
                 </div>
               </div>
 
@@ -4938,14 +4935,6 @@
       <div class="modal-title">
         <span>✏️ 회원정보 수정</span>
         <button class="modal-close" onclick="closeEditMemberModal()">×</button>
-      </div>
-
-      <!-- 이름 -->
-      <div style="margin-bottom:14px;">
-        <label class="field-label">이름</label>
-        <input type="text" id="edit-member-name" placeholder="이름 입력"
-          style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:6px;"
-          onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
       </div>
 
       <!-- 전화번호 -->
