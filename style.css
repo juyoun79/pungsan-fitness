@@ -702,7 +702,7 @@
 /* ── PC 모드: 회원상세 화면 레이아웃 (프로필+수업현황 / 기본정보 2단 배치) ── */
 body.pc-mode .md-top-grid {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 380px 1fr;
   gap: 12px;
   align-items: stretch;
   padding: 0 16px;
