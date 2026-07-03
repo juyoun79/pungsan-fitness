@@ -2601,17 +2601,15 @@
                 </div>
               </div>
 
-              <!-- 주소 -->
+              <!-- 주소 (+ 저장 버튼, PC모드에서는 오른쪽 옆으로 배치) -->
               <div style="display:grid;grid-template-columns:72px 1fr;align-items:start;gap:12px;" class="md-row md-row-address">
                 <span style="font-size:13px;color:var(--text-hint);padding-top:9px;">주소</span>
                 <textarea id="md-edit-address" placeholder="주소 입력"
                   style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:60px;line-height:1.5;background:var(--bg);color:var(--text);"
                   onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+                <button onclick="saveMemberBasicInfo()" class="md-save-btn md-address-save-btn"
+                  style="grid-column:1/-1;width:100%;margin-top:2px;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 기본정보 저장</button>
               </div>
-
-              <!-- 저장 버튼 -->
-              <button onclick="saveMemberBasicInfo()" class="md-save-btn"
-                style="width:100%;margin-top:2px;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 기본정보 저장</button>
 
               <!-- 락카/포인트/이번달출석/누적출석 (4열 한 줄) -->
               <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:6px;" class="md-row md-row-stats">
@@ -2642,10 +2640,12 @@
           <!-- 회원 메모 -->
           <div style="background:var(--card);padding:16px;margin-bottom:8px;" class="md-section-card">
             <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:10px;">회원 메모</div>
-            <textarea id="md-memo" placeholder="특이사항, 메모 등 자유롭게 입력하세요."
-              style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:90px;line-height:1.6;background:var(--bg);"
-              onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'"></textarea>
-            <button onclick="saveMemberMemo()" class="md-save-btn" style="width:100%;margin-top:8px;padding:10px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 메모 저장</button>
+            <div style="display:flex;flex-direction:column;gap:8px;" class="md-memo-row">
+              <textarea id="md-memo" placeholder="특이사항, 메모 등 자유롭게 입력하세요."
+                style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;height:90px;line-height:1.6;background:var(--bg);"
+                onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+              <button onclick="saveMemberMemo()" class="md-save-btn md-memo-save-btn" style="width:100%;padding:10px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 메모 저장</button>
+            </div>
           </div>
 
           <!-- 계약이력 -->
