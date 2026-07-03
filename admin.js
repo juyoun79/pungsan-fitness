@@ -1370,7 +1370,7 @@
         results.forEach(({ phone, info, todayAttend, monthAtt }) => {
           if (todayAttend) {
             todayCount++;
-            const nick = localStorage.getItem('name_' + phone) || info.name;
+            const nick = localStorage.getItem('nickname_' + phone) || info.name;
             todayRows.push({ phone, name: info.name, nick });
           }
           monthCount += monthAtt;
@@ -1429,13 +1429,13 @@
             (() => { let c=0; for(let d=1;d<=31;d++) { if(localStorage.getItem('attend_'+phone+'_'+monthPrefix+d)==='done') c++; } return c; })();
           const pts = ptsSnap.val() ?? localStorage.getItem('points_' + phone) ?? '0';
           localStorage.setItem('points_' + phone, String(pts));
-          const nick = localStorage.getItem('name_' + phone) || '-';
+          const nick = localStorage.getItem('nickname_' + phone) || '-';
           return [phone, info, attendCount, pts, nick];
         }).catch(() => {
           const pts = localStorage.getItem('points_' + phone) || '0';
           let attendCount = 0;
           for(let d=1;d<=31;d++) { if(localStorage.getItem('attend_'+phone+'_'+monthPrefix+d)==='done') attendCount++; }
-          const nick = localStorage.getItem('name_' + phone) || '-';
+          const nick = localStorage.getItem('nickname_' + phone) || '-';
           return [phone, info, attendCount, pts, nick];
         })
       )).then(memberData => {
@@ -1499,12 +1499,12 @@
 
     // 닉네임
     const nickEl = document.getElementById('md-nick');
-    const localNick = localStorage.getItem('name_' + phone) || '';
+    const localNick = localStorage.getItem('nickname_' + phone) || '';
     if (nickEl) nickEl.textContent = localNick ? '닉네임: ' + localNick : '닉네임: 미설정';
-    db.ref('users/' + phone + '/nickname').once('value').then(nickSnap => {
+    db.ref('members/' + phone + '/nickname').once('value').then(nickSnap => {
       const firebaseNick = nickSnap.val() || '';
       if (firebaseNick) {
-        localStorage.setItem('name_' + phone, firebaseNick);
+        localStorage.setItem('nickname_' + phone, firebaseNick);
         if (nickEl) nickEl.textContent = '닉네임: ' + firebaseNick;
       } else {
         if (nickEl) nickEl.textContent = '닉네임: 미설정';
