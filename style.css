@@ -752,27 +752,9 @@ body.pc-mode .md-row-stats {
   grid-column: 1 / -1;
 }
 
-/* PC 모드: 회원 메모 입력창 높이 확대 + 저장버튼을 옆으로 배치 */
-body.pc-mode .md-memo-row {
-  flex-direction: row !important;
-  align-items: flex-start;
-}
+/* PC 모드: 회원 메모 입력창 높이 확대 */
 body.pc-mode #md-memo {
   height: 200px !important;
-  flex: 1;
-  width: auto !important;
-}
-body.pc-mode .md-memo-save-btn {
-  flex-shrink: 0;
-}
-
-/* PC 모드: 주소 입력칸 오른쪽에 기본정보 저장버튼 배치 */
-body.pc-mode .md-row-address {
-  grid-template-columns: 72px 1fr auto !important;
-}
-body.pc-mode .md-address-save-btn {
-  grid-column: 3 !important;
-  align-self: start;
 }
 
 /* ── PC 모드: 계약이력 항목 — 고정폭 그리드로 줄 맞춤 (프로그램/시작일/종료일/결제·상태) ── */
@@ -842,22 +824,6 @@ body.pc-mode .md-main-card,
 body.pc-mode .md-section-card {
   border: 1px solid var(--border);
   border-radius: 10px;
-}
-
-/* ── PC 모드: 저장 버튼 크기 축소 + 우측 정렬 ── */
-body.pc-mode .md-save-btn {
-  width: auto !important;
-  min-width: 160px;
-  padding: 9px 22px !important;
-  margin-left: auto !important;
-  display: block;
-}
-
-/* PC 모드: 주소/메모 옆으로 옮긴 저장버튼은 margin-left:auto를 쓰지 않고 그리드/플렉스 배치를 그대로 따름 */
-body.pc-mode .md-address-save-btn,
-body.pc-mode .md-memo-save-btn {
-  margin-left: 0 !important;
-  margin-top: 0 !important;
 }
 
 /* ── PC 모드: 계약카드 "처리▾" 버튼 크기 축소 + 우측 정렬 ── */
