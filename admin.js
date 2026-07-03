@@ -1517,9 +1517,9 @@
     const mdPhoneEl = document.getElementById('md-phone');
     if (mdPhoneEl) mdPhoneEl.textContent = phone;
 
-    // 이름 입력창
+    // 이름 입력창 (저장 시 그대로 Firebase에 들어가므로, 초기비밀번호 힌트인 "(뒤4자리)"가 지워지지 않도록 원본 그대로 채움)
     const mdEditName = document.getElementById('md-edit-name');
-    if (mdEditName) mdEditName.value = rawName;
+    if (mdEditName) mdEditName.value = info.name || '';
 
     // 생년월일 입력창
     const birth = info.birth || '';
@@ -4443,7 +4443,7 @@
     const phone = currentMemberPhone;
     const info = cachedMembers[phone];
     if (!info) return;
-    document.getElementById('edit-member-name').value = (info.name || '').replace(/\(\d{4}\)$/, '').trim();
+    document.getElementById('edit-member-name').value = info.name || '';
     document.getElementById('edit-member-phone').value = phone;
     // 프로그램 체크박스 초기화
     document.querySelectorAll('#edit-member-programs input').forEach(cb => {
