@@ -719,6 +719,10 @@ body.pc-mode .md-sidebar > div {
 body.pc-mode .md-sidebar > div:last-child {
   flex: 1;
 }
+body.pc-mode #md-class-status {
+  max-height: 460px;
+  overflow-y: auto;
+}
 body.pc-mode .md-main {
   display: flex;
   flex-direction: column;
