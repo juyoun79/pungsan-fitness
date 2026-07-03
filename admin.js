@@ -1614,33 +1614,71 @@
     }).catch(() => { el.textContent = '-'; });
   }
 
-  // 수업현황
+  // 회원권현황 (구 수업현황) — 헬스/GX처럼 기간제 상품은 계약이력에서 잔여일 계산, PT/필라테스처럼 횟수제 상품은 기존처럼 강사배정 잔여횟수 표시
   function _renderMdClassStatus(phone, info) {
     const el = document.getElementById('md-class-status');
     if (!el) return;
-    // PT/필라테스 잔여횟수 표시
-    db.ref('trainers').once('value').then(trainersSnap => {
-      let trainerId = null;
+    Promise.all([
+      db.ref('contracts/' + phone).once('value'),
+      db.ref('trainers').once('value')
+    ]).then(([contractsSnap, trainersSnap]) => {
+      // 1) 기간제 상품(헬스/GX) — 계약이력에서 아직 환불/양도/변경으로 나가지 않은 활성 항목만 추림
+      const periodCards = [];
+      contractsSnap.forEach(cSnap => {
+        const c = cSnap.val();
+        _flattenContractItems(c).forEach(it => {
+          if (!REFUND_PERIOD_PROGS.includes(it.progKey)) return;
+          if (!_isItemEligible(it.data)) return;
+          const onHold = _isActivelyOnHold(it.data);
+          const endDate = onHold ? it.data.activeHold.newEndDate : it.data.endDate;
+          if (!endDate) return;
+          const remainDays = _daysUntil(endDate);
+          if (remainDays === null) return;
+          periodCards.push({
+            label: (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : ''),
+            endDate, remainDays, onHold
+          });
+        });
+      });
+      periodCards.sort((a, b) => a.remainDays - b.remainDays); // 종료 임박한 것부터
+
+      // 2) 횟수제 상품(PT/필라테스) — 강사 배정 기준 (기존 방식 그대로)
       let traineeInfo = null;
       trainersSnap.forEach(t => {
         const td = t.child('trainees/' + phone);
-        if (td.exists()) { trainerId = t.key; traineeInfo = td.val(); }
+        if (td.exists()) traineeInfo = td.val();
       });
-      const remain = traineeInfo ? (traineeInfo.remain || 0) : '-';
-      const total  = traineeInfo ? (traineeInfo.total  || 0) : '-';
-      const type   = traineeInfo ? (traineeInfo.type   || '-') : '-';
-      el.innerHTML = `
+
+      if (!periodCards.length && !traineeInfo) {
+        el.innerHTML = '<div style="text-align:center;color:var(--text-hint);font-size:13px;padding:12px 0;">등록된 회원권이 없어요</div>';
+        return;
+      }
+
+      const periodHtml = periodCards.map(p => `
+        <div style="background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div>
+            <div style="font-size:12.5px;font-weight:700;color:var(--text);">${p.label}${p.onHold ? ' <span style="font-size:10px;font-weight:600;color:var(--text-hint);">(휴회중)</span>' : ''}</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">~${p.endDate}</div>
+          </div>
+          ${p.remainDays >= 0
+            ? `<div style="font-size:15px;font-weight:700;color:var(--blue);white-space:nowrap;">D-${p.remainDays}</div>`
+            : `<div style="font-size:12px;font-weight:700;color:#e24b4a;white-space:nowrap;">만료됨</div>`}
+        </div>`).join('');
+
+      const countHtml = `
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
           <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">
-            <div style="font-size:20px;font-weight:700;color:var(--blue);">${remain}</div>
+            <div style="font-size:20px;font-weight:700;color:var(--blue);">${traineeInfo ? (traineeInfo.remain || 0) : '-'}</div>
             <div style="font-size:11px;color:var(--text-hint);margin-top:3px;">잔여 횟수</div>
           </div>
           <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">
-            <div style="font-size:20px;font-weight:700;color:var(--text);">${total}</div>
+            <div style="font-size:20px;font-weight:700;color:var(--text);">${traineeInfo ? (traineeInfo.total || 0) : '-'}</div>
             <div style="font-size:11px;color:var(--text-hint);margin-top:3px;">전체 횟수</div>
           </div>
         </div>
-        ${traineeInfo ? `<div style="margin-top:8px;font-size:12px;color:var(--text-sub);text-align:center;">${type}</div>` : '<div style="margin-top:8px;font-size:12px;color:var(--text-hint);text-align:center;">배정된 강사가 없어요</div>'}`;
+        ${traineeInfo ? `<div style="margin-top:8px;font-size:12px;color:var(--text-sub);text-align:center;">${traineeInfo.type || '-'}</div>` : '<div style="margin-top:8px;font-size:12px;color:var(--text-hint);text-align:center;">배정된 강사가 없어요</div>'}`;
+
+      el.innerHTML = periodHtml + countHtml;
     }).catch(() => {
       el.innerHTML = '<div style="text-align:center;color:var(--text-hint);font-size:13px;padding:8px 0;">불러오기 실패</div>';
     });
@@ -1851,6 +1889,17 @@
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   }
   function _todayISO() { return _isoDate(new Date()); }
+
+  // 오늘부터 특정 날짜(YYYY-MM-DD, 0패딩 여부 무관)까지 남은 일수 계산 — 지났으면 음수 반환
+  function _daysUntil(dateStr) {
+    if (!dateStr) return null;
+    const parts = String(dateStr).split('-').map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return null;
+    const end = new Date(parts[0], parts[1] - 1, parts[2]);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.round((end - today) / 86400000);
+  }
 
   // 날짜 표시 정규화 — "2026년 7월 31일" 같은 한글 형식을 "2026-07-31" ISO 형식으로 통일
   // 이미 저장된 한글 데이터도 화면에서 일관되게 ISO 형식으로 표시됨
