@@ -800,6 +800,9 @@ body.pc-mode .md-col-end {
 body.pc-mode .md-col-prog-sub {
   display: none;
 }
+body.pc-mode .md-col-daterange {
+  display: none;
+}
 /* 금액+결제상태: flex row로 우측 정렬 — display:contents 미사용 */
 body.pc-mode .md-col-right {
   display: flex !important;

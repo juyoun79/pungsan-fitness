@@ -2109,6 +2109,7 @@
         <div class="md-col-prog">
           <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${progLabels[it.progKey] || it.progKey} ${_renderPkgBadge(it.pkgName)}</div>
           <div class="md-col-prog-sub" style="font-size:11px;color:var(--text-hint);margin-top:2px;">${_formatPeriodLabel(it.data)}</div>
+          ${(startLabel !== '-' || endLabel !== '-') ? `<div class="md-col-daterange" style="font-size:11px;color:var(--text-hint);margin-top:2px;">${startLabel} ~ ${endLabel}</div>` : ''}
         </div>
         <div class="md-col-months" style="display:none;font-size:12px;color:var(--text);">${monthsLabel}</div>
         <div class="md-col-count"  style="display:none;font-size:12px;color:var(--text);">${countLabel}</div>
