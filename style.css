@@ -743,8 +743,8 @@ body.pc-mode .md-main-card-body {
   grid-template-columns: repeat(3, 1fr);
   gap: 14px 10px;
 }
-body.pc-mode .md-row-name,
-body.pc-mode .md-row-birth-gender {
+body.pc-mode .md-row-name-birth,
+body.pc-mode .md-row-gender {
   display: contents !important;
 }
 body.pc-mode .md-row-address,
