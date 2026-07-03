@@ -4443,7 +4443,7 @@
     const phone = currentMemberPhone;
     const info = cachedMembers[phone];
     if (!info) return;
-    document.getElementById('edit-member-name').value = info.name || '';
+    document.getElementById('edit-member-name').value = (info.name || '').replace(/\(\d{4}\)$/, '').trim();
     document.getElementById('edit-member-phone').value = phone;
     // 프로그램 체크박스 초기화
     document.querySelectorAll('#edit-member-programs input').forEach(cb => {
