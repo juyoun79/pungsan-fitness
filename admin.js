@@ -6644,16 +6644,20 @@
 
   // 전체 계약을 훑어서 연장 대상 항목들의 업데이트 객체 + 개수를 계산 (includeLocker=true면 락카도 같이 포함)
   function _computeBulkExtend(days, includeLocker) {
-    return db.ref('contracts').once('value').then(snap => {
+    return Promise.all([
+      db.ref('contracts').once('value'),
+      db.ref('members').once('value')
+    ]).then(([snap, membersSnap]) => {
       const updates = {};
       const details = [];
       let itemCount = 0;
       let lockerCount = 0;
       const affectedMembers = new Set();
       const today = _todayISO();
+      const allMembers = membersSnap.val() || {};
       snap.forEach(phoneSnap => {
         const phone = phoneSnap.key;
-        const memberName = (cachedMembers[phone] && cachedMembers[phone].name) || phone;
+        const memberName = (allMembers[phone] && allMembers[phone].name) || phone;
         phoneSnap.forEach(contractSnap => {
           const contractKey = contractSnap.key;
           const c = contractSnap.val();
@@ -6798,7 +6802,7 @@
       const detailId = 'bulk-history-detail-' + idx;
       const detailRows = (log.details || []).map(d =>
         `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;">
-          <span>${d.name} · ${d.type === 'locker' ? '락카' : d.label}</span>
+          <span>${d.name} (${d.phone}) · ${d.type === 'locker' ? '락카' : d.label}</span>
           <span style="color:#888;">${d.oldEnd} → ${d.newEnd}</span>
         </div>`
       ).join('');
