@@ -62,6 +62,12 @@
     const newMode = isPc ? 'mobile' : 'pc';
     localStorage.setItem('admin_layout', newMode);
     applyAdminLayout(newMode);
+    // 회원 탭이 보이는 중이면, 모드에 맞는 형태(PC=표 / 모바일=카드)로 다시 그림
+    const tabMembers = document.getElementById('tab-members');
+    if (tabMembers && tabMembers.style.display !== 'none') {
+      const q = document.getElementById('member-search')?.value || '';
+      loadMemberList(q);
+    }
   }
 
   function applyAdminLayout(mode) {
@@ -1416,54 +1422,143 @@
         wrap.innerHTML = '<div class="empty-state">등록된 회원이 없어요<br/>회원등록 탭에서 추가해주세요</div>';
         return;
       }
-      // Firebase에서 출석/포인트 병렬 조회
+      // Firebase에서 출석/포인트/계약 병렬 조회
       const now = new Date();
       const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
       Promise.all(entries.map(([phone, info]) =>
         Promise.all([
           db.ref('users/' + phone + '/attendance').once('value'),
-          db.ref('users/' + phone + '/points').once('value')
-        ]).then(([attSnap, ptsSnap]) => {
+          db.ref('users/' + phone + '/points').once('value'),
+          db.ref('contracts/' + phone).once('value')
+        ]).then(([attSnap, ptsSnap, contractsSnap]) => {
           const attendData = attSnap.val() || {};
           const attendCount = Object.keys(attendData).filter(k => k.startsWith(monthPrefix)).length ||
             (() => { let c=0; for(let d=1;d<=31;d++) { if(localStorage.getItem('attend_'+phone+'_'+monthPrefix+d)==='done') c++; } return c; })();
           const pts = ptsSnap.val() ?? localStorage.getItem('points_' + phone) ?? '0';
           localStorage.setItem('points_' + phone, String(pts));
           const nick = localStorage.getItem('nickname_' + phone) || '-';
-          return [phone, info, attendCount, pts, nick];
+
+          // 계약이력에서 활성 항목 + 미수금 여부 + 가입일(최초 계약일) 뽑기
+          const activeItems = [];
+          let hasUnpaid = false;
+          const signDates = [];
+          contractsSnap.forEach(cSnap => {
+            const c = cSnap.val();
+            if (c.signDate) signDates.push(c.signDate);
+            _flattenContractItems(c).forEach(it => {
+              if (!_isItemEligible(it.data)) return;
+              const unpaid = (it.data.price || 0) - ((it.data.cash||0) + (it.data.card||0) + (it.data.transfer||0));
+              if (unpaid > 0) hasUnpaid = true;
+              activeItems.push(it);
+            });
+          });
+          const joinDate = signDates.length ? signDates.sort()[0] : '-';
+
+          return { phone, info, attendCount, pts, nick, activeItems, hasUnpaid, joinDate };
         }).catch(() => {
           const pts = localStorage.getItem('points_' + phone) || '0';
           let attendCount = 0;
           for(let d=1;d<=31;d++) { if(localStorage.getItem('attend_'+phone+'_'+monthPrefix+d)==='done') attendCount++; }
           const nick = localStorage.getItem('nickname_' + phone) || '-';
-          return [phone, info, attendCount, pts, nick];
+          return { phone, info, attendCount, pts, nick, activeItems: [], hasUnpaid: false, joinDate: '-' };
         })
       )).then(memberData => {
-      wrap.innerHTML = memberData.map(([phone, info, attendCount, pts, nick]) => {
-        return `
-          <div class="admin-card" style="cursor:pointer;" onclick="openMemberModal('${phone}')">
-            <div style="display:flex;align-items:center;gap:12px;">
-              <div class="member-avatar">${(info.name || phone)[0]}</div>
-              <div style="flex:1;min-width:0;">
-                <div style="display:flex;align-items:center;gap:6px;">
-                  <div class="member-name">${info.name}</div>
-                  ${info.programs && info.programs.length > 0 ? `<span style="font-size:11px;color:var(--blue);background:var(--blue-light);padding:2px 6px;border-radius:6px;">${info.programs[0]}</span>` : ''}
-                </div>
-                <div class="member-phone">${phone}</div>
-                ${nick !== '-' ? `<div style="font-size:12px;color:var(--text-hint);margin-top:1px;">닉네임: ${nick}</div>` : ''}
-              </div>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </div>
-            <div class="stat-mini" style="margin-top:10px;">
-              <div class="stat-mini-item"><div class="stat-mini-val">${attendCount}</div><div class="stat-mini-label">이번달 출석</div></div>
-              <div class="stat-mini-item"><div class="stat-mini-val">${pts}</div><div class="stat-mini-label">포인트</div></div>
-              <div class="stat-mini-item"><div class="stat-mini-val">${info.programs ? info.programs.length : 0}</div><div class="stat-mini-label">프로그램</div></div>
-            </div>
-          </div>
-        `;
-      }).join('');
-      }); // Promise.all 닫기
+        const isPc = document.body.classList.contains('pc-mode');
+        wrap.innerHTML = isPc ? _renderMemberTable(memberData) : _renderMemberCards(memberData);
+      });
     });
+  }
+
+  // 모바일용 카드 렌더링 (기존 방식 그대로)
+  function _renderMemberCards(memberData) {
+    return memberData.map(m => {
+      const { phone, info, attendCount, pts, nick } = m;
+      return `
+        <div class="admin-card" style="cursor:pointer;" onclick="openMemberModal('${phone}')">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div class="member-avatar">${(info.name || phone)[0]}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <div class="member-name">${info.name}</div>
+                ${info.programs && info.programs.length > 0 ? `<span style="font-size:11px;color:var(--blue);background:var(--blue-light);padding:2px 6px;border-radius:6px;">${info.programs[0]}</span>` : ''}
+              </div>
+              <div class="member-phone">${phone}</div>
+              ${nick !== '-' ? `<div style="font-size:12px;color:var(--text-hint);margin-top:1px;">닉네임: ${nick}</div>` : ''}
+            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+          <div class="stat-mini" style="margin-top:10px;">
+            <div class="stat-mini-item"><div class="stat-mini-val">${attendCount}</div><div class="stat-mini-label">이번달 출석</div></div>
+            <div class="stat-mini-item"><div class="stat-mini-val">${pts}</div><div class="stat-mini-label">포인트</div></div>
+            <div class="stat-mini-item"><div class="stat-mini-val">${info.programs ? info.programs.length : 0}</div><div class="stat-mini-label">프로그램</div></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // PC용 표 렌더링 (이름/닉네임/연락처/프로그램/잔여/락카/결제상태/상태/이번달출석/포인트/가입일)
+  function _renderMemberTable(memberData) {
+    const th = (label, align) => `<th style="padding:10px 8px;text-align:${align||'left'};font-size:11.5px;color:var(--text-hint);font-weight:700;white-space:nowrap;">${label}</th>`;
+    const rows = memberData.map(m => {
+      const { phone, info, attendCount, pts, nick, activeItems, hasUnpaid, joinDate } = m;
+
+      const progNames = [];
+      const remainParts = [];
+      let minRemainDays = null;
+      let anyOnHold = false;
+      activeItems.forEach(it => {
+        const label = REFUND_PROG_NAMES[it.progKey] || it.progKey;
+        if (!progNames.includes(label)) progNames.push(label);
+        const onHold = _isActivelyOnHold(it.data);
+        if (onHold) anyOnHold = true;
+        const endDate = onHold ? (it.data.activeHold && it.data.activeHold.newEndDate) : it.data.endDate;
+        if (endDate) {
+          const d = _daysUntil(endDate);
+          if (d !== null) {
+            if (minRemainDays === null || d < minRemainDays) minRemainDays = d;
+            const dLabel = REFUND_PERIOD_PROGS.includes(it.progKey) ? ('D-' + d) : '';
+            remainParts.push(label + (dLabel ? ' ' + dLabel : '') + ' (~' + endDate + ')');
+          }
+        }
+      });
+
+      let statusLabel = '-', statusColor = 'var(--text-hint)';
+      if (activeItems.length > 0) {
+        if (anyOnHold) { statusLabel = '⏸️ 휴회중'; statusColor = '#f59e0b'; }
+        else if (minRemainDays !== null && minRemainDays < 0) { statusLabel = '만료됨'; statusColor = '#ef4444'; }
+        else if (minRemainDays !== null && minRemainDays <= 7) { statusLabel = '⚠️ 만료임박'; statusColor = '#f59e0b'; }
+        else { statusLabel = '정상'; statusColor = '#22c55e'; }
+      }
+
+      const lockerKey = info.lockerKey;
+      const lockerDisplay = lockerKey ? lockerKey.split('_').pop() + '번' : '미배정';
+
+      return `<tr onclick="openMemberModal('${phone}')" style="cursor:pointer;border-bottom:1px solid var(--border);">
+        <td style="padding:10px 8px;font-weight:700;color:var(--text);white-space:nowrap;">${info.name}</td>
+        <td style="padding:10px 8px;color:var(--text-sub);white-space:nowrap;">${nick}</td>
+        <td style="padding:10px 8px;color:var(--text-sub);white-space:nowrap;">${phone}</td>
+        <td style="padding:10px 8px;color:var(--text);white-space:nowrap;">${progNames.join(', ') || '-'}</td>
+        <td style="padding:10px 8px;color:var(--text);font-size:12px;line-height:1.5;">${remainParts.join('<br>') || '-'}</td>
+        <td style="padding:10px 8px;color:var(--text-sub);white-space:nowrap;">${lockerDisplay}</td>
+        <td style="padding:10px 8px;font-weight:600;white-space:nowrap;color:${hasUnpaid ? '#ef4444' : '#22c55e'};">${hasUnpaid ? '미수금' : '완납'}</td>
+        <td style="padding:10px 8px;font-weight:600;white-space:nowrap;color:${statusColor};">${statusLabel}</td>
+        <td style="padding:10px 8px;text-align:center;color:var(--text);">${attendCount}</td>
+        <td style="padding:10px 8px;text-align:center;color:var(--blue);font-weight:600;">${pts}</td>
+        <td style="padding:10px 8px;color:var(--text-hint);white-space:nowrap;">${joinDate}</td>
+      </tr>`;
+    }).join('');
+
+    return `<div style="overflow-x:auto;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);background:var(--bg);">
+            ${th('이름')}${th('닉네임')}${th('연락처')}${th('프로그램')}${th('잔여')}${th('락카')}${th('결제상태')}${th('상태')}${th('이번달출석','center')}${th('포인트','center')}${th('가입일')}
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
   }
 
   function searchMembers(query) { loadMemberList(query); }
