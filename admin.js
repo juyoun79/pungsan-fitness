@@ -6485,7 +6485,7 @@
 
   // ── 설정탭 서브탭 전환 ──
   function switchSettingsSubtab(tab) {
-    const tabs = ['pw', 'equipment', 'terms'];
+    const tabs = ['pw', 'equipment', 'terms', 'bulk'];
     tabs.forEach(t => {
       const btn  = document.getElementById('settings-subtab-' + t);
       const view = document.getElementById('settings-view-' + t);
@@ -6501,6 +6501,80 @@
     if (tab === 'terms')     loadTerms();
   }
   window.switchSettingsSubtab = switchSettingsSubtab;
+
+  // ── 전체 회원 기간 일괄연장 ──
+  // 날짜문자열(0패딩 여부 무관)에 일수를 더해서 ISO(YYYY-MM-DD)로 반환
+  function _addDaysToDate(dateStr, days) {
+    const parts = String(dateStr).split('-').map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return null;
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    d.setDate(d.getDate() + days);
+    return _isoDate(d);
+  }
+
+  // 전체 계약을 훑어서 연장 대상 항목들의 업데이트 객체 + 개수를 계산
+  function _computeBulkExtend(days) {
+    return db.ref('contracts').once('value').then(snap => {
+      const updates = {};
+      let itemCount = 0;
+      const affectedMembers = new Set();
+      const today = _todayISO();
+      snap.forEach(phoneSnap => {
+        const phone = phoneSnap.key;
+        phoneSnap.forEach(contractSnap => {
+          const contractKey = contractSnap.key;
+          const c = contractSnap.val();
+          _flattenContractItems(c).forEach(it => {
+            if (!_isItemEligible(it.data)) return; // 환불/양도/변경으로 이미 나간 항목 제외
+            if (!it.data.endDate) return;
+            const onHold = _isActivelyOnHold(it.data);
+            if (!onHold && it.data.endDate < today) return; // 이미 만료된 회원권 제외 (휴회중은 예외적으로 포함)
+            const basePath = it.pkgIndex === null
+              ? 'contracts/' + phone + '/' + contractKey + '/programs/' + it.progKey
+              : 'contracts/' + phone + '/' + contractKey + '/packages/' + it.pkgIndex + '/items/' + it.progKey;
+            const newEnd = _addDaysToDate(it.data.endDate, days);
+            if (!newEnd) return;
+            updates[basePath + '/endDate'] = newEnd;
+            if (onHold) {
+              const newHoldEnd = _addDaysToDate(it.data.activeHold.newEndDate, days);
+              if (newHoldEnd) updates[basePath + '/activeHold/newEndDate'] = newHoldEnd;
+            }
+            itemCount++;
+            affectedMembers.add(phone);
+          });
+        });
+      });
+      return { updates, memberCount: affectedMembers.size, itemCount };
+    });
+  }
+
+  function openBulkExtendFlow() {
+    showInput(
+      '전체 회원의 회원권 종료일을 며칠 연장할까요?\n(이용중·휴회중인 회원권만 대상, 환불·양도·변경된 항목은 제외)',
+      '예: 3', '',
+      (val) => {
+        const days = parseInt(val);
+        if (!days || days <= 0) { showToast('1 이상의 숫자를 입력해주세요.', 'error'); return; }
+        showToast('대상 회원 확인 중...', 'info');
+        _computeBulkExtend(days).then(({ updates, memberCount, itemCount }) => {
+          if (itemCount === 0) { showToast('연장 대상 회원권이 없어요.', 'error'); return; }
+          showConfirm(
+            '총 ' + memberCount + '명 회원의 ' + itemCount + '건 회원권을\n' + days + '일씩 연장할까요?\n\n이 작업은 되돌리기 어려우니 신중하게 확인해주세요.',
+            () => {
+              db.ref().update(updates).then(() => {
+                showToast('✅ ' + memberCount + '명, ' + itemCount + '건 연장 완료!', 'success');
+              }).catch(e => {
+                showToast('연장 실패: ' + e.message, 'error');
+              });
+            }
+          );
+        }).catch(e => {
+          showToast('확인 실패: ' + e.message, 'error');
+        });
+      }
+    );
+  }
+  window.openBulkExtendFlow = openBulkExtendFlow;
 
   // ── 약관 기본값 (하드코딩 폴백) ──
   const DEFAULT_TERMS = `풍산휘트니스 이용약관
