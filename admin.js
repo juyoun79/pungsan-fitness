@@ -6646,12 +6646,14 @@
   function _computeBulkExtend(days, includeLocker) {
     return db.ref('contracts').once('value').then(snap => {
       const updates = {};
+      const details = [];
       let itemCount = 0;
       let lockerCount = 0;
       const affectedMembers = new Set();
       const today = _todayISO();
       snap.forEach(phoneSnap => {
         const phone = phoneSnap.key;
+        const memberName = (cachedMembers[phone] && cachedMembers[phone].name) || phone;
         phoneSnap.forEach(contractSnap => {
           const contractKey = contractSnap.key;
           const c = contractSnap.val();
@@ -6666,6 +6668,7 @@
             const newEnd = _addDaysToDate(it.data.endDate, days);
             if (!newEnd) return;
             updates[basePath + '/endDate'] = newEnd;
+            details.push({ phone, name: memberName, type: 'program', label: REFUND_PROG_NAMES[it.progKey] || it.progKey, oldEnd: it.data.endDate, newEnd });
             if (onHold) {
               const newHoldEnd = _addDaysToDate(it.data.activeHold.newEndDate, days);
               if (newHoldEnd) updates[basePath + '/activeHold/newEndDate'] = newHoldEnd;
@@ -6685,13 +6688,14 @@
               if (e.lockerKey) {
                 updates['lockers/' + e.lockerKey + '/endDate'] = newEnd;
               }
+              details.push({ phone, name: memberName, type: 'locker', label: '락카', oldEnd: e.endDate, newEnd });
               lockerCount++;
               affectedMembers.add(phone);
             });
           }
         });
       });
-      return { updates, memberCount: affectedMembers.size, itemCount, lockerCount };
+      return { updates, memberCount: affectedMembers.size, itemCount, lockerCount, details };
     });
   }
 
@@ -6721,13 +6725,19 @@
       modal.remove();
       if (!days || days <= 0) { showToast('1 이상의 숫자를 입력해주세요.', 'error'); return; }
       showToast('대상 확인 중...', 'info');
-      _computeBulkExtend(days, includeLocker).then(({ updates, memberCount, itemCount, lockerCount }) => {
+      _computeBulkExtend(days, includeLocker).then(({ updates, memberCount, itemCount, lockerCount, details }) => {
         if (itemCount === 0 && lockerCount === 0) { showToast('연장 대상이 없어요.', 'error'); return; }
         let msg = '총 ' + memberCount + '명 회원의\n회원권 ' + itemCount + '건';
         if (includeLocker) msg += ' + 락카 ' + lockerCount + '건';
         msg += '을 ' + days + '일씩 연장할까요?\n\n이 작업은 되돌리기 어려우니 신중하게 확인해주세요.';
         showConfirm(msg, () => {
           db.ref().update(updates).then(() => {
+            const logKey = _todayISO() + '_' + Date.now();
+            db.ref('bulk_extend_logs/' + logKey).set({
+              executedAt: Date.now(),
+              date: _todayISO(),
+              days, includeLocker, memberCount, itemCount, lockerCount, details
+            });
             showToast('✅ 연장 완료!', 'success');
           }).catch(e => {
             showToast('연장 실패: ' + e.message, 'error');
@@ -6739,6 +6749,60 @@
     };
   }
   window.openBulkExtendFlow = openBulkExtendFlow;
+
+  // ── 일괄연장 이력 보기 ──
+  function openBulkExtendHistory() {
+    document.getElementById('app-bulk-history-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-bulk-history-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:420px;max-height:80vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">🗓️ 일괄연장 이력</div>
+      <div id="bulk-history-list" style="font-size:13px;color:#888;">불러오는 중...</div>
+      <button id="bulk-history-close" style="width:100%;margin-top:16px;padding:11px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:13px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">닫기</button>
+    </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('bulk-history-close').onclick = () => modal.remove();
+
+    db.ref('bulk_extend_logs').once('value').then(snap => {
+      const logs = [];
+      snap.forEach(s => logs.push({ key: s.key, ...s.val() }));
+      logs.sort((a, b) => (b.executedAt || 0) - (a.executedAt || 0));
+      const listEl = document.getElementById('bulk-history-list');
+      if (!listEl) return;
+      if (logs.length === 0) {
+        listEl.innerHTML = '<div style="text-align:center;color:#aaa;padding:12px 0;">아직 실행한 이력이 없어요</div>';
+        return;
+      }
+      listEl.innerHTML = logs.map((log, idx) => {
+        const dt = log.executedAt ? new Date(log.executedAt) : null;
+        const timeLabel = dt ? (log.date + ' ' + String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0')) : log.date;
+        let summary = '회원권 ' + (log.itemCount||0) + '건';
+        if (log.includeLocker) summary += ' + 락카 ' + (log.lockerCount||0) + '건';
+        const detailId = 'bulk-history-detail-' + idx;
+        const detailRows = (log.details || []).map(d =>
+          `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;">
+            <span>${d.name} · ${d.type === 'locker' ? '락카' : d.label}</span>
+            <span style="color:#888;">${d.oldEnd} → ${d.newEnd}</span>
+          </div>`
+        ).join('');
+        return `<div style="background:var(--bg,#f7f7f7);border-radius:10px;padding:12px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="const d=document.getElementById('${detailId}');d.style.display=d.style.display==='none'?'block':'none';">
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--text,#1a1a1a);">${timeLabel} · ${log.days}일 연장</div>
+              <div style="font-size:12px;color:#888;margin-top:2px;">총 ${log.memberCount||0}명 · ${summary}</div>
+            </div>
+            <span style="font-size:11px;color:#888;">상세보기 ▾</span>
+          </div>
+          <div id="${detailId}" style="display:none;margin-top:10px;font-size:12px;color:var(--text,#1a1a1a);max-height:200px;overflow-y:auto;">${detailRows || '상세내역 없음'}</div>
+        </div>`;
+      }).join('');
+    }).catch(() => {
+      const listEl = document.getElementById('bulk-history-list');
+      if (listEl) listEl.innerHTML = '<div style="text-align:center;color:#ef4444;">불러오기 실패</div>';
+    });
+  }
+  window.openBulkExtendHistory = openBulkExtendHistory;
 
   // ── 약관 기본값 (하드코딩 폴백) ──
   const DEFAULT_TERMS = `풍산휘트니스 이용약관
