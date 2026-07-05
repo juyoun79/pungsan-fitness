@@ -6743,13 +6743,18 @@
         msg += '을 ' + days + '일씩 연장할까요?\n\n이 작업은 되돌리기 어려우니 신중하게 확인해주세요.';
         showConfirm(msg, () => {
           db.ref().update(updates).then(() => {
+            showToast('✅ 연장 완료!', 'success');
+            // 이력 저장 — 혹시 details 안에 undefined 값이 섞여 있으면 Firebase가 저장을 통째로 거부하므로,
+            // JSON 왕복 변환으로 undefined 값을 안전하게 제거한 뒤 저장 (실패해도 화면에 바로 알려줌)
             const logKey = _todayISO() + '_' + Date.now();
-            db.ref('bulk_extend_logs/' + logKey).set({
+            const safeLog = JSON.parse(JSON.stringify({
               executedAt: Date.now(),
               date: _todayISO(),
               days, includeLocker, memberCount, itemCount, lockerCount, details
+            }));
+            db.ref('bulk_extend_logs/' + logKey).set(safeLog).catch(e => {
+              showToast('⚠️ 연장은 완료됐지만 이력 저장에 실패했어요: ' + e.message, 'error');
             });
-            showToast('✅ 연장 완료!', 'success');
           }).catch(e => {
             showToast('연장 실패: ' + e.message, 'error');
           });
