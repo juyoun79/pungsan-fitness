@@ -6668,11 +6668,16 @@
             const newEnd = _addDaysToDate(it.data.endDate, days);
             if (!newEnd) return;
             updates[basePath + '/endDate'] = newEnd;
-            details.push({ phone, name: memberName, type: 'program', label: REFUND_PROG_NAMES[it.progKey] || it.progKey, oldEnd: it.data.endDate, newEnd });
+            const detailEntry = { phone, name: memberName, type: 'program', label: REFUND_PROG_NAMES[it.progKey] || it.progKey, path: basePath, oldEnd: it.data.endDate, newEnd };
             if (onHold) {
               const newHoldEnd = _addDaysToDate(it.data.activeHold.newEndDate, days);
-              if (newHoldEnd) updates[basePath + '/activeHold/newEndDate'] = newHoldEnd;
+              if (newHoldEnd) {
+                updates[basePath + '/activeHold/newEndDate'] = newHoldEnd;
+                detailEntry.holdPath = basePath + '/activeHold/newEndDate';
+                detailEntry.oldHoldEnd = it.data.activeHold.newEndDate;
+              }
             }
+            details.push(detailEntry);
             itemCount++;
             affectedMembers.add(phone);
           });
@@ -6685,10 +6690,12 @@
               const newEnd = _addDaysToDate(e.endDate, days);
               if (!newEnd) return;
               updates[basePath + '/endDate'] = newEnd;
+              const detailEntry = { phone, name: memberName, type: 'locker', label: '락카', path: basePath, oldEnd: e.endDate, newEnd };
               if (e.lockerKey) {
                 updates['lockers/' + e.lockerKey + '/endDate'] = newEnd;
+                detailEntry.lockerPath = 'lockers/' + e.lockerKey + '/endDate';
               }
-              details.push({ phone, name: memberName, type: 'locker', label: '락카', oldEnd: e.endDate, newEnd });
+              details.push(detailEntry);
               lockerCount++;
               affectedMembers.add(phone);
             });
@@ -6768,41 +6775,89 @@
       const logs = [];
       snap.forEach(s => logs.push({ key: s.key, ...s.val() }));
       logs.sort((a, b) => (b.executedAt || 0) - (a.executedAt || 0));
-      const listEl = document.getElementById('bulk-history-list');
-      if (!listEl) return;
-      if (logs.length === 0) {
-        listEl.innerHTML = '<div style="text-align:center;color:#aaa;padding:12px 0;">아직 실행한 이력이 없어요</div>';
-        return;
-      }
-      listEl.innerHTML = logs.map((log, idx) => {
-        const dt = log.executedAt ? new Date(log.executedAt) : null;
-        const timeLabel = dt ? (log.date + ' ' + String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0')) : log.date;
-        let summary = '회원권 ' + (log.itemCount||0) + '건';
-        if (log.includeLocker) summary += ' + 락카 ' + (log.lockerCount||0) + '건';
-        const detailId = 'bulk-history-detail-' + idx;
-        const detailRows = (log.details || []).map(d =>
-          `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;">
-            <span>${d.name} · ${d.type === 'locker' ? '락카' : d.label}</span>
-            <span style="color:#888;">${d.oldEnd} → ${d.newEnd}</span>
-          </div>`
-        ).join('');
-        return `<div style="background:var(--bg,#f7f7f7);border-radius:10px;padding:12px;margin-bottom:8px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="const d=document.getElementById('${detailId}');d.style.display=d.style.display==='none'?'block':'none';">
-            <div>
-              <div style="font-size:13px;font-weight:700;color:var(--text,#1a1a1a);">${timeLabel} · ${log.days}일 연장</div>
-              <div style="font-size:12px;color:#888;margin-top:2px;">총 ${log.memberCount||0}명 · ${summary}</div>
-            </div>
-            <span style="font-size:11px;color:#888;">상세보기 ▾</span>
-          </div>
-          <div id="${detailId}" style="display:none;margin-top:10px;font-size:12px;color:var(--text,#1a1a1a);max-height:200px;overflow-y:auto;">${detailRows || '상세내역 없음'}</div>
-        </div>`;
-      }).join('');
+      _renderBulkHistoryList(logs);
     }).catch(() => {
       const listEl = document.getElementById('bulk-history-list');
       if (listEl) listEl.innerHTML = '<div style="text-align:center;color:#ef4444;">불러오기 실패</div>';
     });
   }
   window.openBulkExtendHistory = openBulkExtendHistory;
+
+  function _renderBulkHistoryList(logs) {
+    const listEl = document.getElementById('bulk-history-list');
+    if (!listEl) return;
+    if (logs.length === 0) {
+      listEl.innerHTML = '<div style="text-align:center;color:#aaa;padding:12px 0;">아직 실행한 이력이 없어요</div>';
+      return;
+    }
+    listEl.innerHTML = logs.map((log, idx) => {
+      const dt = log.executedAt ? new Date(log.executedAt) : null;
+      const timeLabel = dt ? (log.date + ' ' + String(dt.getHours()).padStart(2,'0') + ':' + String(dt.getMinutes()).padStart(2,'0')) : log.date;
+      let summary = '회원권 ' + (log.itemCount||0) + '건';
+      if (log.includeLocker) summary += ' + 락카 ' + (log.lockerCount||0) + '건';
+      const detailId = 'bulk-history-detail-' + idx;
+      const detailRows = (log.details || []).map(d =>
+        `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;">
+          <span>${d.name} · ${d.type === 'locker' ? '락카' : d.label}</span>
+          <span style="color:#888;">${d.oldEnd} → ${d.newEnd}</span>
+        </div>`
+      ).join('');
+      // 되돌리기 버튼은 "가장 최근 이력"이고 "아직 되돌리지 않은 경우"에만 표시
+      const canUndo = idx === 0 && !log.reverted;
+      const undoBtn = log.reverted
+        ? `<div style="margin-top:8px;font-size:11.5px;color:#22c55e;font-weight:700;">✅ 되돌림 완료</div>`
+        : (canUndo ? `<button onclick="event.stopPropagation();undoBulkExtend('${log.key}')" style="margin-top:8px;width:100%;padding:8px;background:none;border:1px solid #ef4444;color:#ef4444;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">↩️ 이 연장 되돌리기</button>` : '');
+      return `<div style="background:var(--bg,#f7f7f7);border-radius:10px;padding:12px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="const d=document.getElementById('${detailId}');d.style.display=d.style.display==='none'?'block':'none';">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text,#1a1a1a);">${timeLabel} · ${log.days}일 연장</div>
+            <div style="font-size:12px;color:#888;margin-top:2px;">총 ${log.memberCount||0}명 · ${summary}</div>
+          </div>
+          <span style="font-size:11px;color:#888;">상세보기 ▾</span>
+        </div>
+        <div id="${detailId}" style="display:none;margin-top:10px;font-size:12px;color:var(--text,#1a1a1a);max-height:200px;overflow-y:auto;">${detailRows || '상세내역 없음'}</div>
+        ${undoBtn}
+      </div>`;
+    }).join('');
+  }
+
+  // 가장 최근 일괄연장 이력을 되돌리기 — 저장해둔 이전 종료일(oldEnd/oldHoldEnd)로 복원
+  function undoBulkExtend(logKey) {
+    db.ref('bulk_extend_logs/' + logKey).once('value').then(snap => {
+      const log = snap.val();
+      if (!log) { showToast('이력을 찾을 수 없어요.', 'error'); return; }
+      if (log.reverted) { showToast('이미 되돌린 이력이에요.', 'error'); return; }
+      const details = log.details || [];
+      if (details.length === 0) { showToast('되돌릴 상세내역이 없어요.', 'error'); return; }
+
+      showConfirm(
+        '이 일괄연장(총 ' + (log.memberCount||0) + '명, ' + (log.days||0) + '일)을 되돌릴까요?\n\n' +
+        '⚠️ 그 사이에 개별 회원 정보를 따로 수정(환불/재계약 등)했다면, 그 부분은 되돌리기에 반영되지 않을 수 있어요.',
+        () => {
+          const reverseUpdates = {};
+          details.forEach(d => {
+            if (d.path) reverseUpdates[d.path + '/endDate'] = d.oldEnd;
+            if (d.holdPath) reverseUpdates[d.holdPath] = d.oldHoldEnd;
+            if (d.lockerPath) reverseUpdates[d.lockerPath] = d.oldEnd;
+          });
+          db.ref().update(reverseUpdates).then(() => {
+            return db.ref('bulk_extend_logs/' + logKey + '/reverted').set(true);
+          }).then(() => {
+            showToast('✅ 되돌리기 완료!', 'success');
+            db.ref('bulk_extend_logs').once('value').then(snap2 => {
+              const logs = [];
+              snap2.forEach(s => logs.push({ key: s.key, ...s.val() }));
+              logs.sort((a, b) => (b.executedAt || 0) - (a.executedAt || 0));
+              _renderBulkHistoryList(logs);
+            });
+          }).catch(e => {
+            showToast('되돌리기 실패: ' + e.message, 'error');
+          });
+        }
+      );
+    });
+  }
+  window.undoBulkExtend = undoBulkExtend;
 
   // ── 약관 기본값 (하드코딩 폴백) ──
   const DEFAULT_TERMS = `풍산휘트니스 이용약관
