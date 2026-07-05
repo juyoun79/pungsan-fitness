@@ -4562,10 +4562,28 @@
     const programs    = [...document.querySelectorAll('#edit-member-programs input:checked')].map(el => el.value);
     const oldPhone    = currentMemberPhone;
     const info        = cachedMembers[oldPhone];
+    const oldNickname = info.nickname || '';
 
     if (!newPhone || newPhone.length < 10) { showToast('전화번호를 정확히 입력해주세요.', 'error'); return; }
 
+    // 닉네임 검증 (입력했을 때만 — 비워두면 기존 닉네임 그대로 유지, 관리자는 1회 제한 없이 계속 변경 가능)
+    if (newNickname) {
+      if (newNickname.length < 2 || newNickname.length > 6) {
+        showToast('닉네임은 2~6자로 입력해주세요.', 'error'); return;
+      }
+      if (!/^[가-힣a-zA-Z0-9]+$/.test(newNickname)) {
+        showToast('닉네임은 한글, 영문, 숫자만 사용 가능해요.', 'error'); return;
+      }
+    }
+
     const phoneChanged = newPhone !== oldPhone;
+
+    // 닉네임 전역 색인(nicknames/) 동기화 — 기존 것 빼고 새 것 등록
+    const applyNicknameIndex = (finalPhone) => {
+      if (!newNickname || newNickname === oldNickname) return;
+      if (oldNickname) db.ref('nicknames/' + oldNickname).remove();
+      db.ref('nicknames/' + newNickname).set(finalPhone);
+    };
 
     const doSave = () => {
       const updateData = { programs };
@@ -4578,6 +4596,7 @@
           // users에도 닉네임 업데이트
           if (newNickname) db.ref('users/' + newPhone + '/nickname').set(newNickname);
           if (newNickname) localStorage.setItem('nickname_' + newPhone, newNickname);
+          applyNicknameIndex(newPhone);
           closeEditMemberModal();
           closeMemberModal();
           loadMemberList();
@@ -4588,6 +4607,7 @@
           // users에도 닉네임 업데이트
           if (newNickname) db.ref('users/' + oldPhone + '/nickname').set(newNickname);
           if (newNickname) localStorage.setItem('nickname_' + oldPhone, newNickname);
+          applyNicknameIndex(oldPhone);
           cachedMembers[oldPhone] = { ...info, ...updateData };
           closeEditMemberModal();
           closeMemberModal();
@@ -4597,16 +4617,31 @@
       }
     };
 
+    // 닉네임 중복 확인 (안 바꿨으면 건너뜀) → 그 다음 전화번호 변경 흐름 진행
+    const proceedWithNicknameCheck = (next) => {
+      if (!newNickname || newNickname === oldNickname) { next(); return; }
+      db.ref('nicknames/' + newNickname).once('value').then(snap => {
+        const owner = snap.val();
+        if (snap.exists() && owner !== oldPhone && owner !== newPhone) {
+          showToast('이미 사용 중인 닉네임이에요.', 'error');
+          return;
+        }
+        next();
+      });
+    };
+
     // 전화번호 변경 시 중복 확인
     if (phoneChanged) {
       db.ref('members/' + newPhone).once('value').then(snap => {
         if (snap.exists()) { showToast('이미 사용 중인 전화번호예요.', 'error'); return; }
-        showConfirm('전화번호를 ' + newPhone + '으로 변경할까요?\n로그인 아이디도 바뀌어요.', () => {
-          doSave();
+        proceedWithNicknameCheck(() => {
+          showConfirm('전화번호를 ' + newPhone + '으로 변경할까요?\n로그인 아이디도 바뀌어요.', () => {
+            doSave();
+          });
         });
       });
     } else {
-      doSave();
+      proceedWithNicknameCheck(doSave);
     }
   }
 

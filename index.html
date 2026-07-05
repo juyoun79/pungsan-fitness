@@ -398,7 +398,7 @@
       <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:8px;">
         <div style="font-size:11px;color:var(--text-hint);margin-bottom:8px;">닉네임</div>
         <input type="text" id="set-nickname-input" placeholder="닉네임 입력 (2~6자)"
-          maxlength="10"
+          maxlength="6"
           style="width:100%;box-sizing:border-box;padding:0;border:none;outline:none;font-size:17px;font-weight:500;font-family:'Noto Sans KR',sans-serif;background:transparent;color:var(--text);"
           onfocus="this.parentElement.style.borderColor='var(--blue)'"
           onblur="this.parentElement.style.borderColor='var(--border)'" />
@@ -4968,9 +4968,10 @@
       <div style="margin-bottom:14px;">
         <label class="field-label">닉네임</label>
         <input type="text" id="edit-member-nickname" placeholder="닉네임 입력"
+          maxlength="6"
           style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:6px;"
           onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
-        <div style="font-size:11px;color:var(--text-hint);margin-top:4px;">커뮤니티에 표시되는 이름이에요</div>
+        <div style="font-size:11px;color:var(--text-hint);margin-top:4px;">커뮤니티에 표시되는 이름이에요 · 2~6자, 한글/영문/숫자만 가능</div>
       </div>
 
       <!-- 수강 프로그램 -->
