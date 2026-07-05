@@ -6512,11 +6512,12 @@
     return _isoDate(d);
   }
 
-  // 전체 계약을 훑어서 연장 대상 항목들의 업데이트 객체 + 개수를 계산
-  function _computeBulkExtend(days) {
+  // 전체 계약을 훑어서 연장 대상 항목들의 업데이트 객체 + 개수를 계산 (includeLocker=true면 락카도 같이 포함)
+  function _computeBulkExtend(days, includeLocker) {
     return db.ref('contracts').once('value').then(snap => {
       const updates = {};
       let itemCount = 0;
+      let lockerCount = 0;
       const affectedMembers = new Set();
       const today = _todayISO();
       snap.forEach(phoneSnap => {
@@ -6542,37 +6543,70 @@
             itemCount++;
             affectedMembers.add(phone);
           });
+          // 락카(부가서비스) — 체크했을 때만, 유효기간 안 지난 것만 포함. lockers/ 쪽도 같이 업데이트해서 서로 안 어긋나게 동기화
+          if (includeLocker) {
+            Object.entries(c.extras || {}).forEach(([extKey, e]) => {
+              if (e.deleted) return;
+              if (!e.endDate || e.endDate < today) return;
+              const basePath = 'contracts/' + phone + '/' + contractKey + '/extras/' + extKey;
+              const newEnd = _addDaysToDate(e.endDate, days);
+              if (!newEnd) return;
+              updates[basePath + '/endDate'] = newEnd;
+              if (e.lockerKey) {
+                updates['lockers/' + e.lockerKey + '/endDate'] = newEnd;
+              }
+              lockerCount++;
+              affectedMembers.add(phone);
+            });
+          }
         });
       });
-      return { updates, memberCount: affectedMembers.size, itemCount };
+      return { updates, memberCount: affectedMembers.size, itemCount, lockerCount };
     });
   }
 
   function openBulkExtendFlow() {
-    showInput(
-      '전체 회원의 회원권 종료일을 며칠 연장할까요?\n(이용중·휴회중인 회원권만 대상, 환불·양도·변경된 항목은 제외)',
-      '예: 3', '',
-      (val) => {
-        const days = parseInt(val);
-        if (!days || days <= 0) { showToast('1 이상의 숫자를 입력해주세요.', 'error'); return; }
-        showToast('대상 회원 확인 중...', 'info');
-        _computeBulkExtend(days).then(({ updates, memberCount, itemCount }) => {
-          if (itemCount === 0) { showToast('연장 대상 회원권이 없어요.', 'error'); return; }
-          showConfirm(
-            '총 ' + memberCount + '명 회원의 ' + itemCount + '건 회원권을\n' + days + '일씩 연장할까요?\n\n이 작업은 되돌리기 어려우니 신중하게 확인해주세요.',
-            () => {
-              db.ref().update(updates).then(() => {
-                showToast('✅ ' + memberCount + '명, ' + itemCount + '건 연장 완료!', 'success');
-              }).catch(e => {
-                showToast('연장 실패: ' + e.message, 'error');
-              });
-            }
-          );
-        }).catch(e => {
-          showToast('확인 실패: ' + e.message, 'error');
+    document.getElementById('app-bulk-extend-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-bulk-extend-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:300px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:14px;color:var(--text,#1a1a1a);margin-bottom:14px;line-height:1.6;">전체 회원의 회원권 종료일을<br>며칠 연장할까요?<br><span style="font-size:11.5px;color:#888;">(이용중·휴회중인 것만 대상, 환불·양도·변경된 항목은 제외)</span></div>
+      <input id="bulk-extend-days" type="number" placeholder="예: 3"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:14px;outline:none;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--text,#1a1a1a);margin-bottom:20px;cursor:pointer;">
+        <input type="checkbox" id="bulk-extend-locker" checked style="width:16px;height:16px;">
+        락카 대여기간도 함께 연장
+      </label>
+      <div style="display:flex;gap:10px;">
+        <button id="bulk-extend-cancel" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button id="bulk-extend-ok" style="flex:1;padding:12px;background:#7F77DD;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">확인</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('bulk-extend-cancel').onclick = () => modal.remove();
+    document.getElementById('bulk-extend-ok').onclick = () => {
+      const days = parseInt(document.getElementById('bulk-extend-days').value);
+      const includeLocker = document.getElementById('bulk-extend-locker').checked;
+      modal.remove();
+      if (!days || days <= 0) { showToast('1 이상의 숫자를 입력해주세요.', 'error'); return; }
+      showToast('대상 확인 중...', 'info');
+      _computeBulkExtend(days, includeLocker).then(({ updates, memberCount, itemCount, lockerCount }) => {
+        if (itemCount === 0 && lockerCount === 0) { showToast('연장 대상이 없어요.', 'error'); return; }
+        let msg = '총 ' + memberCount + '명 회원의\n회원권 ' + itemCount + '건';
+        if (includeLocker) msg += ' + 락카 ' + lockerCount + '건';
+        msg += '을 ' + days + '일씩 연장할까요?\n\n이 작업은 되돌리기 어려우니 신중하게 확인해주세요.';
+        showConfirm(msg, () => {
+          db.ref().update(updates).then(() => {
+            showToast('✅ 연장 완료!', 'success');
+          }).catch(e => {
+            showToast('연장 실패: ' + e.message, 'error');
+          });
         });
-      }
-    );
+      }).catch(e => {
+        showToast('확인 실패: ' + e.message, 'error');
+      });
+    };
   }
   window.openBulkExtendFlow = openBulkExtendFlow;
 
