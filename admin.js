@@ -6742,19 +6742,19 @@
         if (includeLocker) msg += ' + 락카 ' + lockerCount + '건';
         msg += '을 ' + days + '일씩 연장할까요?\n\n이 작업은 되돌리기 어려우니 신중하게 확인해주세요.';
         showConfirm(msg, () => {
-          db.ref().update(updates).then(() => {
-            showToast('✅ 연장 완료!', 'success');
-            // 이력 저장 — 혹시 details 안에 undefined 값이 섞여 있으면 Firebase가 저장을 통째로 거부하므로,
-            // JSON 왕복 변환으로 undefined 값을 안전하게 제거한 뒤 저장 (실패해도 화면에 바로 알려줌)
-            const logKey = _todayISO() + '_' + Date.now();
-            const safeLog = JSON.parse(JSON.stringify({
-              executedAt: Date.now(),
-              date: _todayISO(),
-              days, includeLocker, memberCount, itemCount, lockerCount, details
-            }));
-            db.ref('bulk_extend_logs/' + logKey).set(safeLog).catch(e => {
-              showToast('⚠️ 연장은 완료됐지만 이력 저장에 실패했어요: ' + e.message, 'error');
-            });
+          const logKey = _todayISO() + '_' + Date.now();
+          // undefined 값이 섞여 있으면 Firebase가 저장을 거부하므로 JSON 왕복 변환으로 안전하게 정리
+          const safeLog = JSON.parse(JSON.stringify({
+            executedAt: Date.now(),
+            date: _todayISO(),
+            days, includeLocker, memberCount, itemCount, lockerCount, details
+          }));
+          // 회원권/락카 연장 + 이력 저장을 하나의 업데이트로 묶어서 실행 — 이렇게 하면 "연장은 됐는데 이력만 빠짐" 같은 상황이
+          // 구조적으로 생길 수 없음 (전부 성공하거나, 전부 실패하거나 둘 중 하나만 가능)
+          const combinedUpdates = Object.assign({}, updates);
+          combinedUpdates['bulk_extend_logs/' + logKey] = safeLog;
+          db.ref().update(combinedUpdates).then(() => {
+            showToast('✅ 연장 완료! (이력에도 정상 저장됐어요)', 'success');
           }).catch(e => {
             showToast('연장 실패: ' + e.message, 'error');
           });
