@@ -6782,7 +6782,7 @@
 
     db.ref('bulk_extend_logs').once('value').then(snap => {
       const logs = [];
-      snap.forEach(s => logs.push({ key: s.key, ...s.val() }));
+      snap.forEach(s => { logs.push({ key: s.key, ...s.val() }); });
       logs.sort((a, b) => (b.executedAt || 0) - (a.executedAt || 0));
       _renderBulkHistoryList(logs);
     }).catch(() => {
@@ -6855,7 +6855,7 @@
             showToast('✅ 되돌리기 완료!', 'success');
             db.ref('bulk_extend_logs').once('value').then(snap2 => {
               const logs = [];
-              snap2.forEach(s => logs.push({ key: s.key, ...s.val() }));
+              snap2.forEach(s => { logs.push({ key: s.key, ...s.val() }); });
               logs.sort((a, b) => (b.executedAt || 0) - (a.executedAt || 0));
               _renderBulkHistoryList(logs);
             });
