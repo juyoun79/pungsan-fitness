@@ -1554,6 +1554,7 @@
     if (memberData.length === 0) {
       return '<div class="empty-state">조건에 맞는 회원이 없어요</div>';
     }
+    const isPc = document.body.classList.contains('pc-mode');
     const rows = memberData.map(m => {
       const { phone, info, attendCount, pts, nick, activeItems, hasUnpaid, joinDate, progNames, statusLabel, statusColor, lockerAssigned } = m;
 
@@ -1566,7 +1567,13 @@
           const d = _daysUntil(endDate);
           if (d !== null) {
             const dLabel = REFUND_PERIOD_PROGS.includes(it.progKey) ? (' D-' + d) : '';
-            remainParts.push(`<div style="white-space:nowrap;margin-bottom:2px;">${label}${dLabel}</div><div style="white-space:nowrap;color:var(--text-hint);margin-bottom:6px;">(~${endDate})</div>`);
+            if (isPc) {
+              // PC모드: 프로그램당 한 줄로 표시 (예: "GX D-35 (~2026-08-11)")
+              remainParts.push(`<div style="white-space:nowrap;margin-bottom:4px;">${label}${dLabel} (~${endDate})</div>`);
+            } else {
+              // 모바일: 프로그램명+D-day 한 줄, 종료일 그 아래 한 줄로 나눠서 폭을 덜 차지하게 표시
+              remainParts.push(`<div style="white-space:nowrap;margin-bottom:2px;">${label}${dLabel}</div><div style="white-space:nowrap;color:var(--text-hint);margin-bottom:6px;">(~${endDate})</div>`);
+            }
           }
         }
       });
