@@ -1565,8 +1565,8 @@
         if (endDate) {
           const d = _daysUntil(endDate);
           if (d !== null) {
-            const dLabel = REFUND_PERIOD_PROGS.includes(it.progKey) ? ('D-' + d) : '';
-            remainParts.push(label + (dLabel ? ' ' + dLabel : '') + ' (~' + endDate + ')');
+            const dLabel = REFUND_PERIOD_PROGS.includes(it.progKey) ? (' D-' + d) : '';
+            remainParts.push(`<div style="white-space:nowrap;margin-bottom:2px;">${label}${dLabel}</div><div style="white-space:nowrap;color:var(--text-hint);margin-bottom:6px;">(~${endDate})</div>`);
           }
         }
       });
@@ -1578,7 +1578,7 @@
         <td style="padding:10px 8px;color:var(--text-sub);white-space:nowrap;">${nick}</td>
         <td style="padding:10px 8px;color:var(--text-sub);white-space:nowrap;">${phone}</td>
         <td style="padding:10px 8px;color:var(--text);white-space:nowrap;">${progNames.join(', ') || '-'}</td>
-        <td style="padding:10px 8px;color:var(--text);font-size:12px;line-height:1.5;">${remainParts.join('<br>') || '-'}</td>
+        <td style="padding:10px 8px;color:var(--text);font-size:12px;line-height:1.4;">${remainParts.join('') || '-'}</td>
         <td style="padding:10px 8px;color:var(--text-sub);white-space:nowrap;">${lockerDisplay}</td>
         <td style="padding:10px 8px;font-weight:600;white-space:nowrap;color:${hasUnpaid ? '#ef4444' : '#22c55e'};">${hasUnpaid ? '미수금' : '완납'}</td>
         <td style="padding:10px 8px;font-weight:600;white-space:nowrap;color:${statusColor};">${statusLabel}</td>
