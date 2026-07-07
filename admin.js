@@ -8181,6 +8181,20 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     scheduleBaseDate = new Date();
     showScreen('screen-schedule');
     loadScheduleData();
+    // 메모는 주(週)와 상관없이 하나만 유지되므로 화면 진입 시 한 번만 불러옴
+    const trainerId = localStorage.getItem('current_user');
+    db.ref('trainers/' + trainerId + '/scheduleMemo').once('value', snap => {
+      const memoEl = document.getElementById('schedule-memo-input');
+      if (memoEl) memoEl.value = snap.val() || '';
+    });
+  }
+
+  function saveScheduleMemo() {
+    const trainerId = localStorage.getItem('current_user');
+    const memo = document.getElementById('schedule-memo-input')?.value.trim() || '';
+    db.ref('trainers/' + trainerId + '/scheduleMemo').set(memo).then(() => {
+      showToast('✅ 메모 저장 완료!', 'success');
+    });
   }
 
   function loadScheduleData() {
