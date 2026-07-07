@@ -1510,36 +1510,31 @@
   function _renderMemberListView() {
     const wrap = document.getElementById('member-list-wrap');
     if (!wrap) return;
-    const isPc = document.body.classList.contains('pc-mode');
 
     let data = _lastMemberData.slice();
 
-    if (isPc) {
-      const f = _memberFilters;
-      if (f.program !== 'all') data = data.filter(m => m.progNames.includes(f.program));
-      if (f.status !== 'all') data = data.filter(m => m.statusKey === f.status);
-      if (f.payment !== 'all') data = data.filter(m => (f.payment === 'unpaid') === m.hasUnpaid);
-      if (f.locker !== 'all') data = data.filter(m => (f.locker === 'assigned') === m.lockerAssigned);
+    const f = _memberFilters;
+    if (f.program !== 'all') data = data.filter(m => m.progNames.includes(f.program));
+    if (f.status !== 'all') data = data.filter(m => m.statusKey === f.status);
+    if (f.payment !== 'all') data = data.filter(m => (f.payment === 'unpaid') === m.hasUnpaid);
+    if (f.locker !== 'all') data = data.filter(m => (f.locker === 'assigned') === m.lockerAssigned);
 
-      if (f.sort === 'expiring') {
-        data.sort((a, b) => (a.minRemainDays === null ? Infinity : a.minRemainDays) - (b.minRemainDays === null ? Infinity : b.minRemainDays));
-      } else if (f.sort === 'join_new') {
-        data.sort((a, b) => (b.joinDate || '').localeCompare(a.joinDate || ''));
-      } else if (f.sort === 'join_old') {
-        data.sort((a, b) => (a.joinDate || '').localeCompare(b.joinDate || ''));
-      } else if (f.sort === 'points') {
-        data.sort((a, b) => b.pts - a.pts);
-      } else if (f.sort === 'name') {
-        data.sort((a, b) => (a.info.name || '').localeCompare(b.info.name || '', 'ko'));
-      }
+    if (f.sort === 'expiring') {
+      data.sort((a, b) => (a.minRemainDays === null ? Infinity : a.minRemainDays) - (b.minRemainDays === null ? Infinity : b.minRemainDays));
+    } else if (f.sort === 'join_new') {
+      data.sort((a, b) => (b.joinDate || '').localeCompare(a.joinDate || ''));
+    } else if (f.sort === 'join_old') {
+      data.sort((a, b) => (a.joinDate || '').localeCompare(b.joinDate || ''));
+    } else if (f.sort === 'points') {
+      data.sort((a, b) => b.pts - a.pts);
+    } else if (f.sort === 'name') {
+      data.sort((a, b) => (a.info.name || '').localeCompare(b.info.name || '', 'ko'));
     }
 
-    const filterBar = isPc ? _renderMemberFilterBar() : '';
-    const listHtml = isPc ? _renderMemberTable(data) : _renderMemberCards(data);
-    wrap.innerHTML = filterBar + listHtml;
+    wrap.innerHTML = _renderMemberFilterBar() + _renderMemberTable(data);
   }
 
-  // PC모드 전용 필터/정렬 바
+  // 필터/정렬 바 (PC/모바일 공통)
   function _renderMemberFilterBar() {
     const f = _memberFilters;
     const sel = (id, options) => `<select id="${id}" onchange="applyMemberFilters()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;background:var(--card);color:var(--text);font-family:'Noto Sans KR',sans-serif;">${options}</select>`;
@@ -1551,34 +1546,6 @@
       ${sel('mf-locker', opt('all','전체 락카',f.locker)+opt('assigned','배정됨',f.locker)+opt('unassigned','미배정',f.locker))}
       ${sel('mf-sort', opt('none','정렬 없음',f.sort)+opt('expiring','만료임박순',f.sort)+opt('join_new','가입일순(최근)',f.sort)+opt('join_old','가입일순(오래된)',f.sort)+opt('points','포인트순',f.sort)+opt('name','이름가나다순',f.sort))}
     </div>`;
-  }
-
-  // 모바일용 카드 렌더링 (기존 방식 그대로)
-  function _renderMemberCards(memberData) {
-    return memberData.map(m => {
-      const { phone, info, attendCount, pts, nick } = m;
-      return `
-        <div class="admin-card" style="cursor:pointer;" onclick="openMemberModal('${phone}')">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <div class="member-avatar">${(info.name || phone)[0]}</div>
-            <div style="flex:1;min-width:0;">
-              <div style="display:flex;align-items:center;gap:6px;">
-                <div class="member-name">${info.name}</div>
-                ${info.programs && info.programs.length > 0 ? `<span style="font-size:11px;color:var(--blue);background:var(--blue-light);padding:2px 6px;border-radius:6px;">${info.programs[0]}</span>` : ''}
-              </div>
-              <div class="member-phone">${phone}</div>
-              ${nick !== '-' ? `<div style="font-size:12px;color:var(--text-hint);margin-top:1px;">닉네임: ${nick}</div>` : ''}
-            </div>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </div>
-          <div class="stat-mini" style="margin-top:10px;">
-            <div class="stat-mini-item"><div class="stat-mini-val">${attendCount}</div><div class="stat-mini-label">이번달 출석</div></div>
-            <div class="stat-mini-item"><div class="stat-mini-val">${pts}</div><div class="stat-mini-label">포인트</div></div>
-            <div class="stat-mini-item"><div class="stat-mini-val">${info.programs ? info.programs.length : 0}</div><div class="stat-mini-label">프로그램</div></div>
-          </div>
-        </div>
-      `;
-    }).join('');
   }
 
   // PC용 표 렌더링 (이름/닉네임/연락처/프로그램/잔여/락카/결제상태/상태/이번달출석/포인트/가입일)
