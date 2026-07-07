@@ -1408,6 +1408,9 @@
   let currentMemberPhone = null;
   let cachedMembers = {};
 
+  let _lastMemberData = [];
+  let _memberFilters = { program: 'all', status: 'all', payment: 'all', locker: 'all', sort: 'none' };
+
   function loadMemberList(query = '') {
     getMemberDB().then(members => {
       cachedMembers = members;
@@ -1454,19 +1457,100 @@
           });
           const joinDate = signDates.length ? signDates.sort()[0] : '-';
 
-          return { phone, info, attendCount, pts, nick, activeItems, hasUnpaid, joinDate };
+          // 필터/정렬용 계산값 미리 뽑아두기 (프로그램 목록/상태/락카배정여부/최소잔여일)
+          const progNames = [];
+          let minRemainDays = null;
+          let anyOnHold = false;
+          activeItems.forEach(it => {
+            const label = REFUND_PROG_NAMES[it.progKey] || it.progKey;
+            if (!progNames.includes(label)) progNames.push(label);
+            const onHold = _isActivelyOnHold(it.data);
+            if (onHold) anyOnHold = true;
+            const endDate = onHold ? (it.data.activeHold && it.data.activeHold.newEndDate) : it.data.endDate;
+            if (endDate) {
+              const d = _daysUntil(endDate);
+              if (d !== null && (minRemainDays === null || d < minRemainDays)) minRemainDays = d;
+            }
+          });
+          let statusKey = 'none', statusLabel = '-', statusColor = 'var(--text-hint)';
+          if (activeItems.length > 0) {
+            if (anyOnHold) { statusKey = 'hold'; statusLabel = '⏸️ 휴회중'; statusColor = '#f59e0b'; }
+            else if (minRemainDays !== null && minRemainDays < 0) { statusKey = 'expired'; statusLabel = '만료됨'; statusColor = '#ef4444'; }
+            else if (minRemainDays !== null && minRemainDays <= 7) { statusKey = 'expiring'; statusLabel = '⚠️ 만료임박'; statusColor = '#f59e0b'; }
+            else { statusKey = 'normal'; statusLabel = '정상'; statusColor = '#22c55e'; }
+          }
+          const lockerAssigned = !!info.lockerKey;
+
+          return { phone, info, attendCount, pts: Number(pts) || 0, nick, activeItems, hasUnpaid, joinDate, progNames, statusKey, statusLabel, statusColor, minRemainDays, lockerAssigned };
         }).catch(() => {
           const pts = localStorage.getItem('points_' + phone) || '0';
           let attendCount = 0;
           for(let d=1;d<=31;d++) { if(localStorage.getItem('attend_'+phone+'_'+monthPrefix+d)==='done') attendCount++; }
           const nick = localStorage.getItem('nickname_' + phone) || '-';
-          return { phone, info, attendCount, pts, nick, activeItems: [], hasUnpaid: false, joinDate: '-' };
+          return { phone, info, attendCount, pts: Number(pts) || 0, nick, activeItems: [], hasUnpaid: false, joinDate: '-', progNames: [], statusKey: 'none', statusLabel: '-', statusColor: 'var(--text-hint)', minRemainDays: null, lockerAssigned: false };
         })
       )).then(memberData => {
-        const isPc = document.body.classList.contains('pc-mode');
-        wrap.innerHTML = isPc ? _renderMemberTable(memberData) : _renderMemberCards(memberData);
+        _lastMemberData = memberData;
+        _renderMemberListView();
       });
     });
+  }
+
+  // 필터/정렬 드롭다운 값이 바뀔 때 호출 — Firebase 재조회 없이 이미 가져온 데이터로 다시 그림
+  function applyMemberFilters() {
+    _memberFilters.program = document.getElementById('mf-program')?.value || 'all';
+    _memberFilters.status  = document.getElementById('mf-status')?.value || 'all';
+    _memberFilters.payment = document.getElementById('mf-payment')?.value || 'all';
+    _memberFilters.locker  = document.getElementById('mf-locker')?.value || 'all';
+    _memberFilters.sort    = document.getElementById('mf-sort')?.value || 'none';
+    _renderMemberListView();
+  }
+  window.applyMemberFilters = applyMemberFilters;
+
+  function _renderMemberListView() {
+    const wrap = document.getElementById('member-list-wrap');
+    if (!wrap) return;
+    const isPc = document.body.classList.contains('pc-mode');
+
+    let data = _lastMemberData.slice();
+
+    if (isPc) {
+      const f = _memberFilters;
+      if (f.program !== 'all') data = data.filter(m => m.progNames.includes(f.program));
+      if (f.status !== 'all') data = data.filter(m => m.statusKey === f.status);
+      if (f.payment !== 'all') data = data.filter(m => (f.payment === 'unpaid') === m.hasUnpaid);
+      if (f.locker !== 'all') data = data.filter(m => (f.locker === 'assigned') === m.lockerAssigned);
+
+      if (f.sort === 'expiring') {
+        data.sort((a, b) => (a.minRemainDays === null ? Infinity : a.minRemainDays) - (b.minRemainDays === null ? Infinity : b.minRemainDays));
+      } else if (f.sort === 'join_new') {
+        data.sort((a, b) => (b.joinDate || '').localeCompare(a.joinDate || ''));
+      } else if (f.sort === 'join_old') {
+        data.sort((a, b) => (a.joinDate || '').localeCompare(b.joinDate || ''));
+      } else if (f.sort === 'points') {
+        data.sort((a, b) => b.pts - a.pts);
+      } else if (f.sort === 'name') {
+        data.sort((a, b) => (a.info.name || '').localeCompare(b.info.name || '', 'ko'));
+      }
+    }
+
+    const filterBar = isPc ? _renderMemberFilterBar() : '';
+    const listHtml = isPc ? _renderMemberTable(data) : _renderMemberCards(data);
+    wrap.innerHTML = filterBar + listHtml;
+  }
+
+  // PC모드 전용 필터/정렬 바
+  function _renderMemberFilterBar() {
+    const f = _memberFilters;
+    const sel = (id, options) => `<select id="${id}" onchange="applyMemberFilters()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;background:var(--card);color:var(--text);font-family:'Noto Sans KR',sans-serif;">${options}</select>`;
+    const opt = (val, label, current) => `<option value="${val}" ${val===current?'selected':''}>${label}</option>`;
+    return `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+      ${sel('mf-program', opt('all','전체 프로그램',f.program)+opt('헬스','헬스',f.program)+opt('GX','GX',f.program)+opt('PT','PT',f.program)+opt('기구필라테스 개인','기구필라테스 개인',f.program)+opt('기구필라테스 그룹','기구필라테스 그룹',f.program))}
+      ${sel('mf-status', opt('all','전체 상태',f.status)+opt('normal','정상',f.status)+opt('hold','휴회중',f.status)+opt('expiring','만료임박',f.status)+opt('expired','만료됨',f.status))}
+      ${sel('mf-payment', opt('all','전체 결제상태',f.payment)+opt('paid','완납',f.payment)+opt('unpaid','미수금',f.payment))}
+      ${sel('mf-locker', opt('all','전체 락카',f.locker)+opt('assigned','배정됨',f.locker)+opt('unassigned','미배정',f.locker))}
+      ${sel('mf-sort', opt('none','정렬 없음',f.sort)+opt('expiring','만료임박순',f.sort)+opt('join_new','가입일순(최근)',f.sort)+opt('join_old','가입일순(오래된)',f.sort)+opt('points','포인트순',f.sort)+opt('name','이름가나다순',f.sort))}
+    </div>`;
   }
 
   // 모바일용 카드 렌더링 (기존 방식 그대로)
@@ -1500,39 +1584,27 @@
   // PC용 표 렌더링 (이름/닉네임/연락처/프로그램/잔여/락카/결제상태/상태/이번달출석/포인트/가입일)
   function _renderMemberTable(memberData) {
     const th = (label, align) => `<th style="padding:10px 8px;text-align:${align||'left'};font-size:11.5px;color:var(--text-hint);font-weight:700;white-space:nowrap;">${label}</th>`;
+    if (memberData.length === 0) {
+      return '<div class="empty-state">조건에 맞는 회원이 없어요</div>';
+    }
     const rows = memberData.map(m => {
-      const { phone, info, attendCount, pts, nick, activeItems, hasUnpaid, joinDate } = m;
+      const { phone, info, attendCount, pts, nick, activeItems, hasUnpaid, joinDate, progNames, statusLabel, statusColor, lockerAssigned } = m;
 
-      const progNames = [];
       const remainParts = [];
-      let minRemainDays = null;
-      let anyOnHold = false;
       activeItems.forEach(it => {
         const label = REFUND_PROG_NAMES[it.progKey] || it.progKey;
-        if (!progNames.includes(label)) progNames.push(label);
         const onHold = _isActivelyOnHold(it.data);
-        if (onHold) anyOnHold = true;
         const endDate = onHold ? (it.data.activeHold && it.data.activeHold.newEndDate) : it.data.endDate;
         if (endDate) {
           const d = _daysUntil(endDate);
           if (d !== null) {
-            if (minRemainDays === null || d < minRemainDays) minRemainDays = d;
             const dLabel = REFUND_PERIOD_PROGS.includes(it.progKey) ? ('D-' + d) : '';
             remainParts.push(label + (dLabel ? ' ' + dLabel : '') + ' (~' + endDate + ')');
           }
         }
       });
 
-      let statusLabel = '-', statusColor = 'var(--text-hint)';
-      if (activeItems.length > 0) {
-        if (anyOnHold) { statusLabel = '⏸️ 휴회중'; statusColor = '#f59e0b'; }
-        else if (minRemainDays !== null && minRemainDays < 0) { statusLabel = '만료됨'; statusColor = '#ef4444'; }
-        else if (minRemainDays !== null && minRemainDays <= 7) { statusLabel = '⚠️ 만료임박'; statusColor = '#f59e0b'; }
-        else { statusLabel = '정상'; statusColor = '#22c55e'; }
-      }
-
-      const lockerKey = info.lockerKey;
-      const lockerDisplay = lockerKey ? lockerKey.split('_').pop() + '번' : '미배정';
+      const lockerDisplay = lockerAssigned ? info.lockerKey.split('_').pop() + '번' : '미배정';
 
       return `<tr onclick="openMemberModal('${phone}')" style="cursor:pointer;border-bottom:1px solid var(--border);">
         <td style="padding:10px 8px;font-weight:700;color:var(--text);white-space:nowrap;">${info.name}</td>
