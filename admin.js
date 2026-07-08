@@ -1766,12 +1766,13 @@
       db.ref('trainers').once('value'),
       db.ref('pilates_group/' + phone).once('value')
     ]).then(([contractsSnap, trainersSnap, pgSnap]) => {
-      // 1) 기간제 상품(헬스/GX) — 계약이력에서 아직 환불/양도/변경으로 나가지 않은 활성 항목만 추림
+      // 1) 유효기간이 있는 모든 상품(헬스/GX 기간제 + PT/필라테스 횟수제) — 계약이력에서 아직 환불/양도/변경으로 나가지 않은 활성 항목만 추림
+      // ※ 횟수제 상품도 계약서에 시작일~종료일이 저장되므로 "얼마나 남았는지" D-day는 여기서, "몇 회 남았는지" 잔여횟수는 아래 개인수업/그룹수업 박스에서 별도 표시
       const periodCards = [];
       contractsSnap.forEach(cSnap => {
         const c = cSnap.val();
         _flattenContractItems(c).forEach(it => {
-          if (!REFUND_PERIOD_PROGS.includes(it.progKey)) return;
+          if (!REFUND_PROG_NAMES[it.progKey]) return;
           if (!_isItemEligible(it.data)) return;
           const onHold = _isActivelyOnHold(it.data);
           const endDate = onHold ? it.data.activeHold.newEndDate : it.data.endDate;
