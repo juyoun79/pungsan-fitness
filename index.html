@@ -3940,9 +3940,13 @@
 
         <!-- 서브탭 버튼 -->
         <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
-          <button id="pg-subtab-classes" onclick="switchPilatesSubtab('classes')"
+          <button id="pg-subtab-schedule" onclick="switchPilatesSubtab('schedule')"
             style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--blue);color:white;border:none;">
-            📅 수업관리
+            📆 시간표
+          </button>
+          <button id="pg-subtab-exceptions" onclick="switchPilatesSubtab('exceptions')"
+            style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);border:1.5px solid var(--border);">
+            🚫 휴무관리
           </button>
           <button id="pg-subtab-counts" onclick="switchPilatesSubtab('counts')"
             style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);border:1.5px solid var(--border);">
@@ -3954,41 +3958,44 @@
           </button>
         </div>
 
-        <!-- 서브탭: 수업관리 -->
-        <div id="pg-view-classes">
+        <!-- 서브탭: 시간표 (요일별 정기 시간표 — 변경 전까지 계속 이 시간표로 수업이 생성됨) -->
+        <div id="pg-view-schedule">
           <div class="admin-card">
-            <div class="admin-card-title">📅 그룹수업 슬롯 관리</div>
-            <input type="hidden" id="pgc-edit-id">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-              <div>
-                <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">날짜</div>
-                <input id="pgc-date" type="date"
-                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
-              </div>
-              <div>
-                <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">시간</div>
-                <input id="pgc-time" type="time"
-                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
-              </div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-              <div>
-                <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">강사</div>
-                <input id="pgc-trainer" type="text" placeholder="예) 최주연"
-                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
-              </div>
-              <div>
-                <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">정원</div>
-                <input id="pgc-capacity" type="number" placeholder="예) 6"
-                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
-              </div>
-            </div>
-            <button onclick="savePilatesClass()"
-              style="width:100%;padding:11px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
+            <div class="admin-card-title">📆 요일별 정기 시간표</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:12px;line-height:1.5;">한 번 설정해두면 바꾸시기 전까지 계속 이 시간표대로 수업이 열려요.</div>
+            <div id="pg-day-tabs" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;"></div>
+            <div id="pg-schedule-rows"></div>
+            <button onclick="addPilatesScheduleRow()"
+              style="width:100%;padding:10px;background:none;border:1.5px dashed var(--border);border-radius:8px;font-size:13px;font-weight:700;color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin:8px 0 12px;">+ 시간 추가</button>
+            <button onclick="savePilatesScheduleDay()"
+              style="width:100%;padding:11px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이 요일 저장</button>
           </div>
           <div class="admin-card" style="margin-top:0;">
-            <div class="admin-card-title">📋 등록된 수업 목록</div>
-            <div id="pgc-list"><div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">불러오는 중...</div></div>
+            <div class="admin-card-title">👀 다가오는 수업 미리보기</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;">"설정"의 예약 가능 기간 기준으로 실제 회원 화면에 뜨는 수업을 미리 볼 수 있어요.</div>
+            <div id="pg-preview-list"><div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">불러오는 중...</div></div>
+          </div>
+        </div>
+
+        <!-- 서브탭: 휴무관리 -->
+        <div id="pg-view-exceptions" style="display:none;">
+          <div class="admin-card">
+            <div class="admin-card-title">🚫 휴무 설정</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">날짜</div>
+            <input id="pge-date" type="date"
+              style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:10px;">
+            <button onclick="setPilatesFullClosed()"
+              style="width:100%;padding:11px;background:#e24b4a;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:14px;">이 날짜 전체 휴무로 설정 (공휴일 등)</button>
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">특정 시간대만 닫기 (예: 10:00)</div>
+            <div style="display:flex;gap:8px;">
+              <input id="pge-time" type="time" style="flex:1;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
+              <button onclick="setPilatesTimeClosed()"
+                style="padding:9px 16px;background:var(--card);border:1.5px solid var(--border);color:var(--text);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">이 시간만 닫기</button>
+            </div>
+          </div>
+          <div class="admin-card" style="margin-top:0;">
+            <div class="admin-card-title">📋 등록된 휴무 목록</div>
+            <div id="pge-list"><div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">불러오는 중...</div></div>
           </div>
         </div>
 
@@ -4007,6 +4014,17 @@
         <!-- 서브탭: 설정 -->
         <div id="pg-view-settings" style="display:none;">
           <div class="admin-card">
+            <div class="admin-card-title">⚙️ 예약 가능 기간</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;line-height:1.5;">회원이 오늘부터 며칠 후까지의 수업을 예약할 수 있는지 설정해요.</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input id="pgs-window-days" type="number" min="1" placeholder="예) 7"
+                style="flex:1;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
+              <span style="font-size:13px;color:var(--text-sub);">일</span>
+              <button onclick="savePilatesWindowDays()"
+                style="padding:9px 16px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
+            </div>
+          </div>
+          <div class="admin-card" style="margin-top:0;">
             <div class="admin-card-title">⚙️ 그룹수업 예약 설정</div>
             <div style="font-size:12px;color:var(--text-hint);margin-bottom:12px;line-height:1.5;">회원이 그룹수업을 예약할 때 잔여횟수를 언제 차감할지 정해요.</div>
             <div style="display:flex;gap:8px;">

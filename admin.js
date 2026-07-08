@@ -12075,9 +12075,23 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   window.openAdminAssignTrainee = openAdminAssignTrainee;
   window.saveAdminAssignTrainee = saveAdminAssignTrainee;
 
-  // ── 🧘 기구필라테스 그룹수업 - 회원별 잔여횟수 관리 탭 (계약서 자동연동 + 수동 보정) ──
+  // ── 🧘 기구필라테스 그룹수업 관리 탭 ──
   // pilates_group/{phone} = { total, remain, updatedAt } — 강사배정(trainers/trainees) 시스템과 완전히 분리된 독립 카운터
+  // pilates_settings/weeklySchedule/{요일} = [{time, capacity}, ...] — 한 번 설정하면 바꾸기 전까지 계속 적용되는 정기 시간표
+  // pilates_exceptions/{date} = { fullClosed:true } 또는 { closedTimes:{ 'HH:MM':true } } — 공휴일/개별 휴무 예외
   let _pgMembersCache = null;
+  const PG_DAY_KEYS   = ['mon','tue','wed','thu','fri','sat','sun'];
+  const PG_DAY_LABELS = { mon:'월', tue:'화', wed:'수', thu:'목', fri:'금', sat:'토', sun:'일' };
+  const PG_DEFAULT_SCHEDULE = {
+    mon: [{time:'10:00',capacity:5},{time:'11:00',capacity:5},{time:'18:00',capacity:5},{time:'19:00',capacity:5},{time:'20:00',capacity:5}],
+    tue: [{time:'10:00',capacity:5},{time:'11:00',capacity:5},{time:'19:00',capacity:5},{time:'20:00',capacity:5},{time:'21:00',capacity:5}],
+    wed: [{time:'10:00',capacity:5},{time:'11:00',capacity:5},{time:'18:00',capacity:5},{time:'19:00',capacity:5},{time:'20:00',capacity:5}],
+    thu: [{time:'10:00',capacity:5},{time:'11:00',capacity:5},{time:'19:00',capacity:5},{time:'20:00',capacity:5},{time:'21:00',capacity:5}],
+    fri: [{time:'10:00',capacity:5},{time:'11:00',capacity:5},{time:'18:00',capacity:5},{time:'19:00',capacity:5},{time:'20:00',capacity:5}],
+    sat: [], sun: []
+  };
+  let _pgSchedule   = null; // 편집 중인 요일별 시간표 (메모리)
+  let _pgActiveDay  = 'mon';
 
   function initPilatesGroupTab() {
     const searchInput = document.getElementById('pg-search');
@@ -12098,13 +12112,13 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         _pgMembersCache = members;
       });
     }
-    switchPilatesSubtab('classes');
+    switchPilatesSubtab('schedule');
   }
   window.initPilatesGroupTab = initPilatesGroupTab;
 
-  // 서브탭 전환 (수업관리 / 잔여횟수 / 설정)
+  // 서브탭 전환 (시간표 / 휴무관리 / 잔여횟수 / 설정)
   function switchPilatesSubtab(tab) {
-    const tabs = ['classes', 'counts', 'settings'];
+    const tabs = ['schedule', 'exceptions', 'counts', 'settings'];
     tabs.forEach(t => {
       const btn  = document.getElementById('pg-subtab-' + t);
       const view = document.getElementById('pg-view-' + t);
@@ -12116,101 +12130,241 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       }
       if (view) view.style.display = isActive ? '' : 'none';
     });
-    if (tab === 'classes')  loadPilatesClassList();
-    if (tab === 'settings') loadPilatesSettings();
+    if (tab === 'schedule')   loadPilatesSchedule();
+    if (tab === 'exceptions') loadPilatesExceptionList();
+    if (tab === 'settings')   loadPilatesSettings();
   }
   window.switchPilatesSubtab = switchPilatesSubtab;
 
-  // ── 수업관리: pilates_classes/{classId} = { date, time, trainerName, capacity, createdAt } ──
-  function savePilatesClass() {
-    const date       = document.getElementById('pgc-date').value;
-    const time       = document.getElementById('pgc-time').value;
-    const trainerName = document.getElementById('pgc-trainer').value.trim();
-    const capacity   = parseInt(document.getElementById('pgc-capacity').value);
-    const editId     = document.getElementById('pgc-edit-id').value;
-    if (!date)     { showToast('날짜를 선택해주세요.', 'error'); return; }
-    if (!time)     { showToast('시간을 선택해주세요.', 'error'); return; }
-    if (!trainerName) { showToast('강사를 입력해주세요.', 'error'); return; }
-    if (!capacity || isNaN(capacity)) { showToast('정원을 입력해주세요.', 'error'); return; }
-
-    const isNew = !editId;
-    const ref = isNew ? db.ref('pilates_classes').push() : db.ref('pilates_classes/' + editId);
-    const data = { date, time, trainerName, capacity };
-    const save = isNew
-      ? ref.set(Object.assign({}, data, { createdAt: Date.now() }))
-      : ref.update(data);
-
-    save.then(() => {
-      showToast(isNew ? '✅ 수업이 추가됐어요!' : '✅ 수업이 수정됐어요!', 'success');
-      document.getElementById('pgc-edit-id').value = '';
-      document.getElementById('pgc-date').value = '';
-      document.getElementById('pgc-time').value = '';
-      document.getElementById('pgc-trainer').value = '';
-      document.getElementById('pgc-capacity').value = '';
-      loadPilatesClassList();
+  // ── 📆 시간표 ──
+  function loadPilatesSchedule() {
+    db.ref('pilates_settings/weeklySchedule').once('value').then(snap => {
+      const val = snap.val();
+      _pgSchedule = val ? {} : JSON.parse(JSON.stringify(PG_DEFAULT_SCHEDULE));
+      if (val) {
+        PG_DAY_KEYS.forEach(d => {
+          _pgSchedule[d] = Array.isArray(val[d]) ? val[d] : (val[d] ? Object.values(val[d]) : []);
+        });
+      }
+      renderPilatesDayTabs();
+      renderPilatesScheduleRows();
+      loadPilatesSchedulePreview();
     });
   }
-  window.savePilatesClass = savePilatesClass;
+  window.loadPilatesSchedule = loadPilatesSchedule;
 
-  function loadPilatesClassList() {
-    const el = document.getElementById('pgc-list');
+  function renderPilatesDayTabs() {
+    const el = document.getElementById('pg-day-tabs');
     if (!el) return;
-    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
-    db.ref('pilates_classes').once('value').then(snap => {
-      const list = [];
-      snap.forEach(child => list.push(Object.assign({ id: child.key }, child.val())));
-      list.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-      if (!list.length) {
-        el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">등록된 수업이 없어요</div>';
+    el.innerHTML = PG_DAY_KEYS.map(d => `
+      <button onclick="switchPilatesDay('${d}')"
+        style="padding:7px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
+        background:${d === _pgActiveDay ? 'var(--blue)' : 'var(--bg)'};color:${d === _pgActiveDay ? 'white' : 'var(--text)'};border:${d === _pgActiveDay ? 'none' : '1px solid var(--border)'};">
+        ${PG_DAY_LABELS[d]}${_pgSchedule[d] && _pgSchedule[d].length ? ' · ' + _pgSchedule[d].length : ''}
+      </button>`).join('');
+  }
+
+  function switchPilatesDay(day) {
+    _pgActiveDay = day;
+    renderPilatesDayTabs();
+    renderPilatesScheduleRows();
+  }
+  window.switchPilatesDay = switchPilatesDay;
+
+  function renderPilatesScheduleRows() {
+    const el = document.getElementById('pg-schedule-rows');
+    if (!el) return;
+    const rows = _pgSchedule[_pgActiveDay] || [];
+    if (!rows.length) {
+      el.innerHTML = '<div style="text-align:center;padding:16px 0;color:var(--text-hint);font-size:13px;">이 요일엔 등록된 시간이 없어요</div>';
+      return;
+    }
+    el.innerHTML = rows.map((r, i) => `
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+        <input type="time" value="${r.time || ''}" oninput="updatePilatesScheduleField(${i},'time',this.value)"
+          style="flex:1.2;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+        <input type="number" min="1" value="${r.capacity != null ? r.capacity : 5}" oninput="updatePilatesScheduleField(${i},'capacity',this.value)"
+          style="width:70px;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+        <span style="font-size:12px;color:var(--text-hint);">명</span>
+        <button onclick="removePilatesScheduleRow(${i})" style="padding:6px 10px;border-radius:8px;border:1px solid #e24b4a;background:none;color:#e24b4a;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
+      </div>`).join('');
+  }
+
+  function updatePilatesScheduleField(idx, field, value) {
+    if (!_pgSchedule[_pgActiveDay][idx]) return;
+    _pgSchedule[_pgActiveDay][idx][field] = field === 'capacity' ? (parseInt(value) || 0) : value;
+  }
+  window.updatePilatesScheduleField = updatePilatesScheduleField;
+
+  function addPilatesScheduleRow() {
+    if (!_pgSchedule[_pgActiveDay]) _pgSchedule[_pgActiveDay] = [];
+    _pgSchedule[_pgActiveDay].push({ time: '', capacity: 5 });
+    renderPilatesDayTabs();
+    renderPilatesScheduleRows();
+  }
+  window.addPilatesScheduleRow = addPilatesScheduleRow;
+
+  function removePilatesScheduleRow(idx) {
+    _pgSchedule[_pgActiveDay].splice(idx, 1);
+    renderPilatesDayTabs();
+    renderPilatesScheduleRows();
+  }
+  window.removePilatesScheduleRow = removePilatesScheduleRow;
+
+  function savePilatesScheduleDay() {
+    const rows = (_pgSchedule[_pgActiveDay] || []).filter(r => r.time);
+    if (rows.some(r => !r.capacity || r.capacity < 1)) {
+      showToast('정원은 1명 이상으로 입력해주세요.', 'error'); return;
+    }
+    rows.sort((a, b) => a.time.localeCompare(b.time));
+    _pgSchedule[_pgActiveDay] = rows;
+    db.ref('pilates_settings/weeklySchedule/' + _pgActiveDay).set(rows).then(() => {
+      showToast('✅ ' + PG_DAY_LABELS[_pgActiveDay] + '요일 시간표가 저장됐어요!', 'success');
+      renderPilatesDayTabs();
+      renderPilatesScheduleRows();
+      loadPilatesSchedulePreview();
+    });
+  }
+  window.savePilatesScheduleDay = savePilatesScheduleDay;
+
+  // 다가오는 수업 미리보기 (시간표 + 휴무예외를 조합해서 실제 회원 화면처럼 계산)
+  function loadPilatesSchedulePreview() {
+    const el = document.getElementById('pg-preview-list');
+    if (!el) return;
+    Promise.all([
+      db.ref('pilates_settings/bookingWindowDays').once('value'),
+      db.ref('pilates_exceptions').once('value')
+    ]).then(([winSnap, excSnap]) => {
+      const windowDays = winSnap.val() || 7;
+      const exceptions = excSnap.val() || {};
+      const dayKeyByIndex = ['sun','mon','tue','wed','thu','fri','sat'];
+      const items = [];
+      for (let i = 0; i < windowDays; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() + i);
+        const dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        const dayKey = dayKeyByIndex[d.getDay()];
+        const slots = _pgSchedule[dayKey] || [];
+        const exc = exceptions[dateStr] || {};
+        if (exc.fullClosed) {
+          if (slots.length) items.push({ dateStr, dayKey, closed: true, label: '전체 휴무' });
+          continue;
+        }
+        slots.forEach(s => {
+          const timeClosed = exc.closedTimes && exc.closedTimes[s.time];
+          items.push({ dateStr, dayKey, time: s.time, capacity: s.capacity, closed: !!timeClosed });
+        });
+      }
+      if (!items.length) {
+        el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">예약 가능 기간 내에 열리는 수업이 없어요</div>';
         return;
       }
-      el.innerHTML = list.map(c => `
-        <div style="background:var(--bg);border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
-          <div>
-            <div style="font-size:13px;font-weight:700;color:var(--text);">${c.date} ${c.time}</div>
-            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${c.trainerName} 강사 · 정원 ${c.capacity}명</div>
-          </div>
-          <div style="display:flex;gap:6px;flex-shrink:0;">
-            <button onclick="editPilatesClass('${c.id}')" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
-            <button onclick="deletePilatesClass('${c.id}')" style="padding:6px 10px;border-radius:8px;border:1px solid #e24b4a;background:none;color:#e24b4a;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
-          </div>
+      el.innerHTML = items.map(it => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);${it.closed ? 'opacity:0.5;' : ''}">
+          <div style="font-size:12.5px;color:var(--text);">${it.dateStr} (${PG_DAY_LABELS[it.dayKey]}) ${it.time || ''}</div>
+          <div style="font-size:12px;color:${it.closed ? '#e24b4a' : 'var(--text-hint)'};">${it.closed ? (it.label || '휴무') : '정원 ' + it.capacity + '명'}</div>
         </div>`).join('');
     });
   }
-  window.loadPilatesClassList = loadPilatesClassList;
 
-  function editPilatesClass(id) {
-    db.ref('pilates_classes/' + id).once('value').then(snap => {
-      const c = snap.val();
-      if (!c) return;
-      document.getElementById('pgc-edit-id').value = id;
-      document.getElementById('pgc-date').value = c.date || '';
-      document.getElementById('pgc-time').value = c.time || '';
-      document.getElementById('pgc-trainer').value = c.trainerName || '';
-      document.getElementById('pgc-capacity').value = c.capacity || '';
-      showToast('수업 정보를 불러왔어요. 수정 후 저장을 눌러주세요.', 'info');
+  // ── 🚫 휴무관리 ──
+  function loadPilatesExceptionList() {
+    const el = document.getElementById('pge-list');
+    if (!el) return;
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
+    db.ref('pilates_exceptions').once('value').then(snap => {
+      const list = [];
+      snap.forEach(child => list.push({ date: child.key, val: child.val() }));
+      list.sort((a, b) => a.date.localeCompare(b.date));
+      if (!list.length) {
+        el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">등록된 휴무가 없어요</div>';
+        return;
+      }
+      el.innerHTML = list.map(item => {
+        const rows = [];
+        if (item.val.fullClosed) {
+          rows.push(`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;">
+              <span style="font-size:13px;color:var(--text);">${item.date} · <span style="color:#e24b4a;font-weight:700;">전체 휴무</span></span>
+              <button onclick="removePilatesFullClosed('${item.date}')" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">복구</button>
+            </div>`);
+        }
+        if (item.val.closedTimes) {
+          Object.keys(item.val.closedTimes).forEach(t => {
+            rows.push(`
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;">
+                <span style="font-size:13px;color:var(--text);">${item.date} ${t} · <span style="color:#e24b4a;font-weight:700;">닫힘</span></span>
+                <button onclick="removePilatesTimeClosed('${item.date}','${t}')" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">복구</button>
+              </div>`);
+          });
+        }
+        return rows.join('<div style="border-bottom:1px solid var(--border);"></div>');
+      }).join('');
     });
   }
-  window.editPilatesClass = editPilatesClass;
+  window.loadPilatesExceptionList = loadPilatesExceptionList;
 
-  function deletePilatesClass(id) {
-    showConfirm('이 수업을 삭제할까요?\n(예약이 있었다면 예약 기록은 별도로 확인해주세요)', () => {
-      db.ref('pilates_classes/' + id).remove().then(() => {
-        showToast('삭제됐어요.', 'success');
-        loadPilatesClassList();
+  function setPilatesFullClosed() {
+    const date = document.getElementById('pge-date').value;
+    if (!date) { showToast('날짜를 선택해주세요.', 'error'); return; }
+    showConfirm(date + ' 전체를 휴무로 설정할까요?', () => {
+      db.ref('pilates_exceptions/' + date + '/fullClosed').set(true).then(() => {
+        showToast('✅ 휴무로 설정됐어요.', 'success');
+        loadPilatesExceptionList();
       });
     });
   }
-  window.deletePilatesClass = deletePilatesClass;
+  window.setPilatesFullClosed = setPilatesFullClosed;
 
-  // ── 설정: 잔여횟수 차감 방식 (auto = 예약 즉시 차감 / manual = 관리자가 출석 확인 후 차감) ──
-  // pilates_settings/deductMode 값은 3단계(회원 예약 기능) 구현 시 참조 예정
+  function setPilatesTimeClosed() {
+    const date = document.getElementById('pge-date').value;
+    const time = document.getElementById('pge-time').value;
+    if (!date) { showToast('날짜를 선택해주세요.', 'error'); return; }
+    if (!time) { showToast('시간을 선택해주세요.', 'error'); return; }
+    db.ref('pilates_exceptions/' + date + '/closedTimes/' + time).set(true).then(() => {
+      showToast('✅ 해당 시간대가 닫혔어요.', 'success');
+      loadPilatesExceptionList();
+    });
+  }
+  window.setPilatesTimeClosed = setPilatesTimeClosed;
+
+  function removePilatesFullClosed(date) {
+    db.ref('pilates_exceptions/' + date + '/fullClosed').remove().then(() => {
+      showToast('복구됐어요.', 'success');
+      loadPilatesExceptionList();
+    });
+  }
+  window.removePilatesFullClosed = removePilatesFullClosed;
+
+  function removePilatesTimeClosed(date, time) {
+    db.ref('pilates_exceptions/' + date + '/closedTimes/' + time).remove().then(() => {
+      showToast('복구됐어요.', 'success');
+      loadPilatesExceptionList();
+    });
+  }
+  window.removePilatesTimeClosed = removePilatesTimeClosed;
+
+  // ── ⚙️ 설정: 예약 가능 기간 + 잔여횟수 차감 방식 ──
+  // pilates_settings/bookingWindowDays, pilates_settings/deductMode 값은 3단계(회원 예약 기능) 구현 시 참조 예정
   function loadPilatesSettings() {
+    db.ref('pilates_settings/bookingWindowDays').once('value').then(snap => {
+      const el = document.getElementById('pgs-window-days');
+      if (el) el.value = snap.val() || 7;
+    });
     db.ref('pilates_settings/deductMode').once('value').then(snap => {
       renderPilatesDeductButtons(snap.val() || 'auto');
     });
   }
   window.loadPilatesSettings = loadPilatesSettings;
+
+  function savePilatesWindowDays() {
+    const days = parseInt(document.getElementById('pgs-window-days').value);
+    if (!days || days < 1) { showToast('1일 이상으로 입력해주세요.', 'error'); return; }
+    db.ref('pilates_settings/bookingWindowDays').set(days).then(() => {
+      showToast('✅ 저장됐어요!', 'success');
+    });
+  }
+  window.savePilatesWindowDays = savePilatesWindowDays;
 
   function renderPilatesDeductButtons(mode) {
     const autoBtn   = document.getElementById('pgs-deduct-auto');
@@ -12231,6 +12385,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     });
   }
   window.setPilatesDeductMode = setPilatesDeductMode;
+
 
   function onPilatesGroupSearchInput() {
     const q = document.getElementById('pg-search').value.trim();
