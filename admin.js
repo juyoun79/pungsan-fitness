@@ -12344,27 +12344,39 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   }
   window.removePilatesTimeClosed = removePilatesTimeClosed;
 
-  // ── ⚙️ 설정: 예약 가능 기간 + 잔여횟수 차감 방식 ──
-  // pilates_settings/bookingWindowDays, pilates_settings/deductMode 값은 3단계(회원 예약 기능) 구현 시 참조 예정
+  // ── ⚙️ 설정: 예약 가능 기간 + 예약/취소 마감 시간 + 잔여횟수 차감 방식 ──
+  // pilates_settings/{bookingWindowDays, bookingCutoffHours, cancelCutoffHours, deductMode} 값은
+  // 3단계(회원 예약 기능) 구현 시 참조 예정
   function loadPilatesSettings() {
-    db.ref('pilates_settings/bookingWindowDays').once('value').then(snap => {
-      const el = document.getElementById('pgs-window-days');
-      if (el) el.value = snap.val() || 7;
-    });
-    db.ref('pilates_settings/deductMode').once('value').then(snap => {
-      renderPilatesDeductButtons(snap.val() || 'auto');
+    db.ref('pilates_settings').once('value').then(snap => {
+      const s = snap.val() || {};
+      const winEl    = document.getElementById('pgs-window-days');
+      const bookEl   = document.getElementById('pgs-booking-cutoff');
+      const cancelEl = document.getElementById('pgs-cancel-cutoff');
+      if (winEl)    winEl.value    = s.bookingWindowDays  != null ? s.bookingWindowDays  : 7;
+      if (bookEl)   bookEl.value   = s.bookingCutoffHours != null ? s.bookingCutoffHours : 4;
+      if (cancelEl) cancelEl.value = s.cancelCutoffHours  != null ? s.cancelCutoffHours  : 24;
+      renderPilatesDeductButtons(s.deductMode || 'auto');
     });
   }
   window.loadPilatesSettings = loadPilatesSettings;
 
-  function savePilatesWindowDays() {
-    const days = parseInt(document.getElementById('pgs-window-days').value);
-    if (!days || days < 1) { showToast('1일 이상으로 입력해주세요.', 'error'); return; }
-    db.ref('pilates_settings/bookingWindowDays').set(days).then(() => {
+  function savePilatesTimingSettings() {
+    const windowDays   = parseInt(document.getElementById('pgs-window-days').value);
+    const bookingCutoff = parseInt(document.getElementById('pgs-booking-cutoff').value);
+    const cancelCutoff  = parseInt(document.getElementById('pgs-cancel-cutoff').value);
+    if (!windowDays || windowDays < 1) { showToast('예약 가능 기간은 1일 이상으로 입력해주세요.', 'error'); return; }
+    if (isNaN(bookingCutoff) || bookingCutoff < 0) { showToast('예약 마감 시간을 정확히 입력해주세요.', 'error'); return; }
+    if (isNaN(cancelCutoff) || cancelCutoff < 0)  { showToast('취소 마감 시간을 정확히 입력해주세요.', 'error'); return; }
+    db.ref('pilates_settings').update({
+      bookingWindowDays: windowDays,
+      bookingCutoffHours: bookingCutoff,
+      cancelCutoffHours: cancelCutoff
+    }).then(() => {
       showToast('✅ 저장됐어요!', 'success');
     });
   }
-  window.savePilatesWindowDays = savePilatesWindowDays;
+  window.savePilatesTimingSettings = savePilatesTimingSettings;
 
   function renderPilatesDeductButtons(mode) {
     const autoBtn   = document.getElementById('pgs-deduct-auto');

@@ -4014,15 +4014,32 @@
         <!-- 서브탭: 설정 -->
         <div id="pg-view-settings" style="display:none;">
           <div class="admin-card">
-            <div class="admin-card-title">⚙️ 예약 가능 기간</div>
-            <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;line-height:1.5;">회원이 오늘부터 며칠 후까지의 수업을 예약할 수 있는지 설정해요.</div>
-            <div style="display:flex;gap:8px;align-items:center;">
+            <div class="admin-card-title">⚙️ 예약 시간 설정</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:12px;line-height:1.5;">회원이 얼마나 미리, 그리고 얼마나 임박해서까지 예약·취소할 수 있는지 정해요.</div>
+
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">예약 가능 기간 (오늘부터 며칠 후까지 보여줄지)</div>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
               <input id="pgs-window-days" type="number" min="1" placeholder="예) 7"
                 style="flex:1;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
               <span style="font-size:13px;color:var(--text-sub);">일</span>
-              <button onclick="savePilatesWindowDays()"
-                style="padding:9px 16px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
             </div>
+
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">예약 마감 (수업 시작 몇 시간 전까지 예약 가능)</div>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
+              <input id="pgs-booking-cutoff" type="number" min="0" placeholder="예) 4"
+                style="flex:1;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
+              <span style="font-size:13px;color:var(--text-sub);">시간 전</span>
+            </div>
+
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">취소 마감 (수업 시작 몇 시간 전까지 취소 가능, 이후엔 잔여횟수 복구 안 됨)</div>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
+              <input id="pgs-cancel-cutoff" type="number" min="0" placeholder="예) 24"
+                style="flex:1;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
+              <span style="font-size:13px;color:var(--text-sub);">시간 전</span>
+            </div>
+
+            <button onclick="savePilatesTimingSettings()"
+              style="width:100%;padding:11px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
           </div>
           <div class="admin-card" style="margin-top:0;">
             <div class="admin-card-title">⚙️ 그룹수업 예약 설정</div>
