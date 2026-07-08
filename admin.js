@@ -45,6 +45,7 @@
     if (tabId === 'tab-trainer-admin') loadAdminTrainerSchedule();
     if (tabId === 'tab-coupon') loadMemberSelectOptions();
     if (tabId === 'tab-challenge-admin') loadAdminChallenges();
+    if (tabId === 'tab-pilates-group') initPilatesGroupTab();
     if (tabId === 'coupon-auto') loadAutoConditions();
     if (tabId === 'tab-settings') switchSettingsSubtab('pw');
     if (tabId === 'tab-locker') loadLockerTab();
@@ -1756,13 +1757,15 @@
   }
 
   // 회원권현황 (구 수업현황) — 헬스/GX처럼 기간제 상품은 계약이력에서 잔여일 계산, PT/필라테스처럼 횟수제 상품은 기존처럼 강사배정 잔여횟수 표시
+  // 개인수업(PT·개인필라테스, 강사배정 방식)과 그룹수업(기구필라테스그룹, pilates_group 별도 관리)은 서로 무관한 독립 카운터
   function _renderMdClassStatus(phone, info) {
     const el = document.getElementById('md-class-status');
     if (!el) return;
     Promise.all([
       db.ref('contracts/' + phone).once('value'),
-      db.ref('trainers').once('value')
-    ]).then(([contractsSnap, trainersSnap]) => {
+      db.ref('trainers').once('value'),
+      db.ref('pilates_group/' + phone).once('value')
+    ]).then(([contractsSnap, trainersSnap, pgSnap]) => {
       // 1) 기간제 상품(헬스/GX) — 계약이력에서 아직 환불/양도/변경으로 나가지 않은 활성 항목만 추림
       const periodCards = [];
       contractsSnap.forEach(cSnap => {
@@ -1783,17 +1786,13 @@
       });
       periodCards.sort((a, b) => a.remainDays - b.remainDays); // 종료 임박한 것부터
 
-      // 2) 횟수제 상품(PT/필라테스) — 강사 배정 기준 (기존 방식 그대로)
+      // 2) 횟수제 상품 — 개인수업(PT/개인필라테스, 강사배정 기준)과 그룹수업(기구필라테스그룹, pilates_group 기준)을 각각 조회
       let traineeInfo = null;
       trainersSnap.forEach(t => {
         const td = t.child('trainees/' + phone);
         if (td.exists()) traineeInfo = td.val();
       });
-
-      if (!periodCards.length && !traineeInfo) {
-        el.innerHTML = '<div style="text-align:center;color:var(--text-hint);font-size:13px;padding:12px 0;">등록된 회원권이 없어요</div>';
-        return;
-      }
+      const pg = pgSnap.val(); // { total, remain, updatedAt } | null
 
       const periodHtml = periodCards.map(p => `
         <div style="background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
@@ -1806,18 +1805,40 @@
             : `<div style="font-size:12px;font-weight:700;color:#e24b4a;white-space:nowrap;">만료됨</div>`}
         </div>`).join('');
 
+      // 개인수업 / 그룹수업 2칸 — 배정·등록 여부와 무관하게 항상 표시 (미등록 시 0/-- 표기)
       const countHtml = `
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
-          <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">
-            <div style="font-size:20px;font-weight:700;color:var(--blue);">${traineeInfo ? (traineeInfo.remain || 0) : '-'}</div>
-            <div style="font-size:11px;color:var(--text-hint);margin-top:3px;">잔여 횟수</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div style="background:var(--bg);border-radius:10px;padding:12px;">
+            <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:8px;text-align:center;">개인수업</div>
+            <div style="display:flex;justify-content:space-around;align-items:baseline;">
+              <div style="text-align:center;">
+                <div style="font-size:19px;font-weight:700;color:var(--blue);">${traineeInfo ? (traineeInfo.remain || 0) : 0}</div>
+                <div style="font-size:10px;color:var(--text-hint);margin-top:2px;">잔여</div>
+              </div>
+              <div style="width:1px;height:22px;background:var(--border);"></div>
+              <div style="text-align:center;">
+                <div style="font-size:19px;font-weight:700;color:var(--text);">${traineeInfo ? (traineeInfo.total || 0) : 0}</div>
+                <div style="font-size:10px;color:var(--text-hint);margin-top:2px;">전체</div>
+              </div>
+            </div>
+            <div style="margin-top:8px;font-size:11px;color:var(--text-hint);text-align:center;">${traineeInfo ? (traineeInfo.type || '-') : '-'}</div>
           </div>
-          <div style="background:var(--bg);border-radius:10px;padding:12px;text-align:center;">
-            <div style="font-size:20px;font-weight:700;color:var(--text);">${traineeInfo ? (traineeInfo.total || 0) : '-'}</div>
-            <div style="font-size:11px;color:var(--text-hint);margin-top:3px;">전체 횟수</div>
+          <div style="background:var(--bg);border-radius:10px;padding:12px;">
+            <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:8px;text-align:center;">그룹수업</div>
+            <div style="display:flex;justify-content:space-around;align-items:baseline;">
+              <div style="text-align:center;">
+                <div style="font-size:19px;font-weight:700;color:var(--blue);">${pg ? (pg.remain || 0) : 0}</div>
+                <div style="font-size:10px;color:var(--text-hint);margin-top:2px;">잔여</div>
+              </div>
+              <div style="width:1px;height:22px;background:var(--border);"></div>
+              <div style="text-align:center;">
+                <div style="font-size:19px;font-weight:700;color:var(--text);">${pg ? (pg.total || 0) : 0}</div>
+                <div style="font-size:10px;color:var(--text-hint);margin-top:2px;">전체</div>
+              </div>
+            </div>
+            <div style="margin-top:8px;font-size:11px;color:var(--text-hint);text-align:center;">${pg ? '기구필라테스' : '-'}</div>
           </div>
-        </div>
-        ${traineeInfo ? `<div style="margin-top:8px;font-size:12px;color:var(--text-sub);text-align:center;">${traineeInfo.type || '-'}</div>` : '<div style="margin-top:8px;font-size:12px;color:var(--text-hint);text-align:center;">배정된 강사가 없어요</div>'}`;
+        </div>`;
 
       el.innerHTML = periodHtml + countHtml;
     }).catch(() => {
@@ -7357,6 +7378,22 @@
       await db.ref('contracts/' + phone + '/' + contractKey).set(contractData);
       window._lastContractData = contractData;
 
+      // 3-0. 그룹필라테스 자동연동 — 계약서에 '기구필라테스그룹' 항목(단독/패키지 무관)이 있으면
+      // pilates_group/{phone} 잔여횟수에 자동으로 누적 반영 (기존 계약이력 환불/양도/변경 로직은 건드리지 않음)
+      try {
+        const pgItems = _flattenContractItems(contractData).filter(it => it.progKey === '기구필라테스그룹');
+        const pgAddCount = pgItems.reduce((s, it) => s + (parseInt(it.data.count) || 0), 0);
+        if (pgAddCount > 0) {
+          const pgSnap = await db.ref('pilates_group/' + phone).once('value');
+          const pgPrev = pgSnap.val() || { total: 0, remain: 0 };
+          await db.ref('pilates_group/' + phone).set({
+            total : (pgPrev.total  || 0) + pgAddCount,
+            remain: (pgPrev.remain || 0) + pgAddCount,
+            updatedAt: Date.now()
+          });
+        }
+      } catch (e) { console.warn('그룹필라테스 자동연동 실패:', e); }
+
       // 3-1. 락카번호 입력 시 lockers/ Firebase 동기화 (key: catId_번호)
       if (extras.locker?.lockerNo && extras.locker?.lockerCatId) {
         const lockerNo    = extras.locker.lockerNo;
@@ -12036,6 +12073,90 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   }
   window.openAdminAssignTrainee = openAdminAssignTrainee;
   window.saveAdminAssignTrainee = saveAdminAssignTrainee;
+
+  // ── 🧘 기구필라테스 그룹수업 - 회원별 잔여횟수 관리 탭 (계약서 자동연동 + 수동 보정) ──
+  // pilates_group/{phone} = { total, remain, updatedAt } — 강사배정(trainers/trainees) 시스템과 완전히 분리된 독립 카운터
+  let _pgMembersCache = null;
+
+  function initPilatesGroupTab() {
+    const searchInput = document.getElementById('pg-search');
+    if (searchInput) searchInput.value = '';
+    const resultEl = document.getElementById('pg-search-result');
+    if (resultEl) { resultEl.style.display = 'none'; resultEl.innerHTML = ''; }
+    const selWrap = document.getElementById('pg-selected-wrap');
+    if (selWrap) selWrap.innerHTML = '';
+    if (!_pgMembersCache) {
+      db.ref('members').once('value').then(snap => {
+        const members = [];
+        snap.forEach(child => {
+          const m = child.val();
+          if (m.role !== 'trainer' && m.role !== 'manager') {
+            members.push({ id: child.key, name: m.name || child.key });
+          }
+        });
+        _pgMembersCache = members;
+      });
+    }
+  }
+  window.initPilatesGroupTab = initPilatesGroupTab;
+
+  function onPilatesGroupSearchInput() {
+    const q = document.getElementById('pg-search').value.trim();
+    const resultEl = document.getElementById('pg-search-result');
+    if (!q || !_pgMembersCache) { resultEl.style.display = 'none'; return; }
+    const filtered = _pgMembersCache.filter(m => m.name.includes(q) || m.id.includes(q)).slice(0, 8);
+    if (filtered.length === 0) {
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = '<div style="padding:10px 12px;font-size:13px;color:var(--text-hint);">검색 결과가 없어요</div>';
+      return;
+    }
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = filtered.map(m => `
+      <div onclick="selectPilatesGroupMember('${m.id}','${m.name}')"
+        style="padding:10px 12px;font-size:13px;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border);">
+        <span style="font-weight:600;">${m.name}</span>
+        <span style="color:var(--text-hint);font-size:11px;margin-left:6px;">${m.id}</span>
+      </div>`).join('');
+  }
+  window.onPilatesGroupSearchInput = onPilatesGroupSearchInput;
+
+  function selectPilatesGroupMember(phone, name) {
+    document.getElementById('pg-search-result').style.display = 'none';
+    document.getElementById('pg-search').value = name;
+    db.ref('pilates_group/' + phone).once('value').then(snap => {
+      const pg = snap.val() || { total: 0, remain: 0 };
+      const wrap = document.getElementById('pg-selected-wrap');
+      wrap.innerHTML = `
+        <div style="background:var(--bg);border-radius:10px;padding:14px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">✅ ${name} (${phone})</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+            <div>
+              <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">전체 횟수</div>
+              <input id="pg-edit-total" type="number" value="${pg.total || 0}"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">잔여 횟수</div>
+              <input id="pg-edit-remain" type="number" value="${pg.remain || 0}"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
+            </div>
+          </div>
+          <button onclick="savePilatesGroupCount('${phone}','${name}')"
+            style="width:100%;padding:11px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
+        </div>`;
+    });
+  }
+  window.selectPilatesGroupMember = selectPilatesGroupMember;
+
+  function savePilatesGroupCount(phone, name) {
+    const total  = parseInt(document.getElementById('pg-edit-total').value);
+    const remain = parseInt(document.getElementById('pg-edit-remain').value);
+    if (isNaN(total) || isNaN(remain)) { showToast('숫자를 정확히 입력해주세요.', 'error'); return; }
+    db.ref('pilates_group/' + phone).set({ total, remain, updatedAt: Date.now() }).then(() => {
+      showToast('✅ ' + name + '님 그룹필라테스 잔여횟수가 저장됐어요!', 'success');
+    });
+  }
+  window.savePilatesGroupCount = savePilatesGroupCount;
 
   // 수업 정보 수정 (관리자)
   function openAdminEditTrainee(trainerId, traineeId) {
