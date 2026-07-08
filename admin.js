@@ -623,7 +623,7 @@
               <div style="width:34px;height:34px;border-radius:50%;background:#E6F1FB;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#0C447C;flex-shrink:0;">${m.traineeName[0]}</div>
               <div>
                 <div style="font-size:14px;font-weight:700;color:var(--text);">${m.traineeName}</div>
-                <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${m.type ? m.type + ' · ' : ''}잔여 <span id="rpt-remain-${m.traineeId}" style="font-weight:700;color:var(--blue);">${m.remain}</span>회 / 총 <span id="rpt-total-${m.traineeId}">${m.total}</span>회</div>
+                <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${m.type ? m.type + ' · ' : ''}잔여 <span id="rpt-remain-${m.traineeId}" style="font-weight:700;color:var(--blue);">${m.remain}</span>회 / 전체 <span id="rpt-total-${m.traineeId}">${m.total}</span>회</div>
               </div>
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
@@ -12430,13 +12430,13 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
           <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">✅ ${name} (${phone})</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
             <div>
-              <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">전체 횟수</div>
-              <input id="pg-edit-total" type="number" value="${pg.total || 0}"
+              <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">잔여 횟수</div>
+              <input id="pg-edit-remain" type="number" value="${pg.remain || 0}"
                 style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
             </div>
             <div>
-              <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">잔여 횟수</div>
-              <input id="pg-edit-remain" type="number" value="${pg.remain || 0}"
+              <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">전체 횟수</div>
+              <input id="pg-edit-total" type="number" value="${pg.total || 0}"
                 style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
             </div>
           </div>
@@ -12474,11 +12474,11 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
             <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">수업 종류</div>
             <input id="admin-edit-type" type="text" value="${info.type || ''}" placeholder="예) PT / 기구필라테스"
               style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:12px;outline:none;">
-            <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">총 횟수</div>
-            <input id="admin-edit-total" type="number" value="${info.total || ''}"
-              style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:12px;outline:none;">
             <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">잔여 횟수</div>
             <input id="admin-edit-remain" type="number" value="${info.remain || ''}"
+              style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:12px;outline:none;">
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">전체 횟수</div>
+            <input id="admin-edit-total" type="number" value="${info.total || ''}"
               style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:12px;outline:none;">
             <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">수정 사유 (선택)</div>
             <input id="admin-edit-memo" type="text" placeholder="예) 취소 수업 복구"
