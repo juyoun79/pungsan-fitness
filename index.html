@@ -526,6 +526,12 @@
           <div style="flex-shrink:0;color:var(--text-hint);font-size:13px;padding:6px 0;">불러오는 중...</div>
         </div>
 
+        <!-- 오늘 그룹수업 -->
+        <div class="section-title">🧘 오늘 그룹수업</div>
+        <div id="th-pilates-today" style="margin-bottom:16px;">
+          <div style="text-align:center;padding:14px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>
+        </div>
+
         <!-- 담당 회원 현황 -->
         <div class="section-title">담당 회원 현황</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:16px;">
@@ -3988,6 +3994,10 @@
             style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);border:1.5px solid var(--border);">
             🚫 휴무관리
           </button>
+          <button id="pg-subtab-reservations" onclick="switchPilatesSubtab('reservations')"
+            style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);border:1.5px solid var(--border);">
+            📋 예약현황
+          </button>
           <button id="pg-subtab-counts" onclick="switchPilatesSubtab('counts')"
             style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);border:1.5px solid var(--border);">
             🔢 잔여횟수
@@ -4037,6 +4047,17 @@
             <div class="admin-card-title">📋 등록된 휴무 목록</div>
             <div id="pge-list"><div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">불러오는 중...</div></div>
           </div>
+        </div>
+
+        <!-- 서브탭: 예약현황 -->
+        <div id="pg-view-reservations" style="display:none;">
+          <div class="admin-card">
+            <div class="admin-card-title">📋 예약 현황</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">날짜</div>
+            <input id="pgr-date" type="date" onchange="loadPilatesReservations()"
+              style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
+          </div>
+          <div id="pgr-list"></div>
         </div>
 
         <!-- 서브탭: 잔여횟수 -->
