@@ -3937,13 +3937,89 @@
       </div>
 
       <div id="tab-pilates-group" class="admin-section">
-        <div class="admin-card">
-          <div class="admin-card-title">🧘 기구필라테스 그룹수업 - 회원 잔여횟수</div>
-          <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;line-height:1.5;">계약서에서 "기구필라테스 그룹"을 저장하면 자동으로 반영돼요. 여기서는 조회하거나 수동으로 보정할 수 있어요.</div>
-          <input id="pg-search" type="text" placeholder="회원 이름 또는 연락처 검색" oninput="onPilatesGroupSearchInput()"
-            style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--blue);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;outline:none;">
-          <div id="pg-search-result" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;display:none;margin-bottom:12px;"></div>
-          <div id="pg-selected-wrap"></div>
+
+        <!-- 서브탭 버튼 -->
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+          <button id="pg-subtab-classes" onclick="switchPilatesSubtab('classes')"
+            style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--blue);color:white;border:none;">
+            📅 수업관리
+          </button>
+          <button id="pg-subtab-counts" onclick="switchPilatesSubtab('counts')"
+            style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);border:1.5px solid var(--border);">
+            🔢 잔여횟수
+          </button>
+          <button id="pg-subtab-settings" onclick="switchPilatesSubtab('settings')"
+            style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);border:1.5px solid var(--border);">
+            ⚙️ 설정
+          </button>
+        </div>
+
+        <!-- 서브탭: 수업관리 -->
+        <div id="pg-view-classes">
+          <div class="admin-card">
+            <div class="admin-card-title">📅 그룹수업 슬롯 관리</div>
+            <input type="hidden" id="pgc-edit-id">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+              <div>
+                <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">날짜</div>
+                <input id="pgc-date" type="date"
+                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
+              </div>
+              <div>
+                <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">시간</div>
+                <input id="pgc-time" type="time"
+                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+              <div>
+                <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">강사</div>
+                <input id="pgc-trainer" type="text" placeholder="예) 최주연"
+                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
+              </div>
+              <div>
+                <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">정원</div>
+                <input id="pgc-capacity" type="number" placeholder="예) 6"
+                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
+              </div>
+            </div>
+            <button onclick="savePilatesClass()"
+              style="width:100%;padding:11px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
+          </div>
+          <div class="admin-card" style="margin-top:0;">
+            <div class="admin-card-title">📋 등록된 수업 목록</div>
+            <div id="pgc-list"><div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">불러오는 중...</div></div>
+          </div>
+        </div>
+
+        <!-- 서브탭: 잔여횟수 -->
+        <div id="pg-view-counts" style="display:none;">
+          <div class="admin-card">
+            <div class="admin-card-title">🧘 기구필라테스 그룹수업 - 회원 잔여횟수</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;line-height:1.5;">계약서에서 "기구필라테스 그룹"을 저장하면 자동으로 반영돼요. 여기서는 조회하거나 수동으로 보정할 수 있어요.</div>
+            <input id="pg-search" type="text" placeholder="회원 이름 또는 연락처 검색" oninput="onPilatesGroupSearchInput()"
+              style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--blue);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;outline:none;">
+            <div id="pg-search-result" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;display:none;margin-bottom:12px;"></div>
+            <div id="pg-selected-wrap"></div>
+          </div>
+        </div>
+
+        <!-- 서브탭: 설정 -->
+        <div id="pg-view-settings" style="display:none;">
+          <div class="admin-card">
+            <div class="admin-card-title">⚙️ 그룹수업 예약 설정</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:12px;line-height:1.5;">회원이 그룹수업을 예약할 때 잔여횟수를 언제 차감할지 정해요.</div>
+            <div style="display:flex;gap:8px;">
+              <button id="pgs-deduct-auto" onclick="setPilatesDeductMode('auto')"
+                style="flex:1;padding:14px 10px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;text-align:center;">
+                자동 차감<br><span style="font-size:11px;font-weight:400;">예약하는 즉시 차감</span>
+              </button>
+              <button id="pgs-deduct-manual" onclick="setPilatesDeductMode('manual')"
+                style="flex:1;padding:14px 10px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;text-align:center;">
+                수동 차감<br><span style="font-size:11px;font-weight:400;">관리자가 출석 확인 후 차감</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
