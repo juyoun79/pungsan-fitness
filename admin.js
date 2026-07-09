@@ -12808,10 +12808,14 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   }
 
   // 오늘 그룹수업 (강사홈) — 시간표+휴무 반영, 시간대별 예약인원 표시, 눌러서 명단 펼치기
+  let _thPgtNames = {}; // classId -> 예약자 명단 텍스트 (칩 클릭 시 하단에 표시)
+
   function loadTrainerPilatesToday() {
-    const el = document.getElementById('th-pilates-today');
-    if (!el) return;
-    el.innerHTML = '<div style="text-align:center;padding:14px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
+    const chipsEl = document.getElementById('th-pilates-today-chips');
+    const namesEl = document.getElementById('th-pilates-today-names');
+    if (!chipsEl) return;
+    namesEl.style.display = 'none';
+    chipsEl.innerHTML = '<div style="flex-shrink:0;color:var(--text-hint);font-size:13px;padding:6px 0;">불러오는 중...</div>';
     const dateStr = _pgTodayISO();
     const d = new Date(dateStr + 'T00:00:00');
     const dayKey = PG_WEEKDAY_BY_INDEX[d.getDay()];
@@ -12824,27 +12828,27 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       const slots = Array.isArray(sched[dayKey]) ? sched[dayKey] : (sched[dayKey] ? Object.values(sched[dayKey]) : []);
       const exc = excSnap.val() || {};
       if (exc.fullClosed) {
-        el.innerHTML = '<div style="text-align:center;padding:14px;color:#e24b4a;font-size:13px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);">오늘은 휴무예요</div>';
+        chipsEl.innerHTML = '<div style="flex-shrink:0;color:#e24b4a;font-size:13px;padding:6px 0;">오늘은 휴무예요</div>';
         return;
       }
       if (!slots.length) {
-        el.innerHTML = '<div style="text-align:center;padding:14px;color:var(--text-hint);font-size:13px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);">오늘 열리는 그룹수업이 없어요</div>';
+        chipsEl.innerHTML = '<div style="flex-shrink:0;color:var(--text-hint);font-size:13px;padding:6px 0;">오늘 열리는 그룹수업이 없어요</div>';
         return;
       }
       Promise.all(slots.map(sl => db.ref('pilates_classes/' + _pgClassId(dateStr, sl.time)).once('value'))).then(snaps => {
-        el.innerHTML = slots.map((sl, i) => {
+        _thPgtNames = {};
+        chipsEl.innerHTML = slots.map((sl, i) => {
           const classId = _pgClassId(dateStr, sl.time);
           const cls = snaps[i].val();
           const bookings = cls && cls.bookings ? cls.bookings : {};
           const names = Object.values(bookings).map(b => b.name).join(', ');
           const timeClosed = exc.closedTimes && exc.closedTimes[sl.time];
+          _thPgtNames[classId] = (timeClosed ? '휴무' : '') + (names || '예약자 없음');
           return `
-            <div onclick="toggleTrainerPilatesSlot('${classId}')" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:8px;cursor:pointer;">
-              <div style="display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-size:13.5px;font-weight:700;color:var(--text);">${sl.time}${timeClosed ? ' (닫힘)' : ''}</span>
-                <span style="font-size:12px;color:var(--text-hint);">${Object.keys(bookings).length} / ${sl.capacity}명</span>
-              </div>
-              <div id="th-pgt-names-${classId}" style="display:none;font-size:12px;color:var(--text-hint);margin-top:6px;">${names || '예약자 없음'}</div>
+            <div onclick="toggleTrainerPilatesSlot('${classId}')" id="th-pgt-chip-${classId}"
+              style="flex-shrink:0;background:#E6F1FB;border-radius:20px;padding:6px 12px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <span style="font-size:11px;font-weight:700;color:#185FA5;">${sl.time}${timeClosed ? ' (닫힘)' : ''}</span>
+              <span style="font-size:11px;color:#0C447C;">${Object.keys(bookings).length}/${sl.capacity}명</span>
             </div>`;
         }).join('');
       });
@@ -12853,9 +12857,17 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   window.loadTrainerPilatesToday = loadTrainerPilatesToday;
 
   function toggleTrainerPilatesSlot(classId) {
-    const el = document.getElementById('th-pgt-names-' + classId);
-    if (!el) return;
-    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    const namesEl = document.getElementById('th-pilates-today-names');
+    if (!namesEl) return;
+    const isOpen = namesEl.dataset.openId === classId && namesEl.style.display !== 'none';
+    if (isOpen) {
+      namesEl.style.display = 'none';
+      namesEl.dataset.openId = '';
+    } else {
+      namesEl.textContent = _thPgtNames[classId] || '';
+      namesEl.style.display = 'block';
+      namesEl.dataset.openId = classId;
+    }
   }
   window.toggleTrainerPilatesSlot = toggleTrainerPilatesSlot;
 
