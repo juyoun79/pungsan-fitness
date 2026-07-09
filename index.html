@@ -722,7 +722,21 @@
         <span style="font-size:16px;font-weight:700;color:#185FA5;" id="pgb-remain-badge">- · 전체 -회</span>
       </div>
 
-      <div id="pgb-date-strip" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <button onclick="pgbChangeMonth(-1)" style="background:none;border:none;font-size:18px;color:var(--text-hint);cursor:pointer;padding:4px 12px;">‹</button>
+        <span id="pgb-cal-month-label" style="font-size:14px;font-weight:700;color:var(--text);">-</span>
+        <button onclick="pgbChangeMonth(1)" style="background:none;border:none;font-size:18px;color:var(--text-hint);cursor:pointer;padding:4px 12px;">›</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
+        <div style="text-align:center;font-size:11px;color:var(--text-hint);">일</div>
+        <div style="text-align:center;font-size:11px;color:var(--text-hint);">월</div>
+        <div style="text-align:center;font-size:11px;color:var(--text-hint);">화</div>
+        <div style="text-align:center;font-size:11px;color:var(--text-hint);">수</div>
+        <div style="text-align:center;font-size:11px;color:var(--text-hint);">목</div>
+        <div style="text-align:center;font-size:11px;color:var(--text-hint);">금</div>
+        <div style="text-align:center;font-size:11px;color:var(--text-hint);">토</div>
+      </div>
+      <div id="pgb-calendar-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:14px;"></div>
 
       <div style="font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:8px;" id="pgb-selected-date-label">-</div>
       <div id="pgb-slot-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:22px;"></div>
@@ -7022,6 +7036,8 @@
   const PGB_DAY_LABELS = { sun:'일', mon:'월', tue:'화', wed:'수', thu:'목', fri:'금', sat:'토' };
   let _pgbSettings = null, _pgbSchedule = null, _pgbExceptions = null;
   let _pgbUserId = null, _pgbSelectedDate = null, _pgbRemain = 0;
+  let _pgbCalMonth = null; // { year, month(0-11) } — 현재 보고 있는 달력 월
+  let _pgbBookedDates = new Set(); // 내가 예약한 날짜(YYYY-MM-DD) 집합 — 달력에 점 표시용
 
   function _pgbFormatDate(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -7041,6 +7057,8 @@
     showScreen('screen-pilates-booking');
     _pgbUserId = localStorage.getItem('current_user');
     _pgbSelectedDate = null;
+    const t = new Date();
+    _pgbCalMonth = { year: t.getFullYear(), month: t.getMonth() };
     refreshPilatesBookingView();
   }
   window.openPilatesBooking = openPilatesBooking;
@@ -7069,38 +7087,60 @@
       if (badge) badge.textContent = '잔여 ' + (pg.remain || 0) + ' · 전체 ' + (pg.total || 0) + '회';
 
       if (!_pgbSelectedDate) _pgbSelectedDate = _pgbFormatDate(new Date());
-      renderPilatesDateStrip();
+      if (!_pgbCalMonth) { const t = new Date(); _pgbCalMonth = { year: t.getFullYear(), month: t.getMonth() }; }
       const d = new Date(_pgbSelectedDate + 'T00:00:00');
       renderPilatesSlots(_pgbSelectedDate, PGB_DAY_KEYS[d.getDay()]);
-      loadPilatesMyBookings();
+      loadPilatesMyBookings(); // 완료되면 내부에서 renderPilatesCalendar()도 호출함
     });
   }
 
-  function renderPilatesDateStrip() {
-    const el = document.getElementById('pgb-date-strip');
-    if (!el) return;
+  function renderPilatesCalendar() {
+    const grid = document.getElementById('pgb-calendar-grid');
+    const label = document.getElementById('pgb-cal-month-label');
+    if (!grid || !label || !_pgbCalMonth) return;
+    const { year, month } = _pgbCalMonth;
+    label.textContent = year + '년 ' + (month + 1) + '월';
+
+    const startOffset = new Date(year, month, 1).getDay(); // 0=일요일
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
     const todayStr = _pgbFormatDate(new Date());
-    let html = '';
-    for (let i = 0; i < _pgbSettings.windowDays; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() + i);
-      const dateStr = _pgbFormatDate(d);
-      const dayKey = PGB_DAY_KEYS[d.getDay()];
+    const windowEndD = new Date();
+    windowEndD.setDate(windowEndD.getDate() + _pgbSettings.windowDays - 1);
+    const windowEndStr = _pgbFormatDate(windowEndD);
+
+    let cells = '';
+    for (let i = 0; i < startOffset; i++) cells += '<div></div>';
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+      const inRange = dateStr >= todayStr && dateStr <= windowEndStr;
+      const isSelected = dateStr === _pgbSelectedDate;
       const isToday = dateStr === todayStr;
-      const isSel = dateStr === _pgbSelectedDate;
-      html += `<div onclick="selectPilatesDate('${dateStr}')"
-        style="flex:0 0 auto;width:52px;text-align:center;padding:8px 0;border-radius:8px;cursor:pointer;
-        background:${isSel ? '#185FA5' : 'var(--card)'};border:${isSel ? 'none' : '1px solid var(--border)'};">
-        <div style="font-size:11px;color:${isSel ? 'white' : 'var(--text-hint)'};">${isToday ? '오늘' : PGB_DAY_LABELS[dayKey]}</div>
-        <div style="font-size:15px;font-weight:700;color:${isSel ? 'white' : 'var(--text)'};margin-top:2px;">${d.getDate()}</div>
+      const hasBooking = _pgbBookedDates.has(dateStr);
+      cells += `<div ${inRange ? `onclick="selectPilatesDate('${dateStr}')"` : ''}
+        style="text-align:center;padding:6px 0;border-radius:8px;cursor:${inRange ? 'pointer' : 'default'};
+        background:${isSelected ? '#185FA5' : 'transparent'};
+        border:${isToday && !isSelected ? '1px solid #185FA5' : '1px solid transparent'};
+        opacity:${inRange ? 1 : 0.35};">
+        <div style="font-size:13px;font-weight:${isSelected || isToday ? '700' : '400'};color:${isSelected ? 'white' : 'var(--text)'};">${day}</div>
+        <div style="height:4px;width:4px;border-radius:50%;margin:2px auto 0;background:${isSelected ? 'white' : '#185FA5'};visibility:${hasBooking ? 'visible' : 'hidden'};"></div>
       </div>`;
     }
-    el.innerHTML = html;
+    grid.innerHTML = cells;
   }
+
+  function pgbChangeMonth(delta) {
+    let { year, month } = _pgbCalMonth;
+    month += delta;
+    if (month < 0) { month = 11; year--; }
+    else if (month > 11) { month = 0; year++; }
+    _pgbCalMonth = { year, month };
+    renderPilatesCalendar();
+  }
+  window.pgbChangeMonth = pgbChangeMonth;
 
   function selectPilatesDate(dateStr) {
     _pgbSelectedDate = dateStr;
-    renderPilatesDateStrip();
+    renderPilatesCalendar();
     const d = new Date(dateStr + 'T00:00:00');
     const dayKey = PGB_DAY_KEYS[d.getDay()];
     const labelEl = document.getElementById('pgb-selected-date-label');
@@ -7248,13 +7288,16 @@
     db.ref('pilates_classes').orderByKey().startAt(startKey + '_').endAt(endKey + '_\uf8ff').once('value').then(snap => {
       const now = new Date();
       const mine = [];
+      _pgbBookedDates = new Set();
       snap.forEach(child => {
         const cls = child.val();
         if (cls && cls.bookings && cls.bookings[_pgbUserId]) {
           mine.push({ dateStr: cls.date, time: cls.time });
+          _pgbBookedDates.add(cls.date);
         }
       });
       mine.sort((a, b) => (a.dateStr + a.time).localeCompare(b.dateStr + b.time));
+      renderPilatesCalendar();
       if (!mine.length) {
         el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">예약된 수업이 없어요</div>';
         return;
