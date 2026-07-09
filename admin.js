@@ -12137,6 +12137,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       loadPilatesReservations();
     }
     if (tab === 'settings')      loadPilatesSettings();
+    if (tab === 'counts')        loadPilatesTodayBookings();
   }
   window.switchPilatesSubtab = switchPilatesSubtab;
 
@@ -12659,6 +12660,45 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   }
   window.onPilatesGroupSearchInput = onPilatesGroupSearchInput;
 
+  // 오늘 예약한 회원 목록 — 시간/이름/잔여·전체횟수 표시, 누르면 바로 수정폼(selectPilatesGroupMember 재사용)
+  function loadPilatesTodayBookings() {
+    const el = document.getElementById('pg-today-bookings');
+    if (!el) return;
+    el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
+    const dateKey = _pgTodayISO().replace(/-/g, '');
+    db.ref('pilates_classes').orderByKey().startAt(dateKey + '_').endAt(dateKey + '_\uf8ff').once('value').then(snap => {
+      const rows = [];
+      snap.forEach(child => {
+        const cls = child.val();
+        if (cls && cls.bookings) {
+          Object.keys(cls.bookings).forEach(uid => {
+            rows.push({ uid, name: cls.bookings[uid].name || uid, time: cls.time });
+          });
+        }
+      });
+      rows.sort((a, b) => a.time.localeCompare(b.time));
+      if (!rows.length) {
+        el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">오늘 예약한 회원이 없어요</div>';
+        return;
+      }
+      Promise.all(rows.map(r => db.ref('pilates_group/' + r.uid).once('value'))).then(snaps => {
+        el.innerHTML = rows.map((r, i) => {
+          const pg = snaps[i].val() || { total: 0, remain: 0 };
+          return `
+            <div onclick="selectPilatesGroupMember('${r.uid}','${r.name}')"
+              style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;">
+              <div>
+                <span style="font-size:12.5px;font-weight:700;color:var(--text);">${r.time}</span>
+                <span style="font-size:12.5px;color:var(--text);margin-left:8px;">${r.name}</span>
+              </div>
+              <span style="font-size:12px;color:var(--text-hint);">잔여 ${pg.remain || 0} · 전체 ${pg.total || 0}회</span>
+            </div>`;
+        }).join('');
+      });
+    });
+  }
+  window.loadPilatesTodayBookings = loadPilatesTodayBookings;
+
   function selectPilatesGroupMember(phone, name) {
     document.getElementById('pg-search-result').style.display = 'none';
     document.getElementById('pg-search').value = name;
@@ -12693,6 +12733,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     if (isNaN(total) || isNaN(remain)) { showToast('숫자를 정확히 입력해주세요.', 'error'); return; }
     db.ref('pilates_group/' + phone).set({ total, remain, updatedAt: Date.now() }).then(() => {
       showToast('✅ ' + name + '님 그룹필라테스 잔여횟수가 저장됐어요!', 'success');
+      loadPilatesTodayBookings();
     });
   }
   window.savePilatesGroupCount = savePilatesGroupCount;
