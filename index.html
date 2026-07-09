@@ -4077,9 +4077,22 @@
         <div id="pg-view-exceptions" style="display:none;">
           <div class="admin-card">
             <div class="admin-card-title">🚫 휴무 설정</div>
-            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">날짜</div>
-            <input id="pge-date" type="date"
-              style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <button onclick="pgeCalChangeMonth(-1)" style="background:none;border:none;font-size:18px;color:var(--text-hint);cursor:pointer;padding:4px 12px;">‹</button>
+              <span id="pge-cal-month-label" style="font-size:14px;font-weight:700;color:var(--text);">-</span>
+              <button onclick="pgeCalChangeMonth(1)" style="background:none;border:none;font-size:18px;color:var(--text-hint);cursor:pointer;padding:4px 12px;">›</button>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
+              <div style="text-align:center;font-size:11px;color:var(--text-hint);">일</div>
+              <div style="text-align:center;font-size:11px;color:var(--text-hint);">월</div>
+              <div style="text-align:center;font-size:11px;color:var(--text-hint);">화</div>
+              <div style="text-align:center;font-size:11px;color:var(--text-hint);">수</div>
+              <div style="text-align:center;font-size:11px;color:var(--text-hint);">목</div>
+              <div style="text-align:center;font-size:11px;color:var(--text-hint);">금</div>
+              <div style="text-align:center;font-size:11px;color:var(--text-hint);">토</div>
+            </div>
+            <div id="pge-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:8px;"></div>
+            <div id="pge-selected-date-label" style="margin-bottom:10px;font-size:13px;font-weight:700;color:var(--text);"></div>
             <button onclick="setPilatesFullClosed()"
               style="width:100%;padding:11px;background:#e24b4a;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:14px;">이 날짜 전체 휴무로 설정 (공휴일 등)</button>
             <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">특정 시간대만 닫기 (예: 10:00)</div>
@@ -4099,9 +4112,22 @@
         <div id="pg-view-reservations" style="display:none;">
           <div class="admin-card">
             <div class="admin-card-title">📋 예약 현황</div>
-            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">날짜</div>
-            <input id="pgr-date" type="date" onchange="loadPilatesReservations()"
-              style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <button onclick="pgrCalChangeMonth(-1)" style="background:none;border:none;font-size:18px;color:var(--text-hint);cursor:pointer;padding:4px 12px;">‹</button>
+              <span id="pgr-cal-month-label" style="font-size:14px;font-weight:700;color:var(--text);">-</span>
+              <button onclick="pgrCalChangeMonth(1)" style="background:none;border:none;font-size:18px;color:var(--text-hint);cursor:pointer;padding:4px 12px;">›</button>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px;">
+              <div style="text-align:center;font-size:11px;color:var(--text-hint);">일</div>
+              <div style="text-align:center;font-size:11px;color:var(--text-hint);">월</div>
+              <div style="text-align:center;font-size:11px;color:var(--text-hint);">화</div>
+              <div style="text-align:center;font-size:11px;color:var(--text-hint);">수</div>
+              <div style="text-align:center;font-size:11px;color:var(--text-hint);">목</div>
+              <div style="text-align:center;font-size:11px;color:var(--text-hint);">금</div>
+              <div style="text-align:center;font-size:11px;color:var(--text-hint);">토</div>
+            </div>
+            <div id="pgr-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;"></div>
+            <div id="pgr-selected-date-label" style="margin-top:8px;font-size:13px;font-weight:700;color:var(--text);"></div>
           </div>
           <div id="pgr-list"></div>
         </div>

@@ -12130,10 +12130,16 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       if (view) view.style.display = isActive ? '' : 'none';
     });
     if (tab === 'schedule')      loadPilatesSchedule();
-    if (tab === 'exceptions')    loadPilatesExceptionList();
+    if (tab === 'exceptions') {
+      if (!_pgeSelectedDate) { _pgeSelectedDate = _pgTodayISO(); const t = new Date(); _pgeCalMonth = { year: t.getFullYear(), month: t.getMonth() }; }
+      renderPgeCalendar();
+      updatePgeSelectedDateLabel();
+      loadPilatesExceptionList();
+    }
     if (tab === 'reservations') {
-      const dateEl = document.getElementById('pgr-date');
-      if (dateEl && !dateEl.value) dateEl.value = _pgTodayISO();
+      if (!_pgrSelectedDate) { _pgrSelectedDate = _pgTodayISO(); const t = new Date(); _pgrCalMonth = { year: t.getFullYear(), month: t.getMonth() }; }
+      renderPgrCalendar();
+      updatePgrSelectedDateLabel();
       _pgActiveRefreshFn = loadPilatesReservations;
       loadPilatesReservations();
     }
@@ -12141,6 +12147,82 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     if (tab === 'counts')        loadPilatesTodayBookings();
   }
   window.switchPilatesSubtab = switchPilatesSubtab;
+
+  // ── 관리자용 공용 미니 달력 (예약현황 pgr / 휴무관리 pge) — 브라우저 기본 date input 대신 사용 ──
+  let _pgrCalMonth = null, _pgrSelectedDate = null;
+  let _pgeCalMonth = null, _pgeSelectedDate = null;
+
+  function _pgRenderAdminCalendar(prefix, calMonth, selectedDate, onSelectFnName) {
+    const grid = document.getElementById(prefix + '-cal-grid');
+    const label = document.getElementById(prefix + '-cal-month-label');
+    if (!grid || !label || !calMonth) return;
+    const { year, month } = calMonth;
+    label.textContent = year + '년 ' + (month + 1) + '월';
+    const startOffset = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayStr = _pgTodayISO();
+    let cells = '';
+    for (let i = 0; i < startOffset; i++) cells += '<div></div>';
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+      const isSelected = dateStr === selectedDate;
+      const isToday = dateStr === todayStr;
+      cells += `<div onclick="${onSelectFnName}('${dateStr}')"
+        style="text-align:center;padding:6px 0;border-radius:8px;cursor:pointer;
+        background:${isSelected ? 'var(--blue)' : 'transparent'};
+        border:${isToday && !isSelected ? '1px solid var(--blue)' : '1px solid transparent'};">
+        <div style="font-size:13px;font-weight:${isSelected || isToday ? '700' : '400'};color:${isSelected ? 'white' : 'var(--text)'};">${day}</div>
+      </div>`;
+    }
+    grid.innerHTML = cells;
+  }
+
+  function _pgFormatDateLabel(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const dayKey = PG_WEEKDAY_BY_INDEX[d.getDay()];
+    return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 (' + PG_DAY_LABELS[dayKey] + ')';
+  }
+
+  function renderPgrCalendar() { _pgRenderAdminCalendar('pgr', _pgrCalMonth, _pgrSelectedDate, 'selectPgrDate'); }
+  function updatePgrSelectedDateLabel() {
+    const el = document.getElementById('pgr-selected-date-label');
+    if (el && _pgrSelectedDate) el.textContent = _pgFormatDateLabel(_pgrSelectedDate);
+  }
+  function pgrCalChangeMonth(delta) {
+    let { year, month } = _pgrCalMonth;
+    month += delta;
+    if (month < 0) { month = 11; year--; } else if (month > 11) { month = 0; year++; }
+    _pgrCalMonth = { year, month };
+    renderPgrCalendar();
+  }
+  window.pgrCalChangeMonth = pgrCalChangeMonth;
+  function selectPgrDate(dateStr) {
+    _pgrSelectedDate = dateStr;
+    renderPgrCalendar();
+    updatePgrSelectedDateLabel();
+    loadPilatesReservations();
+  }
+  window.selectPgrDate = selectPgrDate;
+
+  function renderPgeCalendar() { _pgRenderAdminCalendar('pge', _pgeCalMonth, _pgeSelectedDate, 'selectPgeDate'); }
+  function updatePgeSelectedDateLabel() {
+    const el = document.getElementById('pge-selected-date-label');
+    if (el && _pgeSelectedDate) el.textContent = _pgFormatDateLabel(_pgeSelectedDate);
+  }
+  function pgeCalChangeMonth(delta) {
+    let { year, month } = _pgeCalMonth;
+    month += delta;
+    if (month < 0) { month = 11; year--; } else if (month > 11) { month = 0; year++; }
+    _pgeCalMonth = { year, month };
+    renderPgeCalendar();
+  }
+  window.pgeCalChangeMonth = pgeCalChangeMonth;
+  function selectPgeDate(dateStr) {
+    _pgeSelectedDate = dateStr;
+    renderPgeCalendar();
+    updatePgeSelectedDateLabel();
+  }
+  window.selectPgeDate = selectPgeDate;
 
   function _pgTodayISO() {
     const d = new Date();
@@ -12197,7 +12279,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   }
 
   function loadPilatesReservations() {
-    const dateStr = document.getElementById('pgr-date').value;
+    const dateStr = _pgrSelectedDate;
     const el = document.getElementById('pgr-list');
     if (!el) return;
     if (!dateStr) { el.innerHTML = ''; return; }
@@ -12737,7 +12819,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   window.loadPilatesExceptionList = loadPilatesExceptionList;
 
   function setPilatesFullClosed() {
-    const date = document.getElementById('pge-date').value;
+    const date = _pgeSelectedDate;
     if (!date) { showToast('날짜를 선택해주세요.', 'error'); return; }
     showConfirm(date + ' 전체를 휴무로 설정할까요?', () => {
       db.ref('pilates_exceptions/' + date + '/fullClosed').set(true).then(() => {
@@ -12749,7 +12831,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   window.setPilatesFullClosed = setPilatesFullClosed;
 
   function setPilatesTimeClosed() {
-    const date = document.getElementById('pge-date').value;
+    const date = _pgeSelectedDate;
     const time = document.getElementById('pge-time').value;
     if (!date) { showToast('날짜를 선택해주세요.', 'error'); return; }
     if (!time) { showToast('시간을 선택해주세요.', 'error'); return; }
