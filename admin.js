@@ -12111,7 +12111,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       });
       _pgMembersCache = members;
     });
-    switchPilatesSubtab('schedule');
+    switchPilatesSubtab('reservations');
   }
   window.initPilatesGroupTab = initPilatesGroupTab;
 
