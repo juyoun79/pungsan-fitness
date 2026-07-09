@@ -7232,25 +7232,28 @@
 
   function bookPilatesClass(dateStr, time, capacity) {
     const classId = _pgbClassId(dateStr, time);
-    const nickname = localStorage.getItem('nickname_' + _pgbUserId) || _pgbUserId;
+    // 로컬 기기의 닉네임 대신 Firebase에 저장된 정식 이름을 사용 (관리자/강사 대신예약과 표기 통일)
+    db.ref('members/' + _pgbUserId + '/name').once('value').then(nameSnap => {
+      const realName = nameSnap.val() || _pgbUserId;
 
-    if (_pgbSettings.deductMode === 'auto') {
-      // 잔여횟수 확인+차감을 하나의 트랜잭션으로 묶어서, 여러 기기에서 거의 동시에 예약해도 잔여횟수보다 많이 차감되지 않게 함
-      db.ref('pilates_group/' + _pgbUserId).transaction(p => {
-        if (!p || (p.remain || 0) <= 0) return; // undefined 반환 → 트랜잭션 중단(committed:false)
-        p.remain = p.remain - 1;
-        return p;
-      }).then(deductResult => {
-        if (!deductResult.committed) { showToast('잔여횟수가 없어요.', 'error'); return; }
-        _pgbTryBook(classId, dateStr, time, capacity, nickname, true);
-      });
-    } else {
-      db.ref('pilates_group/' + _pgbUserId).once('value').then(pgSnap => {
-        const pg = pgSnap.val() || { total: 0, remain: 0 };
-        if ((pg.remain || 0) <= 0) { showToast('잔여횟수가 없어요.', 'error'); return; }
-        _pgbTryBook(classId, dateStr, time, capacity, nickname, false);
-      });
-    }
+      if (_pgbSettings.deductMode === 'auto') {
+        // 잔여횟수 확인+차감을 하나의 트랜잭션으로 묶어서, 여러 기기에서 거의 동시에 예약해도 잔여횟수보다 많이 차감되지 않게 함
+        db.ref('pilates_group/' + _pgbUserId).transaction(p => {
+          if (!p || (p.remain || 0) <= 0) return; // undefined 반환 → 트랜잭션 중단(committed:false)
+          p.remain = p.remain - 1;
+          return p;
+        }).then(deductResult => {
+          if (!deductResult.committed) { showToast('잔여횟수가 없어요.', 'error'); return; }
+          _pgbTryBook(classId, dateStr, time, capacity, realName, true);
+        });
+      } else {
+        db.ref('pilates_group/' + _pgbUserId).once('value').then(pgSnap => {
+          const pg = pgSnap.val() || { total: 0, remain: 0 };
+          if ((pg.remain || 0) <= 0) { showToast('잔여횟수가 없어요.', 'error'); return; }
+          _pgbTryBook(classId, dateStr, time, capacity, realName, false);
+        });
+      }
+    });
   }
   window.bookPilatesClass = bookPilatesClass;
 
