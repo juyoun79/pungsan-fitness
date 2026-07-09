@@ -12268,10 +12268,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   function adminAddPilatesBooking(classId, memberId, memberName) {
     const dateStr = classId.slice(0, 4) + '-' + classId.slice(4, 6) + '-' + classId.slice(6, 8);
     const time = classId.slice(9, 11) + ':' + classId.slice(11, 13);
-    Promise.all([
-      db.ref('pilates_settings').once('value'),
-      db.ref('pilates_group/' + memberId).once('value')
-    ]).then(([setSnap, pgSnap]) => {
+    db.ref('pilates_settings').once('value').then(setSnap => {
       const s = setSnap.val() || {};
       const deductMode = s.deductMode || 'auto';
       const d = new Date(dateStr + 'T00:00:00');
@@ -12280,32 +12277,55 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       const slots = Array.isArray(sched[dayKey]) ? sched[dayKey] : (sched[dayKey] ? Object.values(sched[dayKey]) : []);
       const slot = slots.find(sl => sl.time === time);
       const capacity = slot ? slot.capacity : 5;
-      const pg = pgSnap.val() || { total: 0, remain: 0 };
-      if (deductMode === 'auto' && (pg.remain || 0) <= 0) { showToast('이 회원은 잔여횟수가 없어요.', 'error'); return; }
-      db.ref('pilates_classes/' + classId).transaction(curr => {
-        if (curr === null) curr = { date: dateStr, time: time, capacity: capacity, bookings: {} };
-        const bookings = curr.bookings || {};
-        if (bookings[memberId]) return curr;
-        if (Object.keys(bookings).length >= (curr.capacity || capacity)) return curr;
-        bookings[memberId] = { name: memberName, bookedAt: Date.now(), addedByAdmin: true };
-        curr.bookings = bookings;
-        return curr;
-      }).then(result => {
-        const data = result.snapshot.val();
-        const ok = data && data.bookings && data.bookings[memberId];
-        if (!ok) { showToast('추가하지 못했어요. 정원이 다 찼을 수 있어요.', 'error'); return; }
-        const deductPromise = deductMode === 'auto'
-          ? db.ref('pilates_group/' + memberId).transaction(p => { if (!p) return p; p.remain = Math.max(0, (p.remain || 0) - 1); return p; })
-              .then(() => db.ref('pilates_classes/' + classId + '/bookings/' + memberId + '/deducted').set(true))
-          : Promise.resolve();
-        deductPromise.then(() => {
-          showToast('✅ 예약이 추가됐어요!', 'success');
-          _pgRefreshActiveView();
+
+      if (deductMode === 'auto') {
+        // 잔여횟수 확인+차감을 하나의 트랜잭션으로 묶어서, 같은 순간 회원이 직접 예약해도 이중 차감되지 않게 함
+        db.ref('pilates_group/' + memberId).transaction(p => {
+          if (!p || (p.remain || 0) <= 0) return; // undefined 반환 → 트랜잭션 중단
+          p.remain = p.remain - 1;
+          return p;
+        }).then(deductResult => {
+          if (!deductResult.committed) { showToast('이 회원은 잔여횟수가 없어요.', 'error'); return; }
+          _adminTryAddPilatesBooking(classId, dateStr, time, capacity, memberId, memberName, true);
         });
-      });
+      } else {
+        _adminTryAddPilatesBooking(classId, dateStr, time, capacity, memberId, memberName, false);
+      }
     });
   }
   window.adminAddPilatesBooking = adminAddPilatesBooking;
+
+  function _adminTryAddPilatesBooking(classId, dateStr, time, capacity, memberId, memberName, wasDeducted) {
+    db.ref('pilates_classes/' + classId).transaction(curr => {
+      if (curr === null) curr = { date: dateStr, time: time, capacity: capacity, bookings: {} };
+      const bookings = curr.bookings || {};
+      if (bookings[memberId]) return curr;
+      if (Object.keys(bookings).length >= (curr.capacity || capacity)) return curr;
+      bookings[memberId] = { name: memberName, bookedAt: Date.now(), addedByAdmin: true };
+      if (wasDeducted) bookings[memberId].deducted = true;
+      curr.bookings = bookings;
+      return curr;
+    }).then(result => {
+      const data = result.snapshot.val();
+      const ok = data && data.bookings && data.bookings[memberId];
+      if (!ok) {
+        showToast('추가하지 못했어요. 정원이 다 찼을 수 있어요.', 'error');
+        if (wasDeducted) {
+          // 이미 차감된 잔여횟수를 되돌려놓음 (예약 자체는 실패했으므로)
+          db.ref('pilates_group/' + memberId).transaction(p => {
+            if (!p) return p;
+            p.remain = (p.remain || 0) + 1;
+            return p;
+          }).then(() => _pgRefreshActiveView());
+        } else {
+          _pgRefreshActiveView();
+        }
+        return;
+      }
+      showToast('✅ 예약이 추가됐어요!', 'success');
+      _pgRefreshActiveView();
+    });
+  }
 
   // 체험수업자 추가 — 회원(pilates_group)이 아니라 이름(+연락처)만으로 명단에 추가, 잔여횟수 개념 없음
   function addTrialPilatesBooking(prefix, classId, capacity) {
