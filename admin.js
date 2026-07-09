@@ -12152,10 +12152,11 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   let _pgrCalMonth = null, _pgrSelectedDate = null;
   let _pgeCalMonth = null, _pgeSelectedDate = null;
 
-  function _pgRenderAdminCalendar(prefix, calMonth, selectedDate, onSelectFnName) {
+  function _pgRenderAdminCalendar(prefix, calMonth, selectedDate, onSelectFnName, datesWithBookings) {
     const grid = document.getElementById(prefix + '-cal-grid');
     const label = document.getElementById(prefix + '-cal-month-label');
     if (!grid || !label || !calMonth) return;
+    datesWithBookings = datesWithBookings || new Set();
     const { year, month } = calMonth;
     label.textContent = year + '년 ' + (month + 1) + '월';
     const startOffset = new Date(year, month, 1).getDay();
@@ -12167,11 +12168,13 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
       const isSelected = dateStr === selectedDate;
       const isToday = dateStr === todayStr;
+      const hasBooking = datesWithBookings.has(dateStr);
       cells += `<div onclick="${onSelectFnName}('${dateStr}')"
         style="text-align:center;padding:6px 0;border-radius:8px;cursor:pointer;
         background:${isSelected ? 'var(--blue)' : 'transparent'};
         border:${isToday && !isSelected ? '1px solid var(--blue)' : '1px solid transparent'};">
         <div style="font-size:13px;font-weight:${isSelected || isToday ? '700' : '400'};color:${isSelected ? 'white' : 'var(--text)'};">${day}</div>
+        <div style="height:4px;width:4px;border-radius:50%;margin:2px auto 0;background:${isSelected ? 'white' : 'var(--blue)'};visibility:${hasBooking ? 'visible' : 'hidden'};"></div>
       </div>`;
     }
     grid.innerHTML = cells;
@@ -12183,7 +12186,21 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 (' + PG_DAY_LABELS[dayKey] + ')';
   }
 
-  function renderPgrCalendar() { _pgRenderAdminCalendar('pgr', _pgrCalMonth, _pgrSelectedDate, 'selectPgrDate'); }
+  function renderPgrCalendar() {
+    if (!_pgrCalMonth) return;
+    const { year, month } = _pgrCalMonth;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const monthStartKey = '' + year + String(month + 1).padStart(2, '0') + '01';
+    const monthEndKey = '' + year + String(month + 1).padStart(2, '0') + String(daysInMonth).padStart(2, '0');
+    db.ref('pilates_classes').orderByKey().startAt(monthStartKey + '_').endAt(monthEndKey + '_\uf8ff').once('value').then(snap => {
+      const datesWithBookings = new Set();
+      snap.forEach(child => {
+        const cls = child.val();
+        if (cls && cls.bookings && Object.keys(cls.bookings).length) datesWithBookings.add(cls.date);
+      });
+      _pgRenderAdminCalendar('pgr', _pgrCalMonth, _pgrSelectedDate, 'selectPgrDate', datesWithBookings);
+    });
+  }
   function updatePgrSelectedDateLabel() {
     const el = document.getElementById('pgr-selected-date-label');
     if (el && _pgrSelectedDate) el.textContent = _pgFormatDateLabel(_pgrSelectedDate);
