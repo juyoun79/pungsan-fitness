@@ -12091,6 +12091,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     sat: [], sun: []
   };
   let _pgSchedule   = null; // 편집 중인 요일별 시간표 (메모리)
+  let _pgOriginalSchedule = null; // 마지막으로 저장된(서버) 시간표 스냅샷 — 삭제된 시간대 감지용
   let _pgActiveDay  = 'mon';
 
   function initPilatesGroupTab() {
@@ -12159,56 +12160,68 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
     const d = new Date(dateStr + 'T00:00:00');
     const dayKey = PG_WEEKDAY_BY_INDEX[d.getDay()];
+    const dateKey = dateStr.replace(/-/g, '');
     Promise.all([
       db.ref('pilates_settings').once('value'),
-      db.ref('pilates_exceptions/' + dateStr).once('value')
-    ]).then(([setSnap, excSnap]) => {
+      db.ref('pilates_exceptions/' + dateStr).once('value'),
+      db.ref('pilates_classes').orderByKey().startAt(dateKey + '_').endAt(dateKey + '_\uf8ff').once('value')
+    ]).then(([setSnap, excSnap, classesSnap]) => {
       const s = setSnap.val() || {};
       const deductMode = s.deductMode || 'auto';
       const sched = s.weeklySchedule || {};
-      const slots = Array.isArray(sched[dayKey]) ? sched[dayKey] : (sched[dayKey] ? Object.values(sched[dayKey]) : []);
+      const templateSlots = Array.isArray(sched[dayKey]) ? sched[dayKey] : (sched[dayKey] ? Object.values(sched[dayKey]) : []);
       const exc = excSnap.val() || {};
-      if (exc.fullClosed) {
-        el.innerHTML = '<div class="admin-card" style="margin-top:0;"><div style="text-align:center;padding:20px;color:#e24b4a;font-size:13px;">이 날은 휴무예요</div></div>';
+
+      // 실제로 존재하는 수업 문서 (예약이 있거나 관리자가 만들었던 시간) — 시간표에서 이미 삭제됐어도 예약기록이 있으면 여기 남아있음
+      const actualByTime = {};
+      classesSnap.forEach(child => { actualByTime[child.val().time] = { classId: child.key, data: child.val() }; });
+
+      // 시간표에 있는 시간 + 실제 존재하지만 지금 시간표엔 없는 시간(orphan, 삭제된 시간대) 합치기
+      const timeSet = new Set(templateSlots.map(sl => sl.time));
+      Object.keys(actualByTime).forEach(t => timeSet.add(t));
+      const allTimes = Array.from(timeSet).sort();
+
+      if (!allTimes.length) {
+        el.innerHTML = exc.fullClosed
+          ? '<div class="admin-card" style="margin-top:0;"><div style="text-align:center;padding:20px;color:#e24b4a;font-size:13px;">이 날은 휴무예요</div></div>'
+          : '<div class="admin-card" style="margin-top:0;"><div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">열리는 수업이 없어요</div></div>';
         return;
       }
-      if (!slots.length) {
-        el.innerHTML = '<div class="admin-card" style="margin-top:0;"><div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">열리는 수업이 없어요</div></div>';
-        return;
-      }
-      Promise.all(slots.map(sl => db.ref('pilates_classes/' + _pgClassId(dateStr, sl.time)).once('value'))).then(snaps => {
-        el.innerHTML = slots.map((sl, i) => {
-          const classId = _pgClassId(dateStr, sl.time);
-          const cls = snaps[i].val();
-          const bookings = cls && cls.bookings ? cls.bookings : {};
-          const timeClosed = exc.closedTimes && exc.closedTimes[sl.time];
-          const memberRows = Object.keys(bookings).map(uid => {
-            const b = bookings[uid];
-            const attended = !!b.attended;
-            let extraBtn = '';
-            if (deductMode === 'manual') {
-              extraBtn = attended
-                ? `<span style="font-size:11px;color:var(--text-hint);margin-right:6px;">처리완료</span>`
-                : `<button onclick="adminMarkPilatesAttended('${classId}','${uid}')" style="padding:5px 10px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-right:6px;">출석 처리</button>`;
-            }
-            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
-              <span style="font-size:12.5px;color:var(--text);">${b.name || uid}</span>
-              <div>${extraBtn}<button onclick="adminCancelPilatesBooking('${classId}','${uid}')" style="padding:5px 10px;border-radius:8px;border:1px solid #e24b4a;background:none;color:#e24b4a;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button></div>
-            </div>`;
-          }).join('') || '<div style="font-size:12px;color:var(--text-hint);padding:6px 0;">예약자 없음</div>';
-          return `
-            <div class="admin-card" style="margin-top:0;">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <div class="admin-card-title" style="margin:0;">${sl.time}${timeClosed ? ' (닫힘)' : ''}</div>
-                <span style="font-size:12px;color:var(--text-hint);">${Object.keys(bookings).length} / ${sl.capacity}명</span>
-              </div>
-              ${memberRows}
-              <input id="pgr-add-${classId}" type="text" placeholder="회원 이름 검색해서 대신 예약 추가" oninput="onPgrAddSearchInput('${classId}')"
-                style="width:100%;box-sizing:border-box;margin-top:10px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:'Noto Sans KR',sans-serif;">
-              <div id="pgr-add-result-${classId}" style="display:none;border:1px solid var(--border);border-radius:8px;margin-top:6px;max-height:160px;overflow-y:auto;"></div>
-            </div>`;
-        }).join('');
-      });
+
+      el.innerHTML = allTimes.map(time => {
+        const templateSlot = templateSlots.find(sl => sl.time === time);
+        const actual = actualByTime[time];
+        const classId = actual ? actual.classId : _pgClassId(dateStr, time);
+        const capacity = (actual && actual.data.capacity) || (templateSlot ? templateSlot.capacity : 5);
+        const bookings = (actual && actual.data.bookings) || {};
+        const isOrphan = !templateSlot; // 시간표에서 이미 삭제됐는데 예약기록은 남아있는 시간
+        const timeClosed = exc.fullClosed || (exc.closedTimes && exc.closedTimes[time]);
+        const memberRows = Object.keys(bookings).map(uid => {
+          const b = bookings[uid];
+          const attended = !!b.attended;
+          let extraBtn = '';
+          if (deductMode === 'manual') {
+            extraBtn = attended
+              ? `<span style="font-size:11px;color:var(--text-hint);margin-right:6px;">처리완료</span>`
+              : `<button onclick="adminMarkPilatesAttended('${classId}','${uid}')" style="padding:5px 10px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-right:6px;">출석 처리</button>`;
+          }
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+            <span style="font-size:12.5px;color:var(--text);">${b.name || uid}</span>
+            <div>${extraBtn}<button onclick="adminCancelPilatesBooking('${classId}','${uid}')" style="padding:5px 10px;border-radius:8px;border:1px solid #e24b4a;background:none;color:#e24b4a;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button></div>
+          </div>`;
+        }).join('') || '<div style="font-size:12px;color:var(--text-hint);padding:6px 0;">예약자 없음</div>';
+        return `
+          <div class="admin-card" style="margin-top:0;${isOrphan ? 'border:1.5px solid #e24b4a;' : ''}">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <div class="admin-card-title" style="margin:0;">${time}${timeClosed ? ' (닫힘)' : ''}${isOrphan ? ' <span style="font-size:11px;color:#e24b4a;font-weight:700;">· 시간표에서 삭제된 시간이에요</span>' : ''}</div>
+              <span style="font-size:12px;color:var(--text-hint);">${Object.keys(bookings).length} / ${capacity}명</span>
+            </div>
+            ${memberRows}
+            <input id="pgr-add-${classId}" type="text" placeholder="회원 이름 검색해서 대신 예약 추가" oninput="onPgrAddSearchInput('${classId}')"
+              style="width:100%;box-sizing:border-box;margin-top:10px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:'Noto Sans KR',sans-serif;">
+            <div id="pgr-add-result-${classId}" style="display:none;border:1px solid var(--border);border-radius:8px;margin-top:6px;max-height:160px;overflow-y:auto;"></div>
+          </div>`;
+      }).join('');
     });
   }
   window.loadPilatesReservations = loadPilatesReservations;
@@ -12263,6 +12276,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         if (!ok) { showToast('추가하지 못했어요. 정원이 다 찼을 수 있어요.', 'error'); return; }
         const deductPromise = deductMode === 'auto'
           ? db.ref('pilates_group/' + memberId).transaction(p => { if (!p) return p; p.remain = Math.max(0, (p.remain || 0) - 1); return p; })
+              .then(() => db.ref('pilates_classes/' + classId + '/bookings/' + memberId + '/deducted').set(true))
           : Promise.resolve();
         deductPromise.then(() => {
           showToast('✅ 예약이 추가됐어요!', 'success');
@@ -12277,17 +12291,14 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     showConfirm('이 예약을 취소할까요?', () => {
       db.ref('pilates_classes/' + classId + '/bookings/' + memberId).once('value').then(bSnap => {
         const b = bSnap.val();
+        const shouldRestore = !!(b && (b.deducted || b.attended));
         db.ref('pilates_classes/' + classId + '/bookings/' + memberId).remove().then(() => {
-          db.ref('pilates_settings/deductMode').once('value').then(modeSnap => {
-            const deductMode = modeSnap.val() || 'auto';
-            const shouldRestore = deductMode === 'auto' || (b && b.attended);
-            const restore = shouldRestore
-              ? db.ref('pilates_group/' + memberId).transaction(p => { if (!p) return p; p.remain = (p.remain || 0) + 1; return p; })
-              : Promise.resolve();
-            restore.then(() => {
-              showToast('취소됐어요.', 'success');
-              loadPilatesReservations();
-            });
+          const restore = shouldRestore
+            ? db.ref('pilates_group/' + memberId).transaction(p => { if (!p) return p; p.remain = (p.remain || 0) + 1; return p; })
+            : Promise.resolve();
+          restore.then(() => {
+            showToast('취소됐어요.', 'success');
+            loadPilatesReservations();
           });
         });
       });
@@ -12322,6 +12333,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
           _pgSchedule[d] = Array.isArray(val[d]) ? val[d] : (val[d] ? Object.values(val[d]) : []);
         });
       }
+      _pgOriginalSchedule = JSON.parse(JSON.stringify(_pgSchedule)); // 삭제된 시간 감지용 원본 스냅샷
       renderPilatesDayTabs();
       renderPilatesScheduleRows();
       loadPilatesSchedulePreview();
@@ -12393,15 +12405,53 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       showToast('정원은 1명 이상으로 입력해주세요.', 'error'); return;
     }
     rows.sort((a, b) => a.time.localeCompare(b.time));
+
+    const newTimes = new Set(rows.map(r => r.time));
+    const originalTimes = ((_pgOriginalSchedule && _pgOriginalSchedule[_pgActiveDay]) || []).map(r => r.time);
+    const removedTimes = originalTimes.filter(t => !newTimes.has(t));
+
+    if (removedTimes.length) {
+      _checkPilatesRemovedTimesHaveBookings(_pgActiveDay, removedTimes).then(hasBookings => {
+        if (hasBookings) {
+          showConfirm('삭제하려는 시간에 이미 예약된 회원이 있어요. 그래도 저장할까요?\n(기존 예약 기록은 "예약현황"에서 계속 확인·취소할 수 있어요)', () => _doSavePilatesScheduleDay(rows));
+        } else {
+          _doSavePilatesScheduleDay(rows);
+        }
+      });
+    } else {
+      _doSavePilatesScheduleDay(rows);
+    }
+  }
+  window.savePilatesScheduleDay = savePilatesScheduleDay;
+
+  function _doSavePilatesScheduleDay(rows) {
     _pgSchedule[_pgActiveDay] = rows;
     db.ref('pilates_settings/weeklySchedule/' + _pgActiveDay).set(rows).then(() => {
       showToast('✅ ' + PG_DAY_LABELS[_pgActiveDay] + '요일 시간표가 저장됐어요!', 'success');
+      if (!_pgOriginalSchedule) _pgOriginalSchedule = {};
+      _pgOriginalSchedule[_pgActiveDay] = JSON.parse(JSON.stringify(rows));
       renderPilatesDayTabs();
       renderPilatesScheduleRows();
       loadPilatesSchedulePreview();
     });
   }
-  window.savePilatesScheduleDay = savePilatesScheduleDay;
+
+  // 삭제하려는 시간대에 오늘 이후 실제 예약(인원 1명 이상)이 있는지 확인
+  function _checkPilatesRemovedTimesHaveBookings(dayKey, removedTimes) {
+    const todayStr = _pgTodayISO();
+    return db.ref('pilates_classes').once('value').then(snap => {
+      let found = false;
+      snap.forEach(child => {
+        const cls = child.val();
+        if (!cls || !cls.date || !cls.time || cls.date < todayStr) return;
+        const ck = PG_WEEKDAY_BY_INDEX[new Date(cls.date + 'T00:00:00').getDay()];
+        if (ck === dayKey && removedTimes.includes(cls.time) && cls.bookings && Object.keys(cls.bookings).length) {
+          found = true;
+        }
+      });
+      return found;
+    });
+  }
 
   // 다가오는 수업 미리보기 (시간표 + 휴무예외를 조합해서 실제 회원 화면처럼 계산)
   function loadPilatesSchedulePreview() {

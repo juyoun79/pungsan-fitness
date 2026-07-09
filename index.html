@@ -7179,7 +7179,7 @@
               if (!p) return p;
               p.remain = Math.max(0, (p.remain || 0) - 1);
               return p;
-            })
+            }).then(() => db.ref('pilates_classes/' + classId + '/bookings/' + _pgbUserId + '/deducted').set(true))
           : Promise.resolve();
         deductPromise.then(() => {
           showToast('✅ 예약됐어요!', 'success');
@@ -7193,17 +7193,21 @@
   function cancelPilatesClass(dateStr, time) {
     showConfirm('예약을 취소할까요?', () => {
       const classId = _pgbClassId(dateStr, time);
-      db.ref('pilates_classes/' + classId + '/bookings/' + _pgbUserId).remove().then(() => {
-        const restorePromise = _pgbSettings.deductMode === 'auto'
-          ? db.ref('pilates_group/' + _pgbUserId).transaction(p => {
-              if (!p) return p;
-              p.remain = (p.remain || 0) + 1;
-              return p;
-            })
-          : Promise.resolve();
-        restorePromise.then(() => {
-          showToast('취소됐어요.', 'success');
-          refreshPilatesBookingView();
+      db.ref('pilates_classes/' + classId + '/bookings/' + _pgbUserId).once('value').then(bSnap => {
+        const b = bSnap.val();
+        const shouldRestore = !!(b && (b.deducted || b.attended));
+        db.ref('pilates_classes/' + classId + '/bookings/' + _pgbUserId).remove().then(() => {
+          const restorePromise = shouldRestore
+            ? db.ref('pilates_group/' + _pgbUserId).transaction(p => {
+                if (!p) return p;
+                p.remain = (p.remain || 0) + 1;
+                return p;
+              })
+            : Promise.resolve();
+          restorePromise.then(() => {
+            showToast('취소됐어요.', 'success');
+            refreshPilatesBookingView();
+          });
         });
       });
     });
@@ -7214,40 +7218,41 @@
     const el = document.getElementById('pgb-my-bookings');
     if (!el) return;
     el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
-    const checks = [];
-    for (let i = 0; i < _pgbSettings.windowDays; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() + i);
-      const dateStr = _pgbFormatDate(d);
-      const dayKey = PGB_DAY_KEYS[d.getDay()];
-      (_pgbSchedule[dayKey] || []).forEach(s => checks.push({ dateStr, time: s.time }));
-    }
-    if (!checks.length) { el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">예약된 수업이 없어요</div>'; return; }
-    Promise.all(checks.map(c => db.ref('pilates_classes/' + _pgbClassId(c.dateStr, c.time) + '/bookings/' + _pgbUserId).once('value')))
-      .then(snaps => {
-        const now = new Date();
-        const mine = [];
-        snaps.forEach((snap, i) => { if (snap.exists()) mine.push(checks[i]); });
-        mine.sort((a, b) => (a.dateStr + a.time).localeCompare(b.dateStr + b.time));
-        if (!mine.length) {
-          el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">예약된 수업이 없어요</div>';
-          return;
+    const startD = new Date();
+    const endD = new Date();
+    endD.setDate(endD.getDate() + _pgbSettings.windowDays - 1);
+    const startKey = _pgbFormatDate(startD).replace(/-/g, '');
+    const endKey = _pgbFormatDate(endD).replace(/-/g, '');
+    // 시간표에 지금 있는지와 무관하게, 실제 예약 데이터를 날짜 범위로 직접 조회 (시간표에서 삭제된 시간의 기존 예약도 계속 보이게)
+    db.ref('pilates_classes').orderByKey().startAt(startKey + '_').endAt(endKey + '_\uf8ff').once('value').then(snap => {
+      const now = new Date();
+      const mine = [];
+      snap.forEach(child => {
+        const cls = child.val();
+        if (cls && cls.bookings && cls.bookings[_pgbUserId]) {
+          mine.push({ dateStr: cls.date, time: cls.time });
         }
-        el.innerHTML = mine.map(b => {
-          const classDateTime = new Date(b.dateStr + 'T' + b.time + ':00');
-          const hoursUntil = (classDateTime - now) / 3600000;
-          const cancellable = hoursUntil >= _pgbSettings.cancelCutoffHours;
-          const d = new Date(b.dateStr + 'T00:00:00');
-          const label = (d.getMonth() + 1) + '월 ' + d.getDate() + '일 (' + PGB_DAY_LABELS[PGB_DAY_KEYS[d.getDay()]] + ') ' + _pgbFormatTime(b.time);
-          return `
-            <div style="display:flex;justify-content:space-between;align-items:center;background:#E6F1FB;border-radius:10px;padding:10px 14px;margin-bottom:8px;">
-              <div style="font-size:13px;font-weight:700;color:#185FA5;">${label}</div>
-              ${cancellable
-                ? `<button onclick="cancelPilatesClass('${b.dateStr}','${b.time}')" style="padding:6px 12px;border-radius:8px;border:1px solid #185FA5;background:none;color:#185FA5;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>`
-                : `<span style="font-size:11px;color:var(--text-hint);">취소마감</span>`}
-            </div>`;
-        }).join('');
       });
+      mine.sort((a, b) => (a.dateStr + a.time).localeCompare(b.dateStr + b.time));
+      if (!mine.length) {
+        el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">예약된 수업이 없어요</div>';
+        return;
+      }
+      el.innerHTML = mine.map(b => {
+        const classDateTime = new Date(b.dateStr + 'T' + b.time + ':00');
+        const hoursUntil = (classDateTime - now) / 3600000;
+        const cancellable = hoursUntil >= _pgbSettings.cancelCutoffHours;
+        const d = new Date(b.dateStr + 'T00:00:00');
+        const label = (d.getMonth() + 1) + '월 ' + d.getDate() + '일 (' + PGB_DAY_LABELS[PGB_DAY_KEYS[d.getDay()]] + ') ' + _pgbFormatTime(b.time);
+        return `
+          <div style="display:flex;justify-content:space-between;align-items:center;background:#E6F1FB;border-radius:10px;padding:10px 14px;margin-bottom:8px;">
+            <div style="font-size:13px;font-weight:700;color:#185FA5;">${label}</div>
+            ${cancellable
+              ? `<button onclick="cancelPilatesClass('${b.dateStr}','${b.time}')" style="padding:6px 12px;border-radius:8px;border:1px solid #185FA5;background:none;color:#185FA5;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>`
+              : `<span style="font-size:11px;color:var(--text-hint);">취소마감</span>`}
+          </div>`;
+      }).join('');
+    });
   }
 
   // 홈화면 그룹필라테스 카드 로드 (강사배정과 무관, pilates_group 독립 카운터)
