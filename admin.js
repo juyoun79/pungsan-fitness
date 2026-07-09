@@ -12101,18 +12101,16 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     if (resultEl) { resultEl.style.display = 'none'; resultEl.innerHTML = ''; }
     const selWrap = document.getElementById('pg-selected-wrap');
     if (selWrap) selWrap.innerHTML = '';
-    if (!_pgMembersCache) {
-      db.ref('members').once('value').then(snap => {
-        const members = [];
-        snap.forEach(child => {
-          const m = child.val();
-          if (m.role !== 'trainer' && m.role !== 'manager') {
-            members.push({ id: child.key, name: m.name || child.key });
-          }
-        });
-        _pgMembersCache = members;
+    db.ref('members').once('value').then(snap => {
+      const members = [];
+      snap.forEach(child => {
+        const m = child.val();
+        if (m.role !== 'trainer' && m.role !== 'manager') {
+          members.push({ id: child.key, name: m.name || child.key });
+        }
       });
-    }
+      _pgMembersCache = members;
+    });
     switchPilatesSubtab('schedule');
   }
   window.initPilatesGroupTab = initPilatesGroupTab;

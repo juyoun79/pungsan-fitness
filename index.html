@@ -7021,7 +7021,7 @@
   const PGB_DAY_KEYS   = ['sun','mon','tue','wed','thu','fri','sat']; // Date.getDay() 인덱스와 일치
   const PGB_DAY_LABELS = { sun:'일', mon:'월', tue:'화', wed:'수', thu:'목', fri:'금', sat:'토' };
   let _pgbSettings = null, _pgbSchedule = null, _pgbExceptions = null;
-  let _pgbUserId = null, _pgbSelectedDate = null;
+  let _pgbUserId = null, _pgbSelectedDate = null, _pgbRemain = 0;
 
   function _pgbFormatDate(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -7064,6 +7064,7 @@
       _pgbExceptions = excSnap.val() || {};
 
       const pg = pgSnap.val() || { total: 0, remain: 0 };
+      _pgbRemain = pg.remain || 0;
       const badge = document.getElementById('pgb-remain-badge');
       if (badge) badge.textContent = '잔여 ' + (pg.remain || 0) + ' · 전체 ' + (pg.total || 0) + '회';
 
@@ -7131,12 +7132,14 @@
         const pastCutoff = hoursUntil < _pgbSettings.bookingCutoffHours;
         const isFull = bookedCount >= capacity;
         const alreadyBooked = !!bookings[_pgbUserId];
+        const noRemain = _pgbRemain <= 0;
         let statusLabel = !isFull ? (bookedCount + ' / ' + capacity + '명') : '마감';
         let btnLabel = '예약', disabled = false;
         if (timeClosed) { statusLabel = '휴무'; btnLabel = '마감'; disabled = true; }
         else if (alreadyBooked) { btnLabel = '예약완료'; disabled = true; }
         else if (isFull) { btnLabel = '마감'; disabled = true; }
         else if (pastCutoff) { btnLabel = '마감'; disabled = true; }
+        else if (noRemain) { btnLabel = '횟수없음'; disabled = true; }
         return `
           <div style="display:flex;justify-content:space-between;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
             <div>
@@ -7154,41 +7157,59 @@
 
   function bookPilatesClass(dateStr, time, capacity) {
     const classId = _pgbClassId(dateStr, time);
-    db.ref('pilates_group/' + _pgbUserId).once('value').then(pgSnap => {
-      const pg = pgSnap.val() || { total: 0, remain: 0 };
-      if ((pg.remain || 0) <= 0) { showToast('잔여횟수가 없어요.', 'error'); return; }
-      const nickname = localStorage.getItem('nickname_' + _pgbUserId) || _pgbUserId;
-      db.ref('pilates_classes/' + classId).transaction(curr => {
-        if (curr === null) curr = { date: dateStr, time: time, capacity: capacity, bookings: {} };
-        const bookings = curr.bookings || {};
-        if (bookings[_pgbUserId]) return curr;
-        if (Object.keys(bookings).length >= (curr.capacity || capacity)) return curr;
-        bookings[_pgbUserId] = { name: nickname, bookedAt: Date.now() };
-        curr.bookings = bookings;
-        return curr;
-      }).then(result => {
-        const data = result.snapshot.val();
-        const bookedOk = data && data.bookings && data.bookings[_pgbUserId];
-        if (!bookedOk) {
-          showToast('예약에 실패했어요. 정원이 다 찼을 수 있어요.', 'error');
-          refreshPilatesBookingView();
-          return;
-        }
-        const deductPromise = _pgbSettings.deductMode === 'auto'
-          ? db.ref('pilates_group/' + _pgbUserId).transaction(p => {
-              if (!p) return p;
-              p.remain = Math.max(0, (p.remain || 0) - 1);
-              return p;
-            }).then(() => db.ref('pilates_classes/' + classId + '/bookings/' + _pgbUserId + '/deducted').set(true))
-          : Promise.resolve();
-        deductPromise.then(() => {
-          showToast('✅ 예약됐어요!', 'success');
-          refreshPilatesBookingView();
-        });
+    const nickname = localStorage.getItem('nickname_' + _pgbUserId) || _pgbUserId;
+
+    if (_pgbSettings.deductMode === 'auto') {
+      // 잔여횟수 확인+차감을 하나의 트랜잭션으로 묶어서, 여러 기기에서 거의 동시에 예약해도 잔여횟수보다 많이 차감되지 않게 함
+      db.ref('pilates_group/' + _pgbUserId).transaction(p => {
+        if (!p || (p.remain || 0) <= 0) return; // undefined 반환 → 트랜잭션 중단(committed:false)
+        p.remain = p.remain - 1;
+        return p;
+      }).then(deductResult => {
+        if (!deductResult.committed) { showToast('잔여횟수가 없어요.', 'error'); return; }
+        _pgbTryBook(classId, dateStr, time, capacity, nickname, true);
       });
-    });
+    } else {
+      db.ref('pilates_group/' + _pgbUserId).once('value').then(pgSnap => {
+        const pg = pgSnap.val() || { total: 0, remain: 0 };
+        if ((pg.remain || 0) <= 0) { showToast('잔여횟수가 없어요.', 'error'); return; }
+        _pgbTryBook(classId, dateStr, time, capacity, nickname, false);
+      });
+    }
   }
   window.bookPilatesClass = bookPilatesClass;
+
+  function _pgbTryBook(classId, dateStr, time, capacity, nickname, wasDeducted) {
+    db.ref('pilates_classes/' + classId).transaction(curr => {
+      if (curr === null) curr = { date: dateStr, time: time, capacity: capacity, bookings: {} };
+      const bookings = curr.bookings || {};
+      if (bookings[_pgbUserId]) return curr;
+      if (Object.keys(bookings).length >= (curr.capacity || capacity)) return curr;
+      bookings[_pgbUserId] = { name: nickname, bookedAt: Date.now() };
+      if (wasDeducted) bookings[_pgbUserId].deducted = true;
+      curr.bookings = bookings;
+      return curr;
+    }).then(result => {
+      const data = result.snapshot.val();
+      const bookedOk = data && data.bookings && data.bookings[_pgbUserId];
+      if (!bookedOk) {
+        showToast('예약에 실패했어요. 정원이 다 찼을 수 있어요.', 'error');
+        if (wasDeducted) {
+          // 이미 차감된 잔여횟수를 되돌려놓음 (예약 자체는 실패했으므로)
+          db.ref('pilates_group/' + _pgbUserId).transaction(p => {
+            if (!p) return p;
+            p.remain = (p.remain || 0) + 1;
+            return p;
+          }).then(() => refreshPilatesBookingView());
+        } else {
+          refreshPilatesBookingView();
+        }
+        return;
+      }
+      showToast('✅ 예약됐어요!', 'success');
+      refreshPilatesBookingView();
+    });
+  }
 
   function cancelPilatesClass(dateStr, time) {
     showConfirm('예약을 취소할까요?', () => {
