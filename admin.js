@@ -12262,11 +12262,15 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       const b = bookings[uid];
       const attended = !!b.attended;
       const trialTag = b.isTrial ? ' <span style="font-size:10px;color:#185FA5;font-weight:700;">(체험)</span>' : '';
+      // 출석처리 버튼 노출 여부는 "지금 전역 설정"이 아니라 "이 예약건이 예약될 당시 이미 차감됐는지"로 판단
+      // → 관리자가 나중에 자동/수동 설정을 바꿔도 이미 잡힌 예약은 예약 당시 방식 그대로 유지됨
       let extraBtn = '';
-      if (deductMode === 'manual' && !b.isTrial) {
-        extraBtn = attended
-          ? `<span style="font-size:11px;color:var(--text-hint);margin-right:6px;">처리완료</span>`
-          : `<button onclick="adminMarkPilatesAttended('${classId}','${uid}')" style="padding:5px 10px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-right:6px;">출석 처리</button>`;
+      if (!b.isTrial) {
+        if (attended) {
+          extraBtn = `<span style="font-size:11px;color:var(--text-hint);margin-right:6px;">처리완료</span>`;
+        } else if (!b.deducted) {
+          extraBtn = `<button onclick="adminMarkPilatesAttended('${classId}','${uid}')" style="padding:5px 10px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-right:6px;">출석 처리</button>`;
+        }
       }
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
         <span style="font-size:12.5px;color:var(--text);">${b.name || uid}${trialTag}</span>
