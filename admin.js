@@ -12435,10 +12435,26 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">예약 가능 기간 내에 열리는 수업이 없어요</div>';
         return;
       }
-      el.innerHTML = items.map(it => `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);${it.closed ? 'opacity:0.5;' : ''}">
-          <div style="font-size:12.5px;color:var(--text);">${it.dateStr} (${PG_DAY_LABELS[it.dayKey]}) ${it.time || ''}</div>
-          <div style="font-size:12px;color:${it.closed ? '#e24b4a' : 'var(--text-hint)'};">${it.closed ? (it.label || '휴무') : '정원 ' + it.capacity + '명'}</div>
+      // 날짜별로 묶기
+      const groups = [];
+      let lastDate = null;
+      items.forEach(it => {
+        if (it.dateStr !== lastDate) {
+          groups.push({ dateStr: it.dateStr, dayKey: it.dayKey, rows: [] });
+          lastDate = it.dateStr;
+        }
+        groups[groups.length - 1].rows.push(it);
+      });
+      el.innerHTML = groups.map(g => `
+        <div style="margin-bottom:12px;">
+          <div style="font-size:12.5px;font-weight:700;color:var(--text-sub);background:var(--bg);border-radius:8px;padding:6px 10px;margin-bottom:4px;">
+            ${g.dateStr} (${PG_DAY_LABELS[g.dayKey]})
+          </div>
+          ${g.rows.map(it => `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-bottom:1px solid var(--border);${it.closed ? 'opacity:0.5;' : ''}">
+              <div style="font-size:12.5px;color:var(--text);">${it.time || ''}</div>
+              <div style="font-size:12px;color:${it.closed ? '#e24b4a' : 'var(--text-hint)'};">${it.closed ? (it.label || '휴무') : '정원 ' + it.capacity + '명'}</div>
+            </div>`).join('')}
         </div>`).join('');
     });
   }
