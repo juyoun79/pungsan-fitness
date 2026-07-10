@@ -8630,89 +8630,6 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   window.toggleTraineeEnded = toggleTraineeEnded;
   window.toggleTraineeRereg = toggleTraineeRereg;
 
-  // 담당 회원 캐시
-  let _traineeMembersCache = [];
-
-  function loadTraineeMembersCache() {
-    db.ref('members').once('value', snap => {
-      _traineeMembersCache = [];
-      snap.forEach(child => {
-        const m = child.val();
-        _traineeMembersCache.push({ id: child.key, name: m.name || child.key });
-      });
-    });
-  }
-
-  // 담당 회원 추가 모달 열기
-  function openAddTraineeMember() {
-    document.getElementById('trainee-search').value = '';
-    document.getElementById('trainee-search-result').innerHTML = '';
-    document.getElementById('add-trainee-modal').style.display = 'flex';
-    // 모달 열릴 때 미리 회원 목록 로드
-    loadTraineeMembersCache();
-  }
-
-  // 담당 회원 추가 모달 닫기
-  function closeAddTraineeMember() {
-    document.getElementById('add-trainee-modal').style.display = 'none';
-  }
-
-  // 회원 검색 (캐시 기반 - 즉시 결과 표시)
-  function searchTraineeMember(query) {
-    const q = query.trim();
-    const resultEl = document.getElementById('trainee-search-result');
-    if (!q) { resultEl.innerHTML = ''; return; }
-    // 캐시가 없으면 Firebase에서 로드 후 재검색
-    if (_traineeMembersCache.length === 0) {
-      db.ref('members').once('value', snap => {
-        _traineeMembersCache = [];
-        snap.forEach(child => {
-          const m = child.val();
-          _traineeMembersCache.push({ id: child.key, name: m.name || child.key });
-        });
-        searchTraineeMember(query);
-      });
-      return;
-    }
-    const results = _traineeMembersCache.filter(m =>
-      (m.name || '').includes(q) || m.id.includes(q)
-    );
-      if (results.length === 0) {
-        resultEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);">검색 결과가 없어요</div>';
-        return;
-      }
-      resultEl.innerHTML = results.map(m => `
-        <div onclick="selectTraineeMember('${m.id}', '${m.name}')"
-          style="padding:12px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:10px;"
-          ontouchstart="this.style.background='var(--blue-light)'" ontouchend="this.style.background='transparent'">
-          <div style="width:36px;height:36px;border-radius:50%;background:var(--blue);color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">${m.name[0]}</div>
-          <div>
-            <div style="font-size:14px;font-weight:700;color:var(--text);">${m.name}</div>
-            <div style="font-size:12px;color:var(--text-hint);">${m.id}</div>
-          </div>
-        </div>
-      `).join('');
-  }
-
-  // 담당 회원 선택 후 수업 정보 입력
-  function selectTraineeMember(memberId, memberName) {
-    showTraineeForm(memberName + '님 수업 정보 입력', '', '', (type, total) => {
-      const trainerId = localStorage.getItem('current_user');
-      db.ref('trainers/' + trainerId + '/trainees/' + memberId).set({
-        name: memberName,
-        type: type,
-        total: total,
-        remain: total,
-        addedAt: Date.now()
-      }).then(() => {
-        db.ref('members/' + memberId + '/trainerId').set(trainerId);
-        showToast(memberName + '님이 담당 회원으로 추가됐어요! 💪', 'success');
-        closeAddTraineeMember();
-        loadTrainerTab();
-      });
-    });
-  }
-
   // 담당 회원 상세 화면 열기
   function openTraineeDetail(memberId) {
     currentTraineeId = memberId;
@@ -12187,7 +12104,8 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     db.ref('trainers/' + trainerId + '/trainees/' + memberId).set({
       name: memberName,
       type, total, remain: total,
-      addedAt: Date.now()
+      addedAt: Date.now(),
+      regDate: _todayISO()
     }).then(() => {
       // members/{회원}/trainerId 동기화
       db.ref('members/' + memberId + '/trainerId').set(trainerId);
