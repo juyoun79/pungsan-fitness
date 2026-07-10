@@ -1410,7 +1410,23 @@
   let cachedMembers = {};
 
   let _lastMemberData = [];
-  let _memberFilters = { program: 'all', status: 'all', payment: 'all', locker: 'all', sort: 'none' };
+  let _memberFilters = {
+    program: 'all', status: 'all', payment: 'all', locker: 'all', sort: 'none',
+    gender: 'all', dateBasis: 'none', dateStart: '', dateEnd: '',
+    remainMax: 'all', attendGap: 'all', unpaidMin: '', ageBand: 'all'
+  };
+
+  function _calcAgeFromBirthAdmin(birth) {
+    if (!birth) return null;
+    const m = String(birth).match(/(\d{4})[-.](\d{1,2})[-.](\d{1,2})/);
+    if (!m) return null;
+    const birthDate = new Date(+m[1], +m[2] - 1, +m[3]);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const md = today.getMonth() - birthDate.getMonth();
+    if (md < 0 || (md === 0 && today.getDate() < birthDate.getDate())) age--;
+    return age;
+  }
 
   function loadMemberList(query = '') {
     getMemberDB().then(members => {
@@ -1428,82 +1444,134 @@
       }
       // Firebase에서 출석/포인트/계약 병렬 조회
       const now = new Date();
+      const todayISO = _pgTodayISO();
       const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
-      Promise.all(entries.map(([phone, info]) =>
-        Promise.all([
-          db.ref('users/' + phone + '/attendance').once('value'),
-          db.ref('users/' + phone + '/points').once('value'),
-          db.ref('contracts/' + phone).once('value')
-        ]).then(([attSnap, ptsSnap, contractsSnap]) => {
-          const attendData = attSnap.val() || {};
-          const attendCount = Object.keys(attendData).filter(k => k.startsWith(monthPrefix)).length ||
-            (() => { let c=0; for(let d=1;d<=31;d++) { if(localStorage.getItem('attend_'+phone+'_'+monthPrefix+d)==='done') c++; } return c; })();
-          const pts = ptsSnap.val() ?? localStorage.getItem('points_' + phone) ?? '0';
-          localStorage.setItem('points_' + phone, String(pts));
-          const nick = localStorage.getItem('nickname_' + phone) || '-';
 
-          // 계약이력에서 활성 항목 + 미수금 여부 + 가입일(최초 계약일) 뽑기
-          const activeItems = [];
-          let hasUnpaid = false;
-          const signDates = [];
-          contractsSnap.forEach(cSnap => {
-            const c = cSnap.val();
-            if (c.signDate) signDates.push(c.signDate);
-            _flattenContractItems(c).forEach(it => {
-              if (!_isItemEligible(it.data)) return;
-              const unpaid = (it.data.price || 0) - ((it.data.cash||0) + (it.data.card||0) + (it.data.transfer||0));
-              if (unpaid > 0) hasUnpaid = true;
-              activeItems.push(it);
+      // 개인수업(PT/개인필라테스) 잔여횟수는 trainers/*/trainees/{phone}에 있어서, 회원별로 따로 조회하지 않고 한 번만 불러와 맵으로 만들어둠
+      db.ref('trainers').once('value').then(trainersSnap => {
+        const personalRemainMap = {};
+        trainersSnap.forEach(t => {
+          const trainees = t.child('trainees');
+          trainees.forEach(tr => { personalRemainMap[tr.key] = tr.val(); });
+        });
+
+        Promise.all(entries.map(([phone, info]) =>
+          Promise.all([
+            db.ref('users/' + phone + '/attendance').once('value'),
+            db.ref('users/' + phone + '/points').once('value'),
+            db.ref('contracts/' + phone).once('value'),
+            db.ref('pilates_group/' + phone).once('value')
+          ]).then(([attSnap, ptsSnap, contractsSnap, pgSnap]) => {
+            const attendData = attSnap.val() || {};
+            const attendCount = Object.keys(attendData).filter(k => k.startsWith(monthPrefix)).length ||
+              (() => { let c=0; for(let d=1;d<=31;d++) { if(localStorage.getItem('attend_'+phone+'_'+monthPrefix+d)==='done') c++; } return c; })();
+            const pts = ptsSnap.val() ?? localStorage.getItem('points_' + phone) ?? '0';
+            localStorage.setItem('points_' + phone, String(pts));
+            const nick = localStorage.getItem('nickname_' + phone) || '-';
+
+            // 마지막 출석일 (모든 출석기록 중 가장 최근 날짜) → 미출석 기간 계산용
+            let lastAttendDate = null;
+            Object.keys(attendData).forEach(k => {
+              const parts = k.split('-').map(n => parseInt(n, 10));
+              if (parts.length === 3 && !isNaN(parts[0])) {
+                const dstr = parts[0] + '-' + String(parts[1]).padStart(2, '0') + '-' + String(parts[2]).padStart(2, '0');
+                if (!lastAttendDate || dstr > lastAttendDate) lastAttendDate = dstr;
+              }
             });
-          });
-          const joinDate = signDates.length ? signDates.sort()[0] : '-';
+            const daysSinceLastAttend = lastAttendDate
+              ? Math.floor((new Date(todayISO + 'T00:00:00') - new Date(lastAttendDate + 'T00:00:00')) / 86400000)
+              : null; // null = 출석기록이 아예 없음
 
-          // 필터/정렬용 계산값 미리 뽑아두기 (프로그램 목록/상태/락카배정여부/최소잔여일)
-          const progNames = [];
-          let minRemainDays = null;
-          let anyOnHold = false;
-          activeItems.forEach(it => {
-            const label = REFUND_PROG_NAMES[it.progKey] || it.progKey;
-            if (!progNames.includes(label)) progNames.push(label);
-            const onHold = _isActivelyOnHold(it.data);
-            if (onHold) anyOnHold = true;
-            const endDate = onHold ? (it.data.activeHold && it.data.activeHold.newEndDate) : it.data.endDate;
-            if (endDate) {
-              const d = _daysUntil(endDate);
-              if (d !== null && (minRemainDays === null || d < minRemainDays)) minRemainDays = d;
+            // 계약이력에서 활성 항목 + 미수금 + 가입일(최초 계약일) 뽑기
+            const activeItems = [];
+            let hasUnpaid = false;
+            let unpaidAmount = 0;
+            const signDates = [];
+            contractsSnap.forEach(cSnap => {
+              const c = cSnap.val();
+              if (c.signDate) signDates.push(c.signDate);
+              _flattenContractItems(c).forEach(it => {
+                if (!_isItemEligible(it.data)) return;
+                const unpaid = (it.data.price || 0) - ((it.data.cash||0) + (it.data.card||0) + (it.data.transfer||0));
+                if (unpaid > 0) { hasUnpaid = true; unpaidAmount += unpaid; }
+                activeItems.push(it);
+              });
+            });
+            const joinDate = signDates.length ? signDates.sort()[0] : '-';
+
+            // 필터/정렬용 계산값 미리 뽑아두기 (프로그램 목록/상태/락카배정여부/최소잔여일/만료일)
+            const progNames = [];
+            let minRemainDays = null;
+            let maxEndDate = null; // 날짜범위 필터(만료일 기준)용 - 가장 늦은 만료일 기준
+            let anyOnHold = false;
+            activeItems.forEach(it => {
+              const label = REFUND_PROG_NAMES[it.progKey] || it.progKey;
+              if (!progNames.includes(label)) progNames.push(label);
+              const onHold = _isActivelyOnHold(it.data);
+              if (onHold) anyOnHold = true;
+              const endDate = onHold ? (it.data.activeHold && it.data.activeHold.newEndDate) : it.data.endDate;
+              if (endDate) {
+                const d = _daysUntil(endDate);
+                if (d !== null && (minRemainDays === null || d < minRemainDays)) minRemainDays = d;
+                if (!maxEndDate || endDate > maxEndDate) maxEndDate = endDate;
+              }
+            });
+            let statusKey = 'none', statusLabel = '-', statusColor = 'var(--text-hint)';
+            if (activeItems.length > 0) {
+              if (anyOnHold) { statusKey = 'hold'; statusLabel = '⏸️ 휴회중'; statusColor = '#f59e0b'; }
+              else if (minRemainDays !== null && minRemainDays < 0) { statusKey = 'expired'; statusLabel = '만료됨'; statusColor = '#ef4444'; }
+              else if (minRemainDays !== null && minRemainDays <= 7) { statusKey = 'expiring'; statusLabel = '⚠️ 만료임박'; statusColor = '#f59e0b'; }
+              else { statusKey = 'normal'; statusLabel = '정상'; statusColor = '#22c55e'; }
             }
-          });
-          let statusKey = 'none', statusLabel = '-', statusColor = 'var(--text-hint)';
-          if (activeItems.length > 0) {
-            if (anyOnHold) { statusKey = 'hold'; statusLabel = '⏸️ 휴회중'; statusColor = '#f59e0b'; }
-            else if (minRemainDays !== null && minRemainDays < 0) { statusKey = 'expired'; statusLabel = '만료됨'; statusColor = '#ef4444'; }
-            else if (minRemainDays !== null && minRemainDays <= 7) { statusKey = 'expiring'; statusLabel = '⚠️ 만료임박'; statusColor = '#f59e0b'; }
-            else { statusKey = 'normal'; statusLabel = '정상'; statusColor = '#22c55e'; }
-          }
-          const lockerAssigned = !!info.lockerKey;
+            const lockerAssigned = !!info.lockerKey;
 
-          return { phone, info, attendCount, pts: Number(pts) || 0, nick, activeItems, hasUnpaid, joinDate, progNames, statusKey, statusLabel, statusColor, minRemainDays, lockerAssigned };
-        }).catch(() => {
-          const pts = localStorage.getItem('points_' + phone) || '0';
-          let attendCount = 0;
-          for(let d=1;d<=31;d++) { if(localStorage.getItem('attend_'+phone+'_'+monthPrefix+d)==='done') attendCount++; }
-          const nick = localStorage.getItem('nickname_' + phone) || '-';
-          return { phone, info, attendCount, pts: Number(pts) || 0, nick, activeItems: [], hasUnpaid: false, joinDate: '-', progNames: [], statusKey: 'none', statusLabel: '-', statusColor: 'var(--text-hint)', minRemainDays: null, lockerAssigned: false };
-        })
-      )).then(memberData => {
-        _lastMemberData = memberData;
-        _renderMemberListView();
+            // 성별
+            const gender = (info.body && info.body.gender) || info['body/gender'] || null;
+
+            // 나이
+            const age = _calcAgeFromBirthAdmin(info.birth);
+
+            // 횟수제(PT/개인필라테스/그룹필라테스) 잔여 중 최솟값 — "잔여횟수 임박" 필터용
+            const personal = personalRemainMap[phone];
+            const pg = pgSnap.val();
+            const countRemains = [];
+            if (personal && personal.remain != null) countRemains.push(personal.remain);
+            if (pg && pg.remain != null) countRemains.push(pg.remain);
+            const minCountRemain = countRemains.length ? Math.min(...countRemains) : null;
+
+            return { phone, info, attendCount, pts: Number(pts) || 0, nick, activeItems, hasUnpaid, unpaidAmount, joinDate, maxEndDate, progNames, statusKey, statusLabel, statusColor, minRemainDays, lockerAssigned, gender, age, lastAttendDate, daysSinceLastAttend, minCountRemain };
+          }).catch(() => {
+            const pts = localStorage.getItem('points_' + phone) || '0';
+            let attendCount = 0;
+            for(let d=1;d<=31;d++) { if(localStorage.getItem('attend_'+phone+'_'+monthPrefix+d)==='done') attendCount++; }
+            const nick = localStorage.getItem('nickname_' + phone) || '-';
+            const gender = (info.body && info.body.gender) || info['body/gender'] || null;
+            const age = _calcAgeFromBirthAdmin(info.birth);
+            return { phone, info, attendCount, pts: Number(pts) || 0, nick, activeItems: [], hasUnpaid: false, unpaidAmount: 0, joinDate: '-', maxEndDate: null, progNames: [], statusKey: 'none', statusLabel: '-', statusColor: 'var(--text-hint)', minRemainDays: null, lockerAssigned: false, gender, age, lastAttendDate: null, daysSinceLastAttend: null, minCountRemain: null };
+          })
+        )).then(memberData => {
+          _lastMemberData = memberData;
+          _renderMemberListView();
+        });
       });
     });
   }
 
   // 필터/정렬 드롭다운 값이 바뀔 때 호출 — Firebase 재조회 없이 이미 가져온 데이터로 다시 그림
   function applyMemberFilters() {
-    _memberFilters.program = document.getElementById('mf-program')?.value || 'all';
-    _memberFilters.status  = document.getElementById('mf-status')?.value || 'all';
-    _memberFilters.payment = document.getElementById('mf-payment')?.value || 'all';
-    _memberFilters.locker  = document.getElementById('mf-locker')?.value || 'all';
-    _memberFilters.sort    = document.getElementById('mf-sort')?.value || 'none';
+    _memberFilters.program   = document.getElementById('mf-program')?.value || 'all';
+    _memberFilters.status    = document.getElementById('mf-status')?.value || 'all';
+    _memberFilters.payment   = document.getElementById('mf-payment')?.value || 'all';
+    _memberFilters.locker    = document.getElementById('mf-locker')?.value || 'all';
+    _memberFilters.sort      = document.getElementById('mf-sort')?.value || 'none';
+    _memberFilters.gender    = document.getElementById('mf-gender')?.value || 'all';
+    _memberFilters.dateBasis = document.getElementById('mf-date-basis')?.value || 'none';
+    _memberFilters.dateStart = document.getElementById('mf-date-start')?.value || '';
+    _memberFilters.dateEnd   = document.getElementById('mf-date-end')?.value || '';
+    _memberFilters.remainMax = document.getElementById('mf-remain')?.value || 'all';
+    _memberFilters.attendGap = document.getElementById('mf-attend-gap')?.value || 'all';
+    _memberFilters.unpaidMin = document.getElementById('mf-unpaid-min')?.value || '';
+    _memberFilters.ageBand   = document.getElementById('mf-age')?.value || 'all';
     _renderMemberListView();
   }
   window.applyMemberFilters = applyMemberFilters;
@@ -1519,6 +1587,37 @@
     if (f.status !== 'all') data = data.filter(m => m.statusKey === f.status);
     if (f.payment !== 'all') data = data.filter(m => (f.payment === 'unpaid') === m.hasUnpaid);
     if (f.locker !== 'all') data = data.filter(m => (f.locker === 'assigned') === m.lockerAssigned);
+    if (f.gender !== 'all') data = data.filter(m => m.gender === f.gender);
+    if (f.remainMax !== 'all') {
+      const maxN = parseInt(f.remainMax, 10);
+      data = data.filter(m => m.minCountRemain !== null && m.minCountRemain <= maxN);
+    }
+    if (f.attendGap !== 'all') {
+      const minGap = parseInt(f.attendGap, 10);
+      data = data.filter(m => m.daysSinceLastAttend === null || m.daysSinceLastAttend >= minGap);
+    }
+    if (f.unpaidMin) {
+      const minAmt = parseInt(f.unpaidMin, 10) || 0;
+      data = data.filter(m => m.unpaidAmount >= minAmt);
+    }
+    if (f.ageBand !== 'all') {
+      data = data.filter(m => {
+        if (m.age === null) return false;
+        if (f.ageBand === '60+') return m.age >= 60;
+        const band = parseInt(f.ageBand, 10);
+        return m.age >= band && m.age < band + 10;
+      });
+    }
+    // 날짜범위 필터 (만료일 또는 가입일 기준, 다른 필터들과 AND로 같이 적용됨)
+    if (f.dateBasis !== 'none' && (f.dateStart || f.dateEnd)) {
+      data = data.filter(m => {
+        const target = f.dateBasis === 'expire' ? m.maxEndDate : (m.joinDate !== '-' ? m.joinDate : null);
+        if (!target) return false;
+        if (f.dateStart && target < f.dateStart) return false;
+        if (f.dateEnd && target > f.dateEnd) return false;
+        return true;
+      });
+    }
 
     if (f.sort === 'expiring') {
       data.sort((a, b) => (a.minRemainDays === null ? Infinity : a.minRemainDays) - (b.minRemainDays === null ? Infinity : b.minRemainDays));
@@ -1540,12 +1639,27 @@
     const f = _memberFilters;
     const sel = (id, options) => `<select id="${id}" onchange="applyMemberFilters()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;background:var(--card);color:var(--text);font-family:'Noto Sans KR',sans-serif;">${options}</select>`;
     const opt = (val, label, current) => `<option value="${val}" ${val===current?'selected':''}>${label}</option>`;
-    return `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+    return `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
       ${sel('mf-program', opt('all','전체 프로그램',f.program)+opt('헬스','헬스',f.program)+opt('GX','GX',f.program)+opt('PT','PT',f.program)+opt('기구필라테스 개인','기구필라테스 개인',f.program)+opt('기구필라테스 그룹','기구필라테스 그룹',f.program))}
       ${sel('mf-status', opt('all','전체 상태',f.status)+opt('normal','정상',f.status)+opt('hold','휴회중',f.status)+opt('expiring','만료임박',f.status)+opt('expired','만료됨',f.status))}
       ${sel('mf-payment', opt('all','전체 결제상태',f.payment)+opt('paid','완납',f.payment)+opt('unpaid','미수금',f.payment))}
       ${sel('mf-locker', opt('all','전체 락카',f.locker)+opt('assigned','배정됨',f.locker)+opt('unassigned','미배정',f.locker))}
+      ${sel('mf-gender', opt('all','전체 성별',f.gender)+opt('male','남',f.gender)+opt('female','여',f.gender))}
+      ${sel('mf-age', opt('all','전체 연령',f.ageBand)+opt('20','20대',f.ageBand)+opt('30','30대',f.ageBand)+opt('40','40대',f.ageBand)+opt('50','50대',f.ageBand)+opt('60+','60대 이상',f.ageBand))}
+      ${sel('mf-remain', opt('all','전체 잔여횟수',f.remainMax)+opt('3','3회 이하',f.remainMax)+opt('2','2회 이하',f.remainMax)+opt('1','1회 이하',f.remainMax)+opt('0','0회(소진)',f.remainMax))}
+      ${sel('mf-attend-gap', opt('all','전체(미출석기간)',f.attendGap)+opt('7','7일 이상 미출석',f.attendGap)+opt('14','14일 이상 미출석',f.attendGap)+opt('30','30일 이상 미출석',f.attendGap)+opt('60','60일 이상 미출석',f.attendGap))}
+      <input id="mf-unpaid-min" type="number" min="0" placeholder="미수금 O원 이상" value="${f.unpaidMin}" onchange="applyMemberFilters()"
+        style="width:130px;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;background:var(--card);color:var(--text);font-family:'Noto Sans KR',sans-serif;">
       ${sel('mf-sort', opt('none','정렬 없음',f.sort)+opt('expiring','만료임박순',f.sort)+opt('join_new','가입일순(최근)',f.sort)+opt('join_old','가입일순(오래된)',f.sort)+opt('points','포인트순',f.sort)+opt('name','이름가나다순',f.sort))}
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;">
+      <span style="font-size:12px;color:var(--text-hint);">날짜범위</span>
+      ${sel('mf-date-basis', opt('none','기준 선택 안함',f.dateBasis)+opt('expire','만료일 기준',f.dateBasis)+opt('join','가입일 기준',f.dateBasis))}
+      <input id="mf-date-start" type="date" value="${f.dateStart}" onchange="applyMemberFilters()"
+        style="padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;background:var(--card);color:var(--text);font-family:'Noto Sans KR',sans-serif;">
+      <span style="font-size:12px;color:var(--text-hint);">~</span>
+      <input id="mf-date-end" type="date" value="${f.dateEnd}" onchange="applyMemberFilters()"
+        style="padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;background:var(--card);color:var(--text);font-family:'Noto Sans KR',sans-serif;">
     </div>`;
   }
 
@@ -1557,7 +1671,8 @@
     }
     const isPc = document.body.classList.contains('pc-mode');
     const rows = memberData.map(m => {
-      const { phone, info, attendCount, pts, nick, activeItems, hasUnpaid, joinDate, progNames, statusLabel, statusColor, lockerAssigned } = m;
+      const { phone, info, attendCount, pts, nick, activeItems, hasUnpaid, joinDate, progNames, statusLabel, statusColor, lockerAssigned, gender } = m;
+      const genderLabel = gender === 'male' ? '남' : (gender === 'female' ? '여' : '-');
 
       const remainParts = [];
       activeItems.forEach(it => {
@@ -1583,6 +1698,7 @@
 
       return `<tr onclick="openMemberModal('${phone}')" style="cursor:pointer;border-bottom:1px solid var(--border);">
         <td style="padding:10px 8px;font-weight:700;color:var(--text);white-space:nowrap;">${info.name}</td>
+        <td style="padding:10px 8px;text-align:center;color:var(--text-sub);white-space:nowrap;">${genderLabel}</td>
         <td style="padding:10px 8px;color:var(--text-sub);white-space:nowrap;">${nick}</td>
         <td style="padding:10px 8px;color:var(--text-sub);white-space:nowrap;">${phone}</td>
         <td style="padding:10px 8px;color:var(--text);white-space:nowrap;">${progNames.join(', ') || '-'}</td>
@@ -1600,7 +1716,7 @@
       <table style="width:100%;border-collapse:collapse;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
         <thead>
           <tr style="border-bottom:2px solid var(--border);background:var(--bg);">
-            ${th('이름')}${th('닉네임')}${th('연락처')}${th('프로그램')}${th('잔여')}${th('락카')}${th('결제상태')}${th('상태')}${th('이번달출석','center')}${th('포인트','center')}${th('가입일')}
+            ${th('이름')}${th('성별','center')}${th('닉네임')}${th('연락처')}${th('프로그램')}${th('잔여')}${th('락카')}${th('결제상태')}${th('상태')}${th('이번달출석','center')}${th('포인트','center')}${th('가입일')}
           </tr>
         </thead>
         <tbody>${rows}</tbody>
