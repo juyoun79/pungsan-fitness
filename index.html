@@ -4147,11 +4147,11 @@
             <div class="admin-card-title">⚙️ 예약 시간 설정</div>
             <div style="font-size:12px;color:var(--text-hint);margin-bottom:12px;line-height:1.5;">회원이 얼마나 미리, 그리고 얼마나 임박해서까지 예약·취소할 수 있는지 정해요.</div>
 
-            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">예약 가능 기간 (오늘부터 며칠 후까지 보여줄지)</div>
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">예약 가능 기간 (이번달은 항상 오픈 + 몇 개월 뒤까지 미리 오픈할지)</div>
             <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
-              <input id="pgs-window-days" type="number" min="1" placeholder="예) 7"
+              <input id="pgs-window-months" type="number" min="0" placeholder="예) 1"
                 style="flex:1;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
-              <span style="font-size:13px;color:var(--text-sub);">일</span>
+              <span style="font-size:13px;color:var(--text-sub);">개월</span>
             </div>
 
             <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">예약 마감 (수업 시작 몇 시간 전까지 예약 가능)</div>
@@ -7084,6 +7084,11 @@
   function _pgbFormatDate(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
+  // 이번달은 항상 오픈 + 설정된 개월수만큼 미래 달까지 오픈 → 그 달의 마지막 날짜 반환
+  function _pgbWindowEndDate() {
+    const t = new Date();
+    return new Date(t.getFullYear(), t.getMonth() + (_pgbSettings ? _pgbSettings.windowMonths : 1) + 1, 0);
+  }
   function _pgbFormatTime(t) {
     const parts = t.split(':').map(Number);
     const h = parts[0], m = parts[1];
@@ -7113,7 +7118,7 @@
     ]).then(([setSnap, excSnap, pgSnap]) => {
       const s = setSnap.val() || {};
       _pgbSettings = {
-        windowDays: s.bookingWindowDays != null ? s.bookingWindowDays : 7,
+        windowMonths: s.bookingWindowMonths != null ? s.bookingWindowMonths : 1,
         bookingCutoffHours: s.bookingCutoffHours != null ? s.bookingCutoffHours : 4,
         cancelCutoffHours: s.cancelCutoffHours != null ? s.cancelCutoffHours : 24,
         deductMode: s.deductMode || 'auto'
@@ -7146,8 +7151,7 @@
     const startOffset = new Date(year, month, 1).getDay(); // 0=일요일
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const todayStr = _pgbFormatDate(new Date());
-    const windowEndD = new Date();
-    windowEndD.setDate(windowEndD.getDate() + _pgbSettings.windowDays - 1);
+    const windowEndD = _pgbWindowEndDate();
     const windowEndStr = _pgbFormatDate(windowEndD);
 
     let cells = '';
@@ -7325,8 +7329,7 @@
     if (!el) return;
     el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
     const startD = new Date();
-    const endD = new Date();
-    endD.setDate(endD.getDate() + _pgbSettings.windowDays - 1);
+    const endD = _pgbWindowEndDate();
     const startKey = _pgbFormatDate(startD).replace(/-/g, '');
     const endKey = _pgbFormatDate(endD).replace(/-/g, '');
     // 시간표에 지금 있는지와 무관하게, 실제 예약 데이터를 날짜 범위로 직접 조회 (시간표에서 삭제된 시간의 기존 예약도 계속 보이게)

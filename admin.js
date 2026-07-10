@@ -12876,14 +12876,19 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     const el = document.getElementById('pg-preview-list');
     if (!el) return;
     Promise.all([
-      db.ref('pilates_settings/bookingWindowDays').once('value'),
+      db.ref('pilates_settings/bookingWindowMonths').once('value'),
       db.ref('pilates_exceptions').once('value')
     ]).then(([winSnap, excSnap]) => {
-      const windowDays = winSnap.val() || 7;
+      const windowMonths = winSnap.val() != null ? winSnap.val() : 1;
+      const todayD = new Date();
+      // 이번달은 항상 오픈 + windowMonths개월 뒤까지 → 그 달의 마지막 날짜가 예약 가능 마지막 날
+      const windowEndD = new Date(todayD.getFullYear(), todayD.getMonth() + windowMonths + 1, 0);
+      const todayOnly = new Date(todayD.getFullYear(), todayD.getMonth(), todayD.getDate());
+      const totalDays = Math.round((windowEndD - todayOnly) / 86400000) + 1;
       const exceptions = excSnap.val() || {};
       const dayKeyByIndex = ['sun','mon','tue','wed','thu','fri','sat'];
       const items = [];
-      for (let i = 0; i < windowDays; i++) {
+      for (let i = 0; i < totalDays; i++) {
         const d = new Date();
         d.setDate(d.getDate() + i);
         const dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -13005,15 +13010,15 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   window.removePilatesTimeClosed = removePilatesTimeClosed;
 
   // ── ⚙️ 설정: 예약 가능 기간 + 예약/취소 마감 시간 + 잔여횟수 차감 방식 ──
-  // pilates_settings/{bookingWindowDays, bookingCutoffHours, cancelCutoffHours, deductMode} 값은
+  // pilates_settings/{bookingWindowMonths, bookingCutoffHours, cancelCutoffHours, deductMode} 값은
   // 3단계(회원 예약 기능) 구현 시 참조 예정
   function loadPilatesSettings() {
     db.ref('pilates_settings').once('value').then(snap => {
       const s = snap.val() || {};
-      const winEl    = document.getElementById('pgs-window-days');
+      const winEl    = document.getElementById('pgs-window-months');
       const bookEl   = document.getElementById('pgs-booking-cutoff');
       const cancelEl = document.getElementById('pgs-cancel-cutoff');
-      if (winEl)    winEl.value    = s.bookingWindowDays  != null ? s.bookingWindowDays  : 7;
+      if (winEl)    winEl.value    = s.bookingWindowMonths != null ? s.bookingWindowMonths : 1;
       if (bookEl)   bookEl.value   = s.bookingCutoffHours != null ? s.bookingCutoffHours : 4;
       if (cancelEl) cancelEl.value = s.cancelCutoffHours  != null ? s.cancelCutoffHours  : 24;
       renderPilatesDeductButtons(s.deductMode || 'auto');
@@ -13022,14 +13027,14 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   window.loadPilatesSettings = loadPilatesSettings;
 
   function savePilatesTimingSettings() {
-    const windowDays   = parseInt(document.getElementById('pgs-window-days').value);
+    const windowMonths  = parseInt(document.getElementById('pgs-window-months').value);
     const bookingCutoff = parseInt(document.getElementById('pgs-booking-cutoff').value);
     const cancelCutoff  = parseInt(document.getElementById('pgs-cancel-cutoff').value);
-    if (!windowDays || windowDays < 1) { showToast('예약 가능 기간은 1일 이상으로 입력해주세요.', 'error'); return; }
+    if (isNaN(windowMonths) || windowMonths < 0) { showToast('예약 가능 개월수는 0 이상으로 입력해주세요.', 'error'); return; }
     if (isNaN(bookingCutoff) || bookingCutoff < 0) { showToast('예약 마감 시간을 정확히 입력해주세요.', 'error'); return; }
     if (isNaN(cancelCutoff) || cancelCutoff < 0)  { showToast('취소 마감 시간을 정확히 입력해주세요.', 'error'); return; }
     db.ref('pilates_settings').update({
-      bookingWindowDays: windowDays,
+      bookingWindowMonths: windowMonths,
       bookingCutoffHours: bookingCutoff,
       cancelCutoffHours: cancelCutoff
     }).then(() => {
