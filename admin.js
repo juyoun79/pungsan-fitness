@@ -4843,7 +4843,7 @@
       db.ref('members/' + currentMemberPhone + '/pw').set(hashedPw).then(() => {
         localStorage.removeItem('pw_' + currentMemberPhone);
         showToast('비밀번호가 변경됐어요!', 'success');
-        closeMemberModal();
+        closeEditMemberModal();
       });
     });
   }
@@ -4872,8 +4872,9 @@
           const loggedIn = localStorage.getItem('current_user');
           if (loggedIn === currentMemberPhone && typeof updateStats === 'function') updateStats();
           showToast('포인트가 ' + pt + 'P로 변경됐어요.', 'success');
-          closeMemberModal();
+          closeEditMemberModal();
           loadMemberList();
+          openMemberModal(currentMemberPhone);
         });
       });
     });
@@ -4957,6 +4958,7 @@
               deletedAt: Date.now(),
               name: name
             });
+            closeEditMemberModal();
             closeMemberModal();
             loadMemberList();
             showToast('✅ ' + name + ' 회원이 삭제됐어요.', 'success');

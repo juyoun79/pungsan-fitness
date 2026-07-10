@@ -2762,13 +2762,6 @@
             </div>
           </div>
 
-          <!-- 액션 버튼 -->
-          <div style="background:var(--card);padding:16px;margin-bottom:8px;display:flex;flex-direction:column;gap:8px;" class="md-section-card">
-            <button onclick="editMemberPw()" style="width:100%;padding:11px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔑 비밀번호 초기화</button>
-            <button onclick="editMemberPoint()" style="width:100%;padding:11px;background:#f0fdf4;color:#16a34a;border:1.5px solid #86efac;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💰 포인트 수정</button>
-            <button onclick="deleteMember()" style="width:100%;padding:11px;background:#fff0f0;color:#c0392b;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑️ 회원 삭제</button>
-          </div>
-
         </div>
       </div>
 
@@ -5220,7 +5213,7 @@
   <div class="modal-overlay" id="edit-member-modal" style="z-index:300;">
     <div class="modal-sheet" style="overflow-y:auto;">
       <div class="modal-title">
-        <span>✏️ 회원정보 수정</span>
+        <span>⚙️ 회원 관리</span>
         <button class="modal-close" onclick="closeEditMemberModal()">×</button>
       </div>
 
@@ -5244,6 +5237,13 @@
       </div>
 
       <button class="btn-primary" onclick="saveEditMember()">✅ 수정 저장</button>
+
+      <!-- 계정 관리 액션 -->
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+        <button onclick="editMemberPw()" style="width:100%;padding:11px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔑 비밀번호 초기화</button>
+        <button onclick="editMemberPoint()" style="width:100%;padding:11px;background:#f0fdf4;color:#16a34a;border:1.5px solid #86efac;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💰 포인트 수정</button>
+        <button onclick="deleteMember()" style="width:100%;padding:11px;background:#fff0f0;color:#c0392b;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:8px;">🗑️ 회원 삭제</button>
+      </div>
     </div>
   </div>
 
