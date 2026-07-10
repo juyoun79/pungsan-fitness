@@ -623,9 +623,11 @@
       <div class="section-title">내 현황</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
         <!-- 회원권 현황 -->
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
+        <div onclick="openMembershipHistoryModal()" style="cursor:pointer;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
           <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">🎫 회원권 현황</div>
-          <div style="font-size:12px;color:var(--text-hint);font-style:italic;line-height:1.5;">업데이트<br/>예정</div>
+          <div id="home-membership-card">
+            <div style="font-size:12px;color:var(--text-hint);font-style:italic;line-height:1.5;">불러오는<br/>중...</div>
+          </div>
         </div>
         <!-- 개인수업 (PT/개인필라테스) -->
         <div style="background:#E6F1FB;border:1px solid #B5D4F4;border-radius:var(--radius);padding:12px;">
@@ -1431,6 +1433,19 @@
       </div>
       <div style="padding:20px;">
         <div id="my-coupon-list"><div style="text-align:center;padding:40px 20px;color:var(--text-hint);font-size:14px;">보유한 쿠폰이 없어요</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 회원권 이력 모달 (회원 홈 - 회원권현황 카드 탭) -->
+  <div class="modal-overlay" id="membership-history-modal">
+    <div class="modal-sheet" style="overflow-y:auto;">
+      <div class="modal-title">
+        <span>🎫 회원권 이력</span>
+        <button class="modal-close" onclick="closeMembershipHistoryModal()">×</button>
+      </div>
+      <div id="membership-history-list">
+        <div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>
       </div>
     </div>
   </div>
@@ -7055,6 +7070,76 @@
   }
 
   // ── 생년월일로 나이 계산 ──
+  // 홈화면 회원권현황 카드 로드 — 헬스/GX/PT/기구필라테스 등 활성 계약 항목의 D-day 계산 (관리자 회원상세와 동일 로직 재사용)
+  let _homeMembershipCards = [];
+  function loadHomeMembershipCard(phone) {
+    const cardEl = document.getElementById('home-membership-card');
+    if (!phone) return;
+    db.ref('contracts/' + phone).once('value').then(snap => {
+      const periodCards = [];
+      snap.forEach(cSnap => {
+        const c = cSnap.val();
+        _flattenContractItems(c).forEach(it => {
+          if (!REFUND_PROG_NAMES[it.progKey]) return;
+          if (!_isItemEligible(it.data)) return;
+          const onHold = _isActivelyOnHold(it.data);
+          const endDate = onHold ? it.data.activeHold.newEndDate : it.data.endDate;
+          if (!endDate) return;
+          const remainDays = _daysUntil(endDate);
+          if (remainDays === null) return;
+          periodCards.push({
+            label: (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : ''),
+            endDate, remainDays, onHold,
+            signDate: c.signDate || cSnap.key
+          });
+        });
+      });
+      _homeMembershipCards = periodCards;
+      if (!cardEl) return;
+      const active = periodCards.filter(p => p.remainDays >= 0).sort((a, b) => a.remainDays - b.remainDays);
+      if (!active.length) {
+        cardEl.innerHTML = '<div style="font-size:12px;color:var(--text-hint);">이용중인<br/>회원권 없음</div>';
+        return;
+      }
+      cardEl.innerHTML = active.slice(0, 2).map(p => `
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+          <span style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:56px;">${p.label}</span>
+          <span style="font-size:14px;font-weight:700;color:var(--blue);white-space:nowrap;">D-${p.remainDays}</span>
+        </div>`).join('');
+    });
+  }
+  window.loadHomeMembershipCard = loadHomeMembershipCard;
+
+  // 회원권 이력 팝업 — 최근 등록 순으로 전체 표시
+  function openMembershipHistoryModal() {
+    const modal = document.getElementById('membership-history-modal');
+    const listEl = document.getElementById('membership-history-list');
+    if (modal) modal.classList.add('active');
+    if (!listEl) return;
+    if (!_homeMembershipCards.length) {
+      listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">등록된 회원권 이력이 없어요</div>';
+      return;
+    }
+    const sorted = [..._homeMembershipCards].sort((a, b) => String(b.signDate).localeCompare(String(a.signDate)));
+    listEl.innerHTML = sorted.map(p => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);">
+        <div>
+          <div style="font-size:13.5px;font-weight:700;color:var(--text);">${p.label}${p.onHold ? ' <span style="font-size:10px;font-weight:600;color:var(--text-hint);">(휴회중)</span>' : ''}</div>
+          <div style="font-size:11.5px;color:var(--text-hint);margin-top:2px;">~${p.endDate}</div>
+        </div>
+        ${p.remainDays >= 0
+          ? `<div style="font-size:14px;font-weight:700;color:var(--blue);white-space:nowrap;">D-${p.remainDays}</div>`
+          : `<div style="font-size:12px;font-weight:700;color:#e24b4a;white-space:nowrap;">만료됨</div>`}
+      </div>`).join('');
+  }
+  window.openMembershipHistoryModal = openMembershipHistoryModal;
+
+  function closeMembershipHistoryModal() {
+    const modal = document.getElementById('membership-history-modal');
+    if (modal) modal.classList.remove('active');
+  }
+  window.closeMembershipHistoryModal = closeMembershipHistoryModal;
+
   // 홈화면 수업현황 카드 로드
   function loadHomePtCard(trainerId, userId) {
     if (!trainerId || !userId) return;
@@ -7989,6 +8074,7 @@
       loadHomeNotices();
       loadHomeWeightCard();
       loadHomePilatesCard(userId);
+      loadHomeMembershipCard(userId);
     }
     // trainerId 없는 회원 자동 보정 + 홈 수업현황 카드 로드
     if (!isTrainer) {
