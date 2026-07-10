@@ -1418,9 +1418,18 @@
 
   function _calcAgeFromBirthAdmin(birth) {
     if (!birth) return null;
-    const m = String(birth).match(/(\d{4})[-.](\d{1,2})[-.](\d{1,2})/);
-    if (!m) return null;
-    const birthDate = new Date(+m[1], +m[2] - 1, +m[3]);
+    const str = String(birth);
+    let y, mo, d;
+    const withSep = str.match(/(\d{4})[-.](\d{1,2})[-.](\d{1,2})/);
+    if (withSep) {
+      y = +withSep[1]; mo = +withSep[2]; d = +withSep[3];
+    } else if (/^\d{8}$/.test(str)) {
+      // 회원등록/수정 화면에서 실제로 쓰는 형식 (예: "19900101")
+      y = +str.slice(0, 4); mo = +str.slice(4, 6); d = +str.slice(6, 8);
+    } else {
+      return null;
+    }
+    const birthDate = new Date(y, mo - 1, d);
     const today = new Date();
     let age = today.getFullYear() - birthDate.getFullYear();
     const md = today.getMonth() - birthDate.getMonth();
