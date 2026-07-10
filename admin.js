@@ -1735,6 +1735,19 @@
 
   function searchMembers(query) { loadMemberList(query); }
 
+  // 검색창 + 모든 드롭다운 필터(프로그램/상태/결제/락카/성별/연령대/잔여횟수/미출석기간/미수금/날짜범위) 한번에 초기화
+  function resetMemberSearch() {
+    const input = document.getElementById('member-search');
+    if (input) input.value = '';
+    _memberFilters = {
+      program: 'all', status: 'all', payment: 'all', locker: 'all', sort: 'none',
+      gender: 'all', dateBasis: 'none', dateStart: '', dateEnd: '',
+      remainMax: 'all', attendGap: 'all', unpaidMin: '', ageBand: 'all'
+    };
+    loadMemberList('');
+  }
+  window.resetMemberSearch = resetMemberSearch;
+
   // ── 회원 상세 모달 ──
   function openMemberModal(phone) {
     currentMemberPhone = phone;

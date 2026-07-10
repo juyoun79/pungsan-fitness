@@ -347,8 +347,10 @@
   .stat-mini-val { font-size:16px; font-weight:700; color:var(--blue); }
   .stat-mini-label { font-size:11px; color:var(--text-hint); margin-top:2px; }
   .search-bar { display:flex; gap:8px; margin-bottom:14px; }
-  .search-bar input { flex:1; padding:10px 12px; border:1.5px solid var(--border); border-radius:var(--radius-sm); font-size:14px; font-family:'Noto Sans KR',sans-serif; outline:none; }
+  .search-bar input { flex:1; max-width:220px; padding:10px 12px; border:1.5px solid var(--border); border-radius:var(--radius-sm); font-size:14px; font-family:'Noto Sans KR',sans-serif; outline:none; }
   .search-bar input:focus { border-color:var(--blue); }
+  .search-bar-reset { flex-shrink:0; padding:0 14px; border:1.5px solid var(--border); border-radius:var(--radius-sm); background:var(--card); color:var(--text-sub); font-size:13px; font-weight:600; cursor:pointer; font-family:'Noto Sans KR',sans-serif; white-space:nowrap; }
+  .search-bar-reset:active { background:var(--bg); }
   .btn-sm { padding:8px 14px; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; font-family:'Noto Sans KR',sans-serif; }
   .btn-blue-sm { background:var(--blue); color:white; }
   .btn-red-sm { background:#fee2e2; color:#ef4444; }
