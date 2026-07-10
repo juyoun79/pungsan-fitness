@@ -12382,7 +12382,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   }
 
   // 시간대별 예약카드 HTML — 관리자 예약현황/강사 그룹수업 화면 공용
-  function _pgBuildSlotCardHtml(prefix, time, classId, capacity, bookings, timeClosed, isOrphan, deductMode) {
+  function _pgBuildSlotCardHtml(prefix, time, classId, capacity, bookings, timeClosed, isOrphan, deductMode, waitlist) {
     const memberRows = Object.keys(bookings).map(uid => {
       const b = bookings[uid];
       const attended = !!b.attended;
@@ -12403,13 +12403,24 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       </div>`;
     }).join('') || '<div style="font-size:12px;color:var(--text-hint);padding:6px 0;">예약자 없음</div>';
 
+    const waitEntries = Object.entries(waitlist || {}).sort((a, b) => (a[1].waitAt || 0) - (b[1].waitAt || 0));
+    const waitRows = waitEntries.map(([uid, w], i) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:12px;color:var(--text-sub);">⏳ 대기 ${i + 1}번째 · ${w.name || uid}</span>
+        <button onclick="adminCancelPilatesWaitlist('${classId}','${uid}')" style="padding:4px 8px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-hint);font-size:10.5px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+      </div>`).join('');
+    const waitSection = waitEntries.length
+      ? `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);">${waitRows}</div>`
+      : '';
+
     return `
       <div class="admin-card" style="margin-top:0;${isOrphan ? 'border:1.5px solid #e24b4a;' : ''}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <div class="admin-card-title" style="margin:0;">${time}${timeClosed ? ' (닫힘)' : ''}${isOrphan ? ' <span style="font-size:11px;color:#e24b4a;font-weight:700;">· 시간표에서 삭제된 시간이에요</span>' : ''}</div>
-          <span style="font-size:12px;color:var(--text-hint);">${Object.keys(bookings).length} / ${capacity}명</span>
+          <span style="font-size:12px;color:var(--text-hint);">${Object.keys(bookings).length} / ${capacity}명${waitEntries.length ? ' · 대기 ' + waitEntries.length + '명' : ''}</span>
         </div>
         ${memberRows}
+        ${waitSection}
         <input id="${prefix}-add-${classId}" type="text" placeholder="회원 이름 검색해서 대신 예약 추가" oninput="onSlotAddSearchInput('${prefix}','${classId}')"
           style="width:100%;box-sizing:border-box;margin-top:10px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:'Noto Sans KR',sans-serif;">
         <div id="${prefix}-add-result-${classId}" style="display:none;border:1px solid var(--border);border-radius:8px;margin-top:6px;max-height:160px;overflow-y:auto;"></div>
@@ -12466,9 +12477,10 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         const classId = actual ? actual.classId : _pgClassId(dateStr, time);
         const capacity = (actual && actual.data.capacity) || (templateSlot ? templateSlot.capacity : 5);
         const bookings = (actual && actual.data.bookings) || {};
+        const waitlist = (actual && actual.data.waitlist) || {};
         const isOrphan = !templateSlot; // 시간표에서 이미 삭제됐는데 예약기록은 남아있는 시간
         const timeClosed = exc.fullClosed || (exc.closedTimes && exc.closedTimes[time]);
-        return _pgBuildSlotCardHtml('pgr', time, classId, capacity, bookings, timeClosed, isOrphan, deductMode);
+        return _pgBuildSlotCardHtml('pgr', time, classId, capacity, bookings, timeClosed, isOrphan, deductMode, waitlist);
       }).join('');
     });
   }
@@ -12593,6 +12605,9 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
             : Promise.resolve();
           restore.then(() => {
             showToast('취소됐어요.', 'success');
+            const dateStr = classId.slice(0, 4) + '-' + classId.slice(4, 6) + '-' + classId.slice(6, 8);
+            const time = classId.slice(9, 11) + ':' + classId.slice(11, 13);
+            if (typeof _pgSharedPromoteWaitlist === 'function') _pgSharedPromoteWaitlist(classId, dateStr, time);
             _pgRefreshActiveView();
           });
         });
@@ -12600,6 +12615,16 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     });
   }
   window.adminCancelPilatesBooking = adminCancelPilatesBooking;
+
+  function adminCancelPilatesWaitlist(classId, memberId) {
+    showConfirm('이 대기 신청을 취소할까요?', () => {
+      db.ref('pilates_classes/' + classId + '/waitlist/' + memberId).remove().then(() => {
+        showToast('대기가 취소됐어요.', 'success');
+        _pgRefreshActiveView();
+      });
+    });
+  }
+  window.adminCancelPilatesWaitlist = adminCancelPilatesWaitlist;
 
   function adminMarkPilatesAttended(classId, memberId) {
     db.ref('pilates_classes/' + classId + '/bookings/' + memberId).once('value').then(bSnap => {
@@ -12733,9 +12758,10 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         const classId = actual ? actual.classId : _pgClassId(dateStr, time);
         const capacity = (actual && actual.data.capacity) || (templateSlot ? templateSlot.capacity : 5);
         const bookings = (actual && actual.data.bookings) || {};
+        const waitlist = (actual && actual.data.waitlist) || {};
         const isOrphan = !templateSlot;
         const timeClosed = exc.fullClosed || (exc.closedTimes && exc.closedTimes[time]);
-        return _pgBuildSlotCardHtml('th-pg', time, classId, capacity, bookings, timeClosed, isOrphan, deductMode);
+        return _pgBuildSlotCardHtml('th-pg', time, classId, capacity, bookings, timeClosed, isOrphan, deductMode, waitlist);
       }).join('');
     });
   }
