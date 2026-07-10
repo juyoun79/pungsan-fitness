@@ -1814,16 +1814,6 @@
     const mdEditAddress = document.getElementById('md-edit-address');
     if (mdEditAddress) mdEditAddress.value = info.address || '';
 
-    // 프로그램 태그
-    const progWrap = document.getElementById('md-programs');
-    if (info.programs && info.programs.length > 0) {
-      progWrap.innerHTML = info.programs.map(p =>
-        `<span style="background:var(--blue-light);color:var(--blue);font-size:12px;padding:3px 8px;border-radius:8px;font-weight:600;">${p}</span>`
-      ).join('');
-    } else {
-      progWrap.innerHTML = '<span style="font-size:12px;color:var(--text-hint);">-</span>';
-    }
-
     // 사진
     const photoDiv = document.getElementById('md-photo');
     const mdDelBtn = document.getElementById('md-photo-delete-btn');
@@ -4745,10 +4735,6 @@
     const info = cachedMembers[phone];
     if (!info) return;
     document.getElementById('edit-member-phone').value = phone;
-    // 프로그램 체크박스 초기화
-    document.querySelectorAll('#edit-member-programs input').forEach(cb => {
-      cb.checked = info.programs && info.programs.includes(cb.value);
-    });
     // 닉네임 불러오기 (Firebase에서)
     const nickEl = document.getElementById('edit-member-nickname');
     if (nickEl) nickEl.value = '';
@@ -4765,7 +4751,6 @@
   function saveEditMember() {
     const newPhone    = document.getElementById('edit-member-phone').value.trim().replace(/-/g, '');
     const newNickname = (document.getElementById('edit-member-nickname')?.value || '').trim();
-    const programs    = [...document.querySelectorAll('#edit-member-programs input:checked')].map(el => el.value);
     const oldPhone    = currentMemberPhone;
     const info        = cachedMembers[oldPhone];
     const oldNickname = info.nickname || '';
@@ -4792,7 +4777,7 @@
     };
 
     const doSave = () => {
-      const updateData = { programs };
+      const updateData = {};
       if (newNickname) updateData.nickname = newNickname;
 
       if (phoneChanged) {

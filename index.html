@@ -2632,7 +2632,6 @@
                 </div>
                 <div id="md-phone" style="font-size:14px;font-weight:600;color:var(--text-sub);margin-top:3px;"></div>
                 <div id="md-nick" style="font-size:12px;color:var(--text-sub);margin:3px 0 8px;"></div>
-                <div id="md-programs" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
               </div>
             </div>
             <!-- 프로필 사진 변경/삭제 (회원상세 전용, 계약서탭 사진기능과는 완전히 분리된 코드) -->
@@ -5242,25 +5241,6 @@
           style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:6px;"
           onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'" />
         <div style="font-size:11px;color:var(--text-hint);margin-top:4px;">커뮤니티에 표시되는 이름이에요 · 2~6자, 한글/영문/숫자만 가능</div>
-      </div>
-
-      <!-- 수강 프로그램 -->
-      <div style="margin-bottom:20px;">
-        <label class="field-label">수강 프로그램</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;" id="edit-member-programs">
-          <label style="display:flex;align-items:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="checkbox" value="헬스" style="accent-color:var(--blue);"> 헬스
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="checkbox" value="PT" style="accent-color:var(--blue);"> PT
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="checkbox" value="GX" style="accent-color:var(--blue);"> GX
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;padding:10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="checkbox" value="기구필라테스" style="accent-color:var(--blue);"> 기구필라테스
-          </label>
-        </div>
       </div>
 
       <button class="btn-primary" onclick="saveEditMember()">✅ 수정 저장</button>
