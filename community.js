@@ -603,6 +603,7 @@
         loadHomeNotices();
         loadNotifications();
         loadHomeWeightCard();
+        if (typeof refreshMemberHomeCards === 'function') refreshMemberHomeCards(uid);
       }
       // 캐시된 알림 즉시 렌더링
       if (window._cachedNotifList) {

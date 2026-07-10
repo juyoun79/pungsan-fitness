@@ -8198,31 +8198,7 @@
       if (typeof updateStats === 'function') updateStats();
       loadHomeNotices();
       loadHomeWeightCard();
-      loadHomePilatesCard(userId);
-      loadHomeMembershipCard(userId);
-    }
-    // trainerId 없는 회원 자동 보정 + 홈 수업현황 카드 로드
-    if (!isTrainer) {
-      db.ref('members/' + userId + '/trainerId').once('value', tidSnap => {
-        if (!tidSnap.exists()) {
-          // trainers 전체 순회해서 이 회원이 있는 강사 찾기
-          let found = false;
-          db.ref('trainers').once('value', tSnap => {
-            tSnap.forEach(trainerChild => {
-              const tid = trainerChild.key;
-              const trainee = trainerChild.child('trainees/' + userId);
-              if (trainee.exists()) {
-                found = true;
-                db.ref('members/' + userId + '/trainerId').set(tid);
-                loadHomePtCard(tid, userId);
-              }
-            });
-            if (!found) _markPtPendingAssignment();
-          });
-        } else {
-          loadHomePtCard(tidSnap.val(), userId);
-        }
-      });
+      refreshMemberHomeCards(userId);
     }
     // 자동 쿠폰 조건 체크
     if (typeof checkAutoCoupons === 'function') checkAutoCoupons(localStorage.getItem('current_user'));
@@ -8306,6 +8282,35 @@
       setTimeout(() => showNoticePopup(userId), 300);
     }
   }
+
+  // 회원 홈화면의 개인수업/회원권현황/그룹필라테스 카드를 새로고침 (로그인 시 + 홈탭 재진입 시 공용)
+  function refreshMemberHomeCards(userId) {
+    if (!userId) return;
+    loadHomePilatesCard(userId);
+    loadHomeMembershipCard(userId);
+    // trainerId 없는 회원 자동 보정 + 홈 수업현황 카드 로드
+    db.ref('members/' + userId + '/trainerId').once('value', tidSnap => {
+      if (!tidSnap.exists()) {
+        // trainers 전체 순회해서 이 회원이 있는 강사 찾기
+        let found = false;
+        db.ref('trainers').once('value', tSnap => {
+          tSnap.forEach(trainerChild => {
+            const tid = trainerChild.key;
+            const trainee = trainerChild.child('trainees/' + userId);
+            if (trainee.exists()) {
+              found = true;
+              db.ref('members/' + userId + '/trainerId').set(tid);
+              loadHomePtCard(tid, userId);
+            }
+          });
+          if (!found) _markPtPendingAssignment();
+        });
+      } else {
+        loadHomePtCard(tidSnap.val(), userId);
+      }
+    });
+  }
+  window.refreshMemberHomeCards = refreshMemberHomeCards;
 
   // ── 화면 전환 ──
   function showScreen(id) {
