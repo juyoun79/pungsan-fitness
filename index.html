@@ -4117,12 +4117,10 @@
             <div id="pge-selected-date-label" style="margin-bottom:10px;font-size:13px;font-weight:700;color:var(--text);"></div>
             <button onclick="setPilatesFullClosed()"
               style="width:100%;padding:11px;background:#e24b4a;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:14px;">이 날짜 전체 휴무로 설정 (공휴일 등)</button>
-            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">특정 시간대만 닫기 (예: 10:00)</div>
-            <div style="display:flex;gap:8px;">
-              <input id="pge-time" type="time" style="flex:1;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
-              <button onclick="setPilatesTimeClosed()"
-                style="padding:9px 16px;background:var(--card);border:1.5px solid var(--border);color:var(--text);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">이 시간만 닫기</button>
-            </div>
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">특정 시간대만 닫기 (여러 개 선택 가능)</div>
+            <div id="pge-time-checkboxes" style="margin-bottom:10px;"></div>
+            <button onclick="closeCheckedPilatesTimes()"
+              style="width:100%;padding:11px;background:var(--card);border:1.5px solid var(--border);color:var(--text);border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">선택한 시간 닫기</button>
           </div>
           <div class="admin-card" style="margin-top:0;">
             <div class="admin-card-title">📋 등록된 휴무 목록</div>

@@ -12178,6 +12178,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       renderPgeCalendar();
       updatePgeSelectedDateLabel();
       loadPilatesExceptionList();
+      renderPgeTimeCheckboxes();
     }
     if (tab === 'reservations') {
       if (!_pgrSelectedDate) { _pgrSelectedDate = _pgTodayISO(); const t = new Date(); _pgrCalMonth = { year: t.getFullYear(), month: t.getMonth() }; }
@@ -12281,6 +12282,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     _pgeSelectedDate = dateStr;
     renderPgeCalendar();
     updatePgeSelectedDateLabel();
+    renderPgeTimeCheckboxes();
   }
   window.selectPgeDate = selectPgeDate;
 
@@ -12951,27 +12953,70 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       db.ref('pilates_exceptions/' + date + '/fullClosed').set(true).then(() => {
         showToast('✅ 휴무로 설정됐어요.', 'success');
         loadPilatesExceptionList();
+        renderPgeTimeCheckboxes();
       });
     });
   }
   window.setPilatesFullClosed = setPilatesFullClosed;
 
-  function setPilatesTimeClosed() {
-    const date = _pgeSelectedDate;
-    const time = document.getElementById('pge-time').value;
-    if (!date) { showToast('날짜를 선택해주세요.', 'error'); return; }
-    if (!time) { showToast('시간을 선택해주세요.', 'error'); return; }
-    db.ref('pilates_exceptions/' + date + '/closedTimes/' + time).set(true).then(() => {
-      showToast('✅ 해당 시간대가 닫혔어요.', 'success');
-      loadPilatesExceptionList();
+  // 선택한 날짜의 실제 수업시간 목록을 체크박스로 보여줌 (직접 시간 입력 대신 목록에서 골라서 닫기)
+  function renderPgeTimeCheckboxes() {
+    const el = document.getElementById('pge-time-checkboxes');
+    if (!el || !_pgeSelectedDate) return;
+    el.innerHTML = '<div style="text-align:center;padding:10px;color:var(--text-hint);font-size:12px;">불러오는 중...</div>';
+    Promise.all([
+      db.ref('pilates_settings/weeklySchedule').once('value'),
+      db.ref('pilates_exceptions/' + _pgeSelectedDate).once('value')
+    ]).then(([schedSnap, excSnap]) => {
+      const sched = schedSnap.val() || {};
+      const exc = excSnap.val() || {};
+      if (exc.fullClosed) {
+        el.innerHTML = '<div style="text-align:center;padding:10px;color:var(--text-hint);font-size:12px;">이 날은 전체 휴무로 설정돼 있어요</div>';
+        return;
+      }
+      const closedTimes = exc.closedTimes || {};
+      const d = new Date(_pgeSelectedDate + 'T00:00:00');
+      const dayKey = PG_WEEKDAY_BY_INDEX[d.getDay()];
+      const daySlots = sched[dayKey];
+      const slots = Array.isArray(daySlots) ? daySlots : (daySlots ? Object.values(daySlots) : []);
+      if (!slots.length) {
+        el.innerHTML = '<div style="text-align:center;padding:10px;color:var(--text-hint);font-size:12px;">이 요일엔 열리는 수업이 없어요</div>';
+        return;
+      }
+      const sortedSlots = [...slots].sort((a, b) => a.time.localeCompare(b.time));
+      el.innerHTML = sortedSlots.map(s => {
+        const isClosed = !!closedTimes[s.time];
+        return `
+          <label style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);${isClosed ? 'opacity:0.5;' : 'cursor:pointer;'}">
+            <input type="checkbox" value="${s.time}" ${isClosed ? 'disabled' : ''} style="accent-color:var(--blue);width:16px;height:16px;">
+            <span style="font-size:13px;color:var(--text);">${s.time}${isClosed ? ' · 이미 닫힘' : ''}</span>
+          </label>`;
+      }).join('');
     });
   }
-  window.setPilatesTimeClosed = setPilatesTimeClosed;
+  window.renderPgeTimeCheckboxes = renderPgeTimeCheckboxes;
+
+  // 체크된 시간대를 한번에 닫기 (여러 개 동시 선택 가능)
+  function closeCheckedPilatesTimes() {
+    const date = _pgeSelectedDate;
+    if (!date) { showToast('날짜를 선택해주세요.', 'error'); return; }
+    const checked = [...document.querySelectorAll('#pge-time-checkboxes input:checked')].map(el => el.value);
+    if (!checked.length) { showToast('닫을 시간을 선택해주세요.', 'error'); return; }
+    const updates = {};
+    checked.forEach(t => { updates['pilates_exceptions/' + date + '/closedTimes/' + t] = true; });
+    db.ref().update(updates).then(() => {
+      showToast('✅ 선택한 시간이 닫혔어요.', 'success');
+      loadPilatesExceptionList();
+      renderPgeTimeCheckboxes();
+    });
+  }
+  window.closeCheckedPilatesTimes = closeCheckedPilatesTimes;
 
   function removePilatesFullClosed(date) {
     db.ref('pilates_exceptions/' + date + '/fullClosed').remove().then(() => {
       showToast('복구됐어요.', 'success');
       loadPilatesExceptionList();
+      renderPgeTimeCheckboxes();
     });
   }
   window.removePilatesFullClosed = removePilatesFullClosed;
@@ -12980,6 +13025,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     db.ref('pilates_exceptions/' + date + '/closedTimes/' + time).remove().then(() => {
       showToast('복구됐어요.', 'success');
       loadPilatesExceptionList();
+      renderPgeTimeCheckboxes();
     });
   }
   window.removePilatesTimeClosed = removePilatesTimeClosed;
