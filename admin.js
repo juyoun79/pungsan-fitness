@@ -12508,7 +12508,10 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   function adminAddPilatesBooking(classId, memberId, memberName) {
     const dateStr = classId.slice(0, 4) + '-' + classId.slice(4, 6) + '-' + classId.slice(6, 8);
     const time = classId.slice(9, 11) + ':' + classId.slice(11, 13);
-    db.ref('pilates_settings').once('value').then(setSnap => {
+    Promise.all([
+      db.ref('pilates_settings').once('value'),
+      db.ref('pilates_classes/' + classId).once('value')
+    ]).then(([setSnap, clsSnap]) => {
       const s = setSnap.val() || {};
       const deductMode = s.deductMode || 'auto';
       const d = new Date(dateStr + 'T00:00:00');
@@ -12516,7 +12519,19 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       const sched = s.weeklySchedule || {};
       const slots = Array.isArray(sched[dayKey]) ? sched[dayKey] : (sched[dayKey] ? Object.values(sched[dayKey]) : []);
       const slot = slots.find(sl => sl.time === time);
-      const capacity = slot ? slot.capacity : 5;
+      const cls = clsSnap.val();
+      const capacity = (cls && cls.capacity) || (slot ? slot.capacity : 5);
+      const bookings = (cls && cls.bookings) || {};
+
+      if (bookings[memberId]) { showToast('이미 예약돼있는 회원이에요.', 'error'); return; }
+
+      // 정원이 이미 다 찼으면 예약 시도 대신 대기명단 추가를 제안
+      if (Object.keys(bookings).length >= capacity) {
+        showConfirm('정원이 다 찼어요. 대기명단에 추가할까요?', () => {
+          adminAddPilatesWaitlist(classId, memberId, memberName);
+        });
+        return;
+      }
 
       if (deductMode === 'auto') {
         // 잔여횟수 확인+차감을 하나의 트랜잭션으로 묶어서, 같은 순간 회원이 직접 예약해도 이중 차감되지 않게 함
@@ -12534,6 +12549,22 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     });
   }
   window.adminAddPilatesBooking = adminAddPilatesBooking;
+
+  // 관리자/강사가 회원을 대신 대기명단에 추가 (정원 다 찼을 때) — 잔여횟수 없는 회원은 추가 불가
+  function adminAddPilatesWaitlist(classId, memberId, memberName) {
+    db.ref('pilates_classes/' + classId + '/waitlist/' + memberId).once('value').then(wSnap => {
+      if (wSnap.val()) { showToast('이미 대기 중인 회원이에요.', 'error'); return; }
+      db.ref('pilates_group/' + memberId).once('value').then(pgSnap => {
+        const pg = pgSnap.val() || { remain: 0 };
+        if ((pg.remain || 0) <= 0) { showToast('이 회원은 잔여횟수가 없어서 대기 추가가 안 돼요.', 'error'); return; }
+        db.ref('pilates_classes/' + classId + '/waitlist/' + memberId).set({ name: memberName, waitAt: Date.now() }).then(() => {
+          showToast('✅ 대기명단에 추가됐어요!', 'success');
+          _pgRefreshActiveView();
+        });
+      });
+    });
+  }
+  window.adminAddPilatesWaitlist = adminAddPilatesWaitlist;
 
   function _adminTryAddPilatesBooking(classId, dateStr, time, capacity, memberId, memberName, wasDeducted) {
     db.ref('pilates_classes/' + classId).transaction(curr => {
