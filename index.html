@@ -4115,6 +4115,9 @@
             </div>
             <div id="pge-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:8px;"></div>
             <div id="pge-selected-date-label" style="margin-bottom:10px;font-size:13px;font-weight:700;color:var(--text);"></div>
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">사유 (선택, 비워두면 "휴강"으로 저장)</div>
+            <input id="pge-reason" type="text" placeholder="예: 개인사정, 강사 부재"
+              style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;">
             <button onclick="setPilatesFullClosed()"
               style="width:100%;padding:11px;background:#e24b4a;color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:14px;">이 날짜 전체 휴무로 설정 (공휴일 등)</button>
             <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">특정 시간대만 닫기 (여러 개 선택 가능)</div>
@@ -7394,7 +7397,8 @@
     const exc = _pgbExceptions[dateStr] || {};
     const slots = _pgbSchedule[dayKey] || [];
     if (exc.fullClosed || !slots.length) {
-      el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">' + (exc.fullClosed ? '이 날은 휴무예요' : '열리는 수업이 없어요') + '</div>';
+      const reason = (exc.fullClosed && typeof exc.fullClosed === 'object' ? exc.fullClosed.reason : null) || '휴강';
+      el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">' + (exc.fullClosed ? '이 날은 ' + reason + '이에요' : '열리는 수업이 없어요') + '</div>';
       return;
     }
     el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
@@ -7420,7 +7424,7 @@
         let statusLabel = bookedCount + ' / ' + capacity + '명';
         let btnLabel = '예약', disabled = false;
         let action = "bookPilatesClass('" + dateStr + "','" + s.time + "'," + capacity + ")";
-        if (timeClosed) { statusLabel = '휴무'; btnLabel = '마감'; disabled = true; }
+        if (timeClosed) { statusLabel = (typeof timeClosed === 'object' ? timeClosed.reason : null) || '휴강'; btnLabel = '마감'; disabled = true; }
         else if (alreadyBooked) { btnLabel = '예약완료'; disabled = true; }
         else if (alreadyWaiting) { statusLabel = '대기 ' + (myWaitIdx + 1) + '번째'; btnLabel = '대기취소'; action = "cancelPilatesWaitlist('" + dateStr + "','" + s.time + "')"; }
         else if (pastCutoff) { statusLabel = isFull ? '마감' : statusLabel; btnLabel = '마감'; disabled = true; }

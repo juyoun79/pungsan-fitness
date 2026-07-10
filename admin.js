@@ -12925,17 +12925,20 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       el.innerHTML = list.map(item => {
         const rows = [];
         if (item.val.fullClosed) {
+          const reason = (typeof item.val.fullClosed === 'object' ? item.val.fullClosed.reason : null) || '휴강';
           rows.push(`
             <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;">
-              <span style="font-size:13px;color:var(--text);">${item.date} · <span style="color:#e24b4a;font-weight:700;">전체 휴무</span></span>
+              <span style="font-size:13px;color:var(--text);">${item.date} · <span style="color:#e24b4a;font-weight:700;">전체 휴무 (${reason})</span></span>
               <button onclick="removePilatesFullClosed('${item.date}')" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">복구</button>
             </div>`);
         }
         if (item.val.closedTimes) {
           Object.keys(item.val.closedTimes).forEach(t => {
+            const v = item.val.closedTimes[t];
+            const reason = (typeof v === 'object' ? v.reason : null) || '휴강';
             rows.push(`
               <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;">
-                <span style="font-size:13px;color:var(--text);">${item.date} ${t} · <span style="color:#e24b4a;font-weight:700;">닫힘</span></span>
+                <span style="font-size:13px;color:var(--text);">${item.date} ${t} · <span style="color:#e24b4a;font-weight:700;">${reason}</span></span>
                 <button onclick="removePilatesTimeClosed('${item.date}','${t}')" style="padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:11px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">복구</button>
               </div>`);
           });
@@ -12949,8 +12952,9 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   function setPilatesFullClosed() {
     const date = _pgeSelectedDate;
     if (!date) { showToast('날짜를 선택해주세요.', 'error'); return; }
+    const reason = (document.getElementById('pge-reason').value || '').trim() || '휴강';
     showConfirm(date + ' 전체를 휴무로 설정할까요?', () => {
-      db.ref('pilates_exceptions/' + date + '/fullClosed').set(true).then(() => {
+      db.ref('pilates_exceptions/' + date + '/fullClosed').set({ reason }).then(() => {
         showToast('✅ 휴무로 설정됐어요.', 'success');
         loadPilatesExceptionList();
         renderPgeTimeCheckboxes();
@@ -12971,7 +12975,8 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       const sched = schedSnap.val() || {};
       const exc = excSnap.val() || {};
       if (exc.fullClosed) {
-        el.innerHTML = '<div style="text-align:center;padding:10px;color:var(--text-hint);font-size:12px;">이 날은 전체 휴무로 설정돼 있어요</div>';
+        const reason = (typeof exc.fullClosed === 'object' ? exc.fullClosed.reason : null) || '휴강';
+        el.innerHTML = '<div style="text-align:center;padding:10px;color:var(--text-hint);font-size:12px;">이 날은 전체 휴무(' + reason + ')로 설정돼 있어요</div>';
         return;
       }
       const closedTimes = exc.closedTimes || {};
@@ -12985,11 +12990,13 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       }
       const sortedSlots = [...slots].sort((a, b) => a.time.localeCompare(b.time));
       el.innerHTML = sortedSlots.map(s => {
-        const isClosed = !!closedTimes[s.time];
+        const closedVal = closedTimes[s.time];
+        const isClosed = !!closedVal;
+        const reason = (isClosed && typeof closedVal === 'object' ? closedVal.reason : null) || '휴강';
         return `
           <label style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);${isClosed ? 'opacity:0.5;' : 'cursor:pointer;'}">
             <input type="checkbox" value="${s.time}" ${isClosed ? 'disabled' : ''} style="accent-color:var(--blue);width:16px;height:16px;">
-            <span style="font-size:13px;color:var(--text);">${s.time}${isClosed ? ' · 이미 닫힘' : ''}</span>
+            <span style="font-size:13px;color:var(--text);">${s.time}${isClosed ? ' · ' + reason : ''}</span>
           </label>`;
       }).join('');
     });
@@ -13002,8 +13009,9 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     if (!date) { showToast('날짜를 선택해주세요.', 'error'); return; }
     const checked = [...document.querySelectorAll('#pge-time-checkboxes input:checked')].map(el => el.value);
     if (!checked.length) { showToast('닫을 시간을 선택해주세요.', 'error'); return; }
+    const reason = (document.getElementById('pge-reason').value || '').trim() || '휴강';
     const updates = {};
-    checked.forEach(t => { updates['pilates_exceptions/' + date + '/closedTimes/' + t] = true; });
+    checked.forEach(t => { updates['pilates_exceptions/' + date + '/closedTimes/' + t] = { reason }; });
     db.ref().update(updates).then(() => {
       showToast('✅ 선택한 시간이 닫혔어요.', 'success');
       loadPilatesExceptionList();
