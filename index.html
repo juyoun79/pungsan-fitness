@@ -630,7 +630,7 @@
           </div>
         </div>
         <!-- 개인수업 (PT/개인필라테스) -->
-        <div style="background:#E6F1FB;border:1px solid #B5D4F4;border-radius:var(--radius);padding:12px;">
+        <div onclick="openPtHistoryModal()" style="cursor:pointer;min-width:0;background:#E6F1FB;border:1px solid #B5D4F4;border-radius:var(--radius);padding:12px;">
           <div style="font-size:11px;color:#185FA5;margin-bottom:6px;">💪 개인수업</div>
           <div style="display:flex;justify-content:space-around;align-items:center;">
             <div style="text-align:center;">
@@ -1434,6 +1434,20 @@
       <div style="padding:20px;">
         <div id="my-coupon-list"><div style="text-align:center;padding:40px 20px;color:var(--text-hint);font-size:14px;">보유한 쿠폰이 없어요</div></div>
       </div>
+    </div>
+  </div>
+
+  <!-- 개인수업 이력 모달 (회원 홈 - 개인수업 카드 탭) -->
+  <div class="modal-overlay" id="pt-history-modal">
+    <div class="modal-sheet" style="overflow-y:auto;">
+      <div class="modal-title">
+        <span>💪 개인수업 현황</span>
+        <button class="modal-close" onclick="closePtHistoryModal()">×</button>
+      </div>
+      <div id="pt-history-info">
+        <div style="text-align:center;padding:12px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>
+      </div>
+      <div id="pt-history-list"></div>
     </div>
   </div>
 
@@ -7088,6 +7102,7 @@
           const remainDays = _daysUntil(endDate);
           if (remainDays === null) return;
           periodCards.push({
+            progKey: it.progKey,
             label: (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : ''),
             endDate, remainDays, onHold,
             periodLabel: _formatPeriodLabel(it.data),
@@ -7139,6 +7154,97 @@
     if (modal) modal.classList.remove('active');
   }
   window.closeMembershipHistoryModal = closeMembershipHistoryModal;
+
+  // ── 개인수업(PT/개인필라테스) 이력 팝업 ──
+  let _ptHistorySigns = [], _ptHistoryNoShowCount = 0, _ptHistoryShown = 10;
+
+  function openPtHistoryModal() {
+    const userId = localStorage.getItem('current_user');
+    if (!userId) return;
+    const modal = document.getElementById('pt-history-modal');
+    const infoEl = document.getElementById('pt-history-info');
+    const listEl = document.getElementById('pt-history-list');
+    if (modal) modal.classList.add('active');
+    if (infoEl) infoEl.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
+    if (listEl) listEl.innerHTML = '';
+
+    const proceed = (trainerId) => {
+      if (!trainerId) {
+        if (infoEl) infoEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">배정된 강사가 없어요</div>';
+        return;
+      }
+      Promise.all([
+        db.ref('trainers/' + trainerId + '/name').once('value'),
+        db.ref('trainers/' + trainerId + '/trainees/' + userId).once('value')
+      ]).then(([nameSnap, traineeSnap]) => {
+        const trainerName = nameSnap.val() || trainerId;
+        const trainee = traineeSnap.val() || {};
+        const signsObj = trainee.signs || {};
+        const signs = Object.values(signsObj).sort((a, b) => {
+          const toNum = d => { if (!d) return 0; const p = String(d).split('-'); return parseInt(p[0]) * 10000 + parseInt(p[1] || 0) * 100 + parseInt(p[2] || 0); };
+          return toNum(b.date) - toNum(a.date);
+        });
+        const noShowCount = signs.filter(s => s.noShow).length;
+
+        // 유효기간(D-day)은 회원권현황과 같은 계산결과에서 PT/개인필라테스 항목을 찾아 재사용
+        const match = (_homeMembershipCards || []).find(p => p.progKey === 'PT' || p.progKey === '기구필라테스개인');
+        const validityHtml = match
+          ? (match.remainDays >= 0 ? `~${match.endDate} (D-${match.remainDays})` : `~${match.endDate} (만료됨)`)
+          : '-';
+
+        if (infoEl) infoEl.innerHTML = `
+          <div style="background:var(--bg);border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+            <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="font-size:12px;color:var(--text-hint);">담당 강사</span><span style="font-size:13px;font-weight:700;color:var(--text);">${trainerName}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="font-size:12px;color:var(--text-hint);">유형</span><span style="font-size:13px;font-weight:700;color:var(--text);">${trainee.type || '-'}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="font-size:12px;color:var(--text-hint);">등록일</span><span style="font-size:13px;font-weight:700;color:var(--text);">${trainee.regDate || '-'}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:4px 0;"><span style="font-size:12px;color:var(--text-hint);">유효기간</span><span style="font-size:13px;font-weight:700;color:var(--blue);">${validityHtml}</span></div>
+          </div>`;
+
+        _ptHistorySigns = signs;
+        _ptHistoryNoShowCount = noShowCount;
+        _ptHistoryShown = 10;
+        _renderPtHistoryList();
+      });
+    };
+
+    db.ref('members/' + userId + '/trainerId').once('value').then(tidSnap => {
+      const tid = tidSnap.val();
+      if (tid) { proceed(tid); return; }
+      db.ref('trainers').once('value').then(tSnap => {
+        let found = null;
+        tSnap.forEach(t => { if (t.child('trainees/' + userId).exists()) found = t.key; });
+        proceed(found);
+      });
+    });
+  }
+  window.openPtHistoryModal = openPtHistoryModal;
+
+  function _renderPtHistoryList() {
+    const listEl = document.getElementById('pt-history-list');
+    if (!listEl) return;
+    if (!_ptHistorySigns.length) {
+      listEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">아직 수업 기록이 없어요</div>';
+      return;
+    }
+    const total = _ptHistorySigns.length;
+    const shown = _ptHistorySigns.slice(0, _ptHistoryShown);
+    listEl.innerHTML = `
+      <div style="font-size:12px;color:var(--text-hint);margin-bottom:8px;">총 ${total}회 · 당일취소 ${_ptHistoryNoShowCount}회</div>
+      ${shown.map((s, i) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);">
+          <span style="font-size:13px;font-weight:600;color:${s.noShow ? '#e24b4a' : 'var(--text)'};">${total - i}회차</span>
+          <span style="font-size:12.5px;color:var(--text-hint);">${s.date || '-'}${s.noShow ? ' 🔴 당일취소' : ' ✅'}</span>
+        </div>`).join('')}
+      ${_ptHistoryShown < total ? `<button onclick="_ptHistoryShown += 10; _renderPtHistoryList();" style="width:100%;margin-top:10px;padding:9px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-weight:700;color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">더보기 (${total - _ptHistoryShown}건 더)</button>` : ''}
+    `;
+  }
+
+  function closePtHistoryModal() {
+    const modal = document.getElementById('pt-history-modal');
+    if (modal) modal.classList.remove('active');
+  }
+  window.closePtHistoryModal = closePtHistoryModal;
+
 
   // 홈화면 수업현황 카드 로드
   function loadHomePtCard(trainerId, userId) {
