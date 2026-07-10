@@ -12395,7 +12395,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         const templateSlot = templateSlots.find(sl => sl.time === time);
         const actual = actualByTime[time];
         const classId = actual ? actual.classId : _pgClassId(dateStr, time);
-        const capacity = (actual && actual.data.capacity) || (templateSlot ? templateSlot.capacity : 5);
+        const capacity = templateSlot ? templateSlot.capacity : ((actual && actual.data.capacity) || 5);
         const bookings = (actual && actual.data.bookings) || {};
         const waitlist = (actual && actual.data.waitlist) || {};
         const isOrphan = !templateSlot; // 시간표에서 이미 삭제됐는데 예약기록은 남아있는 시간
@@ -12440,7 +12440,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       const slots = Array.isArray(sched[dayKey]) ? sched[dayKey] : (sched[dayKey] ? Object.values(sched[dayKey]) : []);
       const slot = slots.find(sl => sl.time === time);
       const cls = clsSnap.val();
-      const capacity = (cls && cls.capacity) || (slot ? slot.capacity : 5);
+      const capacity = slot ? slot.capacity : ((cls && cls.capacity) || 5);
       const bookings = (cls && cls.bookings) || {};
 
       if (bookings[memberId]) { showToast('이미 예약돼있는 회원이에요.', 'error'); return; }
@@ -12491,9 +12491,10 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       if (curr === null) curr = { date: dateStr, time: time, capacity: capacity, bookings: {} };
       const bookings = curr.bookings || {};
       if (bookings[memberId]) return curr;
-      if (Object.keys(bookings).length >= (curr.capacity || capacity)) return curr;
+      if (Object.keys(bookings).length >= capacity) return curr;
       bookings[memberId] = { name: memberName, bookedAt: Date.now(), addedByAdmin: true };
       if (wasDeducted) bookings[memberId].deducted = true;
+      curr.capacity = capacity;
       curr.bookings = bookings;
       return curr;
     }).then(result => {
@@ -12531,8 +12532,9 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     db.ref('pilates_classes/' + classId).transaction(curr => {
       if (curr === null) curr = { date: dateStr, time: time, capacity: capacity, bookings: {} };
       const bookings = curr.bookings || {};
-      if (Object.keys(bookings).length >= (curr.capacity || capacity)) return curr;
+      if (Object.keys(bookings).length >= capacity) return curr;
       bookings[trialId] = { name: name, phone: phone || null, isTrial: true, bookedAt: Date.now() };
+      curr.capacity = capacity;
       curr.bookings = bookings;
       return curr;
     }).then(result => {
@@ -12707,7 +12709,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         const templateSlot = templateSlots.find(sl => sl.time === time);
         const actual = actualByTime[time];
         const classId = actual ? actual.classId : _pgClassId(dateStr, time);
-        const capacity = (actual && actual.data.capacity) || (templateSlot ? templateSlot.capacity : 5);
+        const capacity = templateSlot ? templateSlot.capacity : ((actual && actual.data.capacity) || 5);
         const bookings = (actual && actual.data.bookings) || {};
         const waitlist = (actual && actual.data.waitlist) || {};
         const isOrphan = !templateSlot;
