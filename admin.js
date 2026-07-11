@@ -56,7 +56,7 @@
       }
       stopMemberRemainListeners();
     }
-    if (tabId !== 'tab-pilates-group' && typeof _pgDetachLiveListeners === 'function') _pgDetachLiveListeners('pgr');
+    if (tabId !== 'tab-pilates-group' && typeof _pgDetachLiveListeners === 'function') { _pgDetachLiveListeners('pgr'); _pgDetachCalListener('pgr'); }
   }
 
   function toggleAdminLayout() {
@@ -12161,7 +12161,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
 
   // 서브탭 전환 (시간표 / 휴무관리 / 잔여횟수 / 설정)
   function switchPilatesSubtab(tab) {
-    if (tab !== 'reservations' && typeof _pgDetachLiveListeners === 'function') _pgDetachLiveListeners('pgr');
+    if (tab !== 'reservations' && typeof _pgDetachLiveListeners === 'function') { _pgDetachLiveListeners('pgr'); _pgDetachCalListener('pgr'); }
     const tabs = ['schedule', 'exceptions', 'reservations', 'counts', 'settings'];
     tabs.forEach(t => {
       const btn  = document.getElementById('pg-subtab-' + t);
@@ -12232,20 +12232,33 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 (' + PG_DAY_LABELS[dayKey] + ')';
   }
 
+  // 달력 점 표시(이번달 예약있는 날짜)용 실시간 리스너 — 슬롯목록 리스너와 별개로 관리 (월 이동/화면이탈 시에만 재설정)
+  const _pgCalListeners = {};
+
+  function _pgDetachCalListener(prefix) {
+    const l = _pgCalListeners[prefix];
+    if (l) { l.ref.off('value', l.cb); delete _pgCalListeners[prefix]; }
+  }
+  window._pgDetachCalListener = _pgDetachCalListener;
+
   function renderPgrCalendar() {
     if (!_pgrCalMonth) return;
+    _pgDetachCalListener('pgr');
     const { year, month } = _pgrCalMonth;
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const monthStartKey = '' + year + String(month + 1).padStart(2, '0') + '01';
     const monthEndKey = '' + year + String(month + 1).padStart(2, '0') + String(daysInMonth).padStart(2, '0');
-    db.ref('pilates_classes').orderByKey().startAt(monthStartKey + '_').endAt(monthEndKey + '_\uf8ff').once('value').then(snap => {
+    const ref = db.ref('pilates_classes').orderByKey().startAt(monthStartKey + '_').endAt(monthEndKey + '_\uf8ff');
+    const cb = snap => {
       const datesWithBookings = new Set();
       snap.forEach(child => {
         const cls = child.val();
         if (cls && cls.bookings && Object.keys(cls.bookings).length) datesWithBookings.add(cls.date);
       });
       _pgRenderAdminCalendar('pgr', _pgrCalMonth, _pgrSelectedDate, 'selectPgrDate', datesWithBookings);
-    });
+    };
+    ref.on('value', cb);
+    _pgCalListeners['pgr'] = { ref, cb };
   }
   function updatePgrSelectedDateLabel() {
     const el = document.getElementById('pgr-selected-date-label');
@@ -12645,7 +12658,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   let _thPgCalMonth = null, _thPgSelectedDate = null;
 
   function openTrainerPilatesView() {
-    if (typeof _pgDetachLiveListeners === 'function') _pgDetachLiveListeners('th-pg'); // 혹시 이전에 안 끊긴 리스너가 있으면 방어적으로 정리
+    if (typeof _pgDetachLiveListeners === 'function') { _pgDetachLiveListeners('th-pg'); _pgDetachCalListener('th-pg'); } // 혹시 이전에 안 끊긴 리스너가 있으면 방어적으로 정리
     showScreen('screen-trainer-pilates');
     const t = new Date();
     _thPgCalMonth = { year: t.getFullYear(), month: t.getMonth() };
@@ -12666,7 +12679,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
 
   // 그룹수업 화면 나갈 때 실시간 리스너 해제
   function closeTrainerPilatesView() {
-    if (typeof _pgDetachLiveListeners === 'function') _pgDetachLiveListeners('th-pg');
+    if (typeof _pgDetachLiveListeners === 'function') { _pgDetachLiveListeners('th-pg'); _pgDetachCalListener('th-pg'); }
     showScreen('screen-home');
   }
   window.closeTrainerPilatesView = closeTrainerPilatesView;
@@ -12692,6 +12705,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     const grid = document.getElementById('th-pg-calendar-grid');
     const label = document.getElementById('th-pg-cal-month-label');
     if (!grid || !label || !_thPgCalMonth) return;
+    _pgDetachCalListener('th-pg');
     const { year, month } = _thPgCalMonth;
     label.textContent = year + '년 ' + (month + 1) + '월';
     const startOffset = new Date(year, month, 1).getDay();
@@ -12700,7 +12714,8 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     const monthStartKey = '' + year + String(month + 1).padStart(2, '0') + '01';
     const monthEndKey = '' + year + String(month + 1).padStart(2, '0') + String(daysInMonth).padStart(2, '0');
 
-    db.ref('pilates_classes').orderByKey().startAt(monthStartKey + '_').endAt(monthEndKey + '_\uf8ff').once('value').then(snap => {
+    const ref = db.ref('pilates_classes').orderByKey().startAt(monthStartKey + '_').endAt(monthEndKey + '_\uf8ff');
+    const cb = snap => {
       const datesWithBookings = new Set();
       snap.forEach(child => {
         const cls = child.val();
@@ -12723,7 +12738,9 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         </div>`;
       }
       grid.innerHTML = cells;
-    });
+    };
+    ref.on('value', cb);
+    _pgCalListeners['th-pg'] = { ref, cb };
   }
 
   function loadTrainerPilatesDateView() {

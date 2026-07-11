@@ -589,7 +589,7 @@
     if (pgbScreen && pgbScreen.classList.contains('active') && typeof _pgbDetachAllListeners === 'function') _pgbDetachAllListeners();
     // 강사용 그룹수업 화면(실시간 리스너)도 동일하게 처리
     const thPgScreen = document.getElementById('screen-trainer-pilates');
-    if (thPgScreen && thPgScreen.classList.contains('active') && typeof _pgDetachLiveListeners === 'function') _pgDetachLiveListeners('th-pg');
+    if (thPgScreen && thPgScreen.classList.contains('active') && typeof _pgDetachLiveListeners === 'function') { _pgDetachLiveListeners('th-pg'); if (typeof _pgDetachCalListener === 'function') _pgDetachCalListener('th-pg'); }
     if (tab === 'home') {
       showScreen('screen-home');
       const uid = localStorage.getItem('current_user') || sessionStorage.getItem('session_user');
