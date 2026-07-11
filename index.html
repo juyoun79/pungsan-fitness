@@ -754,6 +754,20 @@
 
       <div class="section-title">내 예약</div>
       <div id="pgb-my-bookings"><div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">불러오는 중...</div></div>
+      <button onclick="openPgHistoryModal()" style="width:100%;margin-top:8px;padding:11px;background:var(--card);border:1.5px solid var(--border);color:var(--text-sub);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📜 지난 수업 이력 보기</button>
+    </div>
+  </div>
+
+  <!-- 그룹필라테스 지난 수업 이력 모달 -->
+  <div class="modal-overlay" id="pg-history-modal">
+    <div class="modal-sheet" style="overflow-y:auto;">
+      <div class="modal-title">
+        <span>🧘 지난 수업 이력</span>
+        <button class="modal-close" onclick="closePgHistoryModal()">×</button>
+      </div>
+      <div id="pg-history-list">
+        <div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>
+      </div>
     </div>
   </div>
 
@@ -7691,6 +7705,61 @@
       }).join('');
     });
   }
+
+  // 그룹필라테스 지난 수업 이력 팝업 (최근순, 10개씩 더보기)
+  let _pgHistoryList = [], _pgHistoryShown = 10;
+
+  function openPgHistoryModal() {
+    const modal = document.getElementById('pg-history-modal');
+    const listEl = document.getElementById('pg-history-list');
+    if (modal) modal.classList.add('active');
+    if (listEl) listEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
+    const todayKey = _pgbFormatDate(new Date()).replace(/-/g, '');
+    db.ref('pilates_classes').orderByKey().endAt(todayKey + '_\uf8ff').once('value').then(snap => {
+      const history = [];
+      snap.forEach(child => {
+        const cls = child.val();
+        if (cls && cls.bookings && cls.bookings[_pgbUserId]) {
+          history.push({ dateStr: cls.date, time: cls.time });
+        }
+      });
+      history.sort((a, b) => (b.dateStr + b.time).localeCompare(a.dateStr + a.time)); // 최근순
+      _pgHistoryList = history;
+      _pgHistoryShown = 10;
+      _renderPgHistoryList();
+    });
+  }
+  window.openPgHistoryModal = openPgHistoryModal;
+
+  function _renderPgHistoryList() {
+    const listEl = document.getElementById('pg-history-list');
+    if (!listEl) return;
+    if (!_pgHistoryList.length) {
+      listEl.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">지난 수업 기록이 없어요</div>';
+      return;
+    }
+    const total = _pgHistoryList.length;
+    const shown = _pgHistoryList.slice(0, _pgHistoryShown);
+    listEl.innerHTML = `
+      <div style="font-size:12px;color:var(--text-hint);margin-bottom:8px;">총 ${total}회</div>
+      ${shown.map((b, i) => {
+        const d = new Date(b.dateStr + 'T00:00:00');
+        const label = (d.getMonth() + 1) + '월 ' + d.getDate() + '일 (' + PGB_DAY_LABELS[PGB_DAY_KEYS[d.getDay()]] + ') ' + _pgbFormatTime(b.time);
+        return `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);">
+            <span style="font-size:13px;font-weight:600;color:var(--text);">${total - i}회차</span>
+            <span style="font-size:12.5px;color:var(--text-hint);">${label}</span>
+          </div>`;
+      }).join('')}
+      ${_pgHistoryShown < total ? `<button onclick="_pgHistoryShown += 10; _renderPgHistoryList();" style="width:100%;margin-top:10px;padding:9px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-weight:700;color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">더보기 (${total - _pgHistoryShown}건 더)</button>` : ''}
+    `;
+  }
+
+  function closePgHistoryModal() {
+    const modal = document.getElementById('pg-history-modal');
+    if (modal) modal.classList.remove('active');
+  }
+  window.closePgHistoryModal = closePgHistoryModal;
 
   // 홈화면 그룹필라테스 카드 로드 (강사배정과 무관, pilates_group 독립 카운터)
   function loadHomePilatesCard(userId) {
