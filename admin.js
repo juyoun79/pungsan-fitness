@@ -56,6 +56,7 @@
       }
       stopMemberRemainListeners();
     }
+    if (tabId !== 'tab-pilates-group' && typeof _pgDetachLiveListeners === 'function') _pgDetachLiveListeners('pgr');
   }
 
   function toggleAdminLayout() {
@@ -12160,6 +12161,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
 
   // 서브탭 전환 (시간표 / 휴무관리 / 잔여횟수 / 설정)
   function switchPilatesSubtab(tab) {
+    if (tab !== 'reservations' && typeof _pgDetachLiveListeners === 'function') _pgDetachLiveListeners('pgr');
     const tabs = ['schedule', 'exceptions', 'reservations', 'counts', 'settings'];
     tabs.forEach(t => {
       const btn  = document.getElementById('pg-subtab-' + t);
@@ -12355,54 +12357,96 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       </div>`;
   }
 
-  function loadPilatesReservations() {
-    const dateStr = _pgrSelectedDate;
-    const el = document.getElementById('pgr-list');
-    if (!el) return;
-    if (!dateStr) { el.innerHTML = ''; return; }
-    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
+  // ── 예약현황(pgr)/강사 그룹수업(th-pg) 화면 공용 실시간(.on) 슬롯 목록 렌더러 ──
+  // prefix별로 리스너/데이터 상태를 따로 관리 (두 화면이 동시에 열려있어도 서로 안 섞이게)
+  const _pgLiveState = {};
+
+  function _pgDetachLiveListeners(prefix) {
+    const st = _pgLiveState[prefix];
+    if (!st) return;
+    st.listeners.forEach(({ ref, cb }) => ref.off('value', cb));
+    st.listeners = [];
+  }
+  window._pgDetachLiveListeners = _pgDetachLiveListeners;
+
+  function _pgLoadLiveSlotList(prefix, dateStr, elId, labelElId) {
+    const el = document.getElementById(elId);
+    if (!el || !dateStr) return;
+    _pgDetachLiveListeners(prefix);
+    _pgLiveState[prefix] = { listeners: [], excData: null, classesData: null, ctx: null };
     const d = new Date(dateStr + 'T00:00:00');
     const dayKey = PG_WEEKDAY_BY_INDEX[d.getDay()];
+    if (labelElId) {
+      const labelEl = document.getElementById(labelElId);
+      if (labelEl) labelEl.textContent = (d.getMonth() + 1) + '월 ' + d.getDate() + '일 (' + PG_DAY_LABELS[dayKey] + ')';
+    }
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
     const dateKey = dateStr.replace(/-/g, '');
-    Promise.all([
-      db.ref('pilates_settings').once('value'),
-      db.ref('pilates_exceptions/' + dateStr).once('value'),
-      db.ref('pilates_classes').orderByKey().startAt(dateKey + '_').endAt(dateKey + '_\uf8ff').once('value')
-    ]).then(([setSnap, excSnap, classesSnap]) => {
+
+    db.ref('pilates_settings').once('value').then(setSnap => {
+      const st = _pgLiveState[prefix];
+      if (!st) return; // 그 사이에 다른 날짜로 바뀌어서 이 요청은 취소됨
       const s = setSnap.val() || {};
       const deductMode = s.deductMode || 'auto';
       const sched = s.weeklySchedule || {};
       const templateSlots = Array.isArray(sched[dayKey]) ? sched[dayKey] : (sched[dayKey] ? Object.values(sched[dayKey]) : []);
-      const exc = excSnap.val() || {};
+      st.ctx = { dateStr, templateSlots, deductMode, elId };
 
-      // 실제로 존재하는 수업 문서 (예약이 있거나 관리자가 만들었던 시간) — 시간표에서 이미 삭제됐어도 예약기록이 있으면 여기 남아있음
-      const actualByTime = {};
-      classesSnap.forEach(child => { actualByTime[child.val().time] = { classId: child.key, data: child.val() }; });
+      // 휴무 여부 실시간 반영
+      const excRef = db.ref('pilates_exceptions/' + dateStr);
+      const excCb = snap => { st.excData = snap.val() || {}; _pgRenderLiveSlotList(prefix); };
+      excRef.on('value', excCb);
+      st.listeners.push({ ref: excRef, cb: excCb });
 
-      // 시간표에 있는 시간 + 실제 존재하지만 지금 시간표엔 없는 시간(orphan, 삭제된 시간대) 합치기
-      const timeSet = new Set(templateSlots.map(sl => sl.time));
-      Object.keys(actualByTime).forEach(t => timeSet.add(t));
-      const allTimes = Array.from(timeSet).sort();
-
-      if (!allTimes.length) {
-        el.innerHTML = exc.fullClosed
-          ? '<div class="admin-card" style="margin-top:0;"><div style="text-align:center;padding:20px;color:#e24b4a;font-size:13px;">이 날은 휴무예요</div></div>'
-          : '<div class="admin-card" style="margin-top:0;"><div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">열리는 수업이 없어요</div></div>';
-        return;
-      }
-
-      el.innerHTML = allTimes.map(time => {
-        const templateSlot = templateSlots.find(sl => sl.time === time);
-        const actual = actualByTime[time];
-        const classId = actual ? actual.classId : _pgClassId(dateStr, time);
-        const capacity = templateSlot ? templateSlot.capacity : ((actual && actual.data.capacity) || 5);
-        const bookings = (actual && actual.data.bookings) || {};
-        const waitlist = (actual && actual.data.waitlist) || {};
-        const isOrphan = !templateSlot; // 시간표에서 이미 삭제됐는데 예약기록은 남아있는 시간
-        const timeClosed = exc.fullClosed || (exc.closedTimes && exc.closedTimes[time]);
-        return _pgBuildSlotCardHtml('pgr', time, classId, capacity, bookings, timeClosed, isOrphan, deductMode, waitlist);
-      }).join('');
+      // 그 날짜 전체 수업(예약/대기) 실시간 반영
+      const classesRef = db.ref('pilates_classes').orderByKey().startAt(dateKey + '_').endAt(dateKey + '_\uf8ff');
+      const classesCb = snap => { st.classesData = snap; _pgRenderLiveSlotList(prefix); };
+      classesRef.on('value', classesCb);
+      st.listeners.push({ ref: classesRef, cb: classesCb });
     });
+  }
+
+  function _pgRenderLiveSlotList(prefix) {
+    const st = _pgLiveState[prefix];
+    if (!st || !st.ctx) return;
+    if (st.excData === null || st.classesData === null) return; // 아직 첫 응답 안 옴
+    const el = document.getElementById(st.ctx.elId);
+    if (!el) return;
+    const { dateStr, templateSlots, deductMode } = st.ctx;
+    const exc = st.excData;
+    const classesSnap = st.classesData;
+
+    const actualByTime = {};
+    classesSnap.forEach(child => { actualByTime[child.val().time] = { classId: child.key, data: child.val() }; });
+    const timeSet = new Set(templateSlots.map(sl => sl.time));
+    Object.keys(actualByTime).forEach(t => timeSet.add(t));
+    const allTimes = Array.from(timeSet).sort();
+
+    if (!allTimes.length) {
+      const isPgr = prefix === 'pgr';
+      const msg = exc.fullClosed ? '이 날은 휴무예요' : '열리는 수업이 없어요';
+      const color = exc.fullClosed ? '#e24b4a' : 'var(--text-hint)';
+      el.innerHTML = isPgr
+        ? `<div class="admin-card" style="margin-top:0;"><div style="text-align:center;padding:20px;color:${color};font-size:13px;">${msg}</div></div>`
+        : `<div style="text-align:center;padding:20px;color:${color};font-size:13px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);">${msg}</div>`;
+      return;
+    }
+
+    el.innerHTML = allTimes.map(time => {
+      const templateSlot = templateSlots.find(sl => sl.time === time);
+      const actual = actualByTime[time];
+      const classId = actual ? actual.classId : _pgClassId(dateStr, time);
+      const capacity = templateSlot ? templateSlot.capacity : ((actual && actual.data.capacity) || 5);
+      const bookings = (actual && actual.data.bookings) || {};
+      const waitlist = (actual && actual.data.waitlist) || {};
+      const isOrphan = !templateSlot;
+      const timeClosed = exc.fullClosed || (exc.closedTimes && exc.closedTimes[time]);
+      return _pgBuildSlotCardHtml(prefix, time, classId, capacity, bookings, timeClosed, isOrphan, deductMode, waitlist);
+    }).join('');
+  }
+
+  function loadPilatesReservations() {
+    _pgLoadLiveSlotList('pgr', _pgrSelectedDate, 'pgr-list', null);
   }
   window.loadPilatesReservations = loadPilatesReservations;
 
@@ -12601,6 +12645,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   let _thPgCalMonth = null, _thPgSelectedDate = null;
 
   function openTrainerPilatesView() {
+    if (typeof _pgDetachLiveListeners === 'function') _pgDetachLiveListeners('th-pg'); // 혹시 이전에 안 끊긴 리스너가 있으면 방어적으로 정리
     showScreen('screen-trainer-pilates');
     const t = new Date();
     _thPgCalMonth = { year: t.getFullYear(), month: t.getMonth() };
@@ -12618,6 +12663,13 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     loadTrainerPilatesDateView();
   }
   window.openTrainerPilatesView = openTrainerPilatesView;
+
+  // 그룹수업 화면 나갈 때 실시간 리스너 해제
+  function closeTrainerPilatesView() {
+    if (typeof _pgDetachLiveListeners === 'function') _pgDetachLiveListeners('th-pg');
+    showScreen('screen-home');
+  }
+  window.closeTrainerPilatesView = closeTrainerPilatesView;
 
   function thPgChangeMonth(delta) {
     let { year, month } = _thPgCalMonth;
@@ -12675,48 +12727,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   }
 
   function loadTrainerPilatesDateView() {
-    const dateStr = _thPgSelectedDate;
-    const el = document.getElementById('th-pg-slot-list');
-    const labelEl = document.getElementById('th-pg-selected-date-label');
-    if (!el || !dateStr) return;
-    const d = new Date(dateStr + 'T00:00:00');
-    const dayKey = PG_WEEKDAY_BY_INDEX[d.getDay()];
-    if (labelEl) labelEl.textContent = (d.getMonth() + 1) + '월 ' + d.getDate() + '일 (' + PG_DAY_LABELS[dayKey] + ')';
-    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
-    const dateKey = dateStr.replace(/-/g, '');
-    Promise.all([
-      db.ref('pilates_settings').once('value'),
-      db.ref('pilates_exceptions/' + dateStr).once('value'),
-      db.ref('pilates_classes').orderByKey().startAt(dateKey + '_').endAt(dateKey + '_\uf8ff').once('value')
-    ]).then(([setSnap, excSnap, classesSnap]) => {
-      const s = setSnap.val() || {};
-      const deductMode = s.deductMode || 'auto';
-      const sched = s.weeklySchedule || {};
-      const templateSlots = Array.isArray(sched[dayKey]) ? sched[dayKey] : (sched[dayKey] ? Object.values(sched[dayKey]) : []);
-      const exc = excSnap.val() || {};
-      const actualByTime = {};
-      classesSnap.forEach(child => { actualByTime[child.val().time] = { classId: child.key, data: child.val() }; });
-      const timeSet = new Set(templateSlots.map(sl => sl.time));
-      Object.keys(actualByTime).forEach(t => timeSet.add(t));
-      const allTimes = Array.from(timeSet).sort();
-      if (!allTimes.length) {
-        el.innerHTML = exc.fullClosed
-          ? '<div style="text-align:center;padding:20px;color:#e24b4a;font-size:13px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);">이 날은 휴무예요</div>'
-          : '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);">열리는 수업이 없어요</div>';
-        return;
-      }
-      el.innerHTML = allTimes.map(time => {
-        const templateSlot = templateSlots.find(sl => sl.time === time);
-        const actual = actualByTime[time];
-        const classId = actual ? actual.classId : _pgClassId(dateStr, time);
-        const capacity = templateSlot ? templateSlot.capacity : ((actual && actual.data.capacity) || 5);
-        const bookings = (actual && actual.data.bookings) || {};
-        const waitlist = (actual && actual.data.waitlist) || {};
-        const isOrphan = !templateSlot;
-        const timeClosed = exc.fullClosed || (exc.closedTimes && exc.closedTimes[time]);
-        return _pgBuildSlotCardHtml('th-pg', time, classId, capacity, bookings, timeClosed, isOrphan, deductMode, waitlist);
-      }).join('');
-    });
+    _pgLoadLiveSlotList('th-pg', _thPgSelectedDate, 'th-pg-slot-list', 'th-pg-selected-date-label');
   }
   window.loadTrainerPilatesDateView = loadTrainerPilatesDateView;
 
