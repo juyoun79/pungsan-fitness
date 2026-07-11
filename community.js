@@ -584,6 +584,9 @@
     }
     // 커뮤니티 탭 벗어나면 리스너 해제
     if (tab !== 'community') stopCommunityListener();
+    // 그룹필라테스 예약화면(실시간 리스너) 벗어나면 리스너 해제 — 하단탭으로 바로 이동하는 경우 대비
+    const pgbScreen = document.getElementById('screen-pilates-booking');
+    if (pgbScreen && pgbScreen.classList.contains('active') && typeof _pgbDetachAllListeners === 'function') _pgbDetachAllListeners();
     if (tab === 'home') {
       showScreen('screen-home');
       const uid = localStorage.getItem('current_user') || sessionStorage.getItem('session_user');
