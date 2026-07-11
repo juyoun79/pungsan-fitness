@@ -2571,6 +2571,7 @@
       </div>
       <div class="admin-tab-row">
         <button class="admin-tab active" onclick="switchAdminTab('tab-dashboard')">📊 현황</button>
+        <button class="admin-tab" onclick="switchAdminTab('tab-revenue')">💰 매출통계</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-members')">👥 회원</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-locker')">🔑 락카</button>
         <button class="admin-tab" onclick="switchAdminTab('tab-register')">📝 계약서</button>
@@ -2602,6 +2603,7 @@
       <div style="display:flex;height:100%;">
         <div style="width:180px;flex-shrink:0;background:var(--card);border-right:1px solid var(--border);padding:12px 8px;overflow-y:auto;">
           <button class="admin-side-tab active" onclick="switchAdminTab('tab-dashboard')">📊 현황</button>
+          <button class="admin-side-tab" onclick="switchAdminTab('tab-revenue')">💰 매출통계</button>
           <button class="admin-side-tab" onclick="switchAdminTab('tab-members')">👥 회원</button>
           <button class="admin-side-tab" onclick="switchAdminTab('tab-locker')">🔑 락카</button>
           <button class="admin-side-tab" onclick="switchAdminTab('tab-register')">📝 계약서</button>
@@ -2643,6 +2645,128 @@
         <div class="admin-card">
           <div class="admin-card-title">📅 오늘 출석 회원</div>
           <div id="admin-today-list"><div class="empty-state">오늘 출석한 회원이 없어요</div></div>
+        </div>
+      </div>
+
+      <!-- ── 매출통계 탭 ── -->
+      <div id="tab-revenue" class="admin-section">
+        <div class="admin-card">
+          <div class="admin-card-title">💰 매출 요약</div>
+          <div id="rev-summary-cards" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;grid-column:span 2;">불러오는 중...</div>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-title">📅 기간</div>
+          <div id="rev-period-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+            <button class="rev-period-btn active" data-period="month" onclick="setRevPeriod('month')" style="padding:7px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이번달</button>
+            <button class="rev-period-btn" data-period="today" onclick="setRevPeriod('today')" style="padding:7px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">오늘</button>
+            <button class="rev-period-btn" data-period="week" onclick="setRevPeriod('week')" style="padding:7px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이번주</button>
+            <button class="rev-period-btn" data-period="quarter" onclick="setRevPeriod('quarter')" style="padding:7px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이번분기</button>
+            <button class="rev-period-btn" data-period="year" onclick="setRevPeriod('year')" style="padding:7px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">올해</button>
+            <button class="rev-period-btn" data-period="lastyear" onclick="setRevPeriod('lastyear')" style="padding:7px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">작년</button>
+            <button class="rev-period-btn" data-period="custom" onclick="setRevPeriod('custom')" style="padding:7px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">직접지정</button>
+          </div>
+          <div id="rev-custom-range" style="display:none;gap:8px;margin-bottom:10px;">
+            <input type="date" id="rev-start-date" style="flex:1;box-sizing:border-box;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+            <span style="align-self:center;color:var(--text-hint);">~</span>
+            <input type="date" id="rev-end-date" style="flex:1;box-sizing:border-box;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+            <button onclick="loadRevenueStats()" style="padding:8px 14px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">적용</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;color:var(--text-hint);">비교 기준</span>
+            <select id="rev-compare-mode" onchange="loadRevenueStats()" style="padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'Noto Sans KR',sans-serif;">
+              <option value="prev">이전 기간</option>
+              <option value="lastyear">작년 동기간</option>
+              <option value="none">비교 안함</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-title" style="cursor:pointer;" onclick="toggleRevFilterPanel()">🔍 필터 <span id="rev-filter-badge" style="font-size:11px;color:var(--blue);"></span></div>
+          <div id="rev-filter-panel" style="display:none;">
+            <div style="font-size:11px;color:var(--text-hint);margin:8px 0 6px;">프로그램</div>
+            <div id="rev-filter-programs" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+
+            <div style="font-size:11px;color:var(--text-hint);margin:12px 0 6px;">계약유형</div>
+            <div id="rev-filter-types" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+
+            <div style="font-size:11px;color:var(--text-hint);margin:12px 0 6px;">결제수단</div>
+            <div id="rev-filter-methods" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+
+            <div style="font-size:11px;color:var(--text-hint);margin:12px 0 6px;">결제상태</div>
+            <div id="rev-filter-paystatus" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+
+            <div style="font-size:11px;color:var(--text-hint);margin:12px 0 6px;">담당강사 (PT 매출 기준)</div>
+            <select id="rev-filter-trainer" onchange="loadRevenueStats()" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+              <option value="">전체</option>
+            </select>
+
+            <div style="font-size:11px;color:var(--text-hint);margin:12px 0 6px;">금액 범위</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="number" id="rev-min-amount" placeholder="최소" style="flex:1;box-sizing:border-box;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+              <span style="color:var(--text-hint);">~</span>
+              <input type="number" id="rev-max-amount" placeholder="최대" style="flex:1;box-sizing:border-box;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+            </div>
+
+            <div style="font-size:11px;color:var(--text-hint);margin:12px 0 6px;">회원 검색</div>
+            <input type="text" id="rev-member-search" placeholder="이름 또는 전화번호" oninput="loadRevenueStats()" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+
+            <div style="display:flex;gap:8px;margin-top:14px;">
+              <button onclick="resetRevFilters()" style="flex:1;padding:9px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">필터 초기화</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="rev-insight" class="admin-card" style="display:none;background:var(--blue-light);"></div>
+
+        <div class="admin-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div class="admin-card-title" style="margin:0;">📈 기간별 매출 추이</div>
+            <select id="rev-chart-unit" onchange="renderRevCharts()" style="padding:5px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:'Noto Sans KR',sans-serif;">
+              <option value="day">일별</option>
+              <option value="week">주별</option>
+              <option value="month" selected>월별</option>
+            </select>
+          </div>
+          <div style="position:relative;height:200px;">
+            <canvas id="rev-trend-chart"></canvas>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-title">🥧 프로그램별 비중</div>
+          <div style="position:relative;height:180px;margin-bottom:8px;">
+            <canvas id="rev-program-chart"></canvas>
+          </div>
+          <div id="rev-program-legend" style="font-size:11.5px;"></div>
+        </div>
+
+        <div class="admin-card">
+          <div class="admin-card-title">🆕 신규 vs 재등록</div>
+          <div style="position:relative;height:180px;margin-bottom:8px;">
+            <canvas id="rev-newre-chart"></canvas>
+          </div>
+          <div id="rev-newre-legend" style="font-size:11.5px;"></div>
+        </div>
+
+        <div class="admin-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+            <div class="admin-card-title" style="margin:0;">📋 상세 내역 (<span id="rev-detail-count">0</span>건)</div>
+            <div style="display:flex;gap:6px;">
+              <select id="rev-sort" onchange="renderRevDetailList()" style="padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:'Noto Sans KR',sans-serif;">
+                <option value="date-desc">최신순</option>
+                <option value="date-asc">오래된순</option>
+                <option value="amount-desc">금액 높은순</option>
+                <option value="amount-asc">금액 낮은순</option>
+              </select>
+              <button onclick="exportRevCsv()" style="padding:6px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">⬇ CSV</button>
+            </div>
+          </div>
+          <div id="rev-detail-list"><div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">불러오는 중...</div></div>
+          <button id="rev-detail-more" onclick="_revDetailShown += 20; renderRevDetailList();" style="display:none;width:100%;margin-top:10px;padding:9px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:12.5px;font-weight:700;color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">더보기</button>
         </div>
       </div>
 

@@ -49,6 +49,7 @@
     if (tabId === 'coupon-auto') loadAutoConditions();
     if (tabId === 'tab-settings') switchSettingsSubtab('pw');
     if (tabId === 'tab-locker') loadLockerTab();
+    if (tabId === 'tab-revenue') initRevenueTab();
     if (tabId !== 'tab-trainer-admin') {
       if (_monthlyReportListener && _monthlyReportTrainerId) {
         db.ref('trainers/' + _monthlyReportTrainerId + '/trainees').off('value', _monthlyReportListener);
@@ -1406,7 +1407,426 @@
     });
   }
 
-  // ── 회원 목록 ──
+  // ══════════════════════════════════════════════
+  // 💰 매출통계 탭
+  // ══════════════════════════════════════════════
+  let _revAllEntries = null;   // 전체 매출 항목 원시데이터 (한번 fetch 후 캐시)
+  let _revAllRefunds = null;   // 전체 환불 원시데이터
+  let _revPeriod = 'month';
+  let _revFilters = { programs: new Set(), types: new Set(), methods: new Set(), payStatus: 'all', trainerId: '', minAmount: null, maxAmount: null, search: '' };
+  let _revDetailShown = 20;
+  let _revFilteredEntries = [];
+  let _revChartInstances = {};
+
+  const REV_PROGRAM_OPTIONS = [
+    ['헬스', '헬스'], ['GX', 'GX'], ['PT', 'PT'],
+    ['기구필라테스개인', '기구필라테스 개인'], ['기구필라테스그룹', '기구필라테스 그룹'],
+    ['extra:locker', '🔑 락카'], ['extra:cloth', '👕 운동복']
+  ];
+
+  function initRevenueTab() {
+    _revFilters = { programs: new Set(), types: new Set(), methods: new Set(), payStatus: 'all', trainerId: '', minAmount: null, maxAmount: null, search: '' };
+    _revDetailShown = 20;
+    _revRenderFilterOptions();
+    if (_revAllEntries) { loadRevenueStats(); return; }
+    document.getElementById('rev-summary-cards').innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;grid-column:span 2;">불러오는 중...</div>';
+    _revBuildData().then(() => loadRevenueStats());
+  }
+  window.initRevenueTab = initRevenueTab;
+
+  // 계약이력(contracts) 전체를 한번 읽어와서 매출/환불 항목으로 평탄화 — 실제 판매금액만 집계(진행상황 D-day 계산과 달리 환불/양도된 것도 "그 당시엔 매출이었으므로" 포함)
+  function _revBuildData() {
+    return Promise.all([
+      db.ref('contracts').once('value'),
+      getMemberDB()
+    ]).then(([contractsSnap, members]) => {
+      const entries = [];
+      const refunds = [];
+      contractsSnap.forEach(phoneSnap => {
+        const phone = phoneSnap.key;
+        const memberInfo = members[phone];
+        const name = (memberInfo && memberInfo.name) || phone;
+        const trainerId = (memberInfo && memberInfo.trainerId) || '';
+        phoneSnap.forEach(cSnap => {
+          const c = cSnap.val();
+          if (!c) return;
+          const contractType = c.type === 're' ? '재등록' : '신규';
+          _flattenContractItems(c).forEach(it => {
+            const d = it.data;
+            const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
+            entries.push({
+              phone, name, progKey: it.progKey, label,
+              price: d.price || 0, cash: d.cash || 0, card: d.card || 0, transfer: d.transfer || 0,
+              date: c.signDate || '', contractType,
+              trainerId: it.progKey === 'PT' ? trainerId : ''
+            });
+            if (d.refund) {
+              refunds.push({ phone, name, progKey: it.progKey, label, refundAmount: d.refund.refundAmount || 0, date: d.refund.date || '', method: d.refund.method || '' });
+            }
+          });
+          Object.entries(c.extras || {}).forEach(([key, e]) => {
+            if (e.deleted) return;
+            const label = key === 'locker' ? '🔑 개인 락카' : (key === 'cloth' ? '👕 운동복' : key);
+            entries.push({
+              phone, name, progKey: 'extra:' + key, label,
+              price: e.price || 0, cash: e.cash || 0, card: e.card || 0, transfer: e.transfer || 0,
+              date: c.signDate || '', contractType, trainerId: ''
+            });
+          });
+        });
+      });
+      _revAllEntries = entries;
+      _revAllRefunds = refunds;
+    });
+  }
+
+  function _revToggleFilterBtnHtml(groupKey, value, label, active) {
+    return `<button class="rev-chip" data-group="${groupKey}" data-value="${value}" onclick="_revToggleChip(this)"
+      style="padding:6px 12px;border-radius:20px;border:1.5px solid ${active ? 'var(--blue)' : 'var(--border)'};background:${active ? 'var(--blue)' : 'var(--card)'};color:${active ? 'white' : 'var(--text-sub)'};font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">${label}</button>`;
+  }
+
+  function _revRenderFilterOptions() {
+    document.getElementById('rev-filter-programs').innerHTML = REV_PROGRAM_OPTIONS.map(([k, l]) => _revToggleFilterBtnHtml('programs', k, l, false)).join('');
+    document.getElementById('rev-filter-types').innerHTML = ['신규', '재등록'].map(t => _revToggleFilterBtnHtml('types', t, t, false)).join('');
+    document.getElementById('rev-filter-methods').innerHTML = [['cash', '현금'], ['card', '카드'], ['transfer', '계좌']].map(([k, l]) => _revToggleFilterBtnHtml('methods', k, l, false)).join('');
+    document.getElementById('rev-filter-paystatus').innerHTML =
+      _revToggleFilterBtnHtml('paystatus', 'all', '전체', true) + _revToggleFilterBtnHtml('paystatus', 'unpaid', '미수금만', false);
+    const sel = document.getElementById('rev-filter-trainer');
+    if (sel) sel.innerHTML = '<option value="">전체</option>' + (typeof adminTrainerList !== 'undefined' ? adminTrainerList.map(t => `<option value="${t.id}">${t.name}</option>`).join('') : '');
+  }
+
+  function _revToggleChip(el) {
+    const group = el.dataset.group;
+    const value = el.dataset.value;
+    if (group === 'paystatus') {
+      document.querySelectorAll('.rev-chip[data-group="paystatus"]').forEach(b => {
+        b.style.background = 'var(--card)'; b.style.color = 'var(--text-sub)'; b.style.borderColor = 'var(--border)';
+      });
+      el.style.background = 'var(--blue)'; el.style.color = 'white'; el.style.borderColor = 'var(--blue)';
+      _revFilters.payStatus = value;
+    } else {
+      const set = _revFilters[group];
+      if (set.has(value)) {
+        set.delete(value);
+        el.style.background = 'var(--card)'; el.style.color = 'var(--text-sub)'; el.style.borderColor = 'var(--border)';
+      } else {
+        set.add(value);
+        el.style.background = 'var(--blue)'; el.style.color = 'white'; el.style.borderColor = 'var(--blue)';
+      }
+    }
+    loadRevenueStats();
+  }
+  window._revToggleChip = _revToggleChip;
+
+  function toggleRevFilterPanel() {
+    const panel = document.getElementById('rev-filter-panel');
+    if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  }
+  window.toggleRevFilterPanel = toggleRevFilterPanel;
+
+  function resetRevFilters() {
+    _revFilters = { programs: new Set(), types: new Set(), methods: new Set(), payStatus: 'all', trainerId: '', minAmount: null, maxAmount: null, search: '' };
+    document.getElementById('rev-min-amount').value = '';
+    document.getElementById('rev-max-amount').value = '';
+    document.getElementById('rev-member-search').value = '';
+    document.getElementById('rev-filter-trainer').value = '';
+    _revRenderFilterOptions();
+    loadRevenueStats();
+  }
+  window.resetRevFilters = resetRevFilters;
+
+  function setRevPeriod(period) {
+    document.querySelectorAll('.rev-period-btn').forEach(b => {
+      const active = b.dataset.period === period;
+      b.style.background = active ? 'var(--blue)' : 'var(--card)';
+      b.style.color = active ? 'white' : 'var(--text)';
+      b.style.borderColor = active ? 'var(--blue)' : 'var(--border)';
+    });
+    _revPeriod = period;
+    const customEl = document.getElementById('rev-custom-range');
+    if (customEl) customEl.style.display = period === 'custom' ? 'flex' : 'none';
+    if (period !== 'custom') loadRevenueStats();
+  }
+  window.setRevPeriod = setRevPeriod;
+
+  function _revGetPeriodRange(period) {
+    const today = new Date();
+    const y = today.getFullYear(), m = today.getMonth(), d = today.getDate();
+    let start, end;
+    if (period === 'today') { start = new Date(y, m, d); end = new Date(y, m, d); }
+    else if (period === 'week') {
+      const dow = today.getDay();
+      start = new Date(y, m, d - ((dow + 6) % 7));
+      end = new Date(start); end.setDate(start.getDate() + 6);
+    } else if (period === 'quarter') {
+      const q = Math.floor(m / 3);
+      start = new Date(y, q * 3, 1); end = new Date(y, q * 3 + 3, 0);
+    } else if (period === 'year') { start = new Date(y, 0, 1); end = new Date(y, 11, 31); }
+    else if (period === 'lastyear') { start = new Date(y - 1, 0, 1); end = new Date(y - 1, 11, 31); }
+    else if (period === 'custom') {
+      const s = document.getElementById('rev-start-date').value;
+      const e = document.getElementById('rev-end-date').value;
+      start = s ? new Date(s + 'T00:00:00') : new Date(y, m, 1);
+      end = e ? new Date(e + 'T00:00:00') : new Date(y, m + 1, 0);
+    } else { start = new Date(y, m, 1); end = new Date(y, m + 1, 0); } // month (기본값)
+    return { start: _isoDate(start), end: _isoDate(end) };
+  }
+
+  function _revGetComparePeriodRange(curRange) {
+    const mode = document.getElementById('rev-compare-mode').value;
+    if (mode === 'none') return null;
+    const startD = new Date(curRange.start + 'T00:00:00');
+    const endD = new Date(curRange.end + 'T00:00:00');
+    const lenDays = Math.round((endD - startD) / 86400000) + 1;
+    if (mode === 'lastyear') {
+      const s = new Date(startD); s.setFullYear(s.getFullYear() - 1);
+      const e = new Date(endD); e.setFullYear(e.getFullYear() - 1);
+      return { start: _isoDate(s), end: _isoDate(e) };
+    }
+    const prevEnd = new Date(startD); prevEnd.setDate(prevEnd.getDate() - 1);
+    const prevStart = new Date(prevEnd); prevStart.setDate(prevEnd.getDate() - lenDays);
+    return { start: _isoDate(prevStart), end: _isoDate(prevEnd) };
+  }
+
+  function loadRevenueStats() {
+    if (!_revAllEntries) return;
+    const range = _revGetPeriodRange(_revPeriod);
+    const filters = _revFilters;
+    filters.trainerId = document.getElementById('rev-filter-trainer').value;
+    filters.minAmount = document.getElementById('rev-min-amount').value ? parseInt(document.getElementById('rev-min-amount').value) : null;
+    filters.maxAmount = document.getElementById('rev-max-amount').value ? parseInt(document.getElementById('rev-max-amount').value) : null;
+    filters.search = (document.getElementById('rev-member-search').value || '').trim();
+
+    const matchesFilters = (entry) => {
+      if (filters.programs.size && !filters.programs.has(entry.progKey)) return false;
+      if (filters.types.size && !filters.types.has(entry.contractType)) return false;
+      if (filters.methods.size && ![...filters.methods].some(m => (entry[m] || 0) > 0)) return false;
+      if (filters.payStatus === 'unpaid' && (entry.price - entry.cash - entry.card - entry.transfer) <= 0) return false;
+      if (filters.trainerId && entry.trainerId !== filters.trainerId) return false;
+      if (filters.minAmount != null && entry.price < filters.minAmount) return false;
+      if (filters.maxAmount != null && entry.price > filters.maxAmount) return false;
+      if (filters.search && !(entry.name.includes(filters.search) || entry.phone.includes(filters.search))) return false;
+      return true;
+    };
+    const inRange = (dateStr, r) => dateStr && dateStr >= r.start && dateStr <= r.end;
+
+    const curEntries = _revAllEntries.filter(e => inRange(e.date, range) && matchesFilters(e));
+    const curRefunds = _revAllRefunds.filter(r => inRange(r.date, range));
+    _revFilteredEntries = curEntries;
+
+    const filterCount = filters.programs.size + filters.types.size + filters.methods.size +
+      (filters.payStatus !== 'all' ? 1 : 0) + (filters.trainerId ? 1 : 0) +
+      (filters.minAmount != null || filters.maxAmount != null ? 1 : 0) + (filters.search ? 1 : 0);
+    const badge = document.getElementById('rev-filter-badge');
+    if (badge) badge.textContent = filterCount ? filterCount + '개 적용중' : '';
+
+    const grossRevenue = curEntries.reduce((s, e) => s + e.price, 0);
+    const refundTotal = curRefunds.reduce((s, r) => s + r.refundAmount, 0);
+    const netRevenue = grossRevenue - refundTotal;
+    const unpaidTotal = curEntries.reduce((s, e) => s + Math.max(0, e.price - e.cash - e.card - e.transfer), 0);
+    const newCount = curEntries.filter(e => e.contractType === '신규').length;
+    const reCount = curEntries.filter(e => e.contractType === '재등록').length;
+    const totalCount = curEntries.length;
+    const avgPrice = totalCount ? Math.round(grossRevenue / totalCount) : 0;
+
+    let compareHtml = '';
+    if (document.getElementById('rev-compare-mode').value !== 'none') {
+      const cmpRange = _revGetComparePeriodRange(range);
+      const cmpRevenue = _revAllEntries.filter(e => inRange(e.date, cmpRange) && matchesFilters(e)).reduce((s, e) => s + e.price, 0);
+      const diff = cmpRevenue === 0 ? (grossRevenue > 0 ? 100 : 0) : Math.round((grossRevenue - cmpRevenue) / cmpRevenue * 1000) / 10;
+      const up = diff >= 0;
+      compareHtml = `<div style="font-size:12px;margin-top:2px;color:${up ? '#22c55e' : '#e24b4a'};">${up ? '▲' : '▼'} ${Math.abs(diff)}%</div>`;
+    }
+
+    document.getElementById('rev-summary-cards').innerHTML = `
+      <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">총매출</div>
+        <div style="font-size:19px;font-weight:700;color:var(--text);">${grossRevenue.toLocaleString()}원</div>
+        ${compareHtml}
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">순매출 (환불차감)</div>
+        <div style="font-size:19px;font-weight:700;color:var(--text);">${netRevenue.toLocaleString()}원</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">신규 · 재등록</div>
+        <div style="font-size:19px;font-weight:700;color:var(--text);">${newCount} · ${reCount}건</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">평균 객단가</div>
+        <div style="font-size:19px;font-weight:700;color:var(--text);">${avgPrice.toLocaleString()}원</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">미수금</div>
+        <div style="font-size:16px;font-weight:700;color:#e24b4a;">${unpaidTotal.toLocaleString()}원</div>
+      </div>
+      <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">환불액</div>
+        <div style="font-size:16px;font-weight:700;color:#a855f7;">${refundTotal.toLocaleString()}원</div>
+      </div>
+    `;
+
+    _revRenderInsight(curEntries, newCount, reCount);
+    renderRevCharts();
+    _revDetailShown = 20;
+    renderRevDetailList();
+  }
+  window.loadRevenueStats = loadRevenueStats;
+
+  function _revRenderInsight(entries, newCount, reCount) {
+    const el = document.getElementById('rev-insight');
+    if (!el) return;
+    if (!entries.length) { el.style.display = 'none'; return; }
+    const byProg = {};
+    entries.forEach(e => { byProg[e.progKey] = (byProg[e.progKey] || 0) + e.price; });
+    const top = Object.entries(byProg).sort((a, b) => b[1] - a[1])[0];
+    const topLabel = top ? (REFUND_PROG_NAMES[top[0]] || top[0].replace('extra:', '')) : '-';
+    const reRate = (newCount + reCount) ? Math.round(reCount / (newCount + reCount) * 100) : 0;
+    el.style.display = 'block';
+    el.innerHTML = `<div style="font-size:13px;color:var(--blue);line-height:1.6;">💡 이 기간 가장 매출이 높은 프로그램은 <b>${topLabel}</b>예요. 재등록 비율은 <b>${reRate}%</b>입니다.</div>`;
+  }
+
+  function renderRevCharts() {
+    if (typeof Chart !== 'undefined') { _revDrawCharts(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';
+    s.onload = _revDrawCharts;
+    document.head.appendChild(s);
+  }
+  window.renderRevCharts = renderRevCharts;
+
+  function _revDrawCharts() {
+    const entries = _revFilteredEntries;
+    const unit = document.getElementById('rev-chart-unit').value;
+    const buckets = {};
+    entries.forEach(e => {
+      if (!e.date) return;
+      let key;
+      if (unit === 'day') key = e.date;
+      else if (unit === 'week') {
+        const d = new Date(e.date + 'T00:00:00');
+        const monday = new Date(d); monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+        key = _isoDate(monday);
+      } else key = e.date.slice(0, 7);
+      buckets[key] = (buckets[key] || 0) + e.price;
+    });
+    const sortedKeys = Object.keys(buckets).sort();
+    const trendCanvas = document.getElementById('rev-trend-chart');
+    if (_revChartInstances.trend) _revChartInstances.trend.destroy();
+    if (trendCanvas) {
+      _revChartInstances.trend = new Chart(trendCanvas, {
+        type: 'bar',
+        data: { labels: sortedKeys, datasets: [{ data: sortedKeys.map(k => buckets[k]), backgroundColor: '#185FA5', borderRadius: 4, maxBarThickness: 28 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+          scales: { y: { ticks: { callback: v => Math.round(v / 10000).toLocaleString() + '만' } } }
+        }
+      });
+    }
+
+    const byProg = {};
+    entries.forEach(e => {
+      const label = REFUND_PROG_NAMES[e.progKey] || e.progKey.replace('extra:', '');
+      byProg[label] = (byProg[label] || 0) + e.price;
+    });
+    const progLabels = Object.keys(byProg);
+    const progColors = ['#185FA5', '#3B6D11', '#854F0B', '#712B13', '#534AB7', '#993556', '#5F5E5A'];
+    const progCanvas = document.getElementById('rev-program-chart');
+    if (_revChartInstances.program) _revChartInstances.program.destroy();
+    if (progCanvas) {
+      _revChartInstances.program = new Chart(progCanvas, {
+        type: 'doughnut',
+        data: { labels: progLabels, datasets: [{ data: progLabels.map(l => byProg[l]), backgroundColor: progLabels.map((_, i) => progColors[i % progColors.length]), borderWidth: 2, borderColor: '#fff' }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      });
+    }
+    const progTotal = progLabels.reduce((s, l) => s + byProg[l], 0) || 1;
+    const progLegendEl = document.getElementById('rev-program-legend');
+    if (progLegendEl) {
+      progLegendEl.innerHTML = progLabels.map((l, i) => `
+        <div style="display:flex;justify-content:space-between;padding:3px 0;">
+          <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${progColors[i % progColors.length]};margin-right:6px;"></span>${l}</span>
+          <span style="color:var(--text-hint);">${byProg[l].toLocaleString()}원 (${Math.round(byProg[l] / progTotal * 100)}%)</span>
+        </div>`).join('');
+    }
+
+    const newSum = entries.filter(e => e.contractType === '신규').reduce((s, e) => s + e.price, 0);
+    const reSum = entries.filter(e => e.contractType === '재등록').reduce((s, e) => s + e.price, 0);
+    const newreCanvas = document.getElementById('rev-newre-chart');
+    if (_revChartInstances.newre) _revChartInstances.newre.destroy();
+    if (newreCanvas) {
+      _revChartInstances.newre = new Chart(newreCanvas, {
+        type: 'doughnut',
+        data: { labels: ['신규', '재등록'], datasets: [{ data: [newSum, reSum], backgroundColor: ['#185FA5', '#3B6D11'], borderWidth: 2, borderColor: '#fff' }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+      });
+    }
+    const newreTotal = (newSum + reSum) || 1;
+    const newreLegendEl = document.getElementById('rev-newre-legend');
+    if (newreLegendEl) {
+      newreLegendEl.innerHTML = `
+        <div style="display:flex;justify-content:space-between;padding:3px 0;"><span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#185FA5;margin-right:6px;"></span>신규</span><span style="color:var(--text-hint);">${newSum.toLocaleString()}원 (${Math.round(newSum / newreTotal * 100)}%)</span></div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;"><span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#3B6D11;margin-right:6px;"></span>재등록</span><span style="color:var(--text-hint);">${reSum.toLocaleString()}원 (${Math.round(reSum / newreTotal * 100)}%)</span></div>`;
+    }
+  }
+
+  function renderRevDetailList() {
+    const el = document.getElementById('rev-detail-list');
+    const countEl = document.getElementById('rev-detail-count');
+    const moreBtn = document.getElementById('rev-detail-more');
+    if (!el) return;
+    const sort = document.getElementById('rev-sort').value;
+    let list = [..._revFilteredEntries];
+    if (sort === 'date-desc') list.sort((a, b) => b.date.localeCompare(a.date));
+    else if (sort === 'date-asc') list.sort((a, b) => a.date.localeCompare(b.date));
+    else if (sort === 'amount-desc') list.sort((a, b) => b.price - a.price);
+    else if (sort === 'amount-asc') list.sort((a, b) => a.price - b.price);
+
+    if (countEl) countEl.textContent = list.length;
+    if (!list.length) {
+      el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">해당 조건의 매출 내역이 없어요</div>';
+      if (moreBtn) moreBtn.style.display = 'none';
+      return;
+    }
+    const shown = list.slice(0, _revDetailShown);
+    el.innerHTML = shown.map(e => {
+      const methodLabel = _paymentMethodLabel(e) || '-';
+      const unpaid = e.price - e.cash - e.card - e.transfer;
+      return `
+        <div onclick="openMemberModal('${e.phone}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text);">${e.name} <span style="font-size:11px;font-weight:600;color:var(--text-hint);">${e.label}</span></div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${e.date} · ${e.contractType} · ${methodLabel}${unpaid > 0 ? ' · <span style="color:#e24b4a;">미수금 ' + unpaid.toLocaleString() + '원</span>' : ''}</div>
+          </div>
+          <div style="font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;">${e.price.toLocaleString()}원</div>
+        </div>`;
+    }).join('');
+    if (moreBtn) moreBtn.style.display = _revDetailShown < list.length ? 'block' : 'none';
+  }
+  window.renderRevDetailList = renderRevDetailList;
+
+  function exportRevCsv() {
+    const list = [..._revFilteredEntries].sort((a, b) => a.date.localeCompare(b.date));
+    if (!list.length) { showToast('내보낼 데이터가 없어요.', 'error'); return; }
+    const header = ['날짜', '회원명', '전화번호', '프로그램', '유형', '금액', '현금', '카드', '계좌', '미수금'];
+    const rows = list.map(e => [
+      e.date, e.name, e.phone, e.label.replace(/,/g, ' '), e.contractType,
+      e.price, e.cash, e.card, e.transfer, Math.max(0, e.price - e.cash - e.card - e.transfer)
+    ]);
+    const csvContent = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '매출내역_' + _todayISO() + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  window.exportRevCsv = exportRevCsv;
+
+
   let currentMemberPhone = null;
   let cachedMembers = {};
 
