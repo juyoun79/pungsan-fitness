@@ -1343,6 +1343,8 @@
     // 저장된 레이아웃 복원
     const savedLayout = localStorage.getItem('admin_layout') || 'mobile';
     if (savedLayout === 'pc') applyAdminLayout('pc');
+    // 담당강사 명단을 미리 불러와둠 (강사관리 탭을 안 거쳐도 계약서 화면에서 바로 사용 가능하게)
+    try { loadAdminTrainerList(); } catch(e) { console.error('강사명단 사전로딩 오류(무시):', e); }
     getMemberDB().then(members => {
       const memberList = Object.entries(members);
       document.getElementById('admin-total-members').textContent = memberList.length;
@@ -2526,6 +2528,7 @@
 
       try { resetContract(); } catch(e) { console.error('resetContract 오류(무시):', e); }
       try { switchAdminTab('tab-register'); } catch(e) { console.error('switchAdminTab 오류(무시):', e); }
+      try { if (!adminTrainerList || adminTrainerList.length === 0) loadAdminTrainerList(); } catch(e) { console.error('강사명단 재로딩 오류(무시):', e); }
       window._ctReturnPhone = phone; // 2단계에서 "이전" 누르면 이 회원 상세화면으로 복귀
 
       const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
