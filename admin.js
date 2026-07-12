@@ -1446,7 +1446,6 @@
         const phone = phoneSnap.key;
         const memberInfo = members[phone];
         const name = (memberInfo && memberInfo.name) || phone;
-        const trainerId = (memberInfo && memberInfo.trainerId) || '';
         phoneSnap.forEach(cSnap => {
           const c = cSnap.val();
           if (!c) return;
@@ -1458,7 +1457,7 @@
               phone, name, progKey: it.progKey, label,
               price: d.price || 0, cash: d.cash || 0, card: d.card || 0, transfer: d.transfer || 0,
               date: c.signDate || '', contractType,
-              trainerId: it.progKey === 'PT' ? trainerId : ''
+              trainerId: (it.progKey === 'PT' || it.progKey === '기구필라테스개인') ? (d.trainerId || '') : ''
             });
             if (d.refund) {
               refunds.push({ phone, name, progKey: it.progKey, label, refundAmount: d.refund.refundAmount || 0, date: d.refund.date || '', method: d.refund.method || '' });
@@ -2816,17 +2815,24 @@
       const endLabel = _normDate(it.data.endDate);
       const monthsLabel = it.data.months ? it.data.months + '개월' : '-';
       const countLabel  = it.data.count  ? it.data.count  + '회'   : '-';
+      const isTrainerProg = it.progKey === 'PT' || it.progKey === '기구필라테스개인';
+      const trainerName = it.data.trainerId ? ((typeof adminTrainerList !== 'undefined' ? adminTrainerList : []).find(t => t.id === it.data.trainerId)?.name || it.data.trainerId) : '';
+      const trainerLink = isTrainerProg
+        ? `<span onclick="openAssignItemTrainer('${phone}','${c.key}','${it.progKey}',${it.pkgIndex == null ? 'null' : it.pkgIndex})" style="cursor:pointer;color:${trainerName ? 'var(--text)' : 'var(--text-hint)'};text-decoration:underline dotted;">${trainerName || '미정'} ✏️</span>`
+        : '<span style="color:var(--text-hint);">-</span>';
       return `<div class="md-item-row" style="padding:8px 0;border-top:1px solid var(--border);">
         <!-- 모바일: flex | PC: grid 7컬럼 (md-col-* 직접 배치, display:contents 미사용) -->
         <div class="md-col-prog">
           <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${progLabels[it.progKey] || it.progKey} ${_renderPkgBadge(it.pkgName)}</div>
           <div class="md-col-prog-sub" style="font-size:11px;color:var(--text-hint);margin-top:2px;">${_formatPeriodLabel(it.data)}</div>
           ${(startLabel !== '-' || endLabel !== '-') ? `<div class="md-col-daterange" style="font-size:11px;color:var(--text-hint);margin-top:2px;">${startLabel} ~ ${endLabel}</div>` : ''}
+          ${isTrainerProg ? `<div class="md-col-trainer-mobile" style="font-size:11px;color:var(--text-hint);margin-top:2px;">담당강사: ${trainerLink}</div>` : ''}
         </div>
         <div class="md-col-months" style="display:none;font-size:12px;color:var(--text);">${monthsLabel}</div>
         <div class="md-col-count"  style="display:none;font-size:12px;color:var(--text);">${countLabel}</div>
         <div class="md-col-start"  style="display:none;font-size:12px;color:var(--text);">${startLabel}</div>
         <div class="md-col-end"    style="display:none;font-size:12px;color:var(--text);">${endLabel}</div>
+        <div class="md-col-trainer" style="display:none;font-size:12px;">${trainerLink}</div>
         <div class="md-col-right" style="margin-left:auto;display:flex;align-items:center;justify-content:flex-end;gap:10px;">
           <div class="md-col-amount" style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
           <div class="md-col-status" style="font-size:11px;white-space:nowrap;">${_renderItemStatusBadge(it.data, phone, c.key, it.progKey)}</div>
@@ -2843,6 +2849,7 @@
       <div style="text-align:center;">횟수</div>
       <div style="text-align:center;">시작일</div>
       <div style="text-align:center;">종료일</div>
+      <div style="text-align:center;">담당강사</div>
       <div style="text-align:right;">금액 · 결제상태</div>
     </div>` : '';
 
@@ -2910,6 +2917,43 @@
   window.openSignDateEdit = openSignDateEdit;
   window._saveSignDate = _saveSignDate;
 
+  // 계약이력 항목(PT/기구필라테스개인)의 담당강사 지정/수정 팝업
+  function openAssignItemTrainer(phone, contractKey, progKey, pkgIndex) {
+    const existing = document.getElementById('app-trainer-assign-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-trainer-assign-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    const options = (typeof adminTrainerList !== 'undefined' ? adminTrainerList : []).map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    modal.innerHTML = `
+      <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:320px;box-sizing:border-box;">
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:14px;">담당강사 지정</div>
+        <select id="trainer-assign-select" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:14px;">
+          <option value="">미정</option>
+          ${options}
+        </select>
+        <div style="display:flex;gap:8px;">
+          <button onclick="document.getElementById('app-trainer-assign-modal').remove()" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+          <button onclick="_saveAssignItemTrainer('${phone}','${contractKey}','${progKey}',${pkgIndex == null ? 'null' : pkgIndex})" style="flex:1;padding:10px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  window.openAssignItemTrainer = openAssignItemTrainer;
+
+  function _saveAssignItemTrainer(phone, contractKey, progKey, pkgIndex) {
+    const trainerId = document.getElementById('trainer-assign-select')?.value || null;
+    const path = pkgIndex == null
+      ? 'contracts/' + phone + '/' + contractKey + '/programs/' + progKey + '/trainerId'
+      : 'contracts/' + phone + '/' + contractKey + '/packages/' + pkgIndex + '/items/' + progKey + '/trainerId';
+    db.ref(path).set(trainerId).then(() => {
+      document.getElementById('app-trainer-assign-modal')?.remove();
+      showToast('✅ 담당강사가 저장됐어요.', 'success');
+      _renderMdContracts(phone);
+    });
+  }
+  window._saveAssignItemTrainer = _saveAssignItemTrainer;
+
   // 부가서비스(운동복/락카) 라벨
   function _extraLabel(key, e) {
     if (key === 'cloth') return '👕 운동복';
@@ -2936,6 +2980,7 @@
       <div class="md-col-count"  style="display:none;font-size:12px;color:var(--text-hint);">-</div>
       <div class="md-col-start"  style="display:none;font-size:12px;color:var(--text);">${startLabel}</div>
       <div class="md-col-end"    style="display:none;font-size:12px;color:var(--text);">${endLabel}</div>
+      <div class="md-col-trainer" style="display:none;font-size:12px;color:var(--text-hint);">-</div>
       <div class="md-col-right" style="margin-left:auto;display:flex;align-items:center;justify-content:flex-end;gap:10px;">
         <div class="md-col-amount" style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
         <div class="md-col-status" style="font-size:11px;white-space:nowrap;text-align:right;">
@@ -6469,7 +6514,7 @@
     const pkg = ctPackages.find(p => p.id === pkgId);
     if (!pkg || !pkg.items[prog]) return;
     // type=text+콤마포맷으로 변경됐으므로 콤마 제거 후 숫자 변환
-    pkg.items[prog][field] = field === 'startDate' || field === 'endDate' ? value : (parseInt(String(value).replace(/[^0-9]/g,''))||0);
+    pkg.items[prog][field] = (field === 'startDate' || field === 'endDate' || field === 'trainerId') ? value : (parseInt(String(value).replace(/[^0-9]/g,''))||0);
 
     // 종료일 자동계산
     if (field === 'months' || field === 'startDate') {
@@ -6535,6 +6580,8 @@
         });
         const startEl = document.getElementById('ct-pkg-'+pkg.id+'-'+prog+'-start');
         if (startEl && startEl.value) pkg.items[prog].startDate = startEl.value;
+        const trainerEl = document.getElementById('ct-pkg-'+pkg.id+'-'+prog+'-trainer');
+        if (trainerEl) pkg.items[prog].trainerId = trainerEl.value;
       });
     });
 
@@ -6596,6 +6643,16 @@
                   oninput="_formatMoneyInput(this);updateCtPkgField(${pkg.id},'${prog}','price',this.value)" />
               </div>
             </div>
+            ${(prog === 'PT' || prog === '기구필라테스개인') ? `
+            <div style="margin-bottom:6px;">
+              <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">담당강사</div>
+              <select id="ct-pkg-${pkg.id}-${prog}-trainer"
+                style="width:100%;box-sizing:border-box;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:'Noto Sans KR',sans-serif;background:var(--card);"
+                onchange="updateCtPkgField(${pkg.id},'${prog}','trainerId',this.value)">
+                <option value="" ${!it.trainerId ? 'selected' : ''}>미정</option>
+                ${(typeof adminTrainerList !== 'undefined' ? adminTrainerList : []).map(t => `<option value="${t.id}" ${it.trainerId === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}
+              </select>
+            </div>` : ''}
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
               <div>
                 <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;">
@@ -6770,6 +6827,14 @@
               </select>
             </div>
           </div>
+          ${(prog === 'PT' || prog === '기구필라테스개인') ? `
+          <div style="grid-column:1 / -1;">
+            <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">담당강사</div>
+            <select id="ct-${prog}-trainer" style="${inStyle}background:var(--card);">
+              <option value="">미정</option>
+              ${(typeof adminTrainerList !== 'undefined' ? adminTrainerList : []).map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+            </select>
+          </div>` : ''}
         </div>
         <!-- 종료일 + 이용요금 나란히 -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
@@ -7818,6 +7883,9 @@
         card      : numVal('card'),
         transfer  : numVal('transfer'),
       };
+      if (prog === 'PT' || prog === '기구필라테스개인') {
+        programs[prog].trainerId = document.getElementById('ct-' + prog + '-trainer')?.value || '';
+      }
     });
 
     // 날짜 계산 함수
