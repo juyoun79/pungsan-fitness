@@ -1414,7 +1414,9 @@
   // ══════════════════════════════════════════════
   let _revAllEntries = null;   // 전체 매출 항목 원시데이터 (한번 fetch 후 캐시)
   let _revAllRefunds = null;   // 전체 환불 원시데이터
-  let _revPeriod = 'month';
+  let _revSubTab = 'summary';  // 세부탭: summary/chart/detail
+  let _revUnit = 'day';        // 날짜 단위: day/week/month/year/custom
+  let _revRefDate = new Date(); // 현재 보고 있는 기준 날짜
   let _revFilters = { programs: new Set(), types: new Set(), methods: new Set(), payStatus: 'all', trainerId: '', minAmount: null, maxAmount: null, search: '' };
   let _revDetailShown = 20;
   let _revFilteredEntries = [];
@@ -1423,25 +1425,153 @@
   const REV_PROGRAM_OPTIONS = [
     ['헬스', '헬스'], ['GX', 'GX'], ['PT', 'PT'],
     ['기구필라테스개인', '기구필라테스 개인'], ['기구필라테스그룹', '기구필라테스 그룹'],
-    ['extra:locker', '🔑 락카'], ['extra:cloth', '👕 운동복']
+    ['extra:locker', '🔑 락카'], ['extra:cloth', '👕 운동복'], ['daypass', '🎫 일일권']
   ];
 
   function initRevenueTab() {
     _revFilters = { programs: new Set(), types: new Set(), methods: new Set(), payStatus: 'all', trainerId: '', minAmount: null, maxAmount: null, search: '' };
     _revDetailShown = 20;
+    _revSubTab = 'summary';
+    _revUnit = 'day';
+    _revRefDate = new Date();
     _revRenderFilterOptions();
+    _revUpdateDateLabel();
     if (_revAllEntries) { loadRevenueStats(); return; }
     document.getElementById('rev-summary-cards').innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;grid-column:span 2;">불러오는 중...</div>';
     _revBuildData().then(() => loadRevenueStats());
   }
   window.initRevenueTab = initRevenueTab;
 
+  // ── 세부탭 전환 (요약/차트/상세내역) ──
+  function switchRevSubTab(tab) {
+    _revSubTab = tab;
+    ['summary', 'chart', 'detail'].forEach(t => {
+      const el = document.getElementById('rev-subtab-' + t);
+      if (el) el.style.display = (t === tab) ? '' : 'none';
+    });
+    document.querySelectorAll('.rev-subtab-btn').forEach(b => {
+      const active = b.dataset.subtab === tab;
+      b.style.background = active ? 'var(--blue)' : 'transparent';
+      b.style.color = active ? 'white' : 'var(--text-sub)';
+    });
+    if (tab === 'chart') renderRevCharts(); // 숨겨져 있던 canvas가 보이게 될 때 다시 그려야 크기가 잡힘
+  }
+  window.switchRevSubTab = switchRevSubTab;
+
+  // ── 날짜 단위(일/주/월/년/직접지정) 전환 ──
+  function _revSetUnit(unit) {
+    _revUnit = unit;
+    document.querySelectorAll('.rev-unit-btn').forEach(b => {
+      const active = b.dataset.unit === unit;
+      b.style.background = active ? 'var(--blue)' : 'var(--card)';
+      b.style.color = active ? 'white' : 'var(--text)';
+      b.style.borderColor = active ? 'var(--blue)' : 'var(--border)';
+    });
+    const navRow = document.getElementById('rev-date-nav-row');
+    const customRow = document.getElementById('rev-custom-range');
+    if (unit === 'custom') {
+      if (navRow) navRow.style.display = 'none';
+      if (customRow) customRow.style.display = 'flex';
+    } else {
+      if (navRow) navRow.style.display = 'flex';
+      if (customRow) customRow.style.display = 'none';
+      _revUpdateDateLabel();
+      loadRevenueStats();
+    }
+  }
+  window._revSetUnit = _revSetUnit;
+
+  // 날짜를 단위만큼 앞/뒤로 이동시킨 새 Date 반환 (원본은 변경 안 함)
+  function _revShiftDate(date, unit, delta) {
+    const d = new Date(date);
+    if (unit === 'day') d.setDate(d.getDate() + delta);
+    else if (unit === 'week') d.setDate(d.getDate() + delta * 7);
+    else if (unit === 'month') d.setMonth(d.getMonth() + delta);
+    else if (unit === 'year') d.setFullYear(d.getFullYear() + delta);
+    return d;
+  }
+
+  function _revNavDate(delta) {
+    _revRefDate = _revShiftDate(_revRefDate, _revUnit, delta);
+    _revUpdateDateLabel();
+    loadRevenueStats();
+  }
+  window._revNavDate = _revNavDate;
+
+  function _revJumpToday() {
+    _revRefDate = new Date();
+    _revUpdateDateLabel();
+    loadRevenueStats();
+  }
+  window._revJumpToday = _revJumpToday;
+
+  function _revOpenDatePicker() {
+    const input = document.getElementById('rev-date-picker-input');
+    if (!input) return;
+    input.value = _isoDate(_revRefDate);
+    if (input.showPicker) input.showPicker(); else input.click();
+  }
+  window._revOpenDatePicker = _revOpenDatePicker;
+
+  function _revPickDate(value) {
+    if (!value) return;
+    _revRefDate = new Date(value + 'T00:00:00');
+    _revUpdateDateLabel();
+    loadRevenueStats();
+  }
+  window._revPickDate = _revPickDate;
+
+  // 현재 unit + refDate 기준으로 { start, end } (ISO 문자열) 범위 계산
+  function _revGetUnitRange(unit, refDate) {
+    const y = refDate.getFullYear(), m = refDate.getMonth(), d = refDate.getDate();
+    let start, end;
+    if (unit === 'day') { start = new Date(y, m, d); end = new Date(y, m, d); }
+    else if (unit === 'week') {
+      const dow = refDate.getDay();
+      start = new Date(y, m, d - ((dow + 6) % 7));
+      end = new Date(start); end.setDate(start.getDate() + 6);
+    } else if (unit === 'month') { start = new Date(y, m, 1); end = new Date(y, m + 1, 0); }
+    else if (unit === 'year') { start = new Date(y, 0, 1); end = new Date(y, 11, 31); }
+    else { // custom
+      const s = document.getElementById('rev-start-date').value;
+      const e = document.getElementById('rev-end-date').value;
+      start = s ? new Date(s + 'T00:00:00') : new Date(y, m, 1);
+      end = e ? new Date(e + 'T00:00:00') : new Date(y, m + 1, 0);
+    }
+    return { start: _isoDate(start), end: _isoDate(end) };
+  }
+
+  function _revUpdateDateLabel() {
+    const el = document.getElementById('rev-date-label');
+    if (!el) return;
+    const d = _revRefDate;
+    const today = new Date();
+    const isToday = _isoDate(d) === _isoDate(today);
+    let text;
+    if (_revUnit === 'day') {
+      text = d.getFullYear() + '년 ' + (d.getMonth() + 1) + '월 ' + d.getDate() + '일' + (isToday ? ' (오늘)' : '');
+    } else if (_revUnit === 'week') {
+      const range = _revGetUnitRange('week', d);
+      const s = new Date(range.start + 'T00:00:00'), e = new Date(range.end + 'T00:00:00');
+      const inThisWeek = _isoDate(today) >= range.start && _isoDate(today) <= range.end;
+      text = (s.getMonth() + 1) + '/' + s.getDate() + ' ~ ' + (e.getMonth() + 1) + '/' + e.getDate() + (inThisWeek ? ' (이번주)' : '');
+    } else if (_revUnit === 'month') {
+      const isThisMonth = d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth();
+      text = d.getFullYear() + '년 ' + (d.getMonth() + 1) + '월' + (isThisMonth ? ' (이번달)' : '');
+    } else if (_revUnit === 'year') {
+      const isThisYear = d.getFullYear() === today.getFullYear();
+      text = d.getFullYear() + '년' + (isThisYear ? ' (올해)' : '');
+    } else { text = '직접 지정'; }
+    el.textContent = text;
+  }
+
   // 계약이력(contracts) 전체를 한번 읽어와서 매출/환불 항목으로 평탄화 — 실제 판매금액만 집계(진행상황 D-day 계산과 달리 환불/양도된 것도 "그 당시엔 매출이었으므로" 포함)
   function _revBuildData() {
     return Promise.all([
       db.ref('contracts').once('value'),
-      getMemberDB()
-    ]).then(([contractsSnap, members]) => {
+      getMemberDB(),
+      db.ref('daypass_sales').once('value')
+    ]).then(([contractsSnap, members, daypassSnap]) => {
       const entries = [];
       const refunds = [];
       contractsSnap.forEach(phoneSnap => {
@@ -1476,10 +1606,101 @@
           });
         });
       });
+      daypassSnap.forEach(dSnap => {
+        const dp = dSnap.val();
+        if (!dp) return;
+        entries.push({
+          phone: dp.phone || '', name: dp.name || '이름없음', progKey: 'daypass', label: '🎫 일일권',
+          price: dp.amount || 0,
+          cash: dp.method === 'cash' ? (dp.amount || 0) : 0,
+          card: dp.method === 'card' ? (dp.amount || 0) : 0,
+          transfer: dp.method === 'transfer' ? (dp.amount || 0) : 0,
+          date: dp.date || '', contractType: '일일권', trainerId: ''
+        });
+      });
       _revAllEntries = entries;
       _revAllRefunds = refunds;
     });
   }
+
+  // ── 일일권 등록 모달 (금액·결제수단만 필수 / 이름·전화번호는 선택) ──
+  function openDaypassModal() {
+    const existing = document.getElementById('daypass-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'daypass-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.innerHTML = `
+      <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:340px;box-sizing:border-box;">
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:14px;">🎫 일일권 등록</div>
+
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">이름 (선택)</div>
+        <input type="text" id="daypass-name" placeholder="이름없음" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;">
+
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">전화번호 (선택)</div>
+        <input type="tel" id="daypass-phone" placeholder="01012345678" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;">
+
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">금액 <span style="color:#e24b4a;">*필수</span></div>
+        <input type="number" id="daypass-amount" placeholder="예: 15000" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;">
+
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">결제수단 <span style="color:#e24b4a;">*필수</span></div>
+        <div id="daypass-method-btns" style="display:flex;gap:6px;margin-bottom:16px;">
+          ${[['cash', '현금'], ['card', '카드'], ['transfer', '계좌이체']].map(([k, l]) =>
+            `<button type="button" data-method="${k}" onclick="_daypassPickMethod('${k}')" style="flex:1;padding:9px 0;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">${l}</button>`
+          ).join('')}
+        </div>
+
+        <div style="display:flex;gap:8px;">
+          <button onclick="document.getElementById('daypass-modal').remove()" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+          <button onclick="_saveDaypass()" style="flex:1;padding:10px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    window._daypassSelectedMethod = '';
+  }
+  window.openDaypassModal = openDaypassModal;
+
+  function _daypassPickMethod(method) {
+    window._daypassSelectedMethod = method;
+    document.querySelectorAll('#daypass-method-btns button').forEach(b => {
+      const active = b.dataset.method === method;
+      b.style.background = active ? 'var(--blue)' : 'var(--card)';
+      b.style.color = active ? 'white' : 'var(--text)';
+      b.style.borderColor = active ? 'var(--blue)' : 'var(--border)';
+    });
+  }
+  window._daypassPickMethod = _daypassPickMethod;
+
+  function _saveDaypass() {
+    const name = (document.getElementById('daypass-name').value || '').trim();
+    const phone = (document.getElementById('daypass-phone').value || '').trim();
+    const amount = parseInt(document.getElementById('daypass-amount').value);
+    const method = window._daypassSelectedMethod;
+    if (!amount || amount <= 0) { showToast('금액을 입력해주세요.', 'error'); return; }
+    if (!method) { showToast('결제수단을 선택해주세요.', 'error'); return; }
+    const date = _todayISO();
+    const entry = { name: name || null, phone: phone || null, amount, method, date, createdAt: Date.now() };
+    db.ref('daypass_sales').push(entry).then(() => {
+      document.getElementById('daypass-modal')?.remove();
+      showToast('✅ 일일권이 등록됐어요.', 'success');
+      // 전체 재조회 대신, 지금 캐시에 바로 항목을 추가해서 화면을 즉시 갱신
+      if (_revAllEntries) {
+        _revAllEntries.push({
+          phone: phone || '', name: name || '이름없음', progKey: 'daypass', label: '🎫 일일권',
+          price: amount,
+          cash: method === 'cash' ? amount : 0,
+          card: method === 'card' ? amount : 0,
+          transfer: method === 'transfer' ? amount : 0,
+          date, contractType: '일일권', trainerId: ''
+        });
+        loadRevenueStats();
+      }
+    }).catch(err => {
+      console.error('일일권 저장 오류:', err);
+      showToast('저장 중 오류가 발생했어요.', 'error');
+    });
+  }
+  window._saveDaypass = _saveDaypass;
 
   function _revToggleFilterBtnHtml(groupKey, value, label, active) {
     return `<button class="rev-chip" data-group="${groupKey}" data-value="${value}" onclick="_revToggleChip(this)"
@@ -1536,43 +1757,6 @@
   }
   window.resetRevFilters = resetRevFilters;
 
-  function setRevPeriod(period) {
-    document.querySelectorAll('.rev-period-btn').forEach(b => {
-      const active = b.dataset.period === period;
-      b.style.background = active ? 'var(--blue)' : 'var(--card)';
-      b.style.color = active ? 'white' : 'var(--text)';
-      b.style.borderColor = active ? 'var(--blue)' : 'var(--border)';
-    });
-    _revPeriod = period;
-    const customEl = document.getElementById('rev-custom-range');
-    if (customEl) customEl.style.display = period === 'custom' ? 'flex' : 'none';
-    if (period !== 'custom') loadRevenueStats();
-  }
-  window.setRevPeriod = setRevPeriod;
-
-  function _revGetPeriodRange(period) {
-    const today = new Date();
-    const y = today.getFullYear(), m = today.getMonth(), d = today.getDate();
-    let start, end;
-    if (period === 'today') { start = new Date(y, m, d); end = new Date(y, m, d); }
-    else if (period === 'week') {
-      const dow = today.getDay();
-      start = new Date(y, m, d - ((dow + 6) % 7));
-      end = new Date(start); end.setDate(start.getDate() + 6);
-    } else if (period === 'quarter') {
-      const q = Math.floor(m / 3);
-      start = new Date(y, q * 3, 1); end = new Date(y, q * 3 + 3, 0);
-    } else if (period === 'year') { start = new Date(y, 0, 1); end = new Date(y, 11, 31); }
-    else if (period === 'lastyear') { start = new Date(y - 1, 0, 1); end = new Date(y - 1, 11, 31); }
-    else if (period === 'custom') {
-      const s = document.getElementById('rev-start-date').value;
-      const e = document.getElementById('rev-end-date').value;
-      start = s ? new Date(s + 'T00:00:00') : new Date(y, m, 1);
-      end = e ? new Date(e + 'T00:00:00') : new Date(y, m + 1, 0);
-    } else { start = new Date(y, m, 1); end = new Date(y, m + 1, 0); } // month (기본값)
-    return { start: _isoDate(start), end: _isoDate(end) };
-  }
-
   function _revGetComparePeriodRange(curRange) {
     const mode = document.getElementById('rev-compare-mode').value;
     if (mode === 'none') return null;
@@ -1591,7 +1775,7 @@
 
   function loadRevenueStats() {
     if (!_revAllEntries) return;
-    const range = _revGetPeriodRange(_revPeriod);
+    const range = _revGetUnitRange(_revUnit, _revRefDate);
     const filters = _revFilters;
     filters.trainerId = document.getElementById('rev-filter-trainer').value;
     filters.minAmount = document.getElementById('rev-min-amount').value ? parseInt(document.getElementById('rev-min-amount').value) : null;
@@ -1668,11 +1852,59 @@
     `;
 
     _revRenderInsight(curEntries, newCount, reCount);
-    renderRevCharts();
+    _revRenderProgramSumTable(curEntries);
+    _revRenderSummaryList(curEntries);
+    if (_revSubTab === 'chart') renderRevCharts();
     _revDetailShown = 20;
     renderRevDetailList();
   }
   window.loadRevenueStats = loadRevenueStats;
+
+  // 요약 탭 — 프로그램별 합계 표 (헬스/PT/GX/기구필라테스개인·그룹/락카/운동복/일일권 각각 얼마)
+  function _revRenderProgramSumTable(entries) {
+    const el = document.getElementById('rev-program-sum-table');
+    if (!el) return;
+    if (!entries.length) { el.innerHTML = '<div style="text-align:center;padding:10px;color:var(--text-hint);font-size:13px;">해당 기간에 매출이 없어요</div>'; return; }
+    const byProg = {};
+    entries.forEach(e => { byProg[e.progKey] = (byProg[e.progKey] || 0) + e.price; });
+    const sorted = Object.entries(byProg).sort((a, b) => b[1] - a[1]);
+    const total = sorted.reduce((s, [, v]) => s + v, 0);
+    el.innerHTML = sorted.map(([progKey, amt]) => {
+      const label = REFUND_PROG_NAMES[progKey] || (progKey.startsWith('extra:') ? (progKey === 'extra:locker' ? '🔑 락카' : progKey === 'extra:cloth' ? '👕 운동복' : progKey) : progKey);
+      return `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;">
+        <span style="color:var(--text);">${label}</span>
+        <span style="font-weight:700;color:var(--text);">${amt.toLocaleString()}원</span>
+      </div>`;
+    }).join('') + `
+      <div style="display:flex;justify-content:space-between;padding:9px 0 0;font-size:13.5px;font-weight:700;">
+        <span style="color:var(--text);">합계</span>
+        <span style="color:var(--blue);">${total.toLocaleString()}원</span>
+      </div>`;
+  }
+
+  // 요약 탭 — 결제내역 리스트 (최근 5건만, 전체는 상세내역 탭에서)
+  function _revRenderSummaryList(entries) {
+    const el = document.getElementById('rev-summary-list');
+    if (!el) return;
+    if (!entries.length) { el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">해당 기간의 결제내역이 없어요</div>'; return; }
+    const list = [...entries].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+    el.innerHTML = list.map(_revEntryRowHtml).join('');
+  }
+
+  // 매출 내역 한 줄(회원명/프로그램/날짜/결제수단/금액) — 요약탭·상세내역탭 공통으로 사용
+  function _revEntryRowHtml(e) {
+    const methodLabel = _paymentMethodLabel(e) || '-';
+    const unpaid = e.price - e.cash - e.card - e.transfer;
+    const clickable = !!e.phone;
+    return `
+      <div ${clickable ? `onclick="openMemberModal('${e.phone}')"` : ''} style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);${clickable ? 'cursor:pointer;' : ''}">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);">${e.name} <span style="font-size:11px;font-weight:600;color:var(--text-hint);">${e.label}</span></div>
+          <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${e.date} · ${e.contractType} · ${methodLabel}${unpaid > 0 ? ' · <span style="color:#e24b4a;">미수금 ' + unpaid.toLocaleString() + '원</span>' : ''}</div>
+        </div>
+        <div style="font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;">${e.price.toLocaleString()}원</div>
+      </div>`;
+  }
 
   function _revRenderInsight(entries, newCount, reCount) {
     const el = document.getElementById('rev-insight');
@@ -1790,18 +2022,7 @@
       return;
     }
     const shown = list.slice(0, _revDetailShown);
-    el.innerHTML = shown.map(e => {
-      const methodLabel = _paymentMethodLabel(e) || '-';
-      const unpaid = e.price - e.cash - e.card - e.transfer;
-      return `
-        <div onclick="openMemberModal('${e.phone}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;">
-          <div>
-            <div style="font-size:13px;font-weight:700;color:var(--text);">${e.name} <span style="font-size:11px;font-weight:600;color:var(--text-hint);">${e.label}</span></div>
-            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${e.date} · ${e.contractType} · ${methodLabel}${unpaid > 0 ? ' · <span style="color:#e24b4a;">미수금 ' + unpaid.toLocaleString() + '원</span>' : ''}</div>
-          </div>
-          <div style="font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;">${e.price.toLocaleString()}원</div>
-        </div>`;
-    }).join('');
+    el.innerHTML = shown.map(_revEntryRowHtml).join('');
     if (moreBtn) moreBtn.style.display = _revDetailShown < list.length ? 'block' : 'none';
   }
   window.renderRevDetailList = renderRevDetailList;
@@ -3368,7 +3589,7 @@
 
   // ══════════════ 환불 기능 ══════════════
   const REFUND_PERIOD_PROGS = ['헬스', 'GX']; // 기간제 — 위약금10%+사용일수 자동계산 / 그 외는 횟수제(직접입력)
-  const REFUND_PROG_NAMES = { '헬스':'헬스', 'GX':'GX', 'PT':'PT', '기구필라테스개인':'기구필라테스 개인', '기구필라테스그룹':'기구필라테스 그룹' };
+  const REFUND_PROG_NAMES = { '헬스':'헬스', 'GX':'GX', 'PT':'PT', '기구필라테스개인':'기구필라테스 개인', '기구필라테스그룹':'기구필라테스 그룹', 'daypass':'🎫 일일권' };
 
   // 환불 시작 — progKey가 없으면(여러 프로그램이 있는 계약서) 먼저 어떤 프로그램을 환불할지 선택하게 함
   function startRefund(phone, contractKey, progKey) {
