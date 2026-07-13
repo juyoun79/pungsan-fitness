@@ -2758,7 +2758,7 @@
       setVal('ct-birth', data.birth);
       setVal('ct-address', data.address);
       if (data.memo) setVal('ct-memo', data.memo);
-      try { selectCtGender(data['body/gender'] || 'male'); } catch(e) { console.error('selectCtGender 오류(무시):', e); }
+      try { selectCtGender((data.body && data.body.gender) || 'male'); } catch(e) { console.error('selectCtGender 오류(무시):', e); }
       try { selectCtType('re'); } catch(e) { console.error('selectCtType 오류(무시):', e); }
       if (data.photoUrl) {
         try {
