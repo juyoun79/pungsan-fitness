@@ -3352,6 +3352,20 @@
     modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:320px;font-family:'Noto Sans KR',sans-serif;">
       <div style="font-size:15px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">✏️ 정보 수정 — ${label}</div>
 
+      <div style="display:flex;gap:8px;margin-bottom:4px;">
+        <div style="flex:1;">
+          <div style="font-size:12px;color:#888;margin-bottom:4px;">개월수</div>
+          <input id="ei-months" type="number" min="0" max="36" placeholder="개월" value="${data.months || ''}"
+            style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:12px;color:#888;margin-bottom:4px;">횟수</div>
+          <input id="ei-count" type="number" min="0" placeholder="회" value="${data.count || ''}"
+            style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;">
+        </div>
+      </div>
+      <div style="font-size:11px;color:#f59e0b;margin-bottom:10px;line-height:1.4;">⚠️ 여기서 횟수를 고쳐도 강사님 화면의 실제 잔여횟수는 자동으로 안 바뀌어요. 계약이력 표기만 수정돼요.</div>
+
       <div style="font-size:12px;color:#888;margin-bottom:4px;">시작일</div>
       <input id="ei-start" type="date" value="${data.startDate || ''}"
         style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
@@ -3428,6 +3442,8 @@
         : 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/packages/' + ctx.pkgIndex + '/items/' + ctx.progKey;
       const num = id => parseInt((document.getElementById(id)?.value || '0').replace(/[^0-9]/g, '')) || 0;
       const updates = {};
+      updates[basePath + '/months'] = parseInt(document.getElementById('ei-months')?.value) || 0;
+      updates[basePath + '/count'] = parseInt(document.getElementById('ei-count')?.value) || 0;
       updates[basePath + '/startDate'] = document.getElementById('ei-start')?.value || '';
       updates[basePath + '/endDate'] = document.getElementById('ei-end')?.value || '';
       updates[basePath + '/price'] = num('ei-price');
