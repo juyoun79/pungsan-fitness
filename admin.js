@@ -6219,13 +6219,14 @@
         }
       }
       return `<div onclick="openLockerDetail('${cat.id}','${no}')" title="${tooltip}"
-        style="width:68px;height:76px;border-radius:10px;background:${bg};border:1.5px solid ${border};
+        style="width:68px;height:${d && d.lockPassword ? '90px' : '76px'};border-radius:10px;background:${bg};border:1.5px solid ${border};
         display:flex;flex-direction:column;align-items:center;justify-content:center;
         cursor:pointer;color:var(--text);gap:1px;padding:4px;box-sizing:border-box;">
         <span style="font-size:11px;font-weight:700;color:var(--text-sub);">${no}번</span>
         ${nameText
           ? `<span style="font-size:12px;font-weight:700;color:var(--text);line-height:1.2;">${nameText}</span>
-             <span style="font-size:10px;color:${ddayColor};font-weight:600;">${ddayText}</span>`
+             <span style="font-size:10px;color:${ddayColor};font-weight:600;">${ddayText}</span>
+             ${d.lockPassword ? `<span style="font-size:9.5px;color:var(--text-hint);">🔒${d.lockPassword}</span>` : ''}`
           : `<span style="font-size:10px;color:var(--text-hint);">${statusEmoji || '빈칸'}</span>`
         }
       </div>`;
