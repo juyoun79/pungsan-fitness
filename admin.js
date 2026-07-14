@@ -1345,6 +1345,8 @@
     if (savedLayout === 'pc') applyAdminLayout('pc');
     // 담당강사 명단을 미리 불러와둠 (강사관리 탭을 안 거쳐도 계약서 화면에서 바로 사용 가능하게)
     try { loadAdminTrainerList(); } catch(e) { console.error('강사명단 사전로딩 오류(무시):', e); }
+    // 회원 목록도 미리 불러와둠 (헤더 알림뱃지가 회원탭을 안 거쳐도 바로 표시되게)
+    try { loadMemberList(''); } catch(e) { console.error('회원목록 사전로딩 오류(무시):', e); }
     getMemberDB().then(members => {
       const memberList = Object.entries(members);
       document.getElementById('admin-total-members').textContent = memberList.length;
@@ -2080,6 +2082,141 @@
     return age;
   }
 
+  // ══════════════════════════════════════════════
+  // 🔍 헤더 전역 검색 — 이름/전화번호/락카번호로 회원 찾기 (어느 탭에 있든 바로 회원상세로 이동)
+  // ══════════════════════════════════════════════
+  let _globalSearchDebounce = null;
+  function onGlobalSearchInput(value, suffix) {
+    suffix = suffix || '';
+    clearTimeout(_globalSearchDebounce);
+    const q = value.trim();
+    const resultsEl = document.getElementById('global-search-results' + suffix);
+    if (!resultsEl) return;
+    if (!q) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; return; }
+    _globalSearchDebounce = setTimeout(() => _runGlobalSearch(q, suffix), 150);
+  }
+  window.onGlobalSearchInput = onGlobalSearchInput;
+
+  function _runGlobalSearch(q, suffix) {
+    const resultsEl = document.getElementById('global-search-results' + suffix);
+    if (!resultsEl) return;
+    const doSearch = (members) => {
+      const matches = Object.entries(members).filter(([phone, info]) => {
+        const name = info.name || '';
+        const lockerNo = info.lockerKey ? info.lockerKey.split('_').pop() : '';
+        return name.includes(q) || phone.includes(q) || (lockerNo && lockerNo.includes(q));
+      }).slice(0, 8);
+      if (matches.length === 0) {
+        resultsEl.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-hint);font-size:12.5px;">검색 결과가 없어요</div>';
+      } else {
+        resultsEl.innerHTML = matches.map(([phone, info]) => {
+          const lockerNo = info.lockerKey ? info.lockerKey.split('_').pop() : '';
+          return `<div onclick="_selectGlobalSearchResult('${phone}','${suffix}')" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:13px;font-weight:700;color:var(--text);">${info.name || '이름없음'}</div>
+              <div style="font-size:11px;color:var(--text-hint);">${phone}</div>
+            </div>
+            ${lockerNo ? `<div style="font-size:11px;color:var(--text-sub);white-space:nowrap;">🔑 ${lockerNo}번</div>` : ''}
+          </div>`;
+        }).join('');
+      }
+      resultsEl.style.display = 'block';
+    };
+    if (cachedMembers && Object.keys(cachedMembers).length > 0) {
+      doSearch(cachedMembers);
+    } else {
+      getMemberDB().then(members => { cachedMembers = members; doSearch(members); });
+    }
+  }
+
+  function _selectGlobalSearchResult(phone, suffix) {
+    closeGlobalSearchResults();
+    const input = document.getElementById('global-search-input' + suffix);
+    if (input) input.value = '';
+    switchAdminTab('tab-members');
+    openMemberModal(phone);
+  }
+  window._selectGlobalSearchResult = _selectGlobalSearchResult;
+
+  function closeGlobalSearchResults() {
+    ['', '-m'].forEach(suffix => {
+      const el = document.getElementById('global-search-results' + suffix);
+      if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+    });
+  }
+  window.closeGlobalSearchResults = closeGlobalSearchResults;
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#global-search-input') && !e.target.closest('#global-search-results') &&
+        !e.target.closest('#global-search-input-m') && !e.target.closest('#global-search-results-m')) {
+      closeGlobalSearchResults();
+    }
+  });
+
+  // ══════════════════════════════════════════════
+  // 🔔 헤더 알림뱃지 — 만료임박 / 미수금 / PT·필라테스 잔여 1회 이하 회원 수를 한눈에
+  // ══════════════════════════════════════════════
+  function _updateHeaderAlertBadge() {
+    if (!_lastMemberData || !_lastMemberData.length) return;
+    const expiring = _lastMemberData.filter(m => m.statusKey === 'expiring').length;
+    const unpaid = _lastMemberData.filter(m => m.hasUnpaid).length;
+    const lowRemain = _lastMemberData.filter(m => m.minCountRemain !== null && m.minCountRemain <= 1).length;
+    const total = expiring + unpaid + lowRemain;
+    window._headerAlertCounts = { expiring, unpaid, lowRemain };
+    ['header-alert-badge', 'header-alert-badge-m'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (total > 0) { el.style.display = 'block'; el.textContent = total > 99 ? '99+' : String(total); }
+      else { el.style.display = 'none'; }
+    });
+  }
+
+  function openHeaderAlertsPanel() {
+    const existing = document.getElementById('header-alerts-modal');
+    if (existing) { existing.remove(); return; }
+    const c = window._headerAlertCounts || { expiring: 0, unpaid: 0, lowRemain: 0 };
+    const modal = document.createElement('div');
+    modal.id = 'header-alerts-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.innerHTML = `
+      <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:340px;box-sizing:border-box;">
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:14px;">🔔 오늘 확인할 회원</div>
+        <div onclick="_goAlertFilter('expiring')" style="display:flex;justify-content:space-between;align-items:center;padding:12px;border-radius:10px;background:var(--bg);margin-bottom:8px;cursor:pointer;">
+          <span style="font-size:13px;color:var(--text);">⚠️ 만료임박 (7일 이내)</span>
+          <span style="font-size:14px;font-weight:700;color:#f59e0b;">${c.expiring}명</span>
+        </div>
+        <div onclick="_goAlertFilter('unpaid')" style="display:flex;justify-content:space-between;align-items:center;padding:12px;border-radius:10px;background:var(--bg);margin-bottom:8px;cursor:pointer;">
+          <span style="font-size:13px;color:var(--text);">💳 미수금 있음</span>
+          <span style="font-size:14px;font-weight:700;color:#ef4444;">${c.unpaid}명</span>
+        </div>
+        <div onclick="_goAlertFilter('lowRemain')" style="display:flex;justify-content:space-between;align-items:center;padding:12px;border-radius:10px;background:var(--bg);margin-bottom:14px;cursor:pointer;">
+          <span style="font-size:13px;color:var(--text);">🎫 PT·필라테스 잔여 1회 이하</span>
+          <span style="font-size:14px;font-weight:700;color:#8b5cf6;">${c.lowRemain}명</span>
+        </div>
+        <button onclick="document.getElementById('header-alerts-modal').remove()" style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">닫기</button>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  window.openHeaderAlertsPanel = openHeaderAlertsPanel;
+
+  // 알림 항목 클릭 시 회원탭으로 이동 + 해당 조건으로 필터 적용 (이미 불러온 데이터 재사용, 재조회 없음)
+  function _goAlertFilter(type) {
+    document.getElementById('header-alerts-modal')?.remove();
+    switchAdminTab('tab-members');
+    const input = document.getElementById('member-search');
+    if (input) input.value = '';
+    _memberFilters = {
+      program: 'all', status: 'all', payment: 'all', locker: 'all', sort: 'none',
+      gender: 'all', dateBasis: 'none', dateStart: '', dateEnd: '',
+      remainMax: 'all', attendGap: 'all', unpaidMin: '', ageBands: new Set()
+    };
+    if (type === 'expiring') _memberFilters.status = 'expiring';
+    else if (type === 'unpaid') _memberFilters.payment = 'unpaid';
+    else if (type === 'lowRemain') _memberFilters.remainMax = '1';
+    _renderMemberListView();
+  }
+  window._goAlertFilter = _goAlertFilter;
+
   function loadMemberList(query = '') {
     getMemberDB().then(members => {
       cachedMembers = members;
@@ -2204,6 +2341,7 @@
         )).then(memberData => {
           _lastMemberData = memberData;
           _renderMemberListView();
+          _updateHeaderAlertBadge();
         });
       });
     });
