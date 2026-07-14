@@ -6219,7 +6219,7 @@
         }
       }
       return `<div onclick="openLockerDetail('${cat.id}','${no}')" title="${tooltip}"
-        style="width:68px;height:${d && d.lockPassword ? '90px' : '76px'};border-radius:10px;background:${bg};border:1.5px solid ${border};
+        style="width:68px;height:90px;border-radius:10px;background:${bg};border:1.5px solid ${border};
         display:flex;flex-direction:column;align-items:center;justify-content:center;
         cursor:pointer;color:var(--text);gap:1px;padding:4px;box-sizing:border-box;">
         <span style="font-size:11px;font-weight:700;color:var(--text-sub);">${no}번</span>
