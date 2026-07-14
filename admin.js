@@ -3477,59 +3477,89 @@
           return;
         }
       }
-      _openReceiptForItem(phone, contractKey, c, progKey);
+      _openReceiptForItems(phone, contractKey, c, [progKey]);
     });
   }
   window.openReceiptModal = openReceiptModal;
 
-  // 계약서 안 항목이 여러 개일 때 — 어느 항목의 영수증을 볼지 선택하는 팝업
+  // 계약서 안 항목이 여러 개일 때 — 체크박스로 여러 항목을 함께 골라 하나의 영수증으로 만들 수 있음
   function _showReceiptItemPicker(phone, contractKey, items, extrasList) {
     document.getElementById('receipt-picker')?.remove();
+    window._receiptPickerSelected = new Set();
     const modal = document.createElement('div');
     modal.id = 'receipt-picker';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
-    const itemBtns = items.map(it => {
-      const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
-      return `<button onclick="document.getElementById('receipt-picker').remove();openReceiptModal('${phone}','${contractKey}','${it.progKey}')"
-        style="width:100%;text-align:left;padding:12px;margin-bottom:8px;background:var(--bg);border:1px solid var(--border);border-radius:10px;font-size:14px;color:var(--text);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-        ${label} · ${(it.data.price||0).toLocaleString()}원</button>`;
-    }).join('');
-    const extraBtns = extrasList.map(([extKey, e]) => {
-      const label = extKey === 'locker' ? '🔑 락카' : extKey === 'cloth' ? '👕 운동복' : extKey;
-      return `<button onclick="document.getElementById('receipt-picker').remove();openReceiptModal('${phone}','${contractKey}','extra:${extKey}')"
-        style="width:100%;text-align:left;padding:12px;margin-bottom:8px;background:var(--bg);border:1px solid var(--border);border-radius:10px;font-size:14px;color:var(--text);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-        ${label} · ${(e.price||0).toLocaleString()}원</button>`;
-    }).join('');
-    modal.innerHTML = `<div style="background:var(--card);border-radius:16px;padding:24px;width:100%;max-width:300px;font-family:'Noto Sans KR',sans-serif;">
-      <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text);">영수증을 볼 항목을 선택하세요</div>
+    const rowHtml = (progKey, label, price) => `
+      <label style="display:flex;align-items:center;gap:10px;width:100%;padding:12px;margin-bottom:8px;background:var(--bg);border:1px solid var(--border);border-radius:10px;font-size:14px;color:var(--text);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+        <input type="checkbox" onchange="_toggleReceiptPick('${progKey}',this.checked)" style="width:16px;height:16px;flex-shrink:0;">
+        <span style="flex:1;">${label}</span>
+        <span style="color:var(--text-hint);">${(price||0).toLocaleString()}원</span>
+      </label>`;
+    const itemBtns = items.map(it => rowHtml(it.progKey, (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : ''), it.data.price)).join('');
+    const extraBtns = extrasList.map(([extKey, e]) =>
+      rowHtml('extra:' + extKey, extKey === 'locker' ? '🔑 락카' : extKey === 'cloth' ? '👕 운동복' : extKey, e.price)
+    ).join('');
+    modal.innerHTML = `<div style="background:var(--card);border-radius:16px;padding:24px;width:100%;max-width:320px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text);">영수증에 포함할 항목을 선택하세요 (복수 선택 가능)</div>
       ${itemBtns}${extraBtns}
-      <button onclick="document.getElementById('receipt-picker').remove()"
-        style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text-hint);cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:4px;">취소</button>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button onclick="document.getElementById('receipt-picker').remove()"
+          style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text-hint);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button onclick="_confirmReceiptPicker('${phone}','${contractKey}')"
+          style="flex:1;padding:10px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">영수증 만들기</button>
+      </div>
     </div>`;
     document.body.appendChild(modal);
   }
 
-  function _openReceiptForItem(phone, contractKey, c, progKey) {
+  function _toggleReceiptPick(progKey, checked) {
+    if (!window._receiptPickerSelected) window._receiptPickerSelected = new Set();
+    if (checked) window._receiptPickerSelected.add(progKey);
+    else window._receiptPickerSelected.delete(progKey);
+  }
+  window._toggleReceiptPick = _toggleReceiptPick;
+
+  function _confirmReceiptPicker(phone, contractKey) {
+    const selected = Array.from(window._receiptPickerSelected || []);
+    if (selected.length === 0) { showToast('항목을 하나 이상 선택해주세요.', 'error'); return; }
+    document.getElementById('receipt-picker')?.remove();
+    db.ref('contracts/' + phone + '/' + contractKey).once('value').then(cSnap => {
+      if (!cSnap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      _openReceiptForItems(phone, contractKey, cSnap.val(), selected);
+    });
+  }
+  window._confirmReceiptPicker = _confirmReceiptPicker;
+
+  // 선택된 항목(들)을 한 영수증에 묶어서 보여줌 (여러 개 선택 시 항목별로 줄이 나뉘고 합계는 전체 합산)
+  function _openReceiptForItems(phone, contractKey, c, progKeys) {
     Promise.all([
       db.ref('members/' + phone).once('value'),
       db.ref('business_info').once('value')
     ]).then(([mSnap, bSnap]) => {
       const items = _flattenContractItems(c);
-      const item = items.find(it => it.progKey === progKey);
-      let data, label;
-      if (item) {
-        data = item.data;
-        label = REFUND_PROG_NAMES[progKey] || progKey;
-      } else if (c.extras && c.extras[progKey.replace('extra:', '')]) {
-        data = c.extras[progKey.replace('extra:', '')];
-        label = progKey === 'extra:locker' ? '🔑 락카' : progKey === 'extra:cloth' ? '👕 운동복' : progKey;
-      } else { showToast('해당 항목을 찾을 수 없어요.', 'error'); return; }
+      const lines = [];
+      progKeys.forEach(progKey => {
+        const item = items.find(it => it.progKey === progKey);
+        if (item) {
+          lines.push({ label: REFUND_PROG_NAMES[progKey] || progKey, data: item.data });
+        } else if (c.extras && c.extras[progKey.replace('extra:', '')]) {
+          const e = c.extras[progKey.replace('extra:', '')];
+          lines.push({ label: progKey === 'extra:locker' ? '🔑 락카' : progKey === 'extra:cloth' ? '👕 운동복' : progKey, data: e });
+        }
+      });
+      if (lines.length === 0) { showToast('해당 항목을 찾을 수 없어요.', 'error'); return; }
 
       const member = mSnap.val() || {};
       const biz = bSnap.val() || {};
-      const methodLabel = _paymentMethodLabel(data) || '-';
-      const price = data.price || 0;
-      const paidDate = c.signDate || data.startDate || _todayISO();
+      const total = lines.reduce((s, l) => s + (l.data.price || 0), 0);
+      const paidDate = c.signDate || lines[0].data.startDate || _todayISO();
+      // 결제수단은 항목마다 다를 수 있어 하나로 안 잡히면 "혼합"으로 표시
+      const methodSet = new Set(lines.map(l => _paymentMethodLabel(l.data) || '-'));
+      const methodLabel = methodSet.size === 1 ? [...methodSet][0] : '혼합';
+
+      const itemRows = lines.map(l => `
+        <tr><td style="color:var(--text);padding:4px 0;">${l.label}</td><td style="text-align:right;padding:4px 0;color:var(--text);">${(l.data.price||0).toLocaleString()}원</td></tr>
+      `).join('');
 
       document.getElementById('receipt-modal')?.remove();
       const modal = document.createElement('div');
@@ -3549,15 +3579,17 @@
               ${biz.address ? `<div style="font-size:11.5px;color:var(--text-hint);">${biz.address}</div>` : ''}
               ${biz.phone ? `<div style="font-size:11.5px;color:var(--text-hint);">${biz.phone}</div>` : ''}
             </div>
-            <table style="width:100%;font-size:13px;margin-bottom:12px;border-collapse:collapse;">
+            <table style="width:100%;font-size:13px;margin-bottom:8px;border-collapse:collapse;">
               <tr><td style="color:var(--text-hint);padding:4px 0;">회원명</td><td style="text-align:right;padding:4px 0;color:var(--text);">${member.name || '-'}</td></tr>
-              <tr><td style="color:var(--text-hint);padding:4px 0;">상품</td><td style="text-align:right;padding:4px 0;color:var(--text);">${label}</td></tr>
               <tr><td style="color:var(--text-hint);padding:4px 0;">결제일</td><td style="text-align:right;padding:4px 0;color:var(--text);">${paidDate}</td></tr>
               <tr><td style="color:var(--text-hint);padding:4px 0;">결제수단</td><td style="text-align:right;padding:4px 0;color:var(--text);">${methodLabel}</td></tr>
             </table>
+            <table style="width:100%;font-size:13px;margin-bottom:12px;border-collapse:collapse;border-top:1px dashed var(--border);padding-top:6px;">
+              ${itemRows}
+            </table>
             <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;justify-content:space-between;align-items:baseline;">
               <span style="font-size:12.5px;color:var(--text-hint);">합계</span>
-              <span style="font-size:19px;font-weight:700;color:var(--text);">${price.toLocaleString()}원</span>
+              <span style="font-size:19px;font-weight:700;color:var(--text);">${total.toLocaleString()}원</span>
             </div>
           </div>
           <button onclick="_printReceipt()" style="width:100%;margin-top:16px;padding:10px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🖨 인쇄 / PDF로 저장</button>
