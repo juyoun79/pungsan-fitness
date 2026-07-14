@@ -3032,7 +3032,7 @@
       : '';
     return unpaid > 0
       ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">${methodPrefix}미수금 ${unpaid.toLocaleString()}원${holdNote}</div>`
-      : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">${methodPrefix}완납 ✓${holdNote}</div>`;
+      : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">${methodPrefix}완납 ✓${data.unpaidSettledAt ? ' <span style="color:var(--text-hint);font-weight:600;">(' + data.unpaidSettledAt + ' 정산)</span>' : ''}${holdNote}</div>`;
   }
 
   // 현금/카드/계좌 중 실제로 결제된 수단만 골라서 표시용 문자열로 만듦 (한 가지면 이름만, 여러 개면 금액과 함께 + 로 연결)
@@ -5301,39 +5301,92 @@
   window._onTfDateChange = _onTfDateChange;
 
 
+  // 미수금 결제처리 팝업 — 결제수단(현금/카드/계좌이체 중 택1, 전체 일괄) + 결제일 입력
   function payMemberUnpaid(phone, contractKey, unpaidAmt) {
-    showConfirm(`미수금 ${unpaidAmt.toLocaleString()}원을 결제처리 할까요?`, () => {
-      db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
-        if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
-        const c = snap.val();
-        const updates = {};
-        // 개별 프로그램 + 패키지 안의 프로그램 모두 미수금을 현금으로 처리
-        _flattenContractItems(c).forEach(it => {
-          const p = it.data;
-          const progUnpaid = (p.price || 0) - (p.cash||0) - (p.card||0) - (p.transfer||0);
-          if (progUnpaid > 0) {
-            const path = it.pkgIndex === null
-              ? 'contracts/' + phone + '/' + contractKey + '/programs/' + it.progKey + '/cash'
-              : 'contracts/' + phone + '/' + contractKey + '/packages/' + it.pkgIndex + '/items/' + it.progKey + '/cash';
-            updates[path] = (p.cash || 0) + progUnpaid;
-          }
-        });
-        const extras = c.extras || {};
-        Object.entries(extras).forEach(([ext, e]) => {
-          if (e.deleted) return;
-          const extUnpaid = (e.price || 0) - (e.cash||0) - (e.card||0) - (e.transfer||0);
-          if (extUnpaid > 0) {
-            updates['contracts/' + phone + '/' + contractKey + '/extras/' + ext + '/cash'] =
-              (e.cash || 0) + extUnpaid;
-          }
-        });
-        db.ref().update(updates).then(() => {
-          showToast('✅ 미수금 결제처리 완료!', 'success');
-          _renderMdContracts(phone);
-        });
+    window._unpaidSettleCtx = { phone, contractKey, unpaidAmt };
+    window._unpaidSettleMethod = '';
+    const existing = document.getElementById('unpaid-settle-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'unpaid-settle-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.innerHTML = `
+      <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:340px;box-sizing:border-box;">
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">💳 미수금 결제처리</div>
+        <div style="font-size:20px;font-weight:700;color:#ef4444;margin-bottom:16px;">${unpaidAmt.toLocaleString()}원</div>
+
+        <div style="font-size:11px;color:#888;margin-bottom:6px;">결제수단</div>
+        <div id="unpaid-settle-method-btns" style="display:flex;gap:6px;margin-bottom:14px;">
+          ${[['cash', '현금'], ['card', '카드'], ['transfer', '계좌이체']].map(([k, l]) =>
+            `<button type="button" data-method="${k}" onclick="_unpaidSettlePickMethod('${k}')" style="flex:1;padding:9px 0;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">${l}</button>`
+          ).join('')}
+        </div>
+
+        <div style="font-size:11px;color:#888;margin-bottom:6px;">결제일</div>
+        <input type="date" id="unpaid-settle-date" value="${_todayISO()}"
+          style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:16px;">
+
+        <div style="display:flex;gap:8px;">
+          <button onclick="document.getElementById('unpaid-settle-modal').remove()" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+          <button onclick="_saveUnpaidSettle()" style="flex:1;padding:10px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">결제 처리</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  window.payMemberUnpaid = payMemberUnpaid;
+
+  function _unpaidSettlePickMethod(method) {
+    window._unpaidSettleMethod = method;
+    document.querySelectorAll('#unpaid-settle-method-btns button').forEach(b => {
+      const active = b.dataset.method === method;
+      b.style.background = active ? 'var(--blue)' : 'var(--card)';
+      b.style.color = active ? 'white' : 'var(--text)';
+      b.style.borderColor = active ? 'var(--blue)' : 'var(--border)';
+    });
+  }
+  window._unpaidSettlePickMethod = _unpaidSettlePickMethod;
+
+  function _saveUnpaidSettle() {
+    const ctx = window._unpaidSettleCtx;
+    if (!ctx) return;
+    const method = window._unpaidSettleMethod;
+    const date = document.getElementById('unpaid-settle-date')?.value || _todayISO();
+    if (!method) { showToast('결제수단을 선택해주세요.', 'error'); return; }
+    const { phone, contractKey } = ctx;
+    db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
+      if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      const c = snap.val();
+      const updates = {};
+      // 개별 프로그램 + 패키지 안의 프로그램 모두 미수금을 선택한 결제수단으로 처리 + 정산일 기록
+      _flattenContractItems(c).forEach(it => {
+        const p = it.data;
+        const progUnpaid = (p.price || 0) - (p.cash||0) - (p.card||0) - (p.transfer||0);
+        if (progUnpaid > 0) {
+          const basePath = it.pkgIndex === null
+            ? 'contracts/' + phone + '/' + contractKey + '/programs/' + it.progKey
+            : 'contracts/' + phone + '/' + contractKey + '/packages/' + it.pkgIndex + '/items/' + it.progKey;
+          updates[basePath + '/' + method] = (p[method] || 0) + progUnpaid;
+          updates[basePath + '/unpaidSettledAt'] = date;
+        }
+      });
+      const extras = c.extras || {};
+      Object.entries(extras).forEach(([ext, e]) => {
+        if (e.deleted) return;
+        const extUnpaid = (e.price || 0) - (e.cash||0) - (e.card||0) - (e.transfer||0);
+        if (extUnpaid > 0) {
+          const basePath = 'contracts/' + phone + '/' + contractKey + '/extras/' + ext;
+          updates[basePath + '/' + method] = (e[method] || 0) + extUnpaid;
+          updates[basePath + '/unpaidSettledAt'] = date;
+        }
+      });
+      db.ref().update(updates).then(() => {
+        document.getElementById('unpaid-settle-modal')?.remove();
+        showToast('✅ 미수금 결제처리 완료!', 'success');
+        _renderMdContracts(phone);
       });
     });
   }
+  window._saveUnpaidSettle = _saveUnpaidSettle;
 
   // 회원 메모 저장
   // 성별 버튼 선택
