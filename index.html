@@ -4442,6 +4442,10 @@
             style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);border:1.5px solid var(--border);">
             📜 이용약관
           </button>
+          <button id="settings-subtab-business" onclick="switchSettingsSubtab('business')"
+            style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);border:1.5px solid var(--border);">
+            🏢 사업자정보
+          </button>
           <button id="settings-subtab-bulk" onclick="switchSettingsSubtab('bulk')"
             style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);border:1.5px solid var(--border);">
             🗓️ 일괄작업
@@ -4495,6 +4499,41 @@
               <button onclick="loadDefaultTerms()" style="flex:1;padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">기본값 불러오기</button>
               <button onclick="saveTerms()" class="btn-primary" style="flex:2;padding:10px;font-size:13px;">저장</button>
             </div>
+          </div>
+        </div>
+
+        <!-- 서브탭: 사업자정보 -->
+        <div id="settings-view-business" style="display:none;">
+          <div class="admin-card">
+            <div class="admin-card-title">🏢 사업자 정보</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:12px;">영수증 발급 등에 사용돼요. 입력 후 저장해주세요.</div>
+
+            <div class="field-wrap" style="margin-bottom:12px;">
+              <label class="field-label">상호명</label>
+              <input type="text" id="biz-name" placeholder="풍산휘트니스@기구필라테스"
+                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+            </div>
+            <div class="field-wrap" style="margin-bottom:12px;">
+              <label class="field-label">사업자등록번호</label>
+              <input type="text" id="biz-reg-no" placeholder="000-00-00000"
+                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+            </div>
+            <div class="field-wrap" style="margin-bottom:12px;">
+              <label class="field-label">대표자명</label>
+              <input type="text" id="biz-owner" placeholder="대표자 이름"
+                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+            </div>
+            <div class="field-wrap" style="margin-bottom:12px;">
+              <label class="field-label">주소</label>
+              <input type="text" id="biz-address" placeholder="경기도 고양시 일산동구 하늘마을1로 2 풍산프라자 3층"
+                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+            </div>
+            <div class="field-wrap" style="margin-bottom:14px;">
+              <label class="field-label">전화번호</label>
+              <input type="text" id="biz-phone" placeholder="0507-0000-0000"
+                style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+            </div>
+            <button onclick="saveBusinessInfo()" class="btn-primary" style="width:100%;padding:11px;font-size:14px;">저장</button>
           </div>
         </div>
 

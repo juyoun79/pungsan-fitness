@@ -7753,7 +7753,7 @@
 
   // ── 설정탭 서브탭 전환 ──
   function switchSettingsSubtab(tab) {
-    const tabs = ['pw', 'equipment', 'terms', 'bulk'];
+    const tabs = ['pw', 'equipment', 'terms', 'business', 'bulk'];
     tabs.forEach(t => {
       const btn  = document.getElementById('settings-subtab-' + t);
       const view = document.getElementById('settings-view-' + t);
@@ -7767,8 +7767,38 @@
     });
     if (tab === 'equipment') loadAdminEquipmentList();
     if (tab === 'terms')     loadTerms();
+    if (tab === 'business')  loadBusinessInfo();
   }
   window.switchSettingsSubtab = switchSettingsSubtab;
+
+  // ── 사업자 정보 (영수증 등에 사용) ──
+  function loadBusinessInfo() {
+    db.ref('business_info').once('value').then(snap => {
+      const d = snap.val() || {};
+      const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+      set('biz-name', d.name);
+      set('biz-reg-no', d.regNo);
+      set('biz-owner', d.owner);
+      set('biz-address', d.address);
+      set('biz-phone', d.phone);
+    });
+  }
+  window.loadBusinessInfo = loadBusinessInfo;
+
+  function saveBusinessInfo() {
+    const get = id => (document.getElementById(id)?.value || '').trim();
+    const data = {
+      name: get('biz-name'), regNo: get('biz-reg-no'), owner: get('biz-owner'),
+      address: get('biz-address'), phone: get('biz-phone')
+    };
+    db.ref('business_info').set(data).then(() => {
+      showToast('✅ 사업자 정보가 저장됐어요.', 'success');
+    }).catch(err => {
+      console.error('사업자정보 저장 오류:', err);
+      showToast('저장 중 오류가 발생했어요.', 'error');
+    });
+  }
+  window.saveBusinessInfo = saveBusinessInfo;
 
   // ── 전체 회원 기간 일괄연장 ──
   // 날짜문자열(0패딩 여부 무관)에 일수를 더해서 ISO(YYYY-MM-DD)로 반환
