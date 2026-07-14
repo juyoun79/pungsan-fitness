@@ -2678,9 +2678,11 @@
   // 락카 미니카드 — 락카탭 데이터(lockerData)에 의존하지 않고 Firebase에서 직접 조회 (회원상세는 락카탭 진입 여부와 무관하게 열릴 수 있어서)
   function _renderMdLockerMini(phone, info) {
     const el = document.getElementById('md-locker-mini');
+    const card = document.getElementById('md-card-locker');
     if (!el) return;
     el.textContent = '-';
     const lockerKey = info.lockerKey;
+    if (card) card.onclick = () => _goToLockerDetail(lockerKey);
     if (!lockerKey) { el.textContent = '미배정'; el.style.color = 'var(--text-hint)'; return; }
     db.ref('lockers/' + lockerKey).once('value').then(snap => {
       if (!snap.exists()) { el.textContent = '미배정'; el.style.color = 'var(--text-hint)'; return; }
@@ -2690,6 +2692,200 @@
       el.textContent = lockerNo + '번' + (d.lockPassword ? ' · ' + d.lockPassword : '');
     }).catch(() => { el.textContent = '-'; });
   }
+
+  // 락카 미니카드 클릭 → 락카 탭으로 이동해서 해당 락카(또는 락카탭 목록) 상세를 바로 보여줌
+  function _goToLockerDetail(lockerKey) {
+    (async () => {
+      try { await loadLockerTab(); } catch(e) { console.error('락카탭 로드 오류:', e); }
+      switchAdminTab('tab-locker');
+      if (lockerKey) {
+        const parts = lockerKey.split('_');
+        const no = parts.pop();
+        const catId = parts.join('_');
+        try { openLockerDetail(catId, no); } catch(e) { console.error('락카 상세 오류(무시):', e); }
+      }
+    })();
+  }
+  window._goToLockerDetail = _goToLockerDetail;
+
+  // ── 포인트 카드: 지급/차감 + 최근 내역 ──
+  function openPointModal(phone) {
+    if (!phone) return;
+    Promise.all([
+      db.ref('users/' + phone + '/points').once('value'),
+      db.ref('users/' + phone + '/pointHistory').once('value')
+    ]).then(([ptsSnap, histSnap]) => {
+      const pts = parseInt(ptsSnap.val()) || 0;
+      const hist = [];
+      histSnap.forEach(h => { hist.push({ key: h.key, ...h.val() }); });
+      hist.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      const rows = hist.slice(0, 20).map(h => `
+        <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12.5px;">
+          <div><div style="color:var(--text);">${h.label || '-'}</div><div style="color:var(--text-hint);font-size:11px;">${h.date || ''}</div></div>
+          <div style="font-weight:700;color:${h.amount >= 0 ? '#16a34a' : '#ef4444'};">${h.amount >= 0 ? '+' : ''}${h.amount}P</div>
+        </div>`).join('') || '<div style="text-align:center;color:var(--text-hint);font-size:12.5px;padding:10px 0;">내역이 없어요</div>';
+
+      document.getElementById('point-modal')?.remove();
+      const modal = document.createElement('div');
+      modal.id = 'point-modal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.innerHTML = `
+        <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:340px;box-sizing:border-box;max-height:80vh;overflow-y:auto;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="font-size:15px;font-weight:700;color:var(--text);">💰 포인트</div>
+            <button onclick="document.getElementById('point-modal').remove()" style="background:none;border:none;font-size:18px;color:var(--text-hint);cursor:pointer;">✕</button>
+          </div>
+          <div style="font-size:26px;font-weight:700;color:var(--blue);margin:8px 0 16px;">${pts.toLocaleString()}P</div>
+
+          <div style="display:flex;gap:6px;margin-bottom:18px;">
+            <input id="pt-adjust-amount" type="number" placeholder="지급은 양수, 차감은 음수"
+              style="flex:1;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+            <button onclick="_adjustPoint('${phone}')" style="padding:9px 14px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">적용</button>
+          </div>
+
+          <div style="font-size:12.5px;font-weight:700;color:var(--text-sub);margin-bottom:8px;">최근 내역</div>
+          ${rows}
+        </div>`;
+      document.body.appendChild(modal);
+    });
+  }
+  window.openPointModal = openPointModal;
+
+  function _adjustPoint(phone) {
+    const input = document.getElementById('pt-adjust-amount');
+    const diff = parseInt(input?.value);
+    if (!diff) { showToast('금액을 입력해주세요 (지급은 양수, 차감은 음수).', 'error'); return; }
+    db.ref('users/' + phone + '/points').once('value').then(snap => {
+      const cur = parseInt(snap.val()) || 0;
+      const next = cur + diff;
+      db.ref('users/' + phone + '/points').set(next).then(() => {
+        const histKey = db.ref('users/' + phone + '/pointHistory').push().key;
+        db.ref('users/' + phone + '/pointHistory/' + histKey).set({ amount: diff, date: _todayISO(), label: '관리자 지급/차감' });
+        showToast('✅ 포인트가 ' + next.toLocaleString() + 'P로 변경됐어요.', 'success');
+        const el = document.getElementById('md-points');
+        if (el) el.textContent = next.toLocaleString() + 'P';
+        openPointModal(phone);
+      });
+    });
+  }
+  window._adjustPoint = _adjustPoint;
+
+  // ── 이번달 출석 카드: 미니 달력 + 오늘 출석체크 ──
+  function openAttendCalendarModal(phone) {
+    if (!phone) return;
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth();
+    db.ref('users/' + phone + '/attendance').once('value').then(snap => {
+      const data = snap.val() || {};
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+      const firstDow = new Date(y, m, 1).getDay();
+      const todayKey = (typeof getToday === 'function') ? getToday() : (y + '-' + (m + 1) + '-' + now.getDate());
+      let cells = '';
+      for (let i = 0; i < firstDow; i++) cells += '<div></div>';
+      for (let d = 1; d <= daysInMonth; d++) {
+        const key = y + '-' + (m + 1) + '-' + d;
+        const present = !!data[key];
+        const isToday = d === now.getDate();
+        cells += `<div style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:12px;
+          background:${present ? 'var(--blue)' : 'transparent'};color:${present ? 'white' : 'var(--text)'};
+          ${isToday && !present ? 'border:1.5px solid var(--blue);' : ''}box-sizing:border-box;">${d}</div>`;
+      }
+      const monthPrefix = y + '-' + (m + 1) + '-';
+      const attendCount = Object.keys(data).filter(k => k.startsWith(monthPrefix)).length;
+      const todayDone = !!data[todayKey];
+
+      document.getElementById('attend-modal')?.remove();
+      const modal = document.createElement('div');
+      modal.id = 'attend-modal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.innerHTML = `
+        <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:320px;box-sizing:border-box;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div style="font-size:14.5px;font-weight:700;color:var(--text);">${y}년 ${m + 1}월 출석 (${attendCount}일)</div>
+            <button onclick="document.getElementById('attend-modal').remove()" style="background:none;border:none;font-size:18px;color:var(--text-hint);cursor:pointer;">✕</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:16px;">
+            ${['일', '월', '화', '수', '목', '금', '토'].map(d => `<div style="text-align:center;font-size:10.5px;color:var(--text-hint);">${d}</div>`).join('')}
+            ${cells}
+          </div>
+          ${todayDone
+            ? `<div style="text-align:center;font-size:12.5px;color:var(--text-hint);">오늘 이미 출석 처리됐어요 ✅</div>`
+            : `<button onclick="_checkTodayAttend('${phone}')" style="width:100%;padding:10px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">오늘 출석 체크</button>`
+          }
+        </div>`;
+      document.body.appendChild(modal);
+    });
+  }
+  window.openAttendCalendarModal = openAttendCalendarModal;
+
+  function _checkTodayAttend(phone) {
+    const today = (typeof getToday === 'function') ? getToday() : _todayISO();
+    db.ref('users/' + phone + '/attendance/' + today).set(true).then(() => {
+      showToast('✅ 오늘 출석 처리됐어요.', 'success');
+      openAttendCalendarModal(phone);
+      if (currentMemberPhone === phone) {
+        db.ref('users/' + phone + '/attendance').once('value').then(snap => {
+          const data = snap.val() || {};
+          const now = new Date();
+          const monthPrefix = now.getFullYear() + '-' + (now.getMonth() + 1) + '-';
+          const attendCount = Object.keys(data).filter(k => k.startsWith(monthPrefix)).length;
+          const attendEl = document.getElementById('md-attend');
+          if (attendEl) attendEl.textContent = attendCount + '일 ✅';
+          const totalEl = document.getElementById('md-attend-total');
+          if (totalEl) totalEl.textContent = Object.keys(data).length + '일';
+        });
+      }
+    });
+  }
+  window._checkTodayAttend = _checkTodayAttend;
+
+  // 출석 기록 키("YYYY-M-D", 0패딩 없음)를 Date로 파싱
+  function _parseAttendKey(k) {
+    const parts = String(k).split('-').map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return null;
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+
+  // ── 누적 출석 카드: 총 출석일 + 첫/최근 출석일 + 마일스톤 ──
+  function openAttendTotalModal(phone) {
+    if (!phone) return;
+    db.ref('users/' + phone + '/attendance').once('value').then(snap => {
+      const data = snap.val() || {};
+      const validDates = Object.keys(data).filter(k => data[k]).map(k => _parseAttendKey(k)).filter(Boolean).sort((a, b) => a - b);
+      const total = validDates.length;
+      const first = validDates[0];
+      const last = validDates[validDates.length - 1];
+      const daysSinceLast = last ? Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(last).setHours(0, 0, 0, 0)) / 86400000) : null;
+      const milestones = [10, 30, 50, 100, 200, 365, 500, 1000];
+      const achieved = milestones.filter(mm => total >= mm);
+      const nextMilestone = milestones.find(mm => total < mm);
+      const lastAchieved = achieved[achieved.length - 1];
+
+      document.getElementById('attend-total-modal')?.remove();
+      const modal = document.createElement('div');
+      modal.id = 'attend-total-modal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.innerHTML = `
+        <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:320px;box-sizing:border-box;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div style="font-size:15px;font-weight:700;color:var(--text);">📅 누적 출석</div>
+            <button onclick="document.getElementById('attend-total-modal').remove()" style="background:none;border:none;font-size:18px;color:var(--text-hint);cursor:pointer;">✕</button>
+          </div>
+          <div style="text-align:center;margin-bottom:16px;">
+            <div style="font-size:28px;font-weight:700;color:var(--blue);">${total}일</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-top:4px;">누적 출석</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;margin-bottom:${lastAchieved ? 16 : 0}px;">
+            <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-hint);">첫 출석일</span><span style="color:var(--text);">${first ? _isoDate(first) : '-'}</span></div>
+            <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-hint);">최근 출석일</span><span style="color:var(--text);">${last ? _isoDate(last) + (daysSinceLast != null ? ' (' + daysSinceLast + '일 전)' : '') : '-'}</span></div>
+            ${nextMilestone ? `<div style="display:flex;justify-content:space-between;"><span style="color:var(--text-hint);">다음 목표</span><span style="color:var(--text);">${nextMilestone}회 (${nextMilestone - total}회 남음)</span></div>` : ''}
+          </div>
+          ${lastAchieved ? `<div style="text-align:center;padding:10px;background:var(--blue-light);border-radius:10px;font-size:13px;color:var(--blue);font-weight:700;">🏅 ${lastAchieved}회 출석 달성!</div>` : ''}
+        </div>`;
+      document.body.appendChild(modal);
+    });
+  }
+  window.openAttendTotalModal = openAttendTotalModal;
 
   // 회원권현황 (구 수업현황) — 헬스/GX처럼 기간제 상품은 계약이력에서 잔여일 계산, PT/필라테스처럼 횟수제 상품은 기존처럼 강사배정 잔여횟수 표시
   // 개인수업(PT·개인필라테스, 강사배정 방식)과 그룹수업(기구필라테스그룹, pilates_group 별도 관리)은 서로 무관한 독립 카운터

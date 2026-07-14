@@ -2943,19 +2943,19 @@
 
               <!-- 락카/포인트/이번달출석/누적출석 (4열 한 줄) -->
               <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:6px;" class="md-row md-row-stats">
-                <div style="background:var(--bg);border-radius:10px;padding:8px 8px;">
+                <div id="md-card-locker" style="background:var(--bg);border-radius:10px;padding:8px 8px;cursor:pointer;">
                   <div style="font-size:10px;color:var(--text-hint);margin-bottom:2px;">🔑 락카</div>
                   <div id="md-locker-mini" style="font-size:12px;font-weight:600;color:var(--text);">-</div>
                 </div>
-                <div style="background:var(--bg);border-radius:10px;padding:8px 8px;">
+                <div onclick="openPointModal(currentMemberPhone)" style="background:var(--bg);border-radius:10px;padding:8px 8px;cursor:pointer;">
                   <div style="font-size:10px;color:var(--text-hint);margin-bottom:2px;">포인트</div>
                   <div id="md-points" style="font-size:12px;font-weight:600;color:var(--blue);"></div>
                 </div>
-                <div style="background:var(--bg);border-radius:10px;padding:8px 8px;">
+                <div onclick="openAttendCalendarModal(currentMemberPhone)" style="background:var(--bg);border-radius:10px;padding:8px 8px;cursor:pointer;">
                   <div style="font-size:10px;color:var(--text-hint);margin-bottom:2px;">이번달 출석</div>
                   <div id="md-attend" style="font-size:12px;font-weight:600;color:var(--text);"></div>
                 </div>
-                <div style="background:var(--bg);border-radius:10px;padding:8px 8px;">
+                <div onclick="openAttendTotalModal(currentMemberPhone)" style="background:var(--bg);border-radius:10px;padding:8px 8px;cursor:pointer;">
                   <div style="font-size:10px;color:var(--text-hint);margin-bottom:2px;">누적 출석</div>
                   <div id="md-attend-total" style="font-size:12px;font-weight:600;color:var(--text);">-</div>
                 </div>
