@@ -553,6 +553,20 @@
 
   // ── 관리자 로그아웃 ──
   function adminLogout() {
+    // 로그아웃 전 관리자 화면에서 켜져있을 수 있는 실시간 리스너 정리 (공유기기에서 다음 로그인 세션에 영향 안 주도록)
+    try { if (typeof stopMemberRemainListeners === 'function') stopMemberRemainListeners(); } catch(e) { console.error('리스너 정리 오류(무시):', e); }
+    try {
+      if (typeof _monthlyReportListener !== 'undefined' && _monthlyReportListener && _monthlyReportTrainerId) {
+        db.ref('trainers/' + _monthlyReportTrainerId + '/trainees').off('value', _monthlyReportListener);
+        _monthlyReportListener = null;
+      }
+    } catch(e) { console.error('리스너 정리 오류(무시):', e); }
+    try {
+      if (typeof _pgDetachLiveListeners === 'function') {
+        _pgDetachLiveListeners('pgr'); _pgDetachCalListener('pgr');
+        _pgDetachLiveListeners('th-pg'); _pgDetachCalListener('th-pg');
+      }
+    } catch(e) { console.error('리스너 정리 오류(무시):', e); }
     localStorage.removeItem('current_user');
     localStorage.removeItem('auto_login_user');
     sessionStorage.removeItem('session_user');
