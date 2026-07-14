@@ -2056,7 +2056,7 @@
   let _memberFilters = {
     program: 'all', status: 'all', payment: 'all', locker: 'all', sort: 'none',
     gender: 'all', dateBasis: 'none', dateStart: '', dateEnd: '',
-    remainMax: 'all', attendGap: 'all', unpaidMin: '', ageBand: 'all'
+    remainMax: 'all', attendGap: 'all', unpaidMin: '', ageBands: new Set()
   };
 
   function _calcAgeFromBirthAdmin(birth) {
@@ -2223,7 +2223,6 @@
     _memberFilters.remainMax = document.getElementById('mf-remain')?.value || 'all';
     _memberFilters.attendGap = document.getElementById('mf-attend-gap')?.value || 'all';
     _memberFilters.unpaidMin = document.getElementById('mf-unpaid-min')?.value || '';
-    _memberFilters.ageBand   = document.getElementById('mf-age')?.value || 'all';
     _renderMemberListView();
   }
   window.applyMemberFilters = applyMemberFilters;
@@ -2252,12 +2251,14 @@
       const minAmt = parseInt(f.unpaidMin, 10) || 0;
       data = data.filter(m => m.unpaidAmount >= minAmt);
     }
-    if (f.ageBand !== 'all') {
+    if (f.ageBands.size > 0) {
       data = data.filter(m => {
         if (m.age === null) return false;
-        if (f.ageBand === '80+') return m.age >= 80;
-        const band = parseInt(f.ageBand, 10);
-        return m.age >= band && m.age < band + 10;
+        for (const band of f.ageBands) {
+          if (band === '80+') { if (m.age >= 80) return true; }
+          else { const b = parseInt(band, 10); if (m.age >= b && m.age < b + 10) return true; }
+        }
+        return false;
       });
     }
     // 날짜범위 필터 (만료일 또는 가입일 기준, 다른 필터들과 AND로 같이 적용됨)
@@ -2287,6 +2288,20 @@
   }
 
   // 필터/정렬 바 (PC/모바일 공통)
+  // 연령 필터 칩 (다중선택 가능) — "전체"를 누르면 선택 해제, 특정 연령대를 누르면 켜고/끄고 토글
+  function _mfAgeChipHtml(value, label, ageBands) {
+    const active = value === 'all' ? ageBands.size === 0 : ageBands.has(value);
+    return `<button type="button" onclick="toggleMfAgeBand('${value}')" style="padding:6px 12px;border-radius:20px;border:1.5px solid ${active ? 'var(--blue)' : 'var(--border)'};background:${active ? 'var(--blue)' : 'var(--card)'};color:${active ? 'white' : 'var(--text)'};font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">${label}</button>`;
+  }
+
+  function toggleMfAgeBand(value) {
+    if (value === 'all') { _memberFilters.ageBands.clear(); }
+    else if (_memberFilters.ageBands.has(value)) { _memberFilters.ageBands.delete(value); }
+    else { _memberFilters.ageBands.add(value); }
+    _renderMemberListView();
+  }
+  window.toggleMfAgeBand = toggleMfAgeBand;
+
   function _renderMemberFilterBar() {
     const f = _memberFilters;
     const sel = (id, options) => `<select id="${id}" onchange="applyMemberFilters()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;background:var(--card);color:var(--text);font-family:'Noto Sans KR',sans-serif;">${options}</select>`;
@@ -2297,12 +2312,23 @@
       ${sel('mf-payment', opt('all','전체 결제상태',f.payment)+opt('paid','완납',f.payment)+opt('unpaid','미수금',f.payment))}
       ${sel('mf-locker', opt('all','전체 락카',f.locker)+opt('assigned','배정됨',f.locker)+opt('unassigned','미배정',f.locker))}
       ${sel('mf-gender', opt('all','전체 성별',f.gender)+opt('male','남',f.gender)+opt('female','여',f.gender))}
-      ${sel('mf-age', opt('all','전체 연령',f.ageBand)+opt('10','10대',f.ageBand)+opt('20','20대',f.ageBand)+opt('30','30대',f.ageBand)+opt('40','40대',f.ageBand)+opt('50','50대',f.ageBand)+opt('60','60대',f.ageBand)+opt('70','70대',f.ageBand)+opt('80+','80대 이상',f.ageBand))}
       ${sel('mf-remain', opt('all','전체 잔여횟수',f.remainMax)+opt('3','3회 이하',f.remainMax)+opt('2','2회 이하',f.remainMax)+opt('1','1회 이하',f.remainMax)+opt('0','0회(소진)',f.remainMax))}
       ${sel('mf-attend-gap', opt('all','전체(미출석기간)',f.attendGap)+opt('7','7일 이상 미출석',f.attendGap)+opt('14','14일 이상 미출석',f.attendGap)+opt('30','30일 이상 미출석',f.attendGap)+opt('60','60일 이상 미출석',f.attendGap))}
       <input id="mf-unpaid-min" type="number" min="0" placeholder="미수금 O원 이상" value="${f.unpaidMin}" onchange="applyMemberFilters()"
         style="width:130px;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;background:var(--card);color:var(--text);font-family:'Noto Sans KR',sans-serif;">
       ${sel('mf-sort', opt('none','정렬 없음',f.sort)+opt('expiring','만료임박순',f.sort)+opt('join_new','가입일순(최근)',f.sort)+opt('join_old','가입일순(오래된)',f.sort)+opt('points','포인트순',f.sort)+opt('name','이름가나다순',f.sort))}
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px;">
+      <span style="font-size:12px;color:var(--text-hint);margin-right:2px;">연령</span>
+      ${_mfAgeChipHtml('all', '전체', f.ageBands)}
+      ${_mfAgeChipHtml('10', '10대', f.ageBands)}
+      ${_mfAgeChipHtml('20', '20대', f.ageBands)}
+      ${_mfAgeChipHtml('30', '30대', f.ageBands)}
+      ${_mfAgeChipHtml('40', '40대', f.ageBands)}
+      ${_mfAgeChipHtml('50', '50대', f.ageBands)}
+      ${_mfAgeChipHtml('60', '60대', f.ageBands)}
+      ${_mfAgeChipHtml('70', '70대', f.ageBands)}
+      ${_mfAgeChipHtml('80+', '80대 이상', f.ageBands)}
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;">
       <span style="font-size:12px;color:var(--text-hint);">날짜범위</span>
@@ -2385,7 +2411,7 @@
     _memberFilters = {
       program: 'all', status: 'all', payment: 'all', locker: 'all', sort: 'none',
       gender: 'all', dateBasis: 'none', dateStart: '', dateEnd: '',
-      remainMax: 'all', attendGap: 'all', unpaidMin: '', ageBand: 'all'
+      remainMax: 'all', attendGap: 'all', unpaidMin: '', ageBands: new Set()
     };
     loadMemberList('');
   }
