@@ -2941,6 +2941,60 @@
   window.addNewContractForMember = addNewContractForMember;
 
   // 계약이력
+  // ── 회원상세 활동 타임라인 (접기/펼치기) ──
+  function _toggleMdTimeline() {
+    const el = document.getElementById('md-timeline');
+    const icon = document.getElementById('md-timeline-toggle-icon');
+    if (!el) return;
+    const show = el.style.display === 'none';
+    el.style.display = show ? 'block' : 'none';
+    if (icon) icon.textContent = show ? '접기 ▴' : '펼치기 ▾';
+  }
+  window._toggleMdTimeline = _toggleMdTimeline;
+
+  // 계약서/결제/미수금정산/환불/휴회 등 이미 있는 데이터에서 이벤트를 뽑아 시간순으로 보여줌 (별도 이력 저장소 없이 기존 데이터 재사용)
+  function _renderMdTimeline(phone, contracts) {
+    const el = document.getElementById('md-timeline');
+    if (!el) return;
+    const progLabel = (k) => REFUND_PROG_NAMES[k] || (k === 'extra:locker' ? '🔑 락카' : k === 'extra:cloth' ? '👕 운동복' : k);
+    const events = [];
+    let earliestDate = null;
+
+    contracts.forEach(c => {
+      if (c.deleted) return;
+      const items = _flattenContractItems(c);
+      const extras = Object.entries(c.extras || {}).filter(([, e]) => !e.deleted);
+      const totalPrice = items.reduce((s, it) => s + (it.data.price || 0), 0) + extras.reduce((s, [, e]) => s + (e.price || 0), 0);
+      const signDate = c.signDate || '';
+      if (signDate && (!earliestDate || signDate < earliestDate)) earliestDate = signDate;
+      events.push({ date: signDate, ts: c.createdAt || 0, label: `📝 ${c.type || '신규'} 계약서 작성 · ${totalPrice.toLocaleString()}원` });
+
+      const pushItemEvents = (progKey, d) => {
+        const label = progLabel(progKey);
+        const paidAmt = (d.cash || 0) + (d.card || 0) + (d.transfer || 0);
+        if (paidAmt > 0) events.push({ date: signDate, ts: (c.createdAt || 0), label: `${label} ${paidAmt.toLocaleString()}원 결제 (${_paymentMethodLabel(d) || '-'})` });
+        if (d.unpaidSettledAt) events.push({ date: d.unpaidSettledAt, ts: (c.createdAt || 0) + 1, label: `💳 ${label} 미수금 정산 완료` });
+        if (d.refund) events.push({ date: d.refund.date || '', ts: d.refund.processedAt || 0, label: `↩️ ${label} 환불 · ${(d.refund.refundAmount || 0).toLocaleString()}원` });
+        if (d.activeHold) events.push({ date: d.activeHold.startDate || '', ts: d.activeHold.processedAt || 0, label: `⏸️ ${label} 휴회 시작 · ${d.activeHold.days || ''}일` });
+      };
+      items.forEach(it => pushItemEvents(it.progKey, it.data));
+      extras.forEach(([k, e]) => pushItemEvents('extra:' + k, e));
+    });
+
+    if (earliestDate) events.push({ date: earliestDate, ts: -1, label: '👤 회원 가입' });
+
+    if (events.length === 0) {
+      el.innerHTML = '<div style="text-align:center;color:var(--text-hint);font-size:13px;padding:8px 0;">활동 기록이 없어요</div>';
+      return;
+    }
+    events.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.ts - a.ts));
+    el.innerHTML = events.map(ev => `
+      <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:11px;color:var(--text-hint);white-space:nowrap;padding-top:1px;min-width:76px;">${ev.date || '-'}</div>
+        <div style="font-size:13px;color:var(--text);">${ev.label}</div>
+      </div>`).join('');
+  }
+
   function _renderMdContracts(phone) {
     const el = document.getElementById('md-contracts');
     if (!el) return;
@@ -2979,6 +3033,7 @@
       };
 
       el.innerHTML = contracts.filter(c => _flattenContractItems(c).length > 0 || Object.values(c.extras || {}).some(e => !e.deleted)).map(c => _renderSingleContractCard(phone, c, progLabels)).join('');
+      try { _renderMdTimeline(phone, contracts); } catch(e) { console.error('타임라인 렌더 오류(무시):', e); }
     });
   }
 
@@ -3382,6 +3437,7 @@
   function _renderContractMenuButton(menuId, phone, contractKeyOrKeys, progKey, label) {
     const actions = [
       { icon: '✏️', name: '정보 수정', act: 'edit' },
+      { icon: '🧾', name: '영수증', act: 'receipt' },
       { icon: '💰', name: '환불', act: 'refund' },
       { icon: '🔁', name: '양도', act: 'transfer' },
       { icon: '🔄', name: '프로그램 변경', act: 'change' },
@@ -3401,7 +3457,133 @@
       </div>`;
   }
 
-  // 처리▾ 메뉴 펼치기/접기 (다른 곳에서 열려있던 메뉴는 자동으로 닫음)
+  // ── 영수증 (인쇄/PDF저장은 브라우저 인쇄창의 "PDF로 저장" 기능을 그대로 활용) ──
+  function openReceiptModal(phone, contractKey, progKey) {
+    db.ref('contracts/' + phone + '/' + contractKey).once('value').then(cSnap => {
+      if (!cSnap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      const c = cSnap.val();
+      const items = _flattenContractItems(c);
+      const extrasList = Object.entries(c.extras || {}).filter(([, e]) => !e.deleted);
+
+      if (!progKey) {
+        const totalCount = items.length + extrasList.length;
+        if (totalCount === 1) {
+          progKey = items.length === 1 ? items[0].progKey : 'extra:' + extrasList[0][0];
+        } else if (totalCount > 1) {
+          _showReceiptItemPicker(phone, contractKey, items, extrasList);
+          return;
+        } else {
+          showToast('영수증을 만들 항목이 없어요.', 'error');
+          return;
+        }
+      }
+      _openReceiptForItem(phone, contractKey, c, progKey);
+    });
+  }
+  window.openReceiptModal = openReceiptModal;
+
+  // 계약서 안 항목이 여러 개일 때 — 어느 항목의 영수증을 볼지 선택하는 팝업
+  function _showReceiptItemPicker(phone, contractKey, items, extrasList) {
+    document.getElementById('receipt-picker')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'receipt-picker';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+    const itemBtns = items.map(it => {
+      const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
+      return `<button onclick="document.getElementById('receipt-picker').remove();openReceiptModal('${phone}','${contractKey}','${it.progKey}')"
+        style="width:100%;text-align:left;padding:12px;margin-bottom:8px;background:var(--bg);border:1px solid var(--border);border-radius:10px;font-size:14px;color:var(--text);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+        ${label} · ${(it.data.price||0).toLocaleString()}원</button>`;
+    }).join('');
+    const extraBtns = extrasList.map(([extKey, e]) => {
+      const label = extKey === 'locker' ? '🔑 락카' : extKey === 'cloth' ? '👕 운동복' : extKey;
+      return `<button onclick="document.getElementById('receipt-picker').remove();openReceiptModal('${phone}','${contractKey}','extra:${extKey}')"
+        style="width:100%;text-align:left;padding:12px;margin-bottom:8px;background:var(--bg);border:1px solid var(--border);border-radius:10px;font-size:14px;color:var(--text);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+        ${label} · ${(e.price||0).toLocaleString()}원</button>`;
+    }).join('');
+    modal.innerHTML = `<div style="background:var(--card);border-radius:16px;padding:24px;width:100%;max-width:300px;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px;color:var(--text);">영수증을 볼 항목을 선택하세요</div>
+      ${itemBtns}${extraBtns}
+      <button onclick="document.getElementById('receipt-picker').remove()"
+        style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text-hint);cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:4px;">취소</button>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+
+  function _openReceiptForItem(phone, contractKey, c, progKey) {
+    Promise.all([
+      db.ref('members/' + phone).once('value'),
+      db.ref('business_info').once('value')
+    ]).then(([mSnap, bSnap]) => {
+      const items = _flattenContractItems(c);
+      const item = items.find(it => it.progKey === progKey);
+      let data, label;
+      if (item) {
+        data = item.data;
+        label = REFUND_PROG_NAMES[progKey] || progKey;
+      } else if (c.extras && c.extras[progKey.replace('extra:', '')]) {
+        data = c.extras[progKey.replace('extra:', '')];
+        label = progKey === 'extra:locker' ? '🔑 락카' : progKey === 'extra:cloth' ? '👕 운동복' : progKey;
+      } else { showToast('해당 항목을 찾을 수 없어요.', 'error'); return; }
+
+      const member = mSnap.val() || {};
+      const biz = bSnap.val() || {};
+      const methodLabel = _paymentMethodLabel(data) || '-';
+      const price = data.price || 0;
+      const paidDate = c.signDate || data.startDate || _todayISO();
+
+      document.getElementById('receipt-modal')?.remove();
+      const modal = document.createElement('div');
+      modal.id = 'receipt-modal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.innerHTML = `
+        <div style="background:var(--card);border-radius:16px;padding:20px 24px;width:100%;max-width:380px;box-sizing:border-box;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div style="font-size:15px;font-weight:700;color:var(--text);">영수증</div>
+            <button onclick="document.getElementById('receipt-modal').remove()" style="background:none;border:none;font-size:18px;color:var(--text-hint);cursor:pointer;">✕</button>
+          </div>
+          <div id="receipt-print-area">
+            <div style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:10px 0;margin-bottom:12px;">
+              <div style="font-size:13px;color:var(--text);font-weight:700;">${biz.name || '(사업자명 미입력)'}</div>
+              ${biz.regNo ? `<div style="font-size:11.5px;color:var(--text-hint);margin-top:2px;">사업자등록번호 ${biz.regNo}</div>` : ''}
+              ${biz.owner ? `<div style="font-size:11.5px;color:var(--text-hint);">대표자 ${biz.owner}</div>` : ''}
+              ${biz.address ? `<div style="font-size:11.5px;color:var(--text-hint);">${biz.address}</div>` : ''}
+              ${biz.phone ? `<div style="font-size:11.5px;color:var(--text-hint);">${biz.phone}</div>` : ''}
+            </div>
+            <table style="width:100%;font-size:13px;margin-bottom:12px;border-collapse:collapse;">
+              <tr><td style="color:var(--text-hint);padding:4px 0;">회원명</td><td style="text-align:right;padding:4px 0;color:var(--text);">${member.name || '-'}</td></tr>
+              <tr><td style="color:var(--text-hint);padding:4px 0;">상품</td><td style="text-align:right;padding:4px 0;color:var(--text);">${label}</td></tr>
+              <tr><td style="color:var(--text-hint);padding:4px 0;">결제일</td><td style="text-align:right;padding:4px 0;color:var(--text);">${paidDate}</td></tr>
+              <tr><td style="color:var(--text-hint);padding:4px 0;">결제수단</td><td style="text-align:right;padding:4px 0;color:var(--text);">${methodLabel}</td></tr>
+            </table>
+            <div style="border-top:1px solid var(--border);padding-top:10px;display:flex;justify-content:space-between;align-items:baseline;">
+              <span style="font-size:12.5px;color:var(--text-hint);">합계</span>
+              <span style="font-size:19px;font-weight:700;color:var(--text);">${price.toLocaleString()}원</span>
+            </div>
+          </div>
+          <button onclick="_printReceipt()" style="width:100%;margin-top:16px;padding:10px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🖨 인쇄 / PDF로 저장</button>
+        </div>`;
+      document.body.appendChild(modal);
+    });
+  }
+
+  function _printReceipt() {
+    const area = document.getElementById('receipt-print-area');
+    if (!area) return;
+    const w = window.open('', '_blank', 'width=420,height=600');
+    w.document.write(`
+      <html><head><title>영수증</title>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: 'Noto Sans KR', sans-serif; padding: 24px; color: #111; }
+        table { width: 100%; border-collapse: collapse; }
+        td { padding: 4px 0; font-size: 13px; }
+      </style>
+      </head><body>${area.innerHTML}</body></html>`);
+    w.document.close();
+    w.onload = () => { w.focus(); w.print(); };
+    setTimeout(() => { try { w.focus(); w.print(); } catch(e) {} }, 300);
+  }
+  window._printReceipt = _printReceipt;
   function toggleContractMenu(menuId) {
     document.querySelectorAll('.contract-action-menu').forEach(m => {
       if (m.id !== menuId) m.style.display = 'none';
@@ -3413,6 +3595,11 @@
 
   // 처리 메뉴 항목 클릭 시 실행 (환불은 실제 동작, 나머지는 다음 단계에서 차례로 채워질 예정)
   function handleContractAction(act, phone, contractKeyOrKeys, progKey) {
+    if (act === 'receipt' && contractKeyOrKeys.indexOf(',') === -1) {
+      document.querySelectorAll('.contract-action-menu').forEach(m => m.style.display = 'none');
+      openReceiptModal(phone, contractKeyOrKeys, progKey);
+      return;
+    }
     if (act === 'refund' && contractKeyOrKeys.indexOf(',') === -1) {
       document.querySelectorAll('.contract-action-menu').forEach(m => m.style.display = 'none');
       startRefund(phone, contractKeyOrKeys, progKey);
