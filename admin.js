@@ -3454,6 +3454,7 @@
       document.getElementById('app-edit-modal')?.remove();
       showToast('✅ 정보가 수정됐어요.', 'success');
       _renderMdContracts(ctx.phone);
+      try { _renderMdClassStatus(ctx.phone, cachedMembers[ctx.phone]); } catch(e) { console.error('회원권현황 갱신 오류(무시):', e); }
     } catch (e) {
       showToast('수정 실패: ' + e.message, 'error');
     }
