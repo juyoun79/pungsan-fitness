@@ -2255,7 +2255,7 @@
     if (f.ageBand !== 'all') {
       data = data.filter(m => {
         if (m.age === null) return false;
-        if (f.ageBand === '60+') return m.age >= 60;
+        if (f.ageBand === '80+') return m.age >= 80;
         const band = parseInt(f.ageBand, 10);
         return m.age >= band && m.age < band + 10;
       });
@@ -2297,7 +2297,7 @@
       ${sel('mf-payment', opt('all','전체 결제상태',f.payment)+opt('paid','완납',f.payment)+opt('unpaid','미수금',f.payment))}
       ${sel('mf-locker', opt('all','전체 락카',f.locker)+opt('assigned','배정됨',f.locker)+opt('unassigned','미배정',f.locker))}
       ${sel('mf-gender', opt('all','전체 성별',f.gender)+opt('male','남',f.gender)+opt('female','여',f.gender))}
-      ${sel('mf-age', opt('all','전체 연령',f.ageBand)+opt('20','20대',f.ageBand)+opt('30','30대',f.ageBand)+opt('40','40대',f.ageBand)+opt('50','50대',f.ageBand)+opt('60+','60대 이상',f.ageBand))}
+      ${sel('mf-age', opt('all','전체 연령',f.ageBand)+opt('10','10대',f.ageBand)+opt('20','20대',f.ageBand)+opt('30','30대',f.ageBand)+opt('40','40대',f.ageBand)+opt('50','50대',f.ageBand)+opt('60','60대',f.ageBand)+opt('70','70대',f.ageBand)+opt('80+','80대 이상',f.ageBand))}
       ${sel('mf-remain', opt('all','전체 잔여횟수',f.remainMax)+opt('3','3회 이하',f.remainMax)+opt('2','2회 이하',f.remainMax)+opt('1','1회 이하',f.remainMax)+opt('0','0회(소진)',f.remainMax))}
       ${sel('mf-attend-gap', opt('all','전체(미출석기간)',f.attendGap)+opt('7','7일 이상 미출석',f.attendGap)+opt('14','14일 이상 미출석',f.attendGap)+opt('30','30일 이상 미출석',f.attendGap)+opt('60','60일 이상 미출석',f.attendGap))}
       <input id="mf-unpaid-min" type="number" min="0" placeholder="미수금 O원 이상" value="${f.unpaidMin}" onchange="applyMemberFilters()"
