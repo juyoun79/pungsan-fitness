@@ -342,10 +342,17 @@
   .member-badge { font-size:11px; padding:2px 8px; border-radius:10px; font-weight:600; }
   .badge-active { background:#dcfce7; color:#16a34a; }
   .badge-admin { background:#fef3c7; color:#d97706; }
-  .stat-mini { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:10px; }
+  .stat-mini { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
   .stat-mini-item { background:var(--bg); border-radius:8px; padding:8px; text-align:center; }
   .stat-mini-val { font-size:16px; font-weight:700; color:var(--blue); }
   .stat-mini-label { font-size:11px; color:var(--text-hint); margin-top:2px; }
+
+  .dash-age-toggle-btn { padding:4px 10px; font-size:12px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--text-hint); cursor:pointer; font-family:'Noto Sans KR',sans-serif; }
+  .dash-age-toggle-btn.active { border-color:var(--blue); background:var(--blue); color:#fff; }
+
+  #dash-flex-wrap { display:block; margin-bottom:12px; }
+  body.pc-mode #dash-flex-wrap { display:flex; gap:12px; align-items:flex-start; }
+  body.pc-mode #dash-flex-wrap > .admin-card { flex:1; min-width:0; margin-bottom:0; }
   .search-bar { display:flex; gap:8px; margin-bottom:14px; }
   .search-bar input { flex:1; max-width:220px; padding:10px 12px; border:1.5px solid var(--border); border-radius:var(--radius-sm); font-size:14px; font-family:'Noto Sans KR',sans-serif; outline:none; }
   .search-bar input:focus { border-color:var(--blue); }

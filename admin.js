@@ -1347,7 +1347,9 @@
     try { loadAdminTrainerList(); } catch(e) { console.error('강사명단 사전로딩 오류(무시):', e); }
     // 만료임박 기준일수를 먼저 불러온 다음 회원목록을 미리 불러와둠 (기준값이 반영된 상태로 계산되게)
     loadExpiringThreshold().then(() => {
-      try { loadMemberList(''); } catch(e) { console.error('회원목록 사전로딩 오류(무시):', e); }
+      loadMemberList('').then(() => {
+        try { renderDashboardExtras(); } catch(e) { console.error('대시보드 확장통계 렌더 오류(무시):', e); }
+      }).catch(e => console.error('회원목록 사전로딩 오류(무시):', e));
     });
     getMemberDB().then(members => {
       const memberList = Object.entries(members);
@@ -1412,6 +1414,160 @@
       });
     });
   }
+
+  // ── 현황탭 확장통계: 유효회원 수 / 프로그램 구성비율 / 연령별 현황표 ──
+  // loadMemberList가 이미 계산해둔 _lastMemberData(gender/age/progNames/statusKey)를 재사용해서
+  // 동일한 로직을 중복 구현하지 않고 일관된 값을 보장함
+  function _dashAgeBucket(age) {
+    if (age == null || isNaN(age)) return null;
+    if (age >= 80) return '80대 이상';
+    const d = Math.floor(age / 10) * 10;
+    if (d < 10) return null;
+    return d + '대';
+  }
+
+  function renderDashboardExtras() {
+    const memberData = _lastMemberData || [];
+    const validMembers = memberData.filter(m => m.statusKey === 'normal' || m.statusKey === 'expiring' || m.statusKey === 'hold');
+
+    const validEl = document.getElementById('admin-valid-members');
+    if (validEl) validEl.textContent = validMembers.length;
+
+    // 프로그램 구성 비율 (유효회원의 활성 프로그램 기준, 일일권 제외)
+    const progCounts = {};
+    validMembers.forEach(m => {
+      (m.progNames || []).forEach(name => {
+        if (name === '🎫 일일권') return;
+        progCounts[name] = (progCounts[name] || 0) + 1;
+      });
+    });
+    _dashProgramCounts = progCounts;
+    renderDashProgramPie();
+
+    // 연령별 현황 (전체회원 / 유효회원 두 기준 모두 미리 계산)
+    function buildAgeTable(list) {
+      const table = {};
+      DASH_AGE_BUCKETS.forEach(b => { table[b] = { male: 0, female: 0 }; });
+      list.forEach(m => {
+        const bucket = _dashAgeBucket(m.age);
+        if (!bucket || !table[bucket]) return;
+        if (m.gender === 'male') table[bucket].male++;
+        else table[bucket].female++;
+      });
+      return table;
+    }
+    _dashAgeDataAll = buildAgeTable(memberData);
+    _dashAgeDataValid = buildAgeTable(validMembers);
+    renderDashAgeTable(_dashAgeBasis);
+  }
+  window.renderDashboardExtras = renderDashboardExtras;
+
+  function renderDashProgramPie() {
+    if (typeof Chart !== 'undefined') { _dashDrawPie(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';
+    s.onload = _dashDrawPie;
+    document.head.appendChild(s);
+  }
+
+  function _dashDrawPie() {
+    const canvas = document.getElementById('dashProgramPie');
+    const legendEl = document.getElementById('dash-pie-legend');
+    if (!canvas) return;
+    const entries = Object.entries(_dashProgramCounts).filter(([, v]) => v > 0);
+    const total = entries.reduce((s, [, v]) => s + v, 0);
+    if (_dashPieChart) { _dashPieChart.destroy(); _dashPieChart = null; }
+    if (entries.length === 0) {
+      if (legendEl) legendEl.innerHTML = '<div style="font-size:12px;color:var(--text-hint);">데이터가 없어요</div>';
+      return;
+    }
+    const labels = entries.map(([k]) => k);
+    const data = entries.map(([, v]) => v);
+    const colors = labels.map(l => DASH_PROGRAM_COLORS[l] || '#94a3b8');
+
+    const centerTextPlugin = {
+      id: 'dashCenterText',
+      afterDraw(chart) {
+        const { ctx, width, height } = chart;
+        ctx.save();
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = '700 15px sans-serif';
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillText(String(total), width / 2, height / 2 - 8);
+        ctx.font = '400 10px sans-serif';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('유효회원', width / 2, height / 2 + 10);
+        ctx.restore();
+      }
+    };
+
+    _dashPieChart = new Chart(canvas, {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '68%', plugins: { legend: { display: false } } },
+      plugins: [centerTextPlugin]
+    });
+
+    if (legendEl) {
+      legendEl.innerHTML = labels.map((l, i) => {
+        const pct = total ? Math.round(data[i] / total * 100) : 0;
+        return `<span style="display:flex;align-items:center;gap:6px;color:var(--text-hint);">
+          <span style="width:9px;height:9px;border-radius:2px;background:${colors[i]};flex-shrink:0;"></span>
+          ${l} <b style="color:var(--text);font-weight:700;">${pct}%</b>
+        </span>`;
+      }).join('');
+    }
+  }
+
+  function switchDashAgeBasis(mode) {
+    _dashAgeBasis = mode;
+    const bValid = document.getElementById('dash-age-btn-valid');
+    const bAll = document.getElementById('dash-age-btn-all');
+    [bValid, bAll].forEach(b => { if (b) b.classList.remove('active'); });
+    (mode === 'valid' ? bValid : bAll)?.classList.add('active');
+    renderDashAgeTable(mode);
+  }
+  window.switchDashAgeBasis = switchDashAgeBasis;
+
+  function renderDashAgeTable(mode) {
+    const table = mode === 'valid' ? _dashAgeDataValid : _dashAgeDataAll;
+    const rowsEl = document.getElementById('dash-age-rows');
+    const footEl = document.getElementById('dash-age-foot');
+    if (!rowsEl) return;
+    let totalM = 0, totalF = 0;
+    DASH_AGE_BUCKETS.forEach(b => { totalM += (table[b] ? table[b].male : 0); totalF += (table[b] ? table[b].female : 0); });
+    const grand = totalM + totalF;
+
+    rowsEl.innerHTML = DASH_AGE_BUCKETS.map(b => {
+      const male = table[b] ? table[b].male : 0;
+      const female = table[b] ? table[b].female : 0;
+      const sum = male + female;
+      const mPct = grand ? Math.round(male / grand * 100) : 0;
+      const fPct = grand ? Math.round(female / grand * 100) : 0;
+      return `<tr>
+        <td style="padding:5px 3px;border-bottom:0.5px solid var(--border);color:var(--text);">${b}</td>
+        <td style="padding:5px 3px;text-align:right;border-bottom:0.5px solid var(--border);color:var(--text-hint);">${male}</td>
+        <td style="padding:5px 3px;text-align:right;border-bottom:0.5px solid var(--border);color:var(--text-hint);">${mPct}%</td>
+        <td style="padding:5px 3px;text-align:right;border-bottom:0.5px solid var(--border);color:var(--text-hint);">${female}</td>
+        <td style="padding:5px 3px;text-align:right;border-bottom:0.5px solid var(--border);color:var(--text-hint);">${fPct}%</td>
+        <td style="padding:5px 3px;text-align:right;border-bottom:0.5px solid var(--border);color:var(--text);font-weight:700;">${sum}</td>
+      </tr>`;
+    }).join('');
+
+    if (footEl) {
+      const mPctTot = grand ? Math.round(totalM / grand * 100) : 0;
+      const fPctTot = grand ? Math.round(totalF / grand * 100) : 0;
+      footEl.innerHTML = `<tr style="font-weight:700;color:var(--text);">
+        <td style="padding:6px 3px;">총 합계</td>
+        <td style="padding:6px 3px;text-align:right;">${totalM}</td>
+        <td style="padding:6px 3px;text-align:right;color:var(--text-hint);font-weight:400;">${mPctTot}%</td>
+        <td style="padding:6px 3px;text-align:right;">${totalF}</td>
+        <td style="padding:6px 3px;text-align:right;color:var(--text-hint);font-weight:400;">${fPctTot}%</td>
+        <td style="padding:6px 3px;text-align:right;">${grand}</td>
+      </tr>`;
+    }
+  }
+  window.renderDashAgeTable = renderDashAgeTable;
 
   // ══════════════════════════════════════════════
   // 💰 매출통계 탭
@@ -2057,6 +2213,13 @@
   let cachedMembers = {};
 
   let _lastMemberData = [];
+  let _dashProgramCounts = {};
+  let _dashAgeDataAll = {};
+  let _dashAgeDataValid = {};
+  let _dashAgeBasis = 'valid';
+  let _dashPieChart = null;
+  const DASH_PROGRAM_COLORS = { '헬스':'#2a78d6', 'GX':'#1baf7a', 'PT':'#eda100', '기구필라테스 개인':'#4a3aa7', '기구필라테스 그룹':'#e34948' };
+  const DASH_AGE_BUCKETS = ['10대','20대','30대','40대','50대','60대','70대','80대 이상'];
   let _expiringThresholdDays = 7; // 만료임박 기준일수 (설정 탭에서 변경 가능, 기본 7일)
   let _memberFilters = {
     program: 'all', status: 'all', payment: 'all', locker: 'all', sort: 'none',
@@ -2251,7 +2414,7 @@
   }
 
   function loadMemberList(query = '') {
-    getMemberDB().then(members => {
+    return getMemberDB().then(members => {
       cachedMembers = members;
       const wrap = document.getElementById('member-list-wrap');
       let entries = Object.entries(members);
@@ -2270,7 +2433,7 @@
       const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
 
       // 개인수업(PT/개인필라테스) 잔여횟수는 trainers/*/trainees/{phone}에 있어서, 회원별로 따로 조회하지 않고 한 번만 불러와 맵으로 만들어둠
-      db.ref('trainers').once('value').then(trainersSnap => {
+      return db.ref('trainers').once('value').then(trainersSnap => {
         const personalRemainMap = {};
         trainersSnap.forEach(t => {
           const trainees = t.child('trainees');
@@ -2375,6 +2538,7 @@
           _lastMemberData = memberData;
           _renderMemberListView();
           _updateHeaderAlertBadge();
+          return memberData;
         });
       });
     });

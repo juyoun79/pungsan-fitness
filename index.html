@@ -2648,12 +2648,58 @@
               <div class="stat-mini-label">전체 회원</div>
             </div>
             <div class="stat-mini-item">
+              <div class="stat-mini-val" id="admin-valid-members">0</div>
+              <div class="stat-mini-label">유효 회원</div>
+            </div>
+            <div class="stat-mini-item">
               <div class="stat-mini-val" id="admin-today-attend">0</div>
               <div class="stat-mini-label">오늘 출석</div>
             </div>
             <div class="stat-mini-item">
               <div class="stat-mini-val" id="admin-month-attend">0</div>
               <div class="stat-mini-label">이번달 출석</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="dash-flex-wrap">
+          <div class="admin-card">
+            <div class="admin-card-title">🧩 유효회원 구성 비율</div>
+            <div style="display:flex;align-items:center;gap:14px;">
+              <div style="position:relative;width:120px;height:120px;flex-shrink:0;">
+                <canvas id="dashProgramPie" role="img" aria-label="유효회원 프로그램별 구성 비율 원형그래프"></canvas>
+              </div>
+              <div id="dash-pie-legend" style="display:flex;flex-direction:column;gap:6px;font-size:12px;flex:1;"></div>
+            </div>
+          </div>
+
+          <div class="admin-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <div class="admin-card-title" style="margin-bottom:0;">👥 연령별 현황</div>
+              <div style="display:flex;gap:4px;">
+                <button id="dash-age-btn-valid" class="dash-age-toggle-btn active" onclick="switchDashAgeBasis('valid')">유효회원</button>
+                <button id="dash-age-btn-all" class="dash-age-toggle-btn" onclick="switchDashAgeBasis('all')">전체회원</button>
+              </div>
+            </div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%;border-collapse:collapse;font-size:11.5px;min-width:340px;">
+                <thead>
+                  <tr style="color:var(--text-hint);">
+                    <td rowspan="2" style="padding:4px 3px;border-bottom:0.5px solid var(--border);vertical-align:bottom;">연령</td>
+                    <td colspan="2" style="padding:2px 3px;text-align:center;border-bottom:0.5px solid var(--border);">남</td>
+                    <td colspan="2" style="padding:2px 3px;text-align:center;border-bottom:0.5px solid var(--border);">여</td>
+                    <td rowspan="2" style="padding:4px 3px;text-align:right;border-bottom:0.5px solid var(--border);vertical-align:bottom;">합계</td>
+                  </tr>
+                  <tr style="color:var(--text-hint);">
+                    <td style="padding:2px 3px;text-align:right;border-bottom:0.5px solid var(--border);">인원</td>
+                    <td style="padding:2px 3px;text-align:right;border-bottom:0.5px solid var(--border);">비율</td>
+                    <td style="padding:2px 3px;text-align:right;border-bottom:0.5px solid var(--border);">인원</td>
+                    <td style="padding:2px 3px;text-align:right;border-bottom:0.5px solid var(--border);">비율</td>
+                  </tr>
+                </thead>
+                <tbody id="dash-age-rows"></tbody>
+                <tfoot id="dash-age-foot"></tfoot>
+              </table>
             </div>
           </div>
         </div>
