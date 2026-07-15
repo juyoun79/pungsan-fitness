@@ -2440,7 +2440,7 @@
           trainees.forEach(tr => { personalRemainMap[tr.key] = tr.val(); });
         });
 
-        Promise.all(entries.map(([phone, info]) =>
+        return Promise.all(entries.map(([phone, info]) =>
           Promise.all([
             db.ref('users/' + phone + '/attendance').once('value'),
             db.ref('users/' + phone + '/points').once('value'),
