@@ -1345,8 +1345,10 @@
     if (savedLayout === 'pc') applyAdminLayout('pc');
     // 담당강사 명단을 미리 불러와둠 (강사관리 탭을 안 거쳐도 계약서 화면에서 바로 사용 가능하게)
     try { loadAdminTrainerList(); } catch(e) { console.error('강사명단 사전로딩 오류(무시):', e); }
-    // 회원 목록도 미리 불러와둠 (헤더 알림뱃지가 회원탭을 안 거쳐도 바로 표시되게)
-    try { loadMemberList(''); } catch(e) { console.error('회원목록 사전로딩 오류(무시):', e); }
+    // 만료임박 기준일수를 먼저 불러온 다음 회원목록을 미리 불러와둠 (기준값이 반영된 상태로 계산되게)
+    loadExpiringThreshold().then(() => {
+      try { loadMemberList(''); } catch(e) { console.error('회원목록 사전로딩 오류(무시):', e); }
+    });
     getMemberDB().then(members => {
       const memberList = Object.entries(members);
       document.getElementById('admin-total-members').textContent = memberList.length;
@@ -2055,6 +2057,7 @@
   let cachedMembers = {};
 
   let _lastMemberData = [];
+  let _expiringThresholdDays = 7; // 만료임박 기준일수 (설정 탭에서 변경 가능, 기본 7일)
   let _memberFilters = {
     program: 'all', status: 'all', payment: 'all', locker: 'all', sort: 'none',
     gender: 'all', dateBasis: 'none', dateStart: '', dateEnd: '',
@@ -2182,7 +2185,7 @@
       <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:340px;box-sizing:border-box;">
         <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:14px;">🔔 오늘 확인할 회원</div>
         <div onclick="_goAlertFilter('expiring')" style="display:flex;justify-content:space-between;align-items:center;padding:12px;border-radius:10px;background:var(--bg);margin-bottom:8px;cursor:pointer;">
-          <span style="font-size:13px;color:var(--text);">⚠️ 만료임박 (7일 이내)</span>
+          <span style="font-size:13px;color:var(--text);">⚠️ 만료임박 (${_expiringThresholdDays}일 이내)</span>
           <span style="font-size:14px;font-weight:700;color:#f59e0b;">${c.expiring}명</span>
         </div>
         <div onclick="_goAlertFilter('unpaid')" style="display:flex;justify-content:space-between;align-items:center;padding:12px;border-radius:10px;background:var(--bg);margin-bottom:8px;cursor:pointer;">
@@ -2216,6 +2219,36 @@
     _renderMemberListView();
   }
   window._goAlertFilter = _goAlertFilter;
+
+  // ── 만료임박 기준일수 (설정 탭에서 변경 가능) ──
+  function loadExpiringThreshold() {
+    return db.ref('app_settings/expiringThresholdDays').once('value').then(snap => {
+      _expiringThresholdDays = parseInt(snap.val()) || 7;
+      _updateExpiringThresholdLabels();
+    }).catch(() => {});
+  }
+
+  function saveExpiringThreshold() {
+    const val = parseInt(document.getElementById('setting-expiring-days')?.value) || 7;
+    db.ref('app_settings/expiringThresholdDays').set(val).then(() => {
+      _expiringThresholdDays = val;
+      _updateExpiringThresholdLabels();
+      showToast('✅ 만료임박 기준이 ' + val + '일로 저장됐어요.', 'success');
+      try { loadMemberList(''); } catch(e) {}
+    }).catch(err => {
+      console.error('만료임박 기준 저장 오류:', err);
+      showToast('저장 중 오류가 발생했어요.', 'error');
+    });
+  }
+  window.saveExpiringThreshold = saveExpiringThreshold;
+
+  // 만료임박 기준이 바뀌면 화면 곳곳의 "N일 이내" 표기도 함께 갱신
+  function _updateExpiringThresholdLabels() {
+    const input = document.getElementById('setting-expiring-days');
+    if (input && document.activeElement !== input) input.value = _expiringThresholdDays;
+    const filterOpt = document.querySelector('#mf-status option[value="expiring"]');
+    if (filterOpt) filterOpt.textContent = '만료임박 (' + _expiringThresholdDays + '일 이내)';
+  }
 
   function loadMemberList(query = '') {
     getMemberDB().then(members => {
@@ -2309,7 +2342,7 @@
             if (activeItems.length > 0) {
               if (anyOnHold) { statusKey = 'hold'; statusLabel = '⏸️ 휴회중'; statusColor = '#f59e0b'; }
               else if (minRemainDays !== null && minRemainDays < 0) { statusKey = 'expired'; statusLabel = '만료됨'; statusColor = '#ef4444'; }
-              else if (minRemainDays !== null && minRemainDays <= 7) { statusKey = 'expiring'; statusLabel = '⚠️ 만료임박'; statusColor = '#f59e0b'; }
+              else if (minRemainDays !== null && minRemainDays <= _expiringThresholdDays) { statusKey = 'expiring'; statusLabel = '⚠️ 만료임박'; statusColor = '#f59e0b'; }
               else { statusKey = 'normal'; statusLabel = '정상'; statusColor = '#22c55e'; }
             }
             const lockerAssigned = !!info.lockerKey;
@@ -2446,7 +2479,7 @@
     const opt = (val, label, current) => `<option value="${val}" ${val===current?'selected':''}>${label}</option>`;
     return `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
       ${sel('mf-program', opt('all','전체 프로그램',f.program)+opt('헬스','헬스',f.program)+opt('GX','GX',f.program)+opt('PT','PT',f.program)+opt('기구필라테스 개인','기구필라테스 개인',f.program)+opt('기구필라테스 그룹','기구필라테스 그룹',f.program))}
-      ${sel('mf-status', opt('all','전체 상태',f.status)+opt('normal','정상',f.status)+opt('hold','휴회중',f.status)+opt('expiring','만료임박 (7일 이내)',f.status)+opt('expired','만료됨',f.status))}
+      ${sel('mf-status', opt('all','전체 상태',f.status)+opt('normal','정상',f.status)+opt('hold','휴회중',f.status)+opt('expiring','만료임박 (' + _expiringThresholdDays + '일 이내)',f.status)+opt('expired','만료됨',f.status))}
       ${sel('mf-payment', opt('all','전체 결제상태',f.payment)+opt('paid','완납',f.payment)+opt('unpaid','미수금',f.payment))}
       ${sel('mf-locker', opt('all','전체 락카',f.locker)+opt('assigned','배정됨',f.locker)+opt('unassigned','미배정',f.locker))}
       ${sel('mf-gender', opt('all','전체 성별',f.gender)+opt('male','남',f.gender)+opt('female','여',f.gender))}
