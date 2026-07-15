@@ -9802,6 +9802,8 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     const first = dates[0], last = dates[6];
     document.getElementById('schedule-week-label').textContent =
       (first.getMonth()+1) + '/' + first.getDate() + ' ~ ' + (last.getMonth()+1) + '/' + last.getDate();
+    const yearLabelEl = document.getElementById('schedule-year-label');
+    if (yearLabelEl) yearLabelEl.textContent = first.getFullYear() + '년';
 
     var headHtml = '<tr>';
     headHtml += '<th style="background:var(--bg);color:var(--text-hint);font-size:10px;padding:4px 1px;border:0.5px solid var(--border);width:24px;">시</th>';
@@ -9875,6 +9877,72 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     scheduleBaseDate.setDate(scheduleBaseDate.getDate() + dir * 7);
     loadScheduleData();
   }
+
+  let scheduleCalYear = null, scheduleCalMonth = null;
+
+  function openScheduleCalendarModal() {
+    scheduleCalYear = scheduleBaseDate.getFullYear();
+    scheduleCalMonth = scheduleBaseDate.getMonth();
+    renderScheduleCalendarModal();
+  }
+  window.openScheduleCalendarModal = openScheduleCalendarModal;
+
+  function renderScheduleCalendarModal() {
+    const y = scheduleCalYear, m = scheduleCalMonth;
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const firstDow = new Date(y, m, 1).getDay();
+    const today = new Date();
+    let cells = '';
+    for (let i = 0; i < firstDow; i++) cells += '<div></div>';
+    for (let d = 1; d <= daysInMonth; d++) {
+      const isToday = today.getFullYear() === y && today.getMonth() === m && today.getDate() === d;
+      cells += `<button onclick="selectScheduleCalendarDate(${y},${m},${d})" style="aspect-ratio:1;border:none;background:${isToday ? 'var(--blue)' : 'transparent'};color:${isToday ? 'white' : 'var(--text)'};border-radius:8px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">${d}</button>`;
+    }
+    document.getElementById('schedule-cal-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'schedule-cal-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.innerHTML = `
+      <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:320px;box-sizing:border-box;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <button onclick="changeScheduleCalMonth(-1)" style="background:none;border:none;font-size:18px;color:var(--text);cursor:pointer;padding:4px 10px;">‹</button>
+          <div style="font-size:14.5px;font-weight:700;color:var(--text);">${y}년 ${m + 1}월</div>
+          <button onclick="changeScheduleCalMonth(1)" style="background:none;border:none;font-size:18px;color:var(--text);cursor:pointer;padding:4px 10px;">›</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:14px;">
+          ${['일', '월', '화', '수', '목', '금', '토'].map(d => `<div style="text-align:center;font-size:10.5px;color:var(--text-hint);">${d}</div>`).join('')}
+          ${cells}
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="jumpScheduleToThisWeek()" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이번주로 이동</button>
+          <button onclick="document.getElementById('schedule-cal-modal').remove()" style="flex:1;padding:10px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">닫기</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  window.renderScheduleCalendarModal = renderScheduleCalendarModal;
+
+  function changeScheduleCalMonth(dir) {
+    scheduleCalMonth += dir;
+    if (scheduleCalMonth < 0) { scheduleCalMonth = 11; scheduleCalYear--; }
+    if (scheduleCalMonth > 11) { scheduleCalMonth = 0; scheduleCalYear++; }
+    renderScheduleCalendarModal();
+  }
+  window.changeScheduleCalMonth = changeScheduleCalMonth;
+
+  function selectScheduleCalendarDate(y, m, d) {
+    scheduleBaseDate = new Date(y, m, d);
+    loadScheduleData();
+    document.getElementById('schedule-cal-modal')?.remove();
+  }
+  window.selectScheduleCalendarDate = selectScheduleCalendarDate;
+
+  function jumpScheduleToThisWeek() {
+    scheduleBaseDate = new Date();
+    loadScheduleData();
+    document.getElementById('schedule-cal-modal')?.remove();
+  }
+  window.jumpScheduleToThisWeek = jumpScheduleToThisWeek;
 
   function loadTrainerTab() {
     const userId = localStorage.getItem('current_user');
