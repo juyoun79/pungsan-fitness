@@ -351,8 +351,9 @@
   .dash-age-toggle-btn.active { border-color:var(--blue); background:var(--blue); color:#fff; }
 
   #dash-flex-wrap { display:block; margin-bottom:12px; }
-  body.pc-mode #dash-flex-wrap { display:flex; gap:12px; align-items:flex-start; }
+  body.pc-mode #dash-flex-wrap { display:flex; gap:12px; align-items:stretch; }
   body.pc-mode #dash-flex-wrap > .admin-card { flex:1; min-width:0; margin-bottom:0; }
+  body.pc-mode .dash-flex-card { display:flex; flex-direction:column; }
   .search-bar { display:flex; gap:8px; margin-bottom:14px; }
   .search-bar input { flex:1; max-width:220px; padding:10px 12px; border:1.5px solid var(--border); border-radius:var(--radius-sm); font-size:14px; font-family:'Noto Sans KR',sans-serif; outline:none; }
   .search-bar input:focus { border-color:var(--blue); }

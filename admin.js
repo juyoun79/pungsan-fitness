@@ -1491,10 +1491,10 @@
         const { ctx, width, height } = chart;
         ctx.save();
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.font = '700 15px sans-serif';
+        ctx.font = '700 18px sans-serif';
         ctx.fillStyle = '#1a1a1a';
-        ctx.fillText(String(total), width / 2, height / 2 - 8);
-        ctx.font = '400 10px sans-serif';
+        ctx.fillText(String(total), width / 2, height / 2 - 9);
+        ctx.font = '400 11px sans-serif';
         ctx.fillStyle = '#94a3b8';
         ctx.fillText('유효회원', width / 2, height / 2 + 10);
         ctx.restore();
@@ -1511,10 +1511,13 @@
     if (legendEl) {
       legendEl.innerHTML = labels.map((l, i) => {
         const pct = total ? Math.round(data[i] / total * 100) : 0;
-        return `<span style="display:flex;align-items:center;gap:6px;color:var(--text-hint);">
-          <span style="width:9px;height:9px;border-radius:2px;background:${colors[i]};flex-shrink:0;"></span>
-          ${l} <b style="color:var(--text);font-weight:700;">${pct}%</b>
-        </span>`;
+        return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;background:var(--bg);border-radius:8px;">
+          <span style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text);">
+            <span style="width:10px;height:10px;border-radius:3px;background:${colors[i]};flex-shrink:0;"></span>
+            ${l}
+          </span>
+          <span style="font-size:12.5px;color:var(--text-hint);white-space:nowrap;">${data[i]}명 · <b style="color:var(--text);font-weight:700;">${pct}%</b></span>
+        </div>`;
       }).join('');
     }
   }
