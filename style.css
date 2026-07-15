@@ -342,10 +342,10 @@
   .member-badge { font-size:11px; padding:2px 8px; border-radius:10px; font-weight:600; }
   .badge-active { background:#dcfce7; color:#16a34a; }
   .badge-admin { background:#fef3c7; color:#d97706; }
-  .stat-mini { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
-  .stat-mini-item { background:var(--bg); border-radius:8px; padding:8px; text-align:center; }
-  .stat-mini-val { font-size:16px; font-weight:700; color:var(--blue); }
-  .stat-mini-label { font-size:11px; color:var(--text-hint); margin-top:2px; }
+  .stat-mini { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin-top:10px; }
+  .stat-mini-item { background:var(--bg); border-radius:8px; padding:8px 4px; text-align:center; }
+  .stat-mini-val { font-size:15px; font-weight:700; color:var(--blue); }
+  .stat-mini-label { font-size:10.5px; color:var(--text-hint); margin-top:2px; }
 
   .dash-age-toggle-btn { padding:4px 10px; font-size:12px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--text-hint); cursor:pointer; font-family:'Noto Sans KR',sans-serif; }
   .dash-age-toggle-btn.active { border-color:var(--blue); background:var(--blue); color:#fff; }
