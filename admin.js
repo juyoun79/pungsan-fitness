@@ -10389,11 +10389,19 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       const latest = list[0][1];
       const prev   = list.length > 1 ? list[1][1] : null;
 
-      // 회원 신체정보 불러와서 표준범위 계산
-      db.ref('users/' + currentTraineeId + '/body').once('value').then(bodySnap => {
-        const body    = bodySnap.val() || {};
-        const gender  = body.gender || 'female';
-        const age     = parseInt(body.age)      || 30;
+      // 회원 신체정보 불러와서 표준범위 계산 (users/body 정보가 없으면 관리자 등록정보로 대체)
+      Promise.all([
+        db.ref('users/' + currentTraineeId + '/body').once('value'),
+        db.ref('members/' + currentTraineeId).once('value')
+      ]).then(([bodySnap, memberSnap]) => {
+        const body   = bodySnap.val() || {};
+        const member = memberSnap.val() || {};
+        const memberGender = (member.body && member.body.gender) || member['body/gender'] || null;
+        const memberBirth  = member.birth || null;
+        const genderSrcBirth = body.birth || memberBirth;
+
+        const gender  = body.gender || memberGender || 'female';
+        const age     = parseInt(body.age) || _calcAgeFromBirthAdmin(genderSrcBirth) || 30;
         const height  = parseFloat(body.height) || 165;
         const bWeight = parseFloat(body.weight) || 60;
         const hM      = height / 100;
@@ -10459,9 +10467,15 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
           if (d.muscle  !== undefined) parts.push('근육' + d.muscle + 'kg');
           if (d.bmi     !== undefined) parts.push('BMI ' + d.bmi);
           if (d.bmr     !== undefined) parts.push('기초대사' + d.bmr + 'kcal');
-          history += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;">
-            <span style="font-size:12px;color:var(--text-hint);">${date}</span>
-            <span style="font-size:11px;color:var(--text);">${parts.join(' · ')}</span>
+          history += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;gap:8px;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12px;color:var(--text-hint);">${date}</div>
+              <div style="font-size:11px;color:var(--text);margin-top:2px;">${parts.join(' · ')}</div>
+            </div>
+            <div style="display:flex;gap:4px;flex-shrink:0;">
+              <button onclick="openTrainerInbodyInputModal('${date}')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;color:var(--text-hint);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
+              <button onclick="deleteTrainerInbodyEntry('${date}')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;color:#ef4444;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
+            </div>
           </div>`;
         });
 
@@ -10501,47 +10515,64 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       });
     });
   }
-  // ── 강사용 인바디 직접 입력 (회원 대신 강사가 측정값 등록) ──
-  function openTrainerInbodyInputModal() {
+  // ── 강사용 인바디 직접 입력 (회원 대신 강사가 측정값 등록/수정) ──
+  let _tiEditDate = null;
+
+  function openTrainerInbodyInputModal(editDate) {
     if (!currentTraineeId) return;
+    _tiEditDate = editDate || null;
+    const traineeId = currentTraineeId;
     const today = new Date();
     const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
-    document.getElementById('trainer-inbody-modal')?.remove();
-    const modal = document.createElement('div');
-    modal.id = 'trainer-inbody-modal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
-    modal.innerHTML = `
-      <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:340px;box-sizing:border-box;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-          <div style="font-size:14.5px;font-weight:700;color:var(--text);">📊 인바디 데이터 입력</div>
-          <button onclick="document.getElementById('trainer-inbody-modal').remove()" style="background:none;border:none;font-size:18px;color:var(--text-hint);cursor:pointer;">✕</button>
-        </div>
-        <label style="font-size:11.5px;color:var(--text-hint);">측정일</label>
-        <input type="date" id="ti-date" value="${todayStr}" max="${todayStr}"
-          style="width:100%;box-sizing:border-box;padding:8px 10px;margin:4px 0 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);" />
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;">
-          <div><label style="font-size:11.5px;color:var(--text-hint);">체중(kg)</label>
-            <input type="number" step="0.1" id="ti-weight" placeholder="예: 65.4"
-              style="width:100%;box-sizing:border-box;padding:8px 10px;margin-top:4px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);" /></div>
-          <div><label style="font-size:11.5px;color:var(--text-hint);">골격근량(kg)</label>
-            <input type="number" step="0.1" id="ti-muscle" placeholder="예: 28.2"
-              style="width:100%;box-sizing:border-box;padding:8px 10px;margin-top:4px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);" /></div>
-          <div><label style="font-size:11.5px;color:var(--text-hint);">체지방량(kg)</label>
-            <input type="number" step="0.1" id="ti-fat" placeholder="예: 15.1"
-              style="width:100%;box-sizing:border-box;padding:8px 10px;margin-top:4px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);" /></div>
-          <div><label style="font-size:11.5px;color:var(--text-hint);">체지방률(%)</label>
-            <input type="number" step="0.1" id="ti-fatrate" placeholder="예: 23.1"
-              style="width:100%;box-sizing:border-box;padding:8px 10px;margin-top:4px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);" /></div>
-          <div><label style="font-size:11.5px;color:var(--text-hint);">BMI</label>
-            <input type="number" step="0.1" id="ti-bmi" placeholder="예: 22.4"
-              style="width:100%;box-sizing:border-box;padding:8px 10px;margin-top:4px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);" /></div>
-          <div><label style="font-size:11.5px;color:var(--text-hint);">기초대사량</label>
-            <input type="number" step="1" id="ti-bmr" placeholder="예: 1420"
-              style="width:100%;box-sizing:border-box;padding:8px 10px;margin-top:4px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);" /></div>
-        </div>
-        <button onclick="saveTrainerInbodyEntry()" style="width:100%;margin-top:14px;padding:11px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
-      </div>`;
-    document.body.appendChild(modal);
+
+    Promise.all([
+      db.ref('users/' + traineeId + '/body/height').once('value'),
+      _tiEditDate ? db.ref('users/' + traineeId + '/inbody/' + _tiEditDate).once('value') : Promise.resolve(null)
+    ]).then(([heightSnap, entrySnap]) => {
+      const existingHeight = heightSnap.val();
+      const entry = entrySnap ? (entrySnap.val() || {}) : {};
+      const dateVal = _tiEditDate || todayStr;
+
+      document.getElementById('trainer-inbody-modal')?.remove();
+      const modal = document.createElement('div');
+      modal.id = 'trainer-inbody-modal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+      modal.innerHTML = `
+        <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:340px;box-sizing:border-box;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div style="font-size:14.5px;font-weight:700;color:var(--text);">📊 인바디 데이터 ${_tiEditDate ? '수정' : '입력'}</div>
+            <button onclick="document.getElementById('trainer-inbody-modal').remove()" style="background:none;border:none;font-size:18px;color:var(--text-hint);cursor:pointer;">✕</button>
+          </div>
+          <label style="font-size:11.5px;color:var(--text-hint);">측정일</label>
+          <input type="date" id="ti-date" value="${dateVal}" max="${todayStr}" ${_tiEditDate ? 'disabled' : ''}
+            style="width:100%;box-sizing:border-box;padding:8px 10px;margin:4px 0 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);" />
+          <label style="font-size:11.5px;color:var(--text-hint);">키(cm) <span style="color:var(--text-hint);font-weight:400;">- 비워두면 기존 값 유지</span></label>
+          <input type="number" step="0.1" id="ti-height" value="${existingHeight || ''}" placeholder="예: 155"
+            style="width:100%;box-sizing:border-box;padding:8px 10px;margin:4px 0 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);" />
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;">
+            <div><label style="font-size:11.5px;color:var(--text-hint);">체중(kg)</label>
+              <input type="number" step="0.1" id="ti-weight" value="${entry.weight ?? ''}" placeholder="예: 65.4"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;margin-top:4px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);" /></div>
+            <div><label style="font-size:11.5px;color:var(--text-hint);">골격근량(kg)</label>
+              <input type="number" step="0.1" id="ti-muscle" value="${entry.muscle ?? ''}" placeholder="예: 28.2"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;margin-top:4px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);" /></div>
+            <div><label style="font-size:11.5px;color:var(--text-hint);">체지방량(kg)</label>
+              <input type="number" step="0.1" id="ti-fat" value="${entry.fat ?? ''}" placeholder="예: 15.1"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;margin-top:4px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);" /></div>
+            <div><label style="font-size:11.5px;color:var(--text-hint);">체지방률(%)</label>
+              <input type="number" step="0.1" id="ti-fatrate" value="${entry.fatRate ?? ''}" placeholder="예: 23.1"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;margin-top:4px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);" /></div>
+            <div><label style="font-size:11.5px;color:var(--text-hint);">BMI</label>
+              <input type="number" step="0.1" id="ti-bmi" value="${entry.bmi ?? ''}" placeholder="예: 22.4"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;margin-top:4px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);" /></div>
+            <div><label style="font-size:11.5px;color:var(--text-hint);">기초대사량</label>
+              <input type="number" step="1" id="ti-bmr" value="${entry.bmr ?? ''}" placeholder="예: 1420"
+                style="width:100%;box-sizing:border-box;padding:8px 10px;margin-top:4px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);" /></div>
+          </div>
+          <button onclick="saveTrainerInbodyEntry()" style="width:100%;margin-top:14px;padding:11px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
+        </div>`;
+      document.body.appendChild(modal);
+    });
   }
   window.openTrainerInbodyInputModal = openTrainerInbodyInputModal;
 
@@ -10566,7 +10597,13 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     });
     if (!hasData) { showToast('최소 1개 항목을 입력해주세요.', 'error'); return; }
 
+    const heightVal = parseFloat(document.getElementById('ti-height').value);
+
     db.ref('users/' + traineeId + '/inbody/' + date).set(data).then(() => {
+      // 키를 입력했을 때만 회원 기본정보에 반영 (비워두면 기존 값 유지)
+      if (!isNaN(heightVal) && heightVal > 0) {
+        db.ref('users/' + traineeId + '/body/height').set(heightVal);
+      }
       // 체중 입력 시 체중기록/기본정보에도 동기화 (최신 날짜 기준일 때만)
       if (data.weight) {
         db.ref('users/' + traineeId + '/weightHistory/' + date).set(data.weight);
@@ -10578,12 +10615,25 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
           }
         });
       }
-      showToast('📊 인바디 저장 완료!', 'success');
+      showToast(_tiEditDate ? '📊 인바디 수정 완료!' : '📊 인바디 저장 완료!', 'success');
       document.getElementById('trainer-inbody-modal')?.remove();
+      _tiEditDate = null;
       _renderInbodySub();
     }).catch(() => showToast('저장 중 오류가 발생했어요.', 'error'));
   }
   window.saveTrainerInbodyEntry = saveTrainerInbodyEntry;
+
+  function deleteTrainerInbodyEntry(date) {
+    const traineeId = currentTraineeId;
+    if (!traineeId || !date) return;
+    showConfirm(date + ' 인바디 기록을 삭제할까요?', () => {
+      db.ref('users/' + traineeId + '/inbody/' + date).remove().then(() => {
+        showToast('🗑️ 삭제됐어요.', 'success');
+        _renderInbodySub();
+      }).catch(() => showToast('삭제 중 오류가 발생했어요.', 'error'));
+    });
+  }
+  window.deleteTrainerInbodyEntry = deleteTrainerInbodyEntry;
   // ── 메모/인바디 서브탭 끝 ──────────────────────────────────
 
   // ── 강사 루틴 지정 탭 ──────────────────────────────────────
