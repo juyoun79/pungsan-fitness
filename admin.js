@@ -1484,11 +1484,11 @@
       const today = _todayISO();
       const monthPrefix = today.slice(0, 8); // 'YYYY-MM-' (이미 zero-padded)
       const entries = _revAllEntries || [];
-      const todayRevenue = entries.filter(e => e.date === today).reduce((s, e) => s + e.price, 0);
+      const todayRevenue = entries.filter(e => e.date === today).reduce((s, e) => s + e.cash + e.card + e.transfer, 0);
       const monthEntries = entries.filter(e => (e.date || '').startsWith(monthPrefix));
-      const monthRevenue = monthEntries.reduce((s, e) => s + e.price, 0);
-      const newCount = monthEntries.filter(e => e.contractType === '신규').length;
-      const reCount = monthEntries.filter(e => e.contractType === '재등록').length;
+      const monthRevenue = monthEntries.reduce((s, e) => s + e.cash + e.card + e.transfer, 0);
+      const newCount = monthEntries.filter(e => e.contractType === '신규' && !e.isSettlement).length;
+      const reCount = monthEntries.filter(e => e.contractType === '재등록' && !e.isSettlement).length;
 
       const todayEl = document.getElementById('admin-today-revenue');
       if (todayEl) todayEl.textContent = todayRevenue.toLocaleString() + '원';
@@ -1828,12 +1828,29 @@
           _flattenContractItems(c).forEach(it => {
             const d = it.data;
             const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
+            // 미수금을 나중에 완납한 경우, 그 정산분은 계약일이 아니라 "완납한 날짜"의 매출로 따로 잡음
+            const settleAmt = d.unpaidSettleAmount || 0;
+            const settleMethod = d.unpaidSettleMethod || '';
+            const signCash = (d.cash || 0) - (settleMethod === 'cash' ? settleAmt : 0);
+            const signCard = (d.card || 0) - (settleMethod === 'card' ? settleAmt : 0);
+            const signTransfer = (d.transfer || 0) - (settleMethod === 'transfer' ? settleAmt : 0);
             entries.push({
               phone, name, progKey: it.progKey, label,
-              price: d.price || 0, cash: d.cash || 0, card: d.card || 0, transfer: d.transfer || 0,
+              price: (d.price || 0) - settleAmt, cash: signCash, card: signCard, transfer: signTransfer,
               date: c.signDate || '', contractType,
               trainerId: (it.progKey === 'PT' || it.progKey === '기구필라테스개인') ? (d.trainerId || '') : ''
             });
+            if (settleAmt > 0 && d.unpaidSettledAt) {
+              entries.push({
+                phone, name, progKey: it.progKey, label: label + ' (미수금 정산)',
+                price: settleAmt,
+                cash: settleMethod === 'cash' ? settleAmt : 0,
+                card: settleMethod === 'card' ? settleAmt : 0,
+                transfer: settleMethod === 'transfer' ? settleAmt : 0,
+                date: d.unpaidSettledAt, contractType,
+                trainerId: '', isSettlement: true
+              });
+            }
             if (d.refund) {
               refunds.push({ phone, name, progKey: it.progKey, label, refundAmount: d.refund.refundAmount || 0, date: d.refund.date || '', method: d.refund.method || '' });
             }
@@ -1841,11 +1858,26 @@
           Object.entries(c.extras || {}).forEach(([key, e]) => {
             if (e.deleted) return;
             const label = key === 'locker' ? '🔑 개인 락카' : (key === 'cloth' ? '👕 운동복' : key);
+            const settleAmt = e.unpaidSettleAmount || 0;
+            const settleMethod = e.unpaidSettleMethod || '';
+            const signCash = (e.cash || 0) - (settleMethod === 'cash' ? settleAmt : 0);
+            const signCard = (e.card || 0) - (settleMethod === 'card' ? settleAmt : 0);
+            const signTransfer = (e.transfer || 0) - (settleMethod === 'transfer' ? settleAmt : 0);
             entries.push({
               phone, name, progKey: 'extra:' + key, label,
-              price: e.price || 0, cash: e.cash || 0, card: e.card || 0, transfer: e.transfer || 0,
+              price: (e.price || 0) - settleAmt, cash: signCash, card: signCard, transfer: signTransfer,
               date: c.signDate || '', contractType, trainerId: ''
             });
+            if (settleAmt > 0 && e.unpaidSettledAt) {
+              entries.push({
+                phone, name, progKey: 'extra:' + key, label: label + ' (미수금 정산)',
+                price: settleAmt,
+                cash: settleMethod === 'cash' ? settleAmt : 0,
+                card: settleMethod === 'card' ? settleAmt : 0,
+                transfer: settleMethod === 'transfer' ? settleAmt : 0,
+                date: e.unpaidSettledAt, contractType, trainerId: '', isSettlement: true
+              });
+            }
           });
         });
       });
@@ -2048,19 +2080,19 @@
     const badge = document.getElementById('rev-filter-badge');
     if (badge) badge.textContent = filterCount ? filterCount + '개 적용중' : '';
 
-    const grossRevenue = curEntries.reduce((s, e) => s + e.price, 0);
+    const grossRevenue = curEntries.reduce((s, e) => s + e.cash + e.card + e.transfer, 0);
     const refundTotal = curRefunds.reduce((s, r) => s + r.refundAmount, 0);
     const netRevenue = grossRevenue - refundTotal;
     const unpaidTotal = curEntries.reduce((s, e) => s + Math.max(0, e.price - e.cash - e.card - e.transfer), 0);
-    const newCount = curEntries.filter(e => e.contractType === '신규').length;
-    const reCount = curEntries.filter(e => e.contractType === '재등록').length;
-    const totalCount = curEntries.length;
+    const newCount = curEntries.filter(e => e.contractType === '신규' && !e.isSettlement).length;
+    const reCount = curEntries.filter(e => e.contractType === '재등록' && !e.isSettlement).length;
+    const totalCount = curEntries.filter(e => !e.isSettlement).length;
     const avgPrice = totalCount ? Math.round(grossRevenue / totalCount) : 0;
 
     let compareHtml = '';
     if (document.getElementById('rev-compare-mode').value !== 'none') {
       const cmpRange = _revGetComparePeriodRange(range);
-      const cmpRevenue = _revAllEntries.filter(e => inRange(e.date, cmpRange) && matchesFilters(e)).reduce((s, e) => s + e.price, 0);
+      const cmpRevenue = _revAllEntries.filter(e => inRange(e.date, cmpRange) && matchesFilters(e)).reduce((s, e) => s + e.cash + e.card + e.transfer, 0);
       const diff = cmpRevenue === 0 ? (grossRevenue > 0 ? 100 : 0) : Math.round((grossRevenue - cmpRevenue) / cmpRevenue * 1000) / 10;
       const up = diff >= 0;
       compareHtml = `<div style="font-size:12px;margin-top:2px;color:${up ? '#22c55e' : '#e24b4a'};">${up ? '▲' : '▼'} ${Math.abs(diff)}%</div>`;
@@ -2109,7 +2141,7 @@
     if (!el) return;
     if (!entries.length) { el.innerHTML = '<div style="text-align:center;padding:10px;color:var(--text-hint);font-size:13px;">해당 기간에 매출이 없어요</div>'; return; }
     const byProg = {};
-    entries.forEach(e => { byProg[e.progKey] = (byProg[e.progKey] || 0) + e.price; });
+    entries.forEach(e => { byProg[e.progKey] = (byProg[e.progKey] || 0) + e.cash + e.card + e.transfer; });
     const sorted = Object.entries(byProg).sort((a, b) => b[1] - a[1]);
     const total = sorted.reduce((s, [, v]) => s + v, 0);
     el.innerHTML = sorted.map(([progKey, amt]) => {
@@ -2154,8 +2186,7 @@
     if (!el) return;
     if (!entries.length) { el.style.display = 'none'; return; }
     const byProg = {};
-    entries.forEach(e => { byProg[e.progKey] = (byProg[e.progKey] || 0) + e.price; });
-    const top = Object.entries(byProg).sort((a, b) => b[1] - a[1])[0];
+    entries.forEach(e => { byProg[e.progKey] = (byProg[e.progKey] || 0) + e.cash + e.card + e.transfer; });
     const topLabel = top ? (REFUND_PROG_NAMES[top[0]] || top[0].replace('extra:', '')) : '-';
     const reRate = (newCount + reCount) ? Math.round(reCount / (newCount + reCount) * 100) : 0;
     el.style.display = 'block';
@@ -2184,7 +2215,7 @@
         const monday = new Date(d); monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
         key = _isoDate(monday);
       } else key = e.date.slice(0, 7);
-      buckets[key] = (buckets[key] || 0) + e.price;
+      buckets[key] = (buckets[key] || 0) + e.cash + e.card + e.transfer;
     });
     const sortedKeys = Object.keys(buckets).sort();
     const trendCanvas = document.getElementById('rev-trend-chart');
@@ -2203,7 +2234,7 @@
     const byProg = {};
     entries.forEach(e => {
       const label = REFUND_PROG_NAMES[e.progKey] || e.progKey.replace('extra:', '');
-      byProg[label] = (byProg[label] || 0) + e.price;
+      byProg[label] = (byProg[label] || 0) + e.cash + e.card + e.transfer;
     });
     const progLabels = Object.keys(byProg);
     const progColors = ['#185FA5', '#3B6D11', '#854F0B', '#712B13', '#534AB7', '#993556', '#5F5E5A'];
@@ -2226,8 +2257,8 @@
         </div>`).join('');
     }
 
-    const newSum = entries.filter(e => e.contractType === '신규').reduce((s, e) => s + e.price, 0);
-    const reSum = entries.filter(e => e.contractType === '재등록').reduce((s, e) => s + e.price, 0);
+    const newSum = entries.filter(e => e.contractType === '신규').reduce((s, e) => s + e.cash + e.card + e.transfer, 0);
+    const reSum = entries.filter(e => e.contractType === '재등록').reduce((s, e) => s + e.cash + e.card + e.transfer, 0);
     const newreCanvas = document.getElementById('rev-newre-chart');
     if (_revChartInstances.newre) _revChartInstances.newre.destroy();
     if (newreCanvas) {
@@ -6190,7 +6221,7 @@
       if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
       const c = snap.val();
       const updates = {};
-      // 개별 프로그램 + 패키지 안의 프로그램 모두 미수금을 선택한 결제수단으로 처리 + 정산일 기록
+      // 개별 프로그램 + 패키지 안의 프로그램 모두 미수금을 선택한 결제수단으로 처리 + 정산일/정산금액 기록
       _flattenContractItems(c).forEach(it => {
         const p = it.data;
         const progUnpaid = (p.price || 0) - (p.cash||0) - (p.card||0) - (p.transfer||0);
@@ -6200,6 +6231,9 @@
             : 'contracts/' + phone + '/' + contractKey + '/packages/' + it.pkgIndex + '/items/' + it.progKey;
           updates[basePath + '/' + method] = (p[method] || 0) + progUnpaid;
           updates[basePath + '/unpaidSettledAt'] = date;
+          // 매출 통계에서 "완납한 날짜"에 정확히 매출로 잡히게 하기 위한 기록 (계약일 매출과 분리 계산)
+          updates[basePath + '/unpaidSettleAmount'] = progUnpaid;
+          updates[basePath + '/unpaidSettleMethod'] = method;
         }
       });
       const extras = c.extras || {};
@@ -6210,6 +6244,8 @@
           const basePath = 'contracts/' + phone + '/' + contractKey + '/extras/' + ext;
           updates[basePath + '/' + method] = (e[method] || 0) + extUnpaid;
           updates[basePath + '/unpaidSettledAt'] = date;
+          updates[basePath + '/unpaidSettleAmount'] = extUnpaid;
+          updates[basePath + '/unpaidSettleMethod'] = method;
         }
       });
       db.ref().update(updates).then(() => {
