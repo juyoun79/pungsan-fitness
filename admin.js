@@ -1415,8 +1415,8 @@
     });
   }
 
-  // ── 현황탭 확장통계: 유효회원 수 / 프로그램 구성비율 / 연령별 현황표 ──
-  // loadMemberList가 이미 계산해둔 _lastMemberData(gender/age/progNames/statusKey)를 재사용해서
+  // ── 현황탭 확장통계: 유효회원 수 / 프로그램 구성비율 / 연령별 현황표 / 매출·만료·신규 통계 ──
+  // loadMemberList가 이미 계산해둔 _lastMemberData(gender/age/activeItems/statusKey)를 재사용해서
   // 동일한 로직을 중복 구현하지 않고 일관된 값을 보장함
   function _dashAgeBucket(age) {
     if (age == null || isNaN(age)) return null;
@@ -1426,19 +1426,96 @@
     return d + '대';
   }
 
+  // 계약 항목 하나가 "지금 유효한지"(휴회중이거나, 만료일이 없거나, 만료일이 아직 안 지났으면 유효)
+  function _dashItemIsValid(data) {
+    if (_isActivelyOnHold(data)) return true;
+    const endDate = data.endDate;
+    if (!endDate) return true;
+    const d = _daysUntil(endDate);
+    return d === null || d >= 0;
+  }
+
+  // 유효회원: 회원목록 화면의 statusKey(패키지 중 하나라도 만료되면 전체 만료 취급)와 달리,
+  // 패키지든 개별상품이든 활성 항목 중 "단 하나라도" 유효하면 유효회원으로 집계 (현황탭 전용 정의)
+  function _dashMemberIsValid(m) {
+    return (m.activeItems || []).some(it => _dashItemIsValid(it.data));
+  }
+
+  // 프로그램 구성비율용 라벨 목록 (패키지로 묶인 항목은 패키지 이름 그대로 하나로, 개별상품은 프로그램별로)
+  function _dashMemberProgramLabels(m) {
+    const labels = new Set();
+    (m.activeItems || []).forEach(it => {
+      if (!_dashItemIsValid(it.data)) return; // 만료된 개별항목은 구성비율에서 제외
+      if (it.pkgName) {
+        labels.add('📦 ' + it.pkgName);
+      } else {
+        const label = REFUND_PROG_NAMES[it.progKey] || it.progKey;
+        if (label !== '🎫 일일권') labels.add(label);
+      }
+    });
+    return Array.from(labels);
+  }
+
+  // 이번달에 "만료된" 회원인지 (개별항목 중 이번달에 끝난 게 있으면 - 다른 항목이 살아있어도 카운트)
+  function _dashExpiredThisMonth(m, monthPrefix) {
+    return (m.activeItems || []).some(it => {
+      if (_isActivelyOnHold(it.data)) return false;
+      const endDate = it.data.endDate;
+      if (!endDate) return false;
+      const d = _daysUntil(endDate);
+      return d !== null && d < 0 && endDate.startsWith(monthPrefix);
+    });
+  }
+
   function renderDashboardExtras() {
     const memberData = _lastMemberData || [];
-    const validMembers = memberData.filter(m => m.statusKey === 'normal' || m.statusKey === 'expiring' || m.statusKey === 'hold');
 
+    // 유효회원 (패키지 중 하나라도 유효하면 포함)
+    const validMembers = memberData.filter(_dashMemberIsValid);
     const validEl = document.getElementById('admin-valid-members');
     if (validEl) validEl.textContent = validMembers.length;
 
-    // 프로그램 구성 비율 (유효회원의 활성 프로그램 기준, 일일권 제외)
+    // 만료임박 회원수 (회원목록 화면과 동일 기준 재사용 - 갱신 알림 목적이라 패키지 중 가장 급한 것 기준이 맞음)
+    const expiringEl = document.getElementById('admin-expiring-members');
+    if (expiringEl) expiringEl.textContent = memberData.filter(m => m.statusKey === 'expiring').length;
+
+    // 매출/신규·재등록/순증감 (매출통계 탭과 같은 원본 데이터(_revAllEntries)를 재사용해서 숫자가 서로 다르게 나오지 않게 함)
+    const finishRevenuePart = () => {
+      const today = _todayISO();
+      const monthPrefix = today.slice(0, 8); // 'YYYY-MM-' (이미 zero-padded)
+      const entries = _revAllEntries || [];
+      const todayRevenue = entries.filter(e => e.date === today).reduce((s, e) => s + e.price, 0);
+      const monthEntries = entries.filter(e => (e.date || '').startsWith(monthPrefix));
+      const monthRevenue = monthEntries.reduce((s, e) => s + e.price, 0);
+      const newCount = monthEntries.filter(e => e.contractType === '신규').length;
+      const reCount = monthEntries.filter(e => e.contractType === '재등록').length;
+
+      const todayEl = document.getElementById('admin-today-revenue');
+      if (todayEl) todayEl.textContent = todayRevenue.toLocaleString() + '원';
+      const monthEl = document.getElementById('admin-month-revenue');
+      if (monthEl) monthEl.textContent = monthRevenue.toLocaleString() + '원';
+      const newRegEl = document.getElementById('admin-newreg-count');
+      if (newRegEl) newRegEl.textContent = newCount + ' · ' + reCount + '건';
+
+      // 이번달 순증감 = 이번달 신규가입 회원수 - 이번달 만료된 회원수
+      const newMembersThisMonth = memberData.filter(m => (m.joinDate || '').startsWith(monthPrefix)).length;
+      const expiredThisMonth = memberData.filter(m => _dashExpiredThisMonth(m, monthPrefix)).length;
+      const netChange = newMembersThisMonth - expiredThisMonth;
+      const netEl = document.getElementById('dash-net-change-badge');
+      if (netEl) {
+        const sign = netChange > 0 ? '▲' : (netChange < 0 ? '▼' : '');
+        const color = netChange > 0 ? '#22c55e' : (netChange < 0 ? '#ef4444' : 'var(--text-hint)');
+        netEl.innerHTML = `<span style="color:${color};">이번달 ${sign}${Math.abs(netChange)}명</span>`;
+      }
+    };
+    if (_revAllEntries) finishRevenuePart();
+    else _revBuildData().then(finishRevenuePart);
+
+    // 프로그램 구성 비율 (유효회원 기준, 패키지는 패키지 이름 그대로 한 조각으로)
     const progCounts = {};
     validMembers.forEach(m => {
-      (m.progNames || []).forEach(name => {
-        if (name === '🎫 일일권') return;
-        progCounts[name] = (progCounts[name] || 0) + 1;
+      _dashMemberProgramLabels(m).forEach(label => {
+        progCounts[label] = (progCounts[label] || 0) + 1;
       });
     });
     _dashProgramCounts = progCounts;
@@ -1483,7 +1560,9 @@
     }
     const labels = entries.map(([k]) => k);
     const data = entries.map(([, v]) => v);
-    const colors = labels.map(l => DASH_PROGRAM_COLORS[l] || '#94a3b8');
+    const FALLBACK_PALETTE = ['#8b5cf6', '#f97316', '#06b6d4', '#ec4899', '#84cc16', '#6366f1'];
+    let _fbIdx = 0;
+    const colors = labels.map(l => DASH_PROGRAM_COLORS[l] || FALLBACK_PALETTE[_fbIdx++ % FALLBACK_PALETTE.length]);
 
     const centerTextPlugin = {
       id: 'dashCenterText',
