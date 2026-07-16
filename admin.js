@@ -1567,17 +1567,19 @@
     document.head.appendChild(s);
   }
 
+  const DASH_PROGRAM_ORDER = ['헬스', 'GX', 'PT', '기구필라테스 개인', '기구필라테스 그룹'];
+
   function _dashDrawPie() {
     const canvas = document.getElementById('dashProgramPie');
     const legendEl = document.getElementById('dash-pie-legend');
     if (!canvas) return;
-    const entries = Object.entries(_dashProgramCounts).filter(([, v]) => v > 0);
+    // 5개 카테고리는 인원이 0명이어도 항상 표시하고, 인원수 많은 순으로 정렬
+    const entries = DASH_PROGRAM_ORDER
+      .map(k => [k, _dashProgramCounts[k] || 0])
+      .sort((a, b) => b[1] - a[1]);
     const total = entries.reduce((s, [, v]) => s + v, 0);
     if (_dashPieChart) { _dashPieChart.destroy(); _dashPieChart = null; }
-    if (entries.length === 0) {
-      if (legendEl) legendEl.innerHTML = '<div style="font-size:12px;color:var(--text-hint);">데이터가 없어요</div>';
-      return;
-    }
+
     const labels = entries.map(([k]) => k);
     const data = entries.map(([, v]) => v);
     const FALLBACK_PALETTE = ['#8b5cf6', '#f97316', '#06b6d4', '#ec4899', '#84cc16', '#6366f1'];
@@ -1595,7 +1597,7 @@
         ctx.fillText(String(total), width / 2, height / 2 - 9);
         ctx.font = '400 11px sans-serif';
         ctx.fillStyle = '#94a3b8';
-        ctx.fillText('유효회원', width / 2, height / 2 + 10);
+        ctx.fillText('이용건수', width / 2, height / 2 + 10);
         ctx.restore();
       }
     };
