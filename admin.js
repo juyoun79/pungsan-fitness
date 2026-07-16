@@ -1505,7 +1505,8 @@
       if (netEl) {
         const sign = netChange > 0 ? '▲' : (netChange < 0 ? '▼' : '');
         const color = netChange > 0 ? '#22c55e' : (netChange < 0 ? '#ef4444' : 'var(--text-hint)');
-        netEl.innerHTML = `<span style="color:${color};">이번달 ${sign}${Math.abs(netChange)}명</span>`;
+        netEl.title = `이번달 신규가입 ${newMembersThisMonth}명 − 이번달 만료 ${expiredThisMonth}명`;
+        netEl.innerHTML = `<span style="color:${color};" title="${netEl.title}">이번달 순증감 ${sign}${Math.abs(netChange)}명</span>`;
       }
     };
     if (_revAllEntries) finishRevenuePart();
