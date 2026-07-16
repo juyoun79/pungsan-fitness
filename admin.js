@@ -6996,23 +6996,37 @@
                 oninput="autoFillLockerName(this.value)"
                 style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
             </div>
-            <div>
+            <div style="position:relative;">
               <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">이름</div>
-              <input id="ld-name" type="text" placeholder="이름"
+              <input id="ld-name" type="text" placeholder="이름 (입력하면 회원 검색)" autocomplete="off"
+                oninput="onLockerNameSearchInput(this.value)"
                 style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+              <div id="ld-name-search-results" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.15);max-height:220px;overflow-y:auto;z-index:600;"></div>
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
             <div>
               <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">시작일</div>
-              <input id="ld-start" type="date"
+              <input id="ld-start" type="date" onchange="_calcLockerEndDate()"
                 style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
             </div>
             <div>
-              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">종료일</div>
-              <input id="ld-end" type="date"
-                style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">사용기간 (선택)</div>
+              <div style="display:flex;gap:4px;">
+                <input id="ld-period-num" type="number" min="0" placeholder="예: 3" oninput="_calcLockerEndDate()"
+                  style="width:100%;box-sizing:border-box;padding:8px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+                <select id="ld-period-unit" onchange="_calcLockerEndDate()"
+                  style="box-sizing:border-box;padding:8px 6px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;">
+                  <option value="month" selected>개월</option>
+                  <option value="day">일</option>
+                </select>
+              </div>
             </div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">종료일 <span style="color:var(--text-hint);font-weight:400;">- 사용기간 입력 시 자동계산, 직접 수정도 가능</span></div>
+            <input id="ld-end" type="date"
+              style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
           </div>
           <div>
             <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">자물쇠 번호</div>
@@ -7203,7 +7217,73 @@
     }, 500);
   }
 
-  // 락카 배정 결제입력: "전액" 버튼 — 총금액을 클릭한 칸에 채우고 나머지 두 칸은 0으로 정리
+  // 이름 입력 시 회원 검색 (동명이인 대응 - 목록에서 직접 선택)
+  let _lockerNameSearchDebounce = null;
+  function onLockerNameSearchInput(value) {
+    clearTimeout(_lockerNameSearchDebounce);
+    const q = value.trim();
+    const resultsEl = document.getElementById('ld-name-search-results');
+    if (!resultsEl) return;
+    if (!q) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; return; }
+    _lockerNameSearchDebounce = setTimeout(() => _runLockerNameSearch(q), 150);
+  }
+  window.onLockerNameSearchInput = onLockerNameSearchInput;
+
+  function _runLockerNameSearch(q) {
+    const resultsEl = document.getElementById('ld-name-search-results');
+    if (!resultsEl) return;
+    const doSearch = (members) => {
+      const matches = Object.entries(members).filter(([, info]) => (info.name || '').includes(q)).slice(0, 8);
+      if (matches.length === 0) {
+        resultsEl.innerHTML = '<div style="padding:10px 14px;text-align:center;color:var(--text-hint);font-size:12px;">일치하는 회원이 없어요</div>';
+      } else {
+        resultsEl.innerHTML = matches.map(([phone, info]) => {
+          const safeName = (info.name || '').replace(/'/g, "\\'");
+          return `<div onclick="_selectLockerNameSearchResult('${phone}','${safeName}')" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:13px;font-weight:700;color:var(--text);">${info.name || '이름없음'}</span>
+            <span style="font-size:11px;color:var(--text-hint);">${phone}</span>
+          </div>`;
+        }).join('');
+      }
+      resultsEl.style.display = 'block';
+    };
+    if (cachedMembers && Object.keys(cachedMembers).length > 0) doSearch(cachedMembers);
+    else getMemberDB().then(members => { cachedMembers = members; doSearch(members); });
+  }
+
+  function _selectLockerNameSearchResult(phone, name) {
+    const phoneEl = document.getElementById('ld-phone');
+    const nameEl = document.getElementById('ld-name');
+    if (phoneEl) phoneEl.value = phone;
+    if (nameEl) nameEl.value = name;
+    const resultsEl = document.getElementById('ld-name-search-results');
+    if (resultsEl) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; }
+  }
+  window._selectLockerNameSearchResult = _selectLockerNameSearchResult;
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#ld-name') && !e.target.closest('#ld-name-search-results')) {
+      const resultsEl = document.getElementById('ld-name-search-results');
+      if (resultsEl) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; }
+    }
+  });
+
+
+  // 사용기간(개월/일) 입력 시 시작일 기준으로 종료일 자동계산
+  function _calcLockerEndDate() {
+    const startVal = document.getElementById('ld-start')?.value;
+    const num = parseInt(document.getElementById('ld-period-num')?.value) || 0;
+    const unit = document.getElementById('ld-period-unit')?.value || 'month';
+    const endEl = document.getElementById('ld-end');
+    if (!startVal || !num || !endEl) return;
+    const d = new Date(startVal + 'T00:00:00');
+    if (unit === 'month') d.setMonth(d.getMonth() + num);
+    else d.setDate(d.getDate() + num);
+    endEl.value = _isoDate(d);
+  }
+  window._calcLockerEndDate = _calcLockerEndDate;
+
+
   function _fillLockerFullAmount(field) {
     const price = parseInt((document.getElementById('ld-price')?.value || '0').replace(/[^0-9]/g, '')) || 0;
     ['cash', 'card', 'transfer'].forEach(f => {
