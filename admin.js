@@ -7279,6 +7279,7 @@
     const d = new Date(startVal + 'T00:00:00');
     if (unit === 'month') d.setMonth(d.getMonth() + num);
     else d.setDate(d.getDate() + num);
+    d.setDate(d.getDate() - 1); // 계약서 화면과 동일한 계산 관례: "N개월/일 이용"의 마지막 날은 시작일 하루 전날까지
     endEl.value = _isoDate(d);
   }
   window._calcLockerEndDate = _calcLockerEndDate;
