@@ -6891,6 +6891,7 @@
 
   function selectLockerCategory(catId) {
     selectedLockerCatId = catId;
+    selectedLockerStatusFilter = null;
     // 버튼 활성화 스타일
     document.querySelectorAll('.locker-cat-btn').forEach(btn => {
       const isActive = btn.dataset.catid === catId;
@@ -6926,10 +6927,77 @@
     }).join('');
 
     wrap.innerHTML = `
+      <div id="locker-overall-summary"></div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">${catBtns}</div>
       <div id="locker-grid-wrap"></div>`;
+    renderLockerOverallSummary();
     renderLockerGrid();
   }
+
+  // 락카 하나의 상태를 판정 (그리드 렌더링/현황요약에서 공통으로 재사용 - 로직 중복/불일치 방지)
+  function _lockerClassify(d, today, soonDate) {
+    if (!d) return 'empty';
+    if (d.status === 'disabled') return 'disabled';
+    const endD = d.endDate || '';
+    if (d.status === 'expired' || (endD && endD < today)) return 'expired';
+    if (endD && endD <= soonDate) return 'expiring';
+    return 'inuse';
+  }
+
+  const LOCKER_STATUS_META = {
+    inuse:    { label: '사용중',   color: '#1565c0' },
+    empty:    { label: '빈칸',     color: '#2e7d32' },
+    expiring: { label: '만료임박', color: '#ef6c00' },
+    expired:  { label: '기간만료', color: '#c62828' },
+    disabled: { label: '사용불가', color: '#616161' }
+  };
+
+  // 특정 종류(catId) 또는 전체(catId=null)의 상태별 개수 집계
+  function computeLockerStats(catId) {
+    const today = _todayISO();
+    const soon = new Date(); soon.setDate(soon.getDate() + 7);
+    const soonDate = soon.toISOString().slice(0, 10);
+    const stats = { total: 0, inuse: 0, empty: 0, expiring: 0, expired: 0, disabled: 0 };
+    const cats = catId ? lockerCategories.filter(c => c.id === catId) : lockerCategories;
+    cats.forEach(cat => {
+      for (let n = cat.startNo; n <= cat.endNo; n++) {
+        const d = lockerData[cat.id + '_' + n];
+        const status = _lockerClassify(d, today, soonDate);
+        stats[status]++;
+        stats.total++;
+      }
+    });
+    return stats;
+  }
+
+  function renderLockerOverallSummary() {
+    const el = document.getElementById('locker-overall-summary');
+    if (!el) return;
+    const s = computeLockerStats(null);
+    const chip = (label, val, color) => `
+      <div style="background:var(--bg);border-radius:8px;padding:8px 4px;text-align:center;">
+        <div style="font-size:16px;font-weight:700;color:${color || 'var(--text)'};">${val}</div>
+        <div style="font-size:10.5px;color:var(--text-hint);margin-top:2px;">${label}</div>
+      </div>`;
+    el.innerHTML = `
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">전체 합계</div>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:16px;">
+        ${chip('전체', s.total)}
+        ${chip(LOCKER_STATUS_META.inuse.label, s.inuse, LOCKER_STATUS_META.inuse.color)}
+        ${chip(LOCKER_STATUS_META.empty.label, s.empty, LOCKER_STATUS_META.empty.color)}
+        ${chip(LOCKER_STATUS_META.expiring.label, s.expiring, LOCKER_STATUS_META.expiring.color)}
+        ${chip(LOCKER_STATUS_META.expired.label, s.expired, LOCKER_STATUS_META.expired.color)}
+        ${chip(LOCKER_STATUS_META.disabled.label, s.disabled, LOCKER_STATUS_META.disabled.color)}
+      </div>`;
+  }
+
+  let selectedLockerStatusFilter = null; // null = 필터 없음(전체 표시)
+
+  function selectLockerStatusFilter(status) {
+    selectedLockerStatusFilter = (selectedLockerStatusFilter === status) ? null : status;
+    renderLockerGrid();
+  }
+  window.selectLockerStatusFilter = selectLockerStatusFilter;
 
   function renderLockerGrid() {
     const wrap = document.getElementById('locker-grid-wrap');
@@ -6944,25 +7012,29 @@
     const nos = [];
     for (let n = cat.startNo; n <= cat.endNo; n++) nos.push(n);
 
+    const STATUS_STYLE = {
+      empty:    { bg: '#e8f5e9', border: '#81c784', emoji: '🟢', tooltip: '빈칸' },
+      inuse:    { bg: '#e3f2fd', border: '#64b5f6', emoji: '🔵', tooltip: '사용중' },
+      expiring: { bg: '#fff8e1', border: '#ffb74d', emoji: '🟡', tooltip: '만료임박' },
+      expired:  { bg: '#ffebee', border: '#e57373', emoji: '🔴', tooltip: '기간만료' },
+      disabled: { bg: '#f5f5f5', border: '#9e9e9e', emoji: '⚫', tooltip: '사용불가' }
+    };
+
+    const filter = selectedLockerStatusFilter;
+    const catStats = computeLockerStats(cat.id);
+
     const grid = nos.map(no => {
       const key = cat.id + '_' + no;
       const d = lockerData[key];
-      let bg = '#e8f5e9', border = '#81c784', statusEmoji = '', tooltip = '빈칸';
+      const status = _lockerClassify(d, today, soonDate);
+      const { bg, border, emoji, tooltip } = STATUS_STYLE[status];
       let nameText = '', ddayText = '', ddayColor = 'var(--text-hint)';
       if (d) {
-        const endD = d.endDate || '';
-        if (d.status === 'disabled')      { bg='#f5f5f5'; border='#9e9e9e'; statusEmoji='⚫'; tooltip='사용불가'; }
-        else if (d.status === 'expired' || (endD && endD < today)) {
-          bg='#ffebee'; border='#e57373'; statusEmoji='🔴'; tooltip='기간만료';
-        } else if (endD && endD <= soonDate) {
-          bg='#fff8e1'; border='#ffb74d'; statusEmoji='🟡'; tooltip='만료임박';
-        } else {
-          bg='#e3f2fd'; border='#64b5f6'; statusEmoji='🔵'; tooltip='사용중';
-        }
         // 이름 (최대 4글자)
         const rawName = (d.name || '').replace(/\(\d{4}\)$/, '').trim();
         nameText = rawName.length > 4 ? rawName.slice(0,4) : rawName;
         // D-day 계산
+        const endD = d.endDate || '';
         if (endD) {
           const diff = Math.ceil((new Date(endD) - new Date(today)) / (1000*60*60*24));
           if (diff < 0) { ddayText = '만료'; ddayColor = '#e57373'; }
@@ -6971,29 +7043,42 @@
           else { ddayText = endD.slice(5); ddayColor = 'var(--text-hint)'; }
         }
       }
+      const hiddenByFilter = filter && status !== filter;
       return `<div onclick="openLockerDetail('${cat.id}','${no}')" title="${tooltip}"
         style="width:68px;height:90px;border-radius:10px;background:${bg};border:1.5px solid ${border};
-        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        display:${hiddenByFilter ? 'none' : 'flex'};flex-direction:column;align-items:center;justify-content:center;
         cursor:pointer;color:var(--text);gap:1px;padding:4px;box-sizing:border-box;">
         <span style="font-size:11px;font-weight:700;color:var(--text-sub);">${no}번</span>
         ${nameText
           ? `<span style="font-size:12px;font-weight:700;color:var(--text);line-height:1.2;">${nameText}</span>
              <span style="font-size:10px;color:${ddayColor};font-weight:600;">${ddayText}</span>
              ${d.lockPassword ? `<span style="font-size:9.5px;color:var(--text-hint);">🔒${d.lockPassword}</span>` : ''}`
-          : `<span style="font-size:10px;color:var(--text-hint);">${statusEmoji || '빈칸'}</span>`
+          : `<span style="font-size:10px;color:var(--text-hint);">${emoji || '빈칸'}</span>`
         }
       </div>`;
     }).join('');
 
+    const chip = (key, label, count, color) => {
+      const isActive = filter === key;
+      return `<button onclick="selectLockerStatusFilter('${key}')"
+        style="padding:6px 4px;border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
+        border:1.5px solid ${isActive ? color : 'var(--border)'};
+        background:${isActive ? color : 'var(--bg)'};
+        color:${isActive ? '#fff' : color};">
+        ${count} <span style="font-weight:500;">${label}</span>
+      </button>`;
+    };
+
     wrap.innerHTML = `
       <div style="background:var(--card);border-radius:12px;padding:12px 8px;">
-        <!-- 색깔 안내 - 상단 -->
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding:6px 8px;background:var(--bg);border-radius:8px;">
-          <span style="font-size:11px;color:var(--text-hint);">🟢 빈칸</span>
-          <span style="font-size:11px;color:var(--text-hint);">🔵 사용중</span>
-          <span style="font-size:11px;color:var(--text-hint);">🟡 만료임박</span>
-          <span style="font-size:11px;color:var(--text-hint);">🔴 기간만료</span>
-          <span style="font-size:11px;color:var(--text-hint);">⚫ 사용불가</span>
+        <div style="font-size:12px;color:var(--text-hint);margin-bottom:8px;">${cat.name} 락카 · 총 ${catStats.total}칸${filter ? ' · 필터: ' + STATUS_STYLE[filter].tooltip + ' (다시 누르면 해제)' : ''}</div>
+        <!-- 상태별 요약칩 - 클릭하면 그 상태만 필터링 -->
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:10px;">
+          ${chip('inuse', LOCKER_STATUS_META.inuse.label, catStats.inuse, LOCKER_STATUS_META.inuse.color)}
+          ${chip('empty', LOCKER_STATUS_META.empty.label, catStats.empty, LOCKER_STATUS_META.empty.color)}
+          ${chip('expiring', LOCKER_STATUS_META.expiring.label, catStats.expiring, LOCKER_STATUS_META.expiring.color)}
+          ${chip('expired', LOCKER_STATUS_META.expired.label, catStats.expired, LOCKER_STATUS_META.expired.color)}
+          ${chip('disabled', LOCKER_STATUS_META.disabled.label, catStats.disabled, LOCKER_STATUS_META.disabled.color)}
         </div>
         <!-- 락카 그리드 - gap 줄여서 5개씩 -->
         <div style="display:flex;flex-wrap:wrap;gap:5px;">${grid}</div>
