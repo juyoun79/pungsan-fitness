@@ -1441,18 +1441,37 @@
     return (m.activeItems || []).some(it => _dashItemIsValid(it.data));
   }
 
-  // 프로그램 구성비율용 라벨 목록 (패키지로 묶인 항목은 패키지 이름 그대로 하나로, 개별상품은 프로그램별로)
+  // 프로그램 구성비율용 라벨 목록 (헬스/GX/PT/기구필라테스개인/기구필라테스그룹 5개 고정 카테고리)
+  // 패키지로 묶인 항목은 패키지 안에서 "가격이 가장 큰 프로그램"의 카테고리로 귀속시킴 (예: PT+헬스 패키지, PT가 더 비싸면 PT로만 카운트)
   function _dashMemberProgramLabels(m) {
     const labels = new Set();
-    (m.activeItems || []).forEach(it => {
-      if (!_dashItemIsValid(it.data)) return; // 만료된 개별항목은 구성비율에서 제외
+    const validItems = (m.activeItems || []).filter(it => _dashItemIsValid(it.data));
+
+    // 패키지 항목은 그룹(계약키+pkgIndex+pkgName)별로 묶어서 가격이 가장 큰 항목 하나만 대표로 남김
+    // 계약키까지 포함하는 이유: 서로 다른 계약서에서 우연히 같은 이름/인덱스의 패키지가 겹쳐도 따로 구분되게 하기 위함
+    const pkgGroups = {};
+    const standaloneItems = [];
+    validItems.forEach(it => {
       if (it.pkgName) {
-        labels.add('📦 ' + it.pkgName);
+        const groupKey = it.contractKey + '::' + it.pkgIndex + '::' + it.pkgName;
+        if (!pkgGroups[groupKey]) pkgGroups[groupKey] = [];
+        pkgGroups[groupKey].push(it);
       } else {
-        const label = REFUND_PROG_NAMES[it.progKey] || it.progKey;
-        if (label !== '🎫 일일권') labels.add(label);
+        standaloneItems.push(it);
       }
     });
+
+    standaloneItems.forEach(it => {
+      const label = REFUND_PROG_NAMES[it.progKey] || it.progKey;
+      if (label !== '🎫 일일권') labels.add(label);
+    });
+
+    Object.values(pkgGroups).forEach(items => {
+      const top = items.reduce((best, cur) => (cur.data.price || 0) > (best.data.price || 0) ? cur : best);
+      const label = REFUND_PROG_NAMES[top.progKey] || top.progKey;
+      if (label !== '🎫 일일권') labels.add(label);
+    });
+
     return Array.from(labels);
   }
 
@@ -2593,6 +2612,7 @@
                 if (!_isItemEligible(it.data)) return;
                 const unpaid = (it.data.price || 0) - ((it.data.cash||0) + (it.data.card||0) + (it.data.transfer||0));
                 if (unpaid > 0) { hasUnpaid = true; unpaidAmount += unpaid; }
+                it.contractKey = cSnap.key; // 어느 계약서에서 온 항목인지 구분용 (패키지 그룹핑 정확도용)
                 activeItems.push(it);
               });
             });
