@@ -50,6 +50,12 @@
     if (tabId === 'tab-settings') switchSettingsSubtab('pw');
     if (tabId === 'tab-locker') loadLockerTab();
     if (tabId === 'tab-revenue') initRevenueTab();
+    // 현황/매출통계 탭이 아닌 곳으로 이동하면 매출 캐시를 비워서, 그 사이 계약등록/환불/미수금정산 등이
+    // 있었어도 다음에 현황/매출통계 탭을 다시 열 때 항상 최신 데이터로 다시 계산되게 함
+    if (tabId !== 'tab-dashboard' && tabId !== 'tab-revenue') {
+      _revAllEntries = null;
+      _revAllRefunds = null;
+    }
     if (tabId !== 'tab-trainer-admin') {
       if (_monthlyReportListener && _monthlyReportTrainerId) {
         db.ref('trainers/' + _monthlyReportTrainerId + '/trainees').off('value', _monthlyReportListener);
@@ -1488,6 +1494,11 @@
 
   function renderDashboardExtras() {
     const memberData = _lastMemberData || [];
+
+    // 현황탭에 새로 들어올 때마다 연령별현황 필터를 기본값(유효회원/전체프로그램)으로 초기화
+    // (화면 버튼은 항상 기본값으로 보이는데 내부 필터값은 이전 선택이 남아있어서 화면과 실제 데이터가 안 맞던 버그 수정)
+    _dashAgeBasis = 'valid';
+    _dashAgeProgFilter = null;
 
     // 유효회원 (패키지 중 하나라도 유효하면 포함)
     const validMembers = memberData.filter(_dashMemberIsValid);
