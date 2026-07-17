@@ -2700,6 +2700,14 @@
                 <button id="dash-age-btn-all" class="dash-age-toggle-btn" onclick="switchDashAgeBasis('all')">전체회원</button>
               </div>
             </div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;">
+              <button class="dash-age-prog-chip active" data-prog="" onclick="selectDashAgeProgFilter(null)">전체</button>
+              <button class="dash-age-prog-chip" data-prog="헬스" onclick="selectDashAgeProgFilter('헬스')">헬스</button>
+              <button class="dash-age-prog-chip" data-prog="GX" onclick="selectDashAgeProgFilter('GX')">GX</button>
+              <button class="dash-age-prog-chip" data-prog="PT" onclick="selectDashAgeProgFilter('PT')">PT</button>
+              <button class="dash-age-prog-chip" data-prog="기구필라테스개인" onclick="selectDashAgeProgFilter('기구필라테스개인')">기구필라테스 개인</button>
+              <button class="dash-age-prog-chip" data-prog="기구필라테스그룹" onclick="selectDashAgeProgFilter('기구필라테스그룹')">기구필라테스 그룹</button>
+            </div>
             <div style="overflow-x:auto;">
               <table style="width:100%;border-collapse:collapse;font-size:11.5px;min-width:340px;">
                 <thead>

@@ -350,6 +350,9 @@
   .dash-age-toggle-btn { padding:4px 10px; font-size:12px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--text-hint); cursor:pointer; font-family:'Noto Sans KR',sans-serif; }
   .dash-age-toggle-btn.active { border-color:var(--blue); background:var(--blue); color:#fff; }
 
+  .dash-age-prog-chip { padding:4px 9px; font-size:11px; border-radius:14px; border:1px solid var(--border); background:var(--bg); color:var(--text-hint); cursor:pointer; font-family:'Noto Sans KR',sans-serif; }
+  .dash-age-prog-chip.active { border-color:var(--blue); background:var(--blue); color:#fff; }
+
   #dash-flex-wrap { display:block; margin-bottom:12px; }
   body.pc-mode #dash-flex-wrap { display:flex; gap:12px; align-items:stretch; }
   body.pc-mode #dash-flex-wrap > .admin-card { flex:1; min-width:0; margin-bottom:0; }

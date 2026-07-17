@@ -1541,20 +1541,7 @@
     _dashProgramCounts = progCounts;
     renderDashProgramPie();
 
-    // 연령별 현황 (전체회원 / 유효회원 두 기준 모두 미리 계산)
-    function buildAgeTable(list) {
-      const table = {};
-      DASH_AGE_BUCKETS.forEach(b => { table[b] = { male: 0, female: 0 }; });
-      list.forEach(m => {
-        const bucket = _dashAgeBucket(m.age);
-        if (!bucket || !table[bucket]) return;
-        if (m.gender === 'male') table[bucket].male++;
-        else table[bucket].female++;
-      });
-      return table;
-    }
-    _dashAgeDataAll = buildAgeTable(memberData);
-    _dashAgeDataValid = buildAgeTable(validMembers);
+    // 연령별 현황은 이제 renderDashAgeTable에서 그때그때 _lastMemberData로부터 계산함 (프로그램 필터 지원 위함)
     renderDashAgeTable(_dashAgeBasis);
   }
   window.renderDashboardExtras = renderDashboardExtras;
@@ -1633,8 +1620,44 @@
   }
   window.switchDashAgeBasis = switchDashAgeBasis;
 
+  // 연령별 현황 - 프로그램 선택 필터 (전체/헬스/GX/PT/기구필라테스개인/기구필라테스그룹)
+  let _dashAgeProgFilter = null; // null = 전체 프로그램
+  const DASH_AGE_PROG_OPTIONS = ['헬스', 'GX', 'PT', '기구필라테스개인', '기구필라테스그룹'];
+
+  function selectDashAgeProgFilter(progKey) {
+    _dashAgeProgFilter = progKey || null;
+    document.querySelectorAll('.dash-age-prog-chip').forEach(chip => {
+      chip.classList.toggle('active', chip.dataset.prog === (progKey || ''));
+    });
+    renderDashAgeTable(_dashAgeBasis);
+  }
+  window.selectDashAgeProgFilter = selectDashAgeProgFilter;
+
+  function _dashBuildAgeTable(list) {
+    const table = {};
+    DASH_AGE_BUCKETS.forEach(b => { table[b] = { male: 0, female: 0 }; });
+    list.forEach(m => {
+      const bucket = _dashAgeBucket(m.age);
+      if (!bucket || !table[bucket]) return;
+      if (m.gender === 'male') table[bucket].male++;
+      else table[bucket].female++;
+    });
+    return table;
+  }
+
   function renderDashAgeTable(mode) {
-    const table = mode === 'valid' ? _dashAgeDataValid : _dashAgeDataAll;
+    _dashAgeBasis = mode;
+    const memberData = _lastMemberData || [];
+    // 기준(유효회원/전체회원)에 따라 대상 회원 추리기
+    let pool = mode === 'valid' ? memberData.filter(_dashMemberIsValid) : memberData;
+    // 프로그램이 선택되어 있으면, 유효회원 기준일 땐 "지금 그 프로그램을 유효하게 이용중인" 회원만,
+    // 전체회원 기준일 땐 "과거에라도 그 프로그램을 이용한 적 있는" 회원까지 포함
+    if (_dashAgeProgFilter) {
+      pool = pool.filter(m => (m.activeItems || []).some(it =>
+        it.progKey === _dashAgeProgFilter && (mode === 'valid' ? _dashItemIsValid(it.data) : true)
+      ));
+    }
+    const table = _dashBuildAgeTable(pool);
     const rowsEl = document.getElementById('dash-age-rows');
     const footEl = document.getElementById('dash-age-foot');
     if (!rowsEl) return;
@@ -2349,8 +2372,6 @@
 
   let _lastMemberData = [];
   let _dashProgramCounts = {};
-  let _dashAgeDataAll = {};
-  let _dashAgeDataValid = {};
   let _dashAgeBasis = 'valid';
   let _dashPieChart = null;
   const DASH_PROGRAM_COLORS = { '헬스':'#2a78d6', 'GX':'#1baf7a', 'PT':'#eda100', '기구필라테스 개인':'#4a3aa7', '기구필라테스 그룹':'#e34948' };
