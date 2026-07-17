@@ -6970,24 +6970,69 @@
     return stats;
   }
 
+  // 기간만료(만료됐지만 회원정보 미회수) 락카를 종류별로 모아서 알려주기 위한 정보 계산
+  function _computeExpiredLockersInfo() {
+    const today = _todayISO();
+    const soon = new Date(); soon.setDate(soon.getDate() + 7);
+    const soonDate = soon.toISOString().slice(0, 10);
+    const byCat = [];
+    let firstCatId = null;
+    let count = 0;
+    lockerCategories.forEach(cat => {
+      const nos = [];
+      for (let n = cat.startNo; n <= cat.endNo; n++) {
+        const d = lockerData[cat.id + '_' + n];
+        if (_lockerClassify(d, today, soonDate) === 'expired') nos.push(n);
+      }
+      if (nos.length) {
+        if (!firstCatId) firstCatId = cat.id;
+        byCat.push({ name: cat.name, nos });
+        count += nos.length;
+      }
+    });
+    const text = byCat.map(c => {
+      const shown = c.nos.slice(0, 5).map(n => n + '번').join(', ');
+      const extra = c.nos.length > 5 ? ' 외 ' + (c.nos.length - 5) + '개' : '';
+      return c.name + ' ' + shown + extra;
+    }).join(' · ');
+    return { count, text, firstCatId };
+  }
+
+  function jumpToExpiredLockers() {
+    const info = _computeExpiredLockersInfo();
+    if (!info.count || !info.firstCatId) return;
+    selectLockerCategory(info.firstCatId);
+    selectedLockerStatusFilter = 'expired';
+    renderLockerGrid();
+  }
+  window.jumpToExpiredLockers = jumpToExpiredLockers;
+
   function renderLockerOverallSummary() {
     const el = document.getElementById('locker-overall-summary');
     if (!el) return;
     const s = computeLockerStats(null);
-    const chip = (label, val, color) => `
-      <div style="background:var(--bg);border-radius:8px;padding:8px 4px;text-align:center;">
+    const expiredInfo = _computeExpiredLockersInfo();
+    const card = (label, val, color) => `
+      <div style="border:1.5px solid ${color || 'var(--border)'};border-radius:8px;padding:8px 4px;text-align:center;">
         <div style="font-size:16px;font-weight:700;color:${color || 'var(--text)'};">${val}</div>
         <div style="font-size:10.5px;color:var(--text-hint);margin-top:2px;">${label}</div>
       </div>`;
+    const banner = expiredInfo.count > 0
+      ? `<div onclick="jumpToExpiredLockers()" style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#ffebee;border:1px solid #e57373;border-radius:8px;padding:10px 14px;margin-bottom:14px;cursor:pointer;">
+          <span style="font-size:13px;color:#c62828;">⚠️ 기간만료 미회수 락카 ${expiredInfo.count}개 — ${expiredInfo.text}</span>
+          <span style="font-size:13px;color:#c62828;">›</span>
+        </div>`
+      : '';
     el.innerHTML = `
+      ${banner}
       <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">전체 합계</div>
       <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:16px;">
-        ${chip('전체', s.total)}
-        ${chip(LOCKER_STATUS_META.inuse.label, s.inuse, LOCKER_STATUS_META.inuse.color)}
-        ${chip(LOCKER_STATUS_META.empty.label, s.empty, LOCKER_STATUS_META.empty.color)}
-        ${chip(LOCKER_STATUS_META.expiring.label, s.expiring, LOCKER_STATUS_META.expiring.color)}
-        ${chip(LOCKER_STATUS_META.expired.label, s.expired, LOCKER_STATUS_META.expired.color)}
-        ${chip(LOCKER_STATUS_META.disabled.label, s.disabled, LOCKER_STATUS_META.disabled.color)}
+        ${card('전체', s.total)}
+        ${card(LOCKER_STATUS_META.inuse.label, s.inuse, LOCKER_STATUS_META.inuse.color)}
+        ${card(LOCKER_STATUS_META.empty.label, s.empty, LOCKER_STATUS_META.empty.color)}
+        ${card(LOCKER_STATUS_META.expiring.label, s.expiring, LOCKER_STATUS_META.expiring.color)}
+        ${card(LOCKER_STATUS_META.expired.label, s.expired, LOCKER_STATUS_META.expired.color)}
+        ${card(LOCKER_STATUS_META.disabled.label, s.disabled, LOCKER_STATUS_META.disabled.color)}
       </div>`;
   }
 
