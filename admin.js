@@ -3741,6 +3741,7 @@
         }
         showToast('✅ 취소됐어요. 원래 상태로 복원됐어요.', 'success');
         _renderMdContracts(phone);
+        try { _renderMdClassStatus(phone, cachedMembers[phone]); } catch(e) { console.error('회원권현황 갱신 오류(무시):', e); }
       } catch (e) {
         showToast('취소 처리 실패: ' + e.message, 'error');
       }
@@ -3925,6 +3926,7 @@
       document.getElementById('app-signdate-edit')?.remove();
       showToast('✅ 결제일이 수정됐어요.', 'success');
       _renderMdContracts(phone);
+      try { _renderMdClassStatus(phone, cachedMembers[phone]); } catch(e) { console.error('회원권현황 갱신 오류(무시):', e); }
     } catch(e) {
       showToast('수정 실패: ' + e.message, 'error');
     }
@@ -4430,6 +4432,7 @@
         document.getElementById('app-edit-modal')?.remove();
         showToast('🗑️ 항목이 삭제됐어요.', 'success');
         _renderMdContracts(ctx.phone);
+        try { _renderMdClassStatus(ctx.phone, cachedMembers[ctx.phone]); } catch(e) { console.error('회원권현황 갱신 오류(무시):', e); }
       } catch (e) {
         showToast('삭제 실패: ' + e.message, 'error');
       }
@@ -4789,6 +4792,7 @@
           document.getElementById('app-refund-modal')?.remove();
           showToast('✅ 환불 처리 완료! (' + refundAmt.toLocaleString() + '원)', 'success');
           _renderMdContracts(phone);
+          try { _renderMdClassStatus(phone, cachedMembers[phone]); } catch(e) { console.error('회원권현황 갱신 오류(무시):', e); }
         });
       });
     });
@@ -4875,6 +4879,7 @@
         document.getElementById('app-multi-refund-modal')?.remove();
         showToast('✅ 환불 처리 완료! (' + amount.toLocaleString() + '원)', 'success');
         _renderMdContracts(phone);
+        try { _renderMdClassStatus(phone, cachedMembers[phone]); } catch(e) { console.error('회원권현황 갱신 오류(무시):', e); }
       } catch(e) { showToast('환불 처리 실패: ' + e.message, 'error'); }
     });
   }
@@ -5321,6 +5326,7 @@
       document.getElementById('app-transfer-modal')?.remove();
       _renderTransferDone(ctx);
       _renderMdContracts(ctx.fromPhone);
+      try { _renderMdClassStatus(ctx.fromPhone, cachedMembers[ctx.fromPhone]); } catch(e) { console.error('회원권현황 갱신 오류(무시):', e); }
     } catch(e) {
       showToast('양도 처리 실패: ' + e.message, 'error');
       const btn = document.getElementById('tf-step3-next');
@@ -5395,6 +5401,7 @@
       document.getElementById('app-transfer-modal')?.remove();
       _renderPkgTransferDone(ctx);
       _renderMdContracts(ctx.fromPhone);
+      try { _renderMdClassStatus(ctx.fromPhone, cachedMembers[ctx.fromPhone]); } catch(e) { console.error('회원권현황 갱신 오류(무시):', e); }
     } catch(e) {
       showToast('패키지 양도 처리 실패: ' + e.message, 'error');
       const btn = document.getElementById('tf-step3-next');
@@ -5878,6 +5885,7 @@
       document.getElementById('app-change-modal')?.remove();
       showToast('✅ 프로그램 변경 완료!', 'success');
       _renderMdContracts(ctx.phone);
+      try { _renderMdClassStatus(ctx.phone, cachedMembers[ctx.phone]); } catch(e) { console.error('회원권현황 갱신 오류(무시):', e); }
     } catch(e) {
       showToast('프로그램 변경 처리 실패: ' + e.message, 'error');
       const btn2 = document.getElementById('pc4-confirm-btn');
@@ -6099,6 +6107,7 @@
       document.getElementById('app-hold-modal')?.remove();
       showToast('✅ 휴회 처리 완료! (새 종료일: ' + newEndDate + ')', 'success');
       _renderMdContracts(ctx.phone);
+      try { _renderMdClassStatus(ctx.phone, cachedMembers[ctx.phone]); } catch(e) { console.error('회원권현황 갱신 오류(무시):', e); }
     } catch(e) {
       showToast('휴회 처리 실패: ' + e.message, 'error');
       const btn2 = document.getElementById('ph-confirm-btn');
@@ -6215,6 +6224,7 @@
       document.getElementById('app-hold-modal')?.remove();
       showToast('✅ ' + appliedCount + '개 프로그램 휴회 처리 완료!', 'success');
       _renderMdContracts(ctx.phone);
+      try { _renderMdClassStatus(ctx.phone, cachedMembers[ctx.phone]); } catch(e) { console.error('회원권현황 갱신 오류(무시):', e); }
     } catch(e) {
       showToast('휴회 처리 실패: ' + e.message, 'error');
       const btn2 = document.getElementById('mh-confirm-btn');
@@ -6325,6 +6335,7 @@
         document.getElementById('unpaid-settle-modal')?.remove();
         showToast('✅ 미수금 결제처리 완료!', 'success');
         _renderMdContracts(phone);
+        try { _renderMdClassStatus(phone, cachedMembers[phone]); } catch(e) { console.error('회원권현황 갱신 오류(무시):', e); }
       });
     });
   }
