@@ -1673,11 +1673,11 @@
       const fPct = grand ? Math.round(female / grand * 100) : 0;
       return `<tr>
         <td style="padding:5px 3px;border-bottom:0.5px solid var(--border);color:var(--text);">${b}</td>
-        <td style="padding:5px 3px;text-align:right;border-bottom:0.5px solid var(--border);color:var(--text-hint);">${male}</td>
-        <td style="padding:5px 3px;text-align:right;border-bottom:0.5px solid var(--border);color:var(--text-hint);">${mPct}%</td>
-        <td style="padding:5px 3px;text-align:right;border-bottom:0.5px solid var(--border);color:var(--text-hint);">${female}</td>
-        <td style="padding:5px 3px;text-align:right;border-bottom:0.5px solid var(--border);color:var(--text-hint);">${fPct}%</td>
-        <td style="padding:5px 3px;text-align:right;border-bottom:0.5px solid var(--border);color:var(--text);font-weight:700;">${sum}</td>
+        <td style="padding:5px 3px;text-align:right;border-bottom:0.5px solid var(--border);border-left:2px solid #b0b0b0;background:rgba(30,136,229,0.05);color:var(--text-hint);">${male}</td>
+        <td style="padding:5px 3px;text-align:right;border-bottom:0.5px solid var(--border);background:rgba(30,136,229,0.05);color:var(--text-hint);">${mPct}%</td>
+        <td style="padding:5px 3px;text-align:right;border-bottom:0.5px solid var(--border);border-left:2px solid #b0b0b0;background:rgba(216,27,96,0.05);color:var(--text-hint);">${female}</td>
+        <td style="padding:5px 3px;text-align:right;border-bottom:0.5px solid var(--border);background:rgba(216,27,96,0.05);color:var(--text-hint);">${fPct}%</td>
+        <td style="padding:5px 3px;text-align:right;border-bottom:0.5px solid var(--border);border-left:2px solid #b0b0b0;color:var(--text);font-weight:700;">${sum}</td>
       </tr>`;
     }).join('');
 
@@ -1686,11 +1686,11 @@
       const fPctTot = grand ? Math.round(totalF / grand * 100) : 0;
       footEl.innerHTML = `<tr style="font-weight:700;color:var(--text);">
         <td style="padding:6px 3px;">총 합계</td>
-        <td style="padding:6px 3px;text-align:right;">${totalM}</td>
-        <td style="padding:6px 3px;text-align:right;color:var(--text-hint);font-weight:400;">${mPctTot}%</td>
-        <td style="padding:6px 3px;text-align:right;">${totalF}</td>
-        <td style="padding:6px 3px;text-align:right;color:var(--text-hint);font-weight:400;">${fPctTot}%</td>
-        <td style="padding:6px 3px;text-align:right;">${grand}</td>
+        <td style="padding:6px 3px;text-align:right;border-left:2px solid #b0b0b0;background:rgba(30,136,229,0.05);">${totalM}</td>
+        <td style="padding:6px 3px;text-align:right;background:rgba(30,136,229,0.05);color:var(--text-hint);font-weight:400;">${mPctTot}%</td>
+        <td style="padding:6px 3px;text-align:right;border-left:2px solid #b0b0b0;background:rgba(216,27,96,0.05);">${totalF}</td>
+        <td style="padding:6px 3px;text-align:right;background:rgba(216,27,96,0.05);color:var(--text-hint);font-weight:400;">${fPctTot}%</td>
+        <td style="padding:6px 3px;text-align:right;border-left:2px solid #b0b0b0;">${grand}</td>
       </tr>`;
     }
   }
