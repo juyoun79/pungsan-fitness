@@ -50,12 +50,6 @@
     if (tabId === 'tab-settings') switchSettingsSubtab('pw');
     if (tabId === 'tab-locker') loadLockerTab();
     if (tabId === 'tab-revenue') initRevenueTab();
-    // 현황/매출통계 탭이 아닌 곳으로 이동하면 매출 캐시를 비워서, 그 사이 계약등록/환불/미수금정산 등이
-    // 있었어도 다음에 현황/매출통계 탭을 다시 열 때 항상 최신 데이터로 다시 계산되게 함
-    if (tabId !== 'tab-dashboard' && tabId !== 'tab-revenue') {
-      _revAllEntries = null;
-      _revAllRefunds = null;
-    }
     if (tabId !== 'tab-trainer-admin') {
       if (_monthlyReportListener && _monthlyReportTrainerId) {
         db.ref('trainers/' + _monthlyReportTrainerId + '/trainees').off('value', _monthlyReportListener);
@@ -1345,7 +1339,10 @@
   }
 
   // ── 관리자 대시보드 ──
+  let _dashLoadSeq = 0; // 현황탭 재진입 시 오래된 요청이 나중에 도착해 최신 데이터를 덮어쓰는 것을 방지하기 위한 순번
+
   function loadAdminDashboard() {
+    const mySeq = ++_dashLoadSeq;
     // 저장된 레이아웃 복원
     const savedLayout = localStorage.getItem('admin_layout') || 'mobile';
     if (savedLayout === 'pc') applyAdminLayout('pc');
@@ -1354,10 +1351,12 @@
     // 만료임박 기준일수를 먼저 불러온 다음 회원목록을 미리 불러와둠 (기준값이 반영된 상태로 계산되게)
     loadExpiringThreshold().then(() => {
       loadMemberList('').then(() => {
+        if (mySeq !== _dashLoadSeq) return; // 그 사이 더 최신 요청이 시작됐으면 이 결과는 버림
         try { renderDashboardExtras(); } catch(e) { console.error('대시보드 확장통계 렌더 오류(무시):', e); }
       }).catch(e => console.error('회원목록 사전로딩 오류(무시):', e));
     });
     getMemberDB().then(members => {
+      if (mySeq !== _dashLoadSeq) return; // 그 사이 더 최신 요청이 시작됐으면 이 결과는 버림
       const memberList = Object.entries(members);
       document.getElementById('admin-total-members').textContent = memberList.length;
 
@@ -1711,6 +1710,13 @@
   // 💰 매출통계 탭
   // ══════════════════════════════════════════════
   let _revAllEntries = null;   // 전체 매출 항목 원시데이터 (한번 fetch 후 캐시)
+
+  // 계약등록/수정/환불/미수금정산/양도/프로그램변경 등 매출에 영향 주는 저장이 일어날 때마다 호출 —
+  // 캐시를 비워서 다음에 현황탭/매출통계탭을 볼 때 최신 데이터로 다시 계산되게 함
+  function _invalidateRevenueCache() {
+    _revAllEntries = null;
+    _revAllRefunds = null;
+  }
   let _revAllRefunds = null;   // 전체 환불 원시데이터
   let _revSubTab = 'summary';  // 세부탭: summary/chart/detail
   let _revUnit = 'day';        // 날짜 단위: day/week/month/year/custom
@@ -3911,6 +3917,7 @@
     if (!newDate) { showToast('날짜를 선택해주세요.', 'error'); return; }
     try {
       await db.ref('contracts/' + phone + '/' + contractKey + '/signDate').set(newDate);
+      _invalidateRevenueCache();
       document.getElementById('app-signdate-edit')?.remove();
       showToast('✅ 결제일이 수정됐어요.', 'success');
       _renderMdContracts(phone);
@@ -4395,6 +4402,7 @@
       updates[basePath + '/card'] = num('ei-card');
       updates[basePath + '/transfer'] = num('ei-transfer');
       await db.ref().update(updates);
+      _invalidateRevenueCache();
       document.getElementById('app-edit-modal')?.remove();
       showToast('✅ 정보가 수정됐어요.', 'success');
       _renderMdContracts(ctx.phone);
@@ -4414,6 +4422,7 @@
           ? 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/programs/' + ctx.progKey
           : 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/packages/' + ctx.pkgIndex + '/items/' + ctx.progKey;
         await db.ref(basePath + '/deleted').set({ at: Date.now() });
+        _invalidateRevenueCache();
         document.getElementById('app-edit-modal')?.remove();
         showToast('🗑️ 항목이 삭제됐어요.', 'success');
         _renderMdContracts(ctx.phone);
@@ -4772,6 +4781,7 @@
           processedAt: Date.now()
         };
         db.ref().update(updates).then(() => {
+          _invalidateRevenueCache();
           document.getElementById('app-refund-modal')?.remove();
           showToast('✅ 환불 처리 완료! (' + refundAmt.toLocaleString() + '원)', 'success');
           _renderMdContracts(phone);
@@ -4857,6 +4867,7 @@
           updates[basePath + '/refund'] = refundRecord;
         });
         await db.ref().update(updates);
+        _invalidateRevenueCache();
         document.getElementById('app-multi-refund-modal')?.remove();
         showToast('✅ 환불 처리 완료! (' + amount.toLocaleString() + '원)', 'success');
         _renderMdContracts(phone);
@@ -5300,6 +5311,7 @@
       updates['contracts/' + ctx.toPhone + '/' + newKey] = newContractData;
 
       await db.ref().update(updates);
+      _invalidateRevenueCache();
 
       window._lastContractData = newContractData;
       document.getElementById('app-transfer-modal')?.remove();
@@ -5372,6 +5384,7 @@
       };
 
       await db.ref().update(updates);
+      _invalidateRevenueCache();
 
       // 완료 처리 — 완료 모달의 텍스트만 패키지 전체임을 표시
       window._lastContractData = updates['contracts/' + ctx.toPhone + '/' + newKey];
@@ -5856,6 +5869,7 @@
       updates['contracts/' + ctx.phone + '/' + newKey] = newContractData;
 
       await db.ref().update(updates);
+      _invalidateRevenueCache();
 
       document.getElementById('app-change-modal')?.remove();
       showToast('✅ 프로그램 변경 완료!', 'success');
@@ -6303,6 +6317,7 @@
         }
       });
       db.ref().update(updates).then(() => {
+        _invalidateRevenueCache();
         document.getElementById('unpaid-settle-modal')?.remove();
         showToast('✅ 미수금 결제처리 완료!', 'success');
         _renderMdContracts(phone);
@@ -9476,6 +9491,7 @@
       };
       const contractKey = signDate + '_' + Date.now();
       await db.ref('contracts/' + phone + '/' + contractKey).set(contractData);
+      _invalidateRevenueCache();
       window._lastContractData = contractData;
 
       // 3-0. 그룹필라테스 자동연동 — 계약서에 '기구필라테스그룹' 항목(단독/패키지 무관)이 있으면
