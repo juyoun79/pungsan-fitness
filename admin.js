@@ -1885,7 +1885,7 @@
         phoneSnap.forEach(cSnap => {
           const c = cSnap.val();
           if (!c) return;
-          const contractType = c.type === 're' ? '재등록' : '신규';
+          const contractType = c.type === 're' ? '재등록' : (c.type === 'progChange' ? '변경' : '신규');
           _flattenContractItems(c).forEach(it => {
             const d = it.data;
             const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
@@ -3735,6 +3735,10 @@
         }
 
         await db.ref().update(updates);
+        // 환불/양도/프로그램변경 취소는 매출 데이터에 영향을 주므로 캐시 무효화 (휴회취소는 매출과 무관해서 제외)
+        if (type === 'refund' || type === 'transferOut' || type === 'progChangeOut') {
+          _invalidateRevenueCache();
+        }
         showToast('✅ 취소됐어요. 원래 상태로 복원됐어요.', 'success');
         _renderMdContracts(phone);
       } catch (e) {
