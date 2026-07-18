@@ -3869,7 +3869,7 @@
     </div>` : '';
 
     // 프로그램 없이 부가서비스만 있는 계약(락카탭 직접배정 등)은 신규/재등록 대신 "부가서비스"로 표시
-    const typeLabel = items.length === 0 && extrasList.length > 0 ? '부가서비스' : (c.type === 're' ? '재등록' : '신규');
+    const typeLabel = items.length === 0 && extrasList.length > 0 ? '부가서비스' : (c.type === 're' ? '재등록' : (c.type === 'progChange' ? '변경' : '신규'));
 
     return `<div style="background:var(--card);border-radius:10px;padding:16px;border:1px solid var(--border);">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
