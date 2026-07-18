@@ -1526,16 +1526,21 @@
       const newRegEl = document.getElementById('admin-newreg-count');
       if (newRegEl) newRegEl.textContent = newCount + ' · ' + reCount + '건';
 
-      // 이번달 순증감 = 이번달 신규가입 회원수 - 이번달 만료된 회원수
-      const newMembersThisMonth = memberData.filter(m => (m.joinDate || '').startsWith(monthPrefix)).length;
-      const expiredThisMonth = memberData.filter(m => _dashExpiredThisMonth(m, monthPrefix)).length;
+      // 이번달 순증감 = 이번달 신규가입 회원수 - 이번달 만료된 회원수 (명단도 같이 수집해서 클릭 시 보여줌)
+      const newMembers = memberData.filter(m => (m.joinDate || '').startsWith(monthPrefix));
+      const expiredMembers = memberData.filter(m => _dashExpiredThisMonth(m, monthPrefix));
+      const newMembersThisMonth = newMembers.length;
+      const expiredThisMonth = expiredMembers.length;
       const netChange = newMembersThisMonth - expiredThisMonth;
+      _dashNetChangeDetail = {
+        newNames: newMembers.map(m => (m.info && m.info.name) || m.phone),
+        expiredNames: expiredMembers.map(m => (m.info && m.info.name) || m.phone)
+      };
       const netEl = document.getElementById('dash-net-change-badge');
       if (netEl) {
         const sign = netChange > 0 ? '▲' : (netChange < 0 ? '▼' : '');
         const color = netChange > 0 ? '#22c55e' : (netChange < 0 ? '#ef4444' : 'var(--text-hint)');
-        netEl.title = `이번달 신규가입 ${newMembersThisMonth}명 − 이번달 만료 ${expiredThisMonth}명`;
-        netEl.innerHTML = `<span style="color:${color};" title="${netEl.title}">이번달 순증감 ${sign}${Math.abs(netChange)}명</span>`;
+        netEl.innerHTML = `<span onclick="showNetChangeDetail()" style="color:${color};cursor:pointer;text-decoration:underline dotted;">이번달 순증감 ${sign}${Math.abs(netChange)}명</span>`;
       }
     };
     if (_revAllEntries) finishRevenuePart();
@@ -1555,6 +1560,34 @@
     renderDashAgeTable(_dashAgeBasis);
   }
   window.renderDashboardExtras = renderDashboardExtras;
+
+  function showNetChangeDetail() {
+    const { newNames, expiredNames } = _dashNetChangeDetail;
+    document.getElementById('net-change-detail-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'net-change-detail-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    const listOrEmpty = (names, emptyText) => names.length
+      ? names.map(n => `<span style="display:inline-block;background:var(--bg);border-radius:6px;padding:4px 10px;margin:3px 4px 0 0;font-size:12.5px;color:var(--text);">${n}</span>`).join('')
+      : `<div style="font-size:12.5px;color:var(--text-hint);">${emptyText}</div>`;
+    modal.innerHTML = `
+      <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:340px;box-sizing:border-box;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div style="font-size:14.5px;font-weight:700;color:var(--text);">📊 이번달 순증감 상세</div>
+          <button onclick="document.getElementById('net-change-detail-modal').remove()" style="background:none;border:none;font-size:18px;color:var(--text-hint);cursor:pointer;">✕</button>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12.5px;font-weight:700;color:#22c55e;margin-bottom:6px;">🆕 이번달 신규가입 ${newNames.length}명</div>
+          <div>${listOrEmpty(newNames, '이번달 신규가입 회원이 없어요')}</div>
+        </div>
+        <div>
+          <div style="font-size:12.5px;font-weight:700;color:#ef4444;margin-bottom:6px;">⏳ 이번달 만료 ${expiredNames.length}명</div>
+          <div>${listOrEmpty(expiredNames, '이번달 만료된 회원이 없어요')}</div>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  window.showNetChangeDetail = showNetChangeDetail;
 
   function renderDashProgramPie() {
     if (typeof Chart !== 'undefined') { _dashDrawPie(); return; }
@@ -2389,6 +2422,7 @@
 
   let _lastMemberData = [];
   let _dashProgramCounts = {};
+  let _dashNetChangeDetail = { newNames: [], expiredNames: [] };
   let _dashAgeBasis = 'valid';
   let _dashPieChart = null;
   const DASH_PROGRAM_COLORS = { '헬스':'#2a78d6', 'GX':'#1baf7a', 'PT':'#eda100', '기구필라테스 개인':'#4a3aa7', '기구필라테스 그룹':'#e34948' };
