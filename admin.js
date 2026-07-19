@@ -2281,6 +2281,7 @@
     if (!entries.length) { el.style.display = 'none'; return; }
     const byProg = {};
     entries.forEach(e => { byProg[e.progKey] = (byProg[e.progKey] || 0) + e.cash + e.card + e.transfer; });
+    const top = Object.entries(byProg).sort((a, b) => b[1] - a[1])[0];
     const topLabel = top ? (REFUND_PROG_NAMES[top[0]] || top[0].replace('extra:', '')) : '-';
     const reRate = (newCount + reCount) ? Math.round(reCount / (newCount + reCount) * 100) : 0;
     el.style.display = 'block';
