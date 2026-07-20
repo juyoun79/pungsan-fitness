@@ -3575,7 +3575,7 @@
         const label = progLabel(progKey);
         const paidAmt = (d.cash || 0) + (d.card || 0) + (d.transfer || 0);
         if (paidAmt > 0) events.push({ date: signDate, ts: (c.createdAt || 0), label: `${label} ${paidAmt.toLocaleString()}원 결제 (${_paymentMethodLabel(d) || '-'})` });
-        if (d.unpaidSettledAt) events.push({ date: d.unpaidSettledAt, ts: (c.createdAt || 0) + 1, label: `💳 ${label} 미수금 정산 완료` });
+        if (d.unpaidSettledAt) events.push({ date: d.unpaidSettledAt, ts: (c.createdAt || 0) + 1, label: `💳 ${label} 미수금 정산 완료${d.unpaidSettleAmount ? ' (' + d.unpaidSettleAmount.toLocaleString() + '원)' : ''}` });
         if (d.refund) events.push({ date: d.refund.date || '', ts: d.refund.processedAt || 0, label: `↩️ ${label} 환불 · ${(d.refund.refundAmount || 0).toLocaleString()}원` });
         if (d.activeHold) events.push({ date: d.activeHold.startDate || '', ts: d.activeHold.processedAt || 0, label: `⏸️ ${label} 휴회 시작 · ${d.activeHold.days || ''}일` });
       };
@@ -3830,9 +3830,13 @@
     const holdNote = (data.holdHistory && Object.keys(data.holdHistory).length)
       ? ' · 휴회누적 ' + Object.values(data.holdHistory).reduce((s,x)=>s+(x.actualDays||0),0) + '일'
       : '';
+    const settleAmt = data.unpaidSettleAmount || 0;
+    const settleNote = (data.unpaidSettledAt && settleAmt > 0)
+      ? ' <span style="color:var(--text-hint);font-weight:600;">(최초 ' + (paid - settleAmt).toLocaleString() + '원 + ' + data.unpaidSettledAt + ' 추가정산 ' + settleAmt.toLocaleString() + '원)</span>'
+      : (data.unpaidSettledAt ? ' <span style="color:var(--text-hint);font-weight:600;">(' + data.unpaidSettledAt + ' 정산)</span>' : '');
     return unpaid > 0
       ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">${methodPrefix}미수금 ${unpaid.toLocaleString()}원${holdNote}</div>`
-      : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">${methodPrefix}완납 ✓${data.unpaidSettledAt ? ' <span style="color:var(--text-hint);font-weight:600;">(' + data.unpaidSettledAt + ' 정산)</span>' : ''}${holdNote}</div>`;
+      : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">${methodPrefix}완납 ✓${settleNote}${holdNote}</div>`;
   }
 
   // 현금/카드/계좌 중 실제로 결제된 수단만 골라서 표시용 문자열로 만듦 (한 가지면 이름만, 여러 개면 금액과 함께 + 로 연결)
