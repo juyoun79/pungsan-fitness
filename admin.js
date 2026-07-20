@@ -3904,7 +3904,7 @@
     </div>` : '';
 
     // 프로그램 없이 부가서비스만 있는 계약(락카탭 직접배정 등)은 신규/재등록 대신 "부가서비스"로 표시
-    const typeLabel = items.length === 0 && extrasList.length > 0 ? '부가서비스' : (c.type === 're' ? '재등록' : (c.type === 'progChange' ? '변경' : '신규'));
+    const typeLabel = items.length === 0 && extrasList.length > 0 ? '부가서비스' : (c.isProgChange ? '변경' : (c.type === 're' ? '재등록' : (c.type === 'progChange' ? '변경' : '신규')));
 
     return `<div style="background:var(--card);border-radius:10px;padding:16px;border:1px solid var(--border);">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
@@ -5908,7 +5908,10 @@
         name: contractInfo.name || '', phone: ctx.phone,
         birth: contractInfo.birth || '', gender: contractInfo.gender || '', address: contractInfo.address || '',
         memo: ctx.progKey + ' → ' + (REFUND_PROG_NAMES[ctx.newProgKey]||ctx.newProgKey) + ' 프로그램 변경 (잔여가치 ' + ctx.remainValue.toLocaleString() + '원 이전)',
-        type: 'progChange', signDate: todayStr, createdAt: Date.now(),
+        // 매출통계에서는 원래 계약이 신규였으면 신규, 재등록이었으면 재등록으로 그대로 이어받음 (매출이 어디에도 안 빠지게)
+        // isProgChange 플래그로 "프로그램변경으로 생긴 계약"이라는 사실은 별도로 남겨둠 (계약이력 카드에 "변경" 표시용)
+        type: contractInfo.type === 're' ? 're' : 'new', isProgChange: true,
+        signDate: todayStr, createdAt: Date.now(),
         programs: { [ctx.newProgKey]: newProgramData }
       };
       const newKey = todayStr + '_' + Date.now();
