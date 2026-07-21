@@ -3928,9 +3928,9 @@
         <div class="md-col-start"  style="display:none;font-size:12px;color:var(--text);">${startLabel}</div>
         <div class="md-col-end"    style="display:none;font-size:12px;color:var(--text);">${endLabel}</div>
         <div class="md-col-trainer" style="display:none;font-size:12px;">${trainerLink}</div>
-        <div class="md-col-right" style="margin-left:auto;display:flex;align-items:center;justify-content:flex-end;gap:10px;">
-          <div class="md-col-amount" style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
-          <div class="md-col-status" style="font-size:11px;white-space:nowrap;">${_renderItemStatusBadge(it.data, phone, c.key, it.progKey)}</div>
+        <div class="md-col-right" style="margin-left:auto;">
+          <div class="md-col-amount" style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;text-align:right;">${amt.toLocaleString()}원</div>
+          <div class="md-col-status" style="font-size:11px;text-align:right;">${_renderItemStatusBadge(it.data, phone, c.key, it.progKey)}</div>
         </div>
       </div>`;
     };
@@ -3940,15 +3940,11 @@
         // 단독 상품 — 기존 방식 그대로 (배지 표시)
         return g.items.map(it => _renderOneItemRow(it, false)).join('');
       }
-      // 패키지 그룹 — 각 줄에는 배지를 안 넣고, 그룹 전체를 대괄호 선으로 한번에 묶어서 "📦 패키지" 한 번만 표시
+      // 패키지 그룹 — 각 줄에는 배지를 안 넣고, 왼쪽 강조선으로 묶은 뒤 그룹 위에 "📦 패키지" 한 번만 표시 (PC/모바일 공통, 데이터 칸과 겹칠 위험 없음)
       const rowsHtml = g.items.map(it => _renderOneItemRow(it, true)).join('');
-      return `<div class="pkg-group-wrap" style="position:relative;">
-        <div class="pkg-group-mobile-note" style="font-size:11px;color:var(--blue);font-weight:700;padding:6px 0 0;">📦 패키지 (${g.items.length}개 상품 묶음)</div>
+      return `<div class="pkg-group-wrap" style="border-left:3px solid var(--blue);padding-left:10px;margin-left:-13px;">
+        <div style="font-size:11px;color:var(--blue);font-weight:700;padding:6px 0 0;">📦 패키지 (${g.items.length}개 상품 묶음)</div>
         ${rowsHtml}
-        <div class="pkg-bracket">
-          <div class="pkg-bracket-line"></div>
-          <span style="font-size:11px;font-weight:700;color:var(--blue);white-space:nowrap;margin-left:6px;">📦 패키지</span>
-        </div>
       </div>`;
     }).join('');
 
@@ -4095,9 +4091,9 @@
       <div class="md-col-start"  style="display:none;font-size:12px;color:var(--text);">${startLabel}</div>
       <div class="md-col-end"    style="display:none;font-size:12px;color:var(--text);">${endLabel}</div>
       <div class="md-col-trainer" style="display:none;font-size:12px;color:var(--text-hint);">-</div>
-      <div class="md-col-right" style="margin-left:auto;display:flex;align-items:center;justify-content:flex-end;gap:10px;">
-        <div class="md-col-amount" style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
-        <div class="md-col-status" style="font-size:11px;white-space:nowrap;text-align:right;">
+      <div class="md-col-right" style="margin-left:auto;">
+        <div class="md-col-amount" style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;text-align:right;">${amt.toLocaleString()}원</div>
+        <div class="md-col-status" style="font-size:11px;text-align:right;">
           ${statusHtml}
         </div>
       </div>
