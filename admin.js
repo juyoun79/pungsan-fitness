@@ -3295,6 +3295,33 @@
 
   // 회원권현황 (구 수업현황) — 헬스/GX처럼 기간제 상품은 계약이력에서 잔여일 계산, PT/필라테스처럼 횟수제 상품은 기존처럼 강사배정 잔여횟수 표시
   // 개인수업(PT·개인필라테스, 강사배정 방식)과 그룹수업(기구필라테스그룹, pilates_group 별도 관리)은 서로 무관한 독립 카운터
+  let _mdPkgGroups = {}; // 회원권현황에서 패키지 배지 클릭 시 보여줄 형제 프로그램 목록 저장용
+
+  function showPkgSiblingsPopup(key) {
+    const group = _mdPkgGroups[key];
+    if (!group) return;
+    document.getElementById('pkg-siblings-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'pkg-siblings-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    const rows = group.items.map(it => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg);border-radius:8px;margin-bottom:6px;">
+        <span style="font-size:12.5px;color:var(--text);">${it.label}</span>
+        <span style="font-size:12.5px;font-weight:700;color:${it.remainDays >= 0 ? 'var(--blue)' : '#e24b4a'};">${it.remainDays >= 0 ? 'D-' + it.remainDays : '만료됨'}</span>
+      </div>`).join('');
+    modal.innerHTML = `
+      <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:320px;box-sizing:border-box;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div style="font-size:14px;font-weight:700;color:var(--text);">📦 패키지 상품</div>
+          <button onclick="document.getElementById('pkg-siblings-modal').remove()" style="background:none;border:none;font-size:18px;color:var(--text-hint);cursor:pointer;">✕</button>
+        </div>
+        <div style="font-size:12.5px;color:var(--text-hint);margin-bottom:12px;">${group.pkgName}</div>
+        ${rows}
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  window.showPkgSiblingsPopup = showPkgSiblingsPopup;
+
   function _renderMdClassStatus(phone, info) {
     const el = document.getElementById('md-class-status');
     if (!el) return;
@@ -3306,6 +3333,7 @@
       // 1) 유효기간이 있는 모든 상품(헬스/GX 기간제 + PT/필라테스 횟수제) — 계약이력에서 아직 환불/양도/변경으로 나가지 않은 활성 항목만 추림
       // ※ 횟수제 상품도 계약서에 시작일~종료일이 저장되므로 "얼마나 남았는지" D-day는 여기서, "몇 회 남았는지" 잔여횟수는 아래 개인수업/그룹수업 박스에서 별도 표시
       const periodCards = [];
+      const pkgGroups = {}; // 패키지 그룹(계약키+pkgIndex+pkgName)별 형제 프로그램 목록 - 팝업에서 보여줄 용도
       contractsSnap.forEach(cSnap => {
         const c = cSnap.val();
         _flattenContractItems(c).forEach(it => {
@@ -3316,13 +3344,18 @@
           if (!endDate) return;
           const remainDays = _daysUntil(endDate);
           if (remainDays === null) return;
-          periodCards.push({
-            label: (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : ''),
-            endDate, remainDays, onHold
-          });
+          const progLabel = REFUND_PROG_NAMES[it.progKey] || it.progKey;
+          let pkgGroupKey = null;
+          if (it.pkgName) {
+            pkgGroupKey = cSnap.key + '::' + it.pkgIndex + '::' + it.pkgName;
+            if (!pkgGroups[pkgGroupKey]) pkgGroups[pkgGroupKey] = { pkgName: it.pkgName, items: [] };
+            pkgGroups[pkgGroupKey].items.push({ label: progLabel, endDate, remainDays });
+          }
+          periodCards.push({ progLabel, pkgGroupKey, endDate, remainDays, onHold });
         });
       });
       periodCards.sort((a, b) => a.remainDays - b.remainDays); // 종료 임박한 것부터
+      _mdPkgGroups = pkgGroups; // 팝업(showPkgSiblingsPopup)에서 참조
 
       // 2) 횟수제 상품 — 개인수업(PT/개인필라테스, 강사배정 기준)과 그룹수업(기구필라테스그룹, pilates_group 기준)을 각각 조회
       let traineeInfo = null;
@@ -3335,7 +3368,7 @@
       const periodHtml = periodCards.map(p => `
         <div style="background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
           <div>
-            <div style="font-size:12.5px;font-weight:700;color:var(--text);">${p.label}${p.onHold ? ' <span style="font-size:10px;font-weight:600;color:var(--text-hint);">(휴회중)</span>' : ''}</div>
+            <div style="font-size:12.5px;font-weight:700;color:var(--text);">${p.progLabel}${p.pkgGroupKey ? ` <span onclick="showPkgSiblingsPopup('${p.pkgGroupKey.replace(/'/g, "\\'")}')" style="font-size:10px;font-weight:700;color:var(--blue);background:var(--blue-light);padding:2px 6px;border-radius:5px;cursor:pointer;">📦 패키지</span>` : ''}${p.onHold ? ' <span style="font-size:10px;font-weight:600;color:var(--text-hint);">(휴회중)</span>' : ''}</div>
             <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">~${p.endDate}</div>
           </div>
           ${p.remainDays >= 0
@@ -3863,7 +3896,15 @@
     const grandUnpaid = grandTotal - grandPaid;
     const menuId = 'cmenu-' + c.key;
 
-    const itemRows = items.map(it => {
+    // 아이템을 순서대로 훑으며 패키지(pkgIndex)별로 묶음 — _flattenContractItems가 패키지 항목을 이미 연속으로 반환하므로 이렇게만 묶어도 안전함
+    const itemGroups = [];
+    items.forEach(it => {
+      const last = itemGroups[itemGroups.length - 1];
+      if (it.pkgIndex !== null && last && last.pkgIndex === it.pkgIndex) last.items.push(it);
+      else itemGroups.push({ pkgIndex: it.pkgIndex, pkgName: it.pkgName, items: [it] });
+    });
+
+    const _renderOneItemRow = (it, hideBadge) => {
       const amt = it.data.price || 0;
       const startLabel = _normDate(it.data.startDate);
       const endLabel = _normDate(it.data.endDate);
@@ -3877,7 +3918,7 @@
       return `<div class="md-item-row" style="padding:8px 0;border-top:1px solid var(--border);">
         <!-- 모바일: flex | PC: grid 7컬럼 (md-col-* 직접 배치, display:contents 미사용) -->
         <div class="md-col-prog">
-          <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${progLabels[it.progKey] || it.progKey} ${_renderPkgBadge(it.pkgName)}</div>
+          <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${progLabels[it.progKey] || it.progKey}${hideBadge ? '' : ' ' + _renderPkgBadge(it.pkgName)}</div>
           <div class="md-col-prog-sub" style="font-size:11px;color:var(--text-hint);margin-top:2px;">${_formatPeriodLabel(it.data)}</div>
           ${(startLabel !== '-' || endLabel !== '-') ? `<div class="md-col-daterange" style="font-size:11px;color:var(--text-hint);margin-top:2px;">${startLabel} ~ ${endLabel}</div>` : ''}
           ${isTrainerProg ? `<div class="md-col-trainer-mobile" style="font-size:11px;color:var(--text-hint);margin-top:2px;">담당강사: ${trainerLink}</div>` : ''}
@@ -3890,6 +3931,23 @@
         <div class="md-col-right" style="margin-left:auto;display:flex;align-items:center;justify-content:flex-end;gap:10px;">
           <div class="md-col-amount" style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${amt.toLocaleString()}원</div>
           <div class="md-col-status" style="font-size:11px;white-space:nowrap;">${_renderItemStatusBadge(it.data, phone, c.key, it.progKey)}</div>
+        </div>
+      </div>`;
+    };
+
+    const itemRows = itemGroups.map(g => {
+      if (g.pkgIndex === null) {
+        // 단독 상품 — 기존 방식 그대로 (배지 표시)
+        return g.items.map(it => _renderOneItemRow(it, false)).join('');
+      }
+      // 패키지 그룹 — 각 줄에는 배지를 안 넣고, 그룹 전체를 대괄호 선으로 한번에 묶어서 "📦 패키지" 한 번만 표시
+      const rowsHtml = g.items.map(it => _renderOneItemRow(it, true)).join('');
+      return `<div class="pkg-group-wrap" style="position:relative;">
+        <div class="pkg-group-mobile-note" style="font-size:11px;color:var(--blue);font-weight:700;padding:6px 0 0;">📦 패키지 (${g.items.length}개 상품 묶음)</div>
+        ${rowsHtml}
+        <div class="pkg-bracket">
+          <div class="pkg-bracket-line"></div>
+          <span style="font-size:11px;font-weight:700;color:var(--blue);white-space:nowrap;margin-left:6px;">📦 패키지</span>
         </div>
       </div>`;
     }).join('');

@@ -814,6 +814,30 @@ body.pc-mode .md-col-trainer {
 body.pc-mode .md-col-prog-sub {
   display: none;
 }
+
+/* 패키지 그룹 묶음 표시 — 모바일은 그룹 상단 안내줄, PC모드는 프로그램 칸 뒤에 대괄호 선 */
+.pkg-bracket { display: none; }
+body.pc-mode .pkg-group-mobile-note {
+  display: none;
+}
+body.pc-mode .pkg-bracket {
+  display: flex;
+  position: absolute;
+  left: 220px;
+  top: 0;
+  bottom: 0;
+  width: 90px;
+  align-items: center;
+  pointer-events: none;
+}
+body.pc-mode .pkg-bracket-line {
+  width: 14px;
+  height: 100%;
+  border-top: 2px solid var(--border-strong);
+  border-bottom: 2px solid var(--border-strong);
+  border-right: 2px solid var(--border-strong);
+  border-radius: 0;
+}
 body.pc-mode .md-col-daterange {
   display: none;
 }
