@@ -1762,7 +1762,8 @@
   const REV_PROGRAM_OPTIONS = [
     ['헬스', '헬스'], ['GX', 'GX'], ['PT', 'PT'],
     ['기구필라테스개인', '기구필라테스 개인'], ['기구필라테스그룹', '기구필라테스 그룹'],
-    ['extra:locker', '🔑 락카'], ['extra:cloth', '👕 운동복'], ['daypass', '🎫 일일권']
+    ['extra:locker', '🔑 락카'], ['extra:cloth', '👕 운동복'],
+    ['daypass', '🎫 일일권'], ['daypass_pt', '🏋️ PT 체험'], ['daypass_pilates', '🧘 기구필라테스 체험']
   ];
 
   function initRevenueTab() {
@@ -2024,7 +2025,7 @@
         <input type="tel" id="daypass-phone" placeholder="01012345678" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;">
 
         <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">금액 <span style="color:#e24b4a;">*필수</span></div>
-        <input type="number" id="daypass-amount" placeholder="예: 15000" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;">
+        <input type="text" inputmode="numeric" id="daypass-amount" placeholder="예: 15,000" oninput="_formatMoneyInput(this)" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;">
 
         <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">결제수단 <span style="color:#e24b4a;">*필수</span></div>
         <div id="daypass-method-btns" style="display:flex;gap:6px;margin-bottom:16px;">
@@ -2070,7 +2071,7 @@
   function _saveDaypass() {
     const name = (document.getElementById('daypass-name').value || '').trim();
     const phone = (document.getElementById('daypass-phone').value || '').trim();
-    const amount = parseInt(document.getElementById('daypass-amount').value);
+    const amount = parseInt((document.getElementById('daypass-amount').value || '').replace(/[^0-9]/g, ''));
     const method = window._daypassSelectedMethod;
     const type = window._daypassSelectedType || 'normal';
     const meta = DAYPASS_TYPE_META[type] || DAYPASS_TYPE_META.normal;
@@ -2298,7 +2299,7 @@
       <div ${clickable ? `onclick="openMemberModal('${e.phone}')"` : ''} style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);${clickable ? 'cursor:pointer;' : ''}">
         <div>
           <div style="font-size:13px;font-weight:700;color:var(--text);">${e.name} <span style="font-size:11px;font-weight:600;color:var(--text-hint);">${e.label}</span></div>
-          <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${e.date} · ${e.contractType} · ${methodLabel}${unpaid > 0 ? ' · <span style="color:#e24b4a;">미수금 ' + unpaid.toLocaleString() + '원</span>' : ''}</div>
+          <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${e.date} · ${e.contractType} · ${methodLabel}${e.phone ? ' · ' + e.phone : ''}${unpaid > 0 ? ' · <span style="color:#e24b4a;">미수금 ' + unpaid.toLocaleString() + '원</span>' : ''}</div>
         </div>
         <div style="font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;">${e.price.toLocaleString()}원</div>
       </div>`;
