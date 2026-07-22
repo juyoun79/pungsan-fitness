@@ -2976,6 +2976,19 @@
       return;
     }
 
+    // 다른 탭(매출통계 등)에서 호출된 경우에도 "회원" 탭 섹션 자체가 화면에 보이도록 전환
+    // (loadMemberList 재호출 등 부수효과가 있는 switchAdminTab 전체를 타지 않고, 탭 활성화 클래스만 직접 맞춰줌)
+    const membersSection = document.getElementById('tab-members');
+    if (membersSection && !membersSection.classList.contains('active')) {
+      document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.admin-side-tab').forEach(t => t.classList.remove('active'));
+      membersSection.classList.add('active');
+      document.querySelectorAll('.admin-tab, .admin-side-tab').forEach(t => {
+        if ((t.getAttribute('onclick') || '').includes("'tab-members'")) t.classList.add('active');
+      });
+    }
+
     const listView   = document.getElementById('member-list-view');
     const detailView = document.getElementById('member-detail-view');
     if (listView)   listView.style.display   = 'none';
