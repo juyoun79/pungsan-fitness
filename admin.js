@@ -1978,13 +1978,14 @@
       daypassSnap.forEach(dSnap => {
         const dp = dSnap.val();
         if (!dp) return;
+        const meta = DAYPASS_TYPE_META[dp.type] || DAYPASS_TYPE_META.normal;
         entries.push({
-          phone: dp.phone || '', name: dp.name || '이름없음', progKey: 'daypass', label: '🎫 일일권',
+          phone: dp.phone || '', name: dp.name || '이름없음', progKey: meta.progKey, label: meta.label,
           price: dp.amount || 0,
           cash: dp.method === 'cash' ? (dp.amount || 0) : 0,
           card: dp.method === 'card' ? (dp.amount || 0) : 0,
           transfer: dp.method === 'transfer' ? (dp.amount || 0) : 0,
-          date: dp.date || '', contractType: '일일권', trainerId: ''
+          date: dp.date || '', contractType: meta.contractType, trainerId: ''
         });
       });
       _revAllEntries = entries;
@@ -1993,6 +1994,12 @@
   }
 
   // ── 일일권 등록 모달 (금액·결제수단만 필수 / 이름·전화번호는 선택) ──
+  const DAYPASS_TYPE_META = {
+    normal:  { progKey: 'daypass',         label: '🎫 일일권',            contractType: '일일권' },
+    pt:      { progKey: 'daypass_pt',      label: '🏋️ PT 체험',          contractType: 'PT체험' },
+    pilates: { progKey: 'daypass_pilates', label: '🧘 기구필라테스 체험', contractType: '기구필라테스체험' }
+  };
+
   function openDaypassModal() {
     const existing = document.getElementById('daypass-modal');
     if (existing) existing.remove();
@@ -2002,6 +2009,13 @@
     modal.innerHTML = `
       <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:340px;box-sizing:border-box;">
         <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:14px;">🎫 일일권 등록</div>
+
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">종류</div>
+        <div id="daypass-type-btns" style="display:flex;gap:6px;margin-bottom:14px;">
+          ${[['normal', '일반 일일권'], ['pt', 'PT 체험'], ['pilates', '기구필라테스 체험']].map(([k, l]) =>
+            `<button type="button" data-type="${k}" onclick="_daypassPickType('${k}')" style="flex:1;padding:8px 4px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:11px;font-weight:700;line-height:1.3;text-align:center;white-space:normal;word-break:keep-all;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">${l}</button>`
+          ).join('')}
+        </div>
 
         <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">이름 (선택)</div>
         <input type="text" id="daypass-name" placeholder="이름없음" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;">
@@ -2026,6 +2040,8 @@
       </div>`;
     document.body.appendChild(modal);
     window._daypassSelectedMethod = '';
+    window._daypassSelectedType = 'normal';
+    _daypassPickType('normal');
   }
   window.openDaypassModal = openDaypassModal;
 
@@ -2040,27 +2056,40 @@
   }
   window._daypassPickMethod = _daypassPickMethod;
 
+  function _daypassPickType(type) {
+    window._daypassSelectedType = type;
+    document.querySelectorAll('#daypass-type-btns button').forEach(b => {
+      const active = b.dataset.type === type;
+      b.style.background = active ? 'var(--blue)' : 'var(--card)';
+      b.style.color = active ? 'white' : 'var(--text)';
+      b.style.borderColor = active ? 'var(--blue)' : 'var(--border)';
+    });
+  }
+  window._daypassPickType = _daypassPickType;
+
   function _saveDaypass() {
     const name = (document.getElementById('daypass-name').value || '').trim();
     const phone = (document.getElementById('daypass-phone').value || '').trim();
     const amount = parseInt(document.getElementById('daypass-amount').value);
     const method = window._daypassSelectedMethod;
+    const type = window._daypassSelectedType || 'normal';
+    const meta = DAYPASS_TYPE_META[type] || DAYPASS_TYPE_META.normal;
     if (!amount || amount <= 0) { showToast('금액을 입력해주세요.', 'error'); return; }
     if (!method) { showToast('결제수단을 선택해주세요.', 'error'); return; }
     const date = _todayISO();
-    const entry = { name: name || null, phone: phone || null, amount, method, date, createdAt: Date.now() };
+    const entry = { name: name || null, phone: phone || null, amount, method, type, date, createdAt: Date.now() };
     db.ref('daypass_sales').push(entry).then(() => {
       document.getElementById('daypass-modal')?.remove();
-      showToast('✅ 일일권이 등록됐어요.', 'success');
+      showToast('✅ ' + meta.label + ' 등록됐어요.', 'success');
       // 전체 재조회 대신, 지금 캐시에 바로 항목을 추가해서 화면을 즉시 갱신
       if (_revAllEntries) {
         _revAllEntries.push({
-          phone: phone || '', name: name || '이름없음', progKey: 'daypass', label: '🎫 일일권',
+          phone: phone || '', name: name || '이름없음', progKey: meta.progKey, label: meta.label,
           price: amount,
           cash: method === 'cash' ? amount : 0,
           card: method === 'card' ? amount : 0,
           transfer: method === 'transfer' ? amount : 0,
-          date, contractType: '일일권', trainerId: ''
+          date, contractType: meta.contractType, trainerId: ''
         });
         loadRevenueStats();
       }
@@ -4681,7 +4710,7 @@
 
   // ══════════════ 환불 기능 ══════════════
   const REFUND_PERIOD_PROGS = ['헬스', 'GX']; // 기간제 — 위약금10%+사용일수 자동계산 / 그 외는 횟수제(직접입력)
-  const REFUND_PROG_NAMES = { '헬스':'헬스', 'GX':'GX', 'PT':'PT', '기구필라테스개인':'기구필라테스 개인', '기구필라테스그룹':'기구필라테스 그룹', 'daypass':'🎫 일일권' };
+  const REFUND_PROG_NAMES = { '헬스':'헬스', 'GX':'GX', 'PT':'PT', '기구필라테스개인':'기구필라테스 개인', '기구필라테스그룹':'기구필라테스 그룹', 'daypass':'🎫 일일권', 'daypass_pt':'🏋️ PT 체험', 'daypass_pilates':'🧘 기구필라테스 체험' };
 
   // 환불 시작 — progKey가 없으면(여러 프로그램이 있는 계약서) 먼저 어떤 프로그램을 환불할지 선택하게 함
   function startRefund(phone, contractKey, progKey) {
