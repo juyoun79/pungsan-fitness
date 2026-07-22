@@ -2133,6 +2133,9 @@
         <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">금액</div>
         <input type="text" inputmode="numeric" id="daypass-edit-amount" value="${(entry.price || 0).toLocaleString()}" oninput="_formatMoneyInput(this)" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;">
 
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">결제일</div>
+        <input type="date" id="daypass-edit-date" value="${entry.date || ''}" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;">
+
         <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">결제수단</div>
         <div id="daypass-edit-method-btns" style="display:flex;gap:6px;margin-bottom:16px;">
           ${[['cash', '현금'], ['card', '카드'], ['transfer', '계좌이체']].map(([k, l]) =>
@@ -2177,11 +2180,13 @@
     const name = (document.getElementById('daypass-edit-name').value || '').trim();
     const phone = (document.getElementById('daypass-edit-phone').value || '').trim();
     const amount = parseInt((document.getElementById('daypass-edit-amount').value || '').replace(/[^0-9]/g, ''));
+    const date = document.getElementById('daypass-edit-date').value;
     const method = window._daypassEditSelectedMethod;
     const type = window._daypassEditSelectedType || 'normal';
     if (!amount || amount <= 0) { showToast('금액을 입력해주세요.', 'error'); return; }
+    if (!date) { showToast('결제일을 선택해주세요.', 'error'); return; }
     if (!method) { showToast('결제수단을 선택해주세요.', 'error'); return; }
-    const updates = { name: name || null, phone: phone || null, amount, method, type };
+    const updates = { name: name || null, phone: phone || null, amount, date, method, type };
     db.ref('daypass_sales/' + key).update(updates).then(() => {
       document.getElementById('daypass-edit-modal')?.remove();
       showToast('✅ 수정됐어요.', 'success');
