@@ -1986,7 +1986,8 @@
           cash: dp.method === 'cash' ? (dp.amount || 0) : 0,
           card: dp.method === 'card' ? (dp.amount || 0) : 0,
           transfer: dp.method === 'transfer' ? (dp.amount || 0) : 0,
-          date: dp.date || '', contractType: meta.contractType, trainerId: ''
+          date: dp.date || '', contractType: meta.contractType, trainerId: '',
+          daypassKey: dSnap.key, daypassType: dp.type || 'normal', daypassMethod: dp.method || ''
         });
       });
       _revAllEntries = entries;
@@ -2079,7 +2080,8 @@
     if (!method) { showToast('결제수단을 선택해주세요.', 'error'); return; }
     const date = _todayISO();
     const entry = { name: name || null, phone: phone || null, amount, method, type, date, createdAt: Date.now() };
-    db.ref('daypass_sales').push(entry).then(() => {
+    const newRef = db.ref('daypass_sales').push();
+    newRef.set(entry).then(() => {
       document.getElementById('daypass-modal')?.remove();
       showToast('✅ ' + meta.label + ' 등록됐어요.', 'success');
       // 전체 재조회 대신, 지금 캐시에 바로 항목을 추가해서 화면을 즉시 갱신
@@ -2090,7 +2092,8 @@
           cash: method === 'cash' ? amount : 0,
           card: method === 'card' ? amount : 0,
           transfer: method === 'transfer' ? amount : 0,
-          date, contractType: meta.contractType, trainerId: ''
+          date, contractType: meta.contractType, trainerId: '',
+          daypassKey: newRef.key, daypassType: type, daypassMethod: method
         });
         loadRevenueStats();
       }
@@ -2100,6 +2103,110 @@
     });
   }
   window._saveDaypass = _saveDaypass;
+
+  // ── 일일권/체험 수정 · 삭제 ──
+  function openDaypassEditModal(key) {
+    const entry = (_revAllEntries || []).find(e => e.daypassKey === key);
+    if (!entry) { showToast('데이터를 찾을 수 없어요.', 'error'); return; }
+    document.getElementById('daypass-edit-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'daypass-edit-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    const safeName = entry.name === '이름없음' ? '' : (entry.name || '').replace(/"/g, '&quot;');
+    modal.innerHTML = `
+      <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:340px;box-sizing:border-box;">
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:14px;">✏️ 일일권 수정</div>
+
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">종류</div>
+        <div id="daypass-edit-type-btns" style="display:flex;gap:6px;margin-bottom:14px;">
+          ${[['normal', '일반 일일권'], ['pt', 'PT 체험'], ['pilates', '기구필라테스 체험']].map(([k, l]) =>
+            `<button type="button" data-type="${k}" onclick="_daypassEditPickType('${k}')" style="flex:1;padding:8px 4px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:11px;font-weight:700;line-height:1.3;text-align:center;white-space:normal;word-break:keep-all;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">${l}</button>`
+          ).join('')}
+        </div>
+
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">이름 (선택)</div>
+        <input type="text" id="daypass-edit-name" value="${safeName}" placeholder="이름없음" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;">
+
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">전화번호 (선택)</div>
+        <input type="tel" id="daypass-edit-phone" value="${entry.phone || ''}" placeholder="01012345678" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;">
+
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">금액</div>
+        <input type="text" inputmode="numeric" id="daypass-edit-amount" value="${(entry.price || 0).toLocaleString()}" oninput="_formatMoneyInput(this)" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:12px;">
+
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">결제수단</div>
+        <div id="daypass-edit-method-btns" style="display:flex;gap:6px;margin-bottom:16px;">
+          ${[['cash', '현금'], ['card', '카드'], ['transfer', '계좌이체']].map(([k, l]) =>
+            `<button type="button" data-method="${k}" onclick="_daypassEditPickMethod('${k}')" style="flex:1;padding:9px 0;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">${l}</button>`
+          ).join('')}
+        </div>
+
+        <div style="display:flex;gap:8px;">
+          <button onclick="document.getElementById('daypass-edit-modal').remove()" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+          <button onclick="_saveDaypassEdit('${key}')" style="flex:1;padding:10px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    _daypassEditPickType(entry.daypassType || 'normal');
+    _daypassEditPickMethod(entry.daypassMethod || '');
+  }
+  window.openDaypassEditModal = openDaypassEditModal;
+
+  function _daypassEditPickType(type) {
+    window._daypassEditSelectedType = type;
+    document.querySelectorAll('#daypass-edit-type-btns button').forEach(b => {
+      const active = b.dataset.type === type;
+      b.style.background = active ? 'var(--blue)' : 'var(--card)';
+      b.style.color = active ? 'white' : 'var(--text)';
+      b.style.borderColor = active ? 'var(--blue)' : 'var(--border)';
+    });
+  }
+  window._daypassEditPickType = _daypassEditPickType;
+
+  function _daypassEditPickMethod(method) {
+    window._daypassEditSelectedMethod = method;
+    document.querySelectorAll('#daypass-edit-method-btns button').forEach(b => {
+      const active = b.dataset.method === method;
+      b.style.background = active ? 'var(--blue)' : 'var(--card)';
+      b.style.color = active ? 'white' : 'var(--text)';
+      b.style.borderColor = active ? 'var(--blue)' : 'var(--border)';
+    });
+  }
+  window._daypassEditPickMethod = _daypassEditPickMethod;
+
+  function _saveDaypassEdit(key) {
+    const name = (document.getElementById('daypass-edit-name').value || '').trim();
+    const phone = (document.getElementById('daypass-edit-phone').value || '').trim();
+    const amount = parseInt((document.getElementById('daypass-edit-amount').value || '').replace(/[^0-9]/g, ''));
+    const method = window._daypassEditSelectedMethod;
+    const type = window._daypassEditSelectedType || 'normal';
+    if (!amount || amount <= 0) { showToast('금액을 입력해주세요.', 'error'); return; }
+    if (!method) { showToast('결제수단을 선택해주세요.', 'error'); return; }
+    const updates = { name: name || null, phone: phone || null, amount, method, type };
+    db.ref('daypass_sales/' + key).update(updates).then(() => {
+      document.getElementById('daypass-edit-modal')?.remove();
+      showToast('✅ 수정됐어요.', 'success');
+      _invalidateRevenueCache();
+      _revBuildData().then(loadRevenueStats);
+    }).catch(err => {
+      console.error('일일권 수정 오류:', err);
+      showToast('수정 중 오류가 발생했어요.', 'error');
+    });
+  }
+  window._saveDaypassEdit = _saveDaypassEdit;
+
+  function deleteDaypassEntry(key) {
+    showConfirm('이 일일권 기록을 삭제할까요?', () => {
+      db.ref('daypass_sales/' + key).remove().then(() => {
+        showToast('🗑️ 삭제됐어요.', 'success');
+        _invalidateRevenueCache();
+        _revBuildData().then(loadRevenueStats);
+      }).catch(err => {
+        console.error('일일권 삭제 오류:', err);
+        showToast('삭제 중 오류가 발생했어요.', 'error');
+      });
+    });
+  }
+  window.deleteDaypassEntry = deleteDaypassEntry;
 
   function _revToggleFilterBtnHtml(groupKey, value, label, active) {
     return `<button class="rev-chip" data-group="${groupKey}" data-value="${value}" onclick="_revToggleChip(this)"
@@ -2295,13 +2402,20 @@
     const methodLabel = _paymentMethodLabel(e) || '-';
     const unpaid = e.price - e.cash - e.card - e.transfer;
     const clickable = !!e.phone;
+    const isDaypass = !!e.daypassKey;
     return `
-      <div ${clickable ? `onclick="openMemberModal('${e.phone}')"` : ''} style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);${clickable ? 'cursor:pointer;' : ''}">
-        <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div ${clickable ? `onclick="openMemberModal('${e.phone}')"` : ''} style="flex:1;min-width:0;${clickable ? 'cursor:pointer;' : ''}">
           <div style="font-size:13px;font-weight:700;color:var(--text);">${e.name} <span style="font-size:11px;font-weight:600;color:var(--text-hint);">${e.label}</span></div>
           <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${e.date} · ${e.contractType} · ${methodLabel}${e.phone ? ' · ' + e.phone : ''}${unpaid > 0 ? ' · <span style="color:#e24b4a;">미수금 ' + unpaid.toLocaleString() + '원</span>' : ''}</div>
         </div>
-        <div style="font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;">${e.price.toLocaleString()}원</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <div style="font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;">${e.price.toLocaleString()}원</div>
+          ${isDaypass ? `
+            <button onclick="openDaypassEditModal('${e.daypassKey}')" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">수정</button>
+            <button onclick="deleteDaypassEntry('${e.daypassKey}')" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:#e24b4a;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
+          ` : ''}
+        </div>
       </div>`;
   }
 
