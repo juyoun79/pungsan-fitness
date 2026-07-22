@@ -2964,8 +2964,17 @@
   // ── 회원 상세 모달 ──
   function openMemberModal(phone) {
     currentMemberPhone = phone;
-    const info = cachedMembers[phone];
-    if (!info) return;
+    let info = cachedMembers[phone];
+    if (!info) {
+      // 아직 회원목록을 한번도 안 불러온 상태(캐시 비어있음) — Firebase에서 직접 조회해서 캐시에 채운 뒤 재시도
+      db.ref('members/' + phone).once('value').then(snap => {
+        const fetched = snap.val();
+        if (!fetched) { showToast('회원 정보를 찾을 수 없어요.', 'error'); return; }
+        cachedMembers[phone] = fetched;
+        openMemberModal(phone);
+      }).catch(() => showToast('회원 정보를 불러오지 못했어요.', 'error'));
+      return;
+    }
 
     const listView   = document.getElementById('member-list-view');
     const detailView = document.getElementById('member-detail-view');
