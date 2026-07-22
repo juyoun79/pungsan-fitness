@@ -2377,19 +2377,56 @@
     if (!el) return;
     if (!entries.length) { el.innerHTML = '<div style="text-align:center;padding:10px;color:var(--text-hint);font-size:13px;">해당 기간에 매출이 없어요</div>'; return; }
     const byProg = {};
-    entries.forEach(e => { byProg[e.progKey] = (byProg[e.progKey] || 0) + e.cash + e.card + e.transfer; });
-    const sorted = Object.entries(byProg).sort((a, b) => b[1] - a[1]);
+    const methodTotal = { cash: 0, card: 0, transfer: 0 };
+    entries.forEach(e => {
+      if (!byProg[e.progKey]) byProg[e.progKey] = { cash: 0, card: 0, transfer: 0 };
+      byProg[e.progKey].cash += e.cash;
+      byProg[e.progKey].card += e.card;
+      byProg[e.progKey].transfer += e.transfer;
+      methodTotal.cash += e.cash;
+      methodTotal.card += e.card;
+      methodTotal.transfer += e.transfer;
+    });
+    const sorted = Object.entries(byProg)
+      .map(([k, m]) => [k, m.cash + m.card + m.transfer, m])
+      .sort((a, b) => b[1] - a[1]);
     const total = sorted.reduce((s, [, v]) => s + v, 0);
-    el.innerHTML = sorted.map(([progKey, amt]) => {
+    const methodBreakdownText = m => {
+      const parts = [];
+      if (m.cash) parts.push('현금 ' + m.cash.toLocaleString());
+      if (m.card) parts.push('카드 ' + m.card.toLocaleString());
+      if (m.transfer) parts.push('계좌 ' + m.transfer.toLocaleString());
+      return parts.join(' · ');
+    };
+    el.innerHTML = sorted.map(([progKey, amt, m]) => {
       const label = REFUND_PROG_NAMES[progKey] || (progKey.startsWith('extra:') ? (progKey === 'extra:locker' ? '🔑 락카' : progKey === 'extra:cloth' ? '👕 운동복' : progKey) : progKey);
-      return `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      return `<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;">
         <span style="color:var(--text);">${label}</span>
-        <span style="font-weight:700;color:var(--text);">${amt.toLocaleString()}원</span>
+        <div style="text-align:right;">
+          <div style="font-weight:700;color:var(--text);">${amt.toLocaleString()}원</div>
+          <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${methodBreakdownText(m)}</div>
+        </div>
       </div>`;
     }).join('') + `
       <div style="display:flex;justify-content:space-between;padding:9px 0 0;font-size:13.5px;font-weight:700;">
         <span style="color:var(--text);">합계</span>
         <span style="color:var(--blue);">${total.toLocaleString()}원</span>
+      </div>
+      <div style="height:1px;background:var(--border);margin:8px 0;"></div>
+      <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">결제수단별 총합</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+        <div style="background:var(--bg);border-radius:8px;padding:8px 4px;text-align:center;">
+          <div style="font-size:10.5px;color:var(--text-hint);">현금</div>
+          <div style="font-size:12.5px;font-weight:700;color:var(--text);margin-top:2px;">${methodTotal.cash.toLocaleString()}원</div>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:8px 4px;text-align:center;">
+          <div style="font-size:10.5px;color:var(--text-hint);">카드</div>
+          <div style="font-size:12.5px;font-weight:700;color:var(--text);margin-top:2px;">${methodTotal.card.toLocaleString()}원</div>
+        </div>
+        <div style="background:var(--bg);border-radius:8px;padding:8px 4px;text-align:center;">
+          <div style="font-size:10.5px;color:var(--text-hint);">계좌이체</div>
+          <div style="font-size:12.5px;font-weight:700;color:var(--text);margin-top:2px;">${methodTotal.transfer.toLocaleString()}원</div>
+        </div>
       </div>`;
   }
 
