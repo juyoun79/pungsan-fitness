@@ -1929,15 +1929,16 @@
             const signCash = (d.cash || 0) - (settleMethod === 'cash' ? settleAmt : 0);
             const signCard = (d.card || 0) - (settleMethod === 'card' ? settleAmt : 0);
             const signTransfer = (d.transfer || 0) - (settleMethod === 'transfer' ? settleAmt : 0);
+            const pkgGroupKey = it.pkgName ? (cSnap.key + '::' + it.pkgIndex + '::' + it.pkgName) : null;
             entries.push({
-              phone, name, progKey: it.progKey, label,
+              phone, name, progKey: it.progKey, label, pkgGroupKey,
               price: (d.price || 0) - settleAmt, cash: signCash, card: signCard, transfer: signTransfer,
               date: c.signDate || '', contractType,
               trainerId: (it.progKey === 'PT' || it.progKey === '기구필라테스개인') ? (d.trainerId || '') : ''
             });
             if (settleAmt > 0 && d.unpaidSettledAt) {
               entries.push({
-                phone, name, progKey: it.progKey, label: label + ' (미수금 정산)',
+                phone, name, progKey: it.progKey, label: label + ' (미수금 정산)', pkgGroupKey,
                 price: settleAmt,
                 cash: settleMethod === 'cash' ? settleAmt : 0,
                 card: settleMethod === 'card' ? settleAmt : 0,
@@ -2577,7 +2578,24 @@
       return;
     }
     const shown = list.slice(0, _revDetailShown);
-    el.innerHTML = shown.map(_revEntryRowHtml).join('');
+    let html = '';
+    let inGroup = false;
+    shown.forEach((e, i) => {
+      const prevKey = i > 0 ? shown[i - 1].pkgGroupKey : null;
+      const nextKey = i < shown.length - 1 ? shown[i + 1].pkgGroupKey : null;
+      const sameAsPrev = e.pkgGroupKey && e.pkgGroupKey === prevKey;
+      const sameAsNext = e.pkgGroupKey && e.pkgGroupKey === nextKey;
+      if (!sameAsPrev && sameAsNext) {
+        html += '<div style="border-left:3px solid var(--blue);padding-left:10px;margin-left:-13px;">';
+        inGroup = true;
+      }
+      html += _revEntryRowHtml(e);
+      if (inGroup && !sameAsNext) {
+        html += '</div>';
+        inGroup = false;
+      }
+    });
+    el.innerHTML = html;
     if (moreBtn) moreBtn.style.display = _revDetailShown < list.length ? 'block' : 'none';
   }
   window.renderRevDetailList = renderRevDetailList;
