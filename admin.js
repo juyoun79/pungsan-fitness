@@ -11418,13 +11418,18 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         const bWeight = parseFloat(body.weight) || 60;
         const hM      = height / 100;
 
-        const stdWeight  = hM * hM * (gender === 'male' ? 22 : 21);
+        // 표준범위는 '오늘 측정 체중'이 아니라 '키 기반 이상수치'를 기준으로 계산 (InBody 공식 방식: 골격근량 표준=이상골격근량의 90~110%, 체지방량 표준=이상체지방량의 80~160%)
+        const stdWeight   = hM * hM * (gender === 'male' ? 22 : 21);       // 이상체중
+        const idealSMM    = hM * hM * (gender === 'male' ? 11.0 : 9.05);   // 이상골격근량(키 기반)
+        const idealFatPct = gender === 'male' ? 0.15 : 0.23;               // 이상적 체지방률
+        const idealFatMass = stdWeight * idealFatPct;                      // 이상체지방량
+
         const weightMin  = parseFloat((stdWeight * 0.9).toFixed(1));
         const weightMax  = parseFloat((stdWeight * 1.1).toFixed(1));
-        const muscleMin  = parseFloat((bWeight * (gender === 'male' ? 0.40 : 0.32)).toFixed(1));
-        const muscleMax  = parseFloat((bWeight * (gender === 'male' ? 0.50 : 0.42)).toFixed(1));
-        const fatMin2    = parseFloat((bWeight * (gender === 'male' ? 0.10 : 0.18)).toFixed(1));
-        const fatMax2    = parseFloat((bWeight * (gender === 'male' ? 0.20 : 0.28)).toFixed(1));
+        const muscleMin  = parseFloat((idealSMM * 0.9).toFixed(1));
+        const muscleMax  = parseFloat((idealSMM * 1.1).toFixed(1));
+        const fatMin2    = parseFloat((idealFatMass * 0.8).toFixed(1));
+        const fatMax2    = parseFloat((idealFatMass * 1.6).toFixed(1));
         let fatRateMin, fatRateMax;
         if (gender === 'male') { fatRateMin = 10; fatRateMax = age >= 60 ? 25 : 20; }
         else { fatRateMin = 18; fatRateMax = age >= 60 ? 30 : 28; }
@@ -11497,10 +11502,8 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
             <button onclick="openTrainerInbodyInputModal()" style="background:var(--blue);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 인바디 입력</button>
           </div>
           ${(latest.muscle !== undefined && latest.fat !== undefined) ? (() => {
-            const h2 = height / 100;
-            const stdW = h2 * h2 * (gender === 'male' ? 22 : 21);
-            const stdMuscle = stdW * (gender === 'male' ? 0.45 : 0.37);
-            const stdFat    = stdW * (gender === 'male' ? 0.15 : 0.23);
+            const stdMuscle = idealSMM;
+            const stdFat    = idealFatMass;
             const sc = Math.min(100, Math.max(0, Math.round(80 + (latest.muscle - stdMuscle) * 1.0 - (latest.fat - stdFat) * 1.3)));
             const color = sc >= 90 ? '#16a34a' : sc >= 80 ? '#2563eb' : sc >= 70 ? '#ca8a04' : sc >= 60 ? '#ea580c' : '#dc2626';
             const label = sc >= 90 ? '💚 매우강함' : sc >= 80 ? '🔵 강함' : sc >= 70 ? '🟡 보통' : sc >= 60 ? '🟠 약함' : '🔴 매우약함';
