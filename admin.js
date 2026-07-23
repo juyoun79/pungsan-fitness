@@ -8305,8 +8305,8 @@
     // type=text+콤마포맷으로 변경됐으므로 콤마 제거 후 숫자 변환
     pkg.items[prog][field] = (field === 'startDate' || field === 'endDate' || field === 'trainerId') ? value : (parseInt(String(value).replace(/[^0-9]/g,''))||0);
 
-    // 종료일 자동계산
-    if (field === 'months' || field === 'startDate') {
+    // 종료일 자동계산 (수동으로 직접 설정한 상태면 건너뜀)
+    if ((field === 'months' || field === 'startDate') && !pkg.items[prog].manualEnd) {
       const start  = pkg.items[prog].startDate;
       const months = pkg.items[prog].months;
       if (start && months) {
@@ -8336,6 +8336,54 @@
     calcCtTotal();
   }
   window.updateCtPkgField = updateCtPkgField;
+
+  // 패키지 항목 종료일 직접설정 토글 (다시 누르면 자동계산으로 복귀)
+  function _togglePkgManualEndDate(pkgId, prog) {
+    const pkg = ctPackages.find(p => p.id === pkgId);
+    if (!pkg || !pkg.items[prog]) return;
+    const it = pkg.items[prog];
+    const displayEl = document.getElementById('ct-pkg-' + pkgId + '-' + prog + '-end-display');
+    if (!displayEl) return;
+    if (it.manualEnd) {
+      // 자동계산으로 복귀
+      it.manualEnd = false;
+      updateCtPkgField(pkgId, prog, 'months', it.months || 0); // 자동계산 다시 트리거
+    } else {
+      // 직접설정 모드로 전환 — 표시 영역을 date input으로 교체
+      const currentVal = it.endDate || '';
+      displayEl.innerHTML = `<input type="date" value="${currentVal}" style="width:100%;box-sizing:border-box;border:none;background:transparent;font-size:12px;font-family:'Noto Sans KR',sans-serif;color:#059669;" onchange="_applyManualPkgEndDate(${pkgId},'${prog}',this.value)">`;
+      displayEl.querySelector('input')?.focus();
+    }
+  }
+  window._togglePkgManualEndDate = _togglePkgManualEndDate;
+
+  // 직접 고른 종료일로부터 개월수를 역산해서 채워줌 (패키지 항목엔 서비스추가 개념이 없어 개월수만 갱신)
+  function _applyManualPkgEndDate(pkgId, prog, dateVal) {
+    const pkg = ctPackages.find(p => p.id === pkgId);
+    if (!pkg || !pkg.items[prog] || !dateVal) return;
+    const it = pkg.items[prog];
+    const start = it.startDate;
+    if (!start) { showToast('시작일을 먼저 입력해주세요.', 'error'); return; }
+    const target = new Date(dateVal);
+    target.setDate(target.getDate() + 1);
+    let months = 0;
+    while (months < 240) {
+      const base = new Date(start);
+      base.setMonth(base.getMonth() + months + 1);
+      if (base <= target) months++;
+      else break;
+    }
+    it.manualEnd = true;
+    it.endDate = dateVal;
+    it.months = months;
+    const monthEl = document.getElementById('ct-pkg-' + pkgId + '-' + prog + '-months');
+    if (monthEl) monthEl.value = months || '';
+    const displayEl = document.getElementById('ct-pkg-' + pkgId + '-' + prog + '-end-display');
+    if (displayEl) { displayEl.innerHTML = dateVal; displayEl.style.color = '#059669'; }
+    updateCtPkgProgBadge(pkgId, prog);
+    calcCtTotal();
+  }
+  window._applyManualPkgEndDate = _applyManualPkgEndDate;
 
   // 패키지 내 프로그램 상단 배지 업데이트
   function updateCtPkgProgBadge(pkgId, prog) {
@@ -8409,7 +8457,11 @@
               </div>
               <div>
                 <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">종료일 (자동)</div>
-                <div id="ct-pkg-${pkg.id}-${prog}-end-display" style="padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:${it.endDate?'#059669':'var(--text-hint)'};background:var(--bg);">${it.endDate||'자동계산'}</div>
+                <div style="display:flex;gap:3px;">
+                  <div id="ct-pkg-${pkg.id}-${prog}-end-display" style="flex:1;min-width:0;padding:6px 7px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:${it.endDate?'#059669':'var(--text-hint)'};background:var(--bg);">${it.endDate||'자동계산'}</div>
+                  <button type="button" onclick="_togglePkgManualEndDate(${pkg.id},'${prog}')" title="종료일 직접 설정"
+                    style="padding:0 6px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--card);cursor:pointer;font-size:12px;">📅</button>
+                </div>
               </div>
             </div>
             <div style="display:grid;grid-template-columns:${hasCount?'1fr 1fr 1fr':'1fr 1fr'};gap:6px;margin-bottom:6px;">
