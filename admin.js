@@ -8629,8 +8629,13 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
           <div>
             <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">종료일 (자동계산)</div>
-            <input type="text" id="ct-${prog}-end" readonly placeholder="자동계산"
-              style="${inStyle}background:#f0fdf4;color:#16a34a;font-weight:600;" />
+            <div style="display:flex;gap:4px;">
+              <input type="text" id="ct-${prog}-end" readonly placeholder="자동계산"
+                style="${inStyle}background:#f0fdf4;color:#16a34a;font-weight:600;flex:1;" />
+              <button type="button" onclick="_toggleManualEndDate('${prog}')" title="종료일 직접 설정"
+                style="padding:0 8px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--card);cursor:pointer;font-size:14px;">📅</button>
+            </div>
+            <div id="ct-${prog}-end-manual-note" style="display:none;font-size:10.5px;color:var(--blue);margin-top:3px;">직접 설정됨 · 개월수/서비스추가에 자동 반영</div>
           </div>
           <div>
             <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">💰 이용요금(원)</div>
@@ -8711,11 +8716,12 @@
 
   // 종료일 자동계산 (기간 + 서비스추가 반영)
   function calcCtEndDate(prog) {
+    const endEl = document.getElementById('ct-' + prog + '-end');
+    if (endEl?.dataset.manual === '1') return; // 종료일을 직접 설정한 상태면 자동계산이 덮어쓰지 않게 건너뜀
     const startEl     = document.getElementById('ct-' + prog + '-start');
     const monthEl     = document.getElementById('ct-' + prog + '-months');
     const extraNumEl  = document.getElementById('ct-' + prog + '-extra-num');
     const extraUnitEl = document.getElementById('ct-' + prog + '-extra-unit');
-    const endEl       = document.getElementById('ct-' + prog + '-end');
     if (!startEl || !monthEl || !endEl) return;
     const start  = startEl.value;
     const months = parseInt(monthEl.value) || 0;
@@ -8732,6 +8738,59 @@
     d.setDate(d.getDate() - 1);
     endEl.value = _isoDate(d); // ISO 형식(YYYY-MM-DD)으로 저장 — 한글 형식으로 저장하면 날짜 비교 오류 발생
   }
+
+  // 종료일 직접설정 모드 전환 (다시 누르면 자동계산으로 복귀)
+  function _toggleManualEndDate(prog) {
+    const endEl = document.getElementById('ct-' + prog + '-end');
+    const note = document.getElementById('ct-' + prog + '-end-manual-note');
+    if (!endEl) return;
+    if (endEl.dataset.manual === '1') {
+      endEl.dataset.manual = '';
+      endEl.type = 'text';
+      endEl.readOnly = true;
+      if (note) note.style.display = 'none';
+      calcCtEndDate(prog);
+    } else {
+      const currentVal = endEl.value;
+      endEl.dataset.manual = '1';
+      endEl.type = 'date';
+      endEl.readOnly = false;
+      if (currentVal) endEl.value = currentVal;
+      endEl.onchange = () => _applyManualEndDate(prog);
+      if (note) note.style.display = 'block';
+      endEl.focus();
+    }
+  }
+  window._toggleManualEndDate = _toggleManualEndDate;
+
+  // 직접 고른 종료일로부터 개월수/서비스추가(일)를 역산해서 참고용으로 채워줌
+  function _applyManualEndDate(prog) {
+    const endEl = document.getElementById('ct-' + prog + '-end');
+    const startEl = document.getElementById('ct-' + prog + '-start');
+    const start = startEl?.value;
+    const endVal = endEl?.value;
+    if (!start || !endVal) return;
+    const target = new Date(endVal);
+    target.setDate(target.getDate() + 1); // calcCtEndDate가 마지막에 -1일 하는 것의 역산 기준점
+    let months = 0;
+    while (months < 240) {
+      const base = new Date(start);
+      base.setMonth(base.getMonth() + months + 1);
+      if (base <= target) months++;
+      else break;
+    }
+    const base = new Date(start);
+    base.setMonth(base.getMonth() + months);
+    const extraDays = Math.round((target - base) / 86400000);
+    const monthEl = document.getElementById('ct-' + prog + '-months');
+    const extraNumEl = document.getElementById('ct-' + prog + '-extra-num');
+    const extraUnitEl = document.getElementById('ct-' + prog + '-extra-unit');
+    if (monthEl) monthEl.value = months || '';
+    if (extraNumEl) extraNumEl.value = extraDays > 0 ? extraDays : '';
+    if (extraUnitEl) extraUnitEl.value = '일';
+    if (typeof updateCtSummary === 'function') updateCtSummary(prog);
+  }
+  window._applyManualEndDate = _applyManualEndDate;
 
   // 합계 계산 (현금/카드/계좌 분리 + 미수금 + 항목별 breakdown)
   function calcCtTotal() {
