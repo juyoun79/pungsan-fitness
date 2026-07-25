@@ -4368,11 +4368,12 @@
       : (unpaid > 0
         ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">미수금 ${unpaid.toLocaleString()}원</div>`
         : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">${methodLabel ? methodLabel + ' · ' : ''}완납 ✓</div>`);
-    const refundBtn = e.refund ? '' :
-      `<button onclick="openRefundModal('${phone}','${contractKey}','extra:${extKey}')" style="margin-left:8px;padding:3px 9px;background:none;border:1px solid var(--border);border-radius:6px;font-size:10.5px;color:var(--text-hint);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💰 환불</button>`;
+    const menuId = 'extra-menu-' + contractKey + '-' + extKey;
+    const menuHtml = e.refund ? '' : `<div style="margin-top:6px;max-width:140px;">${_renderContractMenuButton(menuId, phone, contractKey, 'extra:' + extKey, '처리', true)}</div>`;
     return `<div class="md-item-row" style="padding:8px 0;border-top:1px solid var(--border);">
       <div class="md-col-prog">
-        <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${_extraLabel(extKey, e)}${refundBtn}</div>
+        <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${_extraLabel(extKey, e)}</div>
+        ${menuHtml}
       </div>
       <div class="md-col-months" style="display:none;font-size:12px;color:var(--text-hint);">-</div>
       <div class="md-col-count"  style="display:none;font-size:12px;color:var(--text-hint);">-</div>
@@ -4388,9 +4389,9 @@
     </div>`;
   }
 
-  // 처리▾ 버튼 + 펼침 메뉴 (단독카드/패키지프로그램별 공통으로 사용)
-  function _renderContractMenuButton(menuId, phone, contractKeyOrKeys, progKey, label) {
-    const actions = [
+  // 처리▾ 버튼 + 펼침 메뉴 (단독카드/패키지프로그램별 공통으로 사용, isExtra=true면 락카/운동복용으로 정보수정·영수증·환불만 노출)
+  function _renderContractMenuButton(menuId, phone, contractKeyOrKeys, progKey, label, isExtra) {
+    const fullActions = [
       { icon: '✏️', name: '정보 수정', act: 'edit' },
       { icon: '🧾', name: '영수증', act: 'receipt' },
       { icon: '💰', name: '환불', act: 'refund' },
@@ -4398,6 +4399,7 @@
       { icon: '🔄', name: '프로그램 변경', act: 'change' },
       { icon: '⏸️', name: '정지/휴회', act: 'pause' },
     ];
+    const actions = isExtra ? fullActions.filter(a => ['edit', 'receipt', 'refund'].includes(a.act)) : fullActions;
     const progArg = progKey ? `'${progKey}'` : 'null';
     const itemsHtml = actions.map(a =>
       `<button onclick="handleContractAction('${a.act}','${phone}','${contractKeyOrKeys}',${progArg})"
