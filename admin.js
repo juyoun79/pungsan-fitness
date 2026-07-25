@@ -6143,6 +6143,12 @@
         <div>변경후금액: ${ctx.newPrice.toLocaleString()}원</div>
         <div style="margin-top:6px;font-weight:700;color:#3b82f6;">${diffLine}</div>
       </div>
+      <div style="margin-bottom:14px;">
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">담당자 (매출 귀속용, PT/기구필라테스개인이 아닌 경우)</div>
+        <select id="pc4-staff" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13.5px;font-family:'Noto Sans KR',sans-serif;">
+          <option value="">선택 안 함 (미정)</option>
+        </select>
+      </div>
       <div style="display:flex;gap:10px;">
         <button onclick="_renderProgChangeStep3()" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
         <button id="pc4-confirm-btn" onclick="_confirmProgChange()" style="flex:1;padding:12px;background:#3b82f6;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">변경 확정</button>
@@ -6150,6 +6156,13 @@
 
     modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">${body}</div>`;
     document.body.appendChild(modal);
+    const staffSel = document.getElementById('pc4-staff');
+    if (staffSel) {
+      _fetchTrainerOptionsForGoal().then(opts => {
+        staffSel.innerHTML = '<option value="">선택 안 함 (미정)</option>' +
+          opts.map(t => `<option value="${t.id}" data-name="${t.name}" ${t.id === ctx.salesStaffId ? 'selected' : ''}>${t.name}</option>`).join('');
+      }).catch(() => {});
+    }
   }
 
   async function _confirmProgChange() {
@@ -6157,6 +6170,9 @@
     if (!ctx) return;
     const btn = document.getElementById('pc4-confirm-btn');
     if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
+    const pc4Sel = document.getElementById('pc4-staff');
+    const pc4StaffId = pc4Sel ? pc4Sel.value : '';
+    const pc4StaffName = pc4StaffId ? (pc4Sel.options[pc4Sel.selectedIndex].getAttribute('data-name') || '') : '';
     try {
       const todayStr = _todayISO();
       const updates = {};
@@ -6248,6 +6264,7 @@
         // isProgChange 플래그로 "프로그램변경으로 생긴 계약"이라는 사실은 별도로 남겨둠 (계약이력 카드에 "변경" 표시용)
         type: contractInfo.type === 're' ? 're' : 'new', isProgChange: true,
         signDate: todayStr, createdAt: Date.now(),
+        salesStaffId: pc4StaffId, salesStaffName: pc4StaffName,
         programs: { [ctx.newProgKey]: newProgramData }
       };
       const newKey = todayStr + '_' + Date.now();
@@ -9569,7 +9586,7 @@
           return progs.some(p => _goalProgMatch(rf.progKey, p) && staffMatches(p, rf));
         });
         const weekSums = weekRanges.map(w => {
-          const sales = matched.filter(e => { const dd = dayOf(e); return dd >= w.startDay && dd <= w.endDay; }).reduce((s, e) => s + (e.price || 0), 0);
+          const sales = matched.filter(e => { const dd = dayOf(e); return dd >= w.startDay && dd <= w.endDay; }).reduce((s, e) => s + (e.cash || 0) + (e.card || 0) + (e.transfer || 0), 0);
           const refund = matchedRefunds.filter(rf => { const dd = dayOf(rf); return dd >= w.startDay && dd <= w.endDay; }).reduce((s, rf) => s + (rf.refundAmount || 0), 0);
           return sales - refund;
         });
@@ -9581,15 +9598,30 @@
       const unassignedEntries = _revAllEntries.filter(e => inMonth(e) && (e.progKey === 'PT' || e.progKey === '기구필라테스개인') && !e.trainerId);
       const unassignedRefunds = _revAllRefunds.filter(rf => inMonth(rf) && (rf.progKey === 'PT' || rf.progKey === '기구필라테스개인') && !rf.trainerId);
       const unassignedWeekSums = weekRanges.map(w => {
-        const sales = unassignedEntries.filter(e => { const dd = dayOf(e); return dd >= w.startDay && dd <= w.endDay; }).reduce((s, e) => s + (e.price || 0), 0);
+        const sales = unassignedEntries.filter(e => { const dd = dayOf(e); return dd >= w.startDay && dd <= w.endDay; }).reduce((s, e) => s + (e.cash || 0) + (e.card || 0) + (e.transfer || 0), 0);
         const refund = unassignedRefunds.filter(rf => { const dd = dayOf(rf); return dd >= w.startDay && dd <= w.endDay; }).reduce((s, rf) => s + (rf.refundAmount || 0), 0);
         return sales - refund;
       });
       const unassignedSum = unassignedWeekSums.reduce((a, b) => a + b, 0);
 
+      // 헬스/GX/기구필라테스그룹/락카/일일권/양도비 등 일반 카테고리 중 담당자 미지정 매출 (환불도 같이 차감)
+      const isGeneralCategory = (progKey) => {
+        if (progKey === 'PT' || progKey === '기구필라테스개인') return false;
+        if (progKey === '헬스' || progKey === 'GX' || progKey === '기구필라테스그룹' || progKey === 'extra:locker' || progKey === '양도') return true;
+        return typeof progKey === 'string' && progKey.indexOf('daypass') === 0;
+      };
+      const genUnassignedEntries = _revAllEntries.filter(e => inMonth(e) && isGeneralCategory(e.progKey) && !e.salesStaffId);
+      const genUnassignedRefunds = _revAllRefunds.filter(rf => inMonth(rf) && isGeneralCategory(rf.progKey) && !rf.salesStaffId);
+      const genUnassignedWeekSums = weekRanges.map(w => {
+        const sales = genUnassignedEntries.filter(e => { const dd = dayOf(e); return dd >= w.startDay && dd <= w.endDay; }).reduce((s, e) => s + (e.cash || 0) + (e.card || 0) + (e.transfer || 0), 0);
+        const refund = genUnassignedRefunds.filter(rf => { const dd = dayOf(rf); return dd >= w.startDay && dd <= w.endDay; }).reduce((s, rf) => s + (rf.refundAmount || 0), 0);
+        return sales - refund;
+      });
+      const genUnassignedSum = genUnassignedWeekSums.reduce((a, b) => a + b, 0);
+
       const totalGoal = rowResults.reduce((s, r) => s + r.goalAmount, 0);
-      const weekTotals = weekRanges.map((_, i) => rowResults.reduce((s, r) => s + r.weekSums[i], 0) + unassignedWeekSums[i]);
-      const totalActual = rowResults.reduce((s, r) => s + r.monthSum, 0) + unassignedSum;
+      const weekTotals = weekRanges.map((_, i) => rowResults.reduce((s, r) => s + r.weekSums[i], 0) + unassignedWeekSums[i] + genUnassignedWeekSums[i]);
+      const totalActual = rowResults.reduce((s, r) => s + r.monthSum, 0) + unassignedSum + genUnassignedSum;
 
       const fmt = n => (n || 0).toLocaleString() + '원';
       const rateColor = (rate) => rate >= 100 ? '#22c55e' : (rate >= 70 ? 'var(--text)' : '#ef4444');
@@ -9624,6 +9656,13 @@
           <td style="padding:8px 6px;" colspan="2">담당강사 미정 (PT/기구필라테스개인)</td>`;
         unassignedWeekSums.forEach(w => { html += `<td style="padding:8px 6px;text-align:right;">${fmt(w)}</td>`; });
         html += `<td style="padding:8px 6px;text-align:right;font-weight:700;">${fmt(unassignedSum)}</td><td style="padding:8px 6px;text-align:right;">-</td><td style="padding:8px 6px;text-align:right;">-</td><td style="padding:8px 6px;text-align:right;">-</td>
+        </tr>`;
+      }
+      if (genUnassignedSum > 0) {
+        html += `<tr style="border-top:1px solid var(--border);color:var(--text-hint);">
+          <td style="padding:8px 6px;" colspan="2">담당자 미정 (헬스/GX/락카 등)</td>`;
+        genUnassignedWeekSums.forEach(w => { html += `<td style="padding:8px 6px;text-align:right;">${fmt(w)}</td>`; });
+        html += `<td style="padding:8px 6px;text-align:right;font-weight:700;">${fmt(genUnassignedSum)}</td><td style="padding:8px 6px;text-align:right;">-</td><td style="padding:8px 6px;text-align:right;">-</td><td style="padding:8px 6px;text-align:right;">-</td>
         </tr>`;
       }
 
