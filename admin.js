@@ -1807,6 +1807,29 @@
     });
     const navRow = document.getElementById('rev-date-nav-row');
     const customRow = document.getElementById('rev-custom-range');
+    const goalView = document.getElementById('rev-goal-view');
+    const subtabBar = document.getElementById('rev-subtab-bar-card');
+    const datenavCard = document.getElementById('rev-datenav-card');
+
+    if (unit === 'goal') {
+      if (subtabBar) subtabBar.style.display = 'none';
+      if (datenavCard) datenavCard.style.display = 'none';
+      ['summary', 'chart', 'detail'].forEach(t => {
+        const el = document.getElementById('rev-subtab-' + t);
+        if (el) el.style.display = 'none';
+      });
+      if (goalView) goalView.style.display = '';
+      renderSalesGoalReport();
+      return;
+    }
+    if (subtabBar) subtabBar.style.display = '';
+    if (datenavCard) datenavCard.style.display = '';
+    if (goalView) goalView.style.display = 'none';
+    // 목표매출 화면에서 벗어날 때 원래 활성 세부탭 복원
+    const activeSubtab = document.querySelector('.rev-subtab-btn.active')?.dataset.subtab || 'summary';
+    const el = document.getElementById('rev-subtab-' + activeSubtab);
+    if (el) el.style.display = '';
+
     if (unit === 'custom') {
       if (navRow) navRow.style.display = 'none';
       if (customRow) customRow.style.display = 'flex';
@@ -1934,7 +1957,8 @@
               phone, name, progKey: it.progKey, label, pkgGroupKey,
               price: (d.price || 0) - settleAmt, cash: signCash, card: signCard, transfer: signTransfer,
               date: c.signDate || '', contractType,
-              trainerId: (it.progKey === 'PT' || it.progKey === '기구필라테스개인') ? (d.trainerId || '') : ''
+              trainerId: (it.progKey === 'PT' || it.progKey === '기구필라테스개인') ? (d.trainerId || '') : '',
+              salesStaffId: c.salesStaffId || '', salesStaffName: c.salesStaffName || ''
             });
             if (settleAmt > 0 && d.unpaidSettledAt) {
               entries.push({
@@ -1944,7 +1968,8 @@
                 card: settleMethod === 'card' ? settleAmt : 0,
                 transfer: settleMethod === 'transfer' ? settleAmt : 0,
                 date: d.unpaidSettledAt, contractType,
-                trainerId: '', isSettlement: true
+                trainerId: '', isSettlement: true,
+                salesStaffId: c.salesStaffId || '', salesStaffName: c.salesStaffName || ''
               });
             }
             if (d.refund) {
@@ -1962,7 +1987,8 @@
             entries.push({
               phone, name, progKey: 'extra:' + key, label,
               price: (e.price || 0) - settleAmt, cash: signCash, card: signCard, transfer: signTransfer,
-              date: c.signDate || '', contractType, trainerId: ''
+              date: c.signDate || '', contractType, trainerId: '',
+              salesStaffId: c.salesStaffId || '', salesStaffName: c.salesStaffName || ''
             });
             if (settleAmt > 0 && e.unpaidSettledAt) {
               entries.push({
@@ -1971,7 +1997,8 @@
                 cash: settleMethod === 'cash' ? settleAmt : 0,
                 card: settleMethod === 'card' ? settleAmt : 0,
                 transfer: settleMethod === 'transfer' ? settleAmt : 0,
-                date: e.unpaidSettledAt, contractType, trainerId: '', isSettlement: true
+                date: e.unpaidSettledAt, contractType, trainerId: '', isSettlement: true,
+                salesStaffId: c.salesStaffId || '', salesStaffName: c.salesStaffName || ''
               });
             }
           });
@@ -1988,6 +2015,7 @@
           card: dp.method === 'card' ? (dp.amount || 0) : 0,
           transfer: dp.method === 'transfer' ? (dp.amount || 0) : 0,
           date: dp.date || '', contractType: meta.contractType, trainerId: '',
+          salesStaffId: '', salesStaffName: '',
           daypassKey: dSnap.key, daypassType: dp.type || 'normal', daypassMethod: dp.method || ''
         });
       });
@@ -2094,6 +2122,7 @@
           card: method === 'card' ? amount : 0,
           transfer: method === 'transfer' ? amount : 0,
           date, contractType: meta.contractType, trainerId: '',
+          salesStaffId: '', salesStaffName: '',
           daypassKey: newRef.key, daypassType: type, daypassMethod: method
         });
         loadRevenueStats();
@@ -9439,6 +9468,160 @@
     _renderSalesGoalRows();
   }
   window.toggleSalesGoalProgram = toggleSalesGoalProgram;
+
+  // ── 매출통계 탭: 목표매출 결과표 ──
+  let _goalRefDate = new Date();
+
+  function _goalNavMonth(delta) {
+    _goalRefDate = new Date(_goalRefDate.getFullYear(), _goalRefDate.getMonth() + delta, 1);
+    renderSalesGoalReport();
+  }
+  window._goalNavMonth = _goalNavMonth;
+
+  // 설정에 선택된 매출구성범위(예: '락카','일일권')를 실제 매출데이터의 progKey와 매칭
+  function _goalProgMatch(entryProgKey, selLabel) {
+    if (selLabel === '락카') return entryProgKey === 'extra:locker';
+    if (selLabel === '일일권') return typeof entryProgKey === 'string' && entryProgKey.indexOf('daypass') === 0;
+    if (selLabel === '양도') return false; // 현재 매출 데이터에 '양도'를 별도 항목으로 집계하는 구조가 없음
+    return entryProgKey === selLabel;
+  }
+
+  // 한 달을 "매주 월요일 시작" 기준으로 주차별 {startDay, endDay} 배열로 나눔 (첫 주만 짧을 수 있음)
+  function _goalWeekRangesOfMonth(year, monthIdx0) {
+    const lastDay = new Date(year, monthIdx0 + 1, 0).getDate();
+    const ranges = [];
+    let d = 1;
+    while (d <= lastDay) {
+      const dow = new Date(year, monthIdx0, d).getDay(); // 0=일 ~ 6=토
+      const daysUntilSunday = dow === 0 ? 0 : (7 - dow);
+      const endDay = Math.min(d + daysUntilSunday, lastDay);
+      ranges.push({ startDay: d, endDay });
+      d = endDay + 1;
+    }
+    return ranges;
+  }
+
+  function _goalParseDate(dateStr) {
+    const parts = String(dateStr || '').split('-').map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return null;
+    return { y: parts[0], m: parts[1], d: parts[2] };
+  }
+
+  function renderSalesGoalReport() {
+    const wrap = document.getElementById('rev-goal-table-wrap');
+    if (!wrap) return;
+    const y = _goalRefDate.getFullYear();
+    const m0 = _goalRefDate.getMonth(); // 0-indexed
+    const labelEl = document.getElementById('rev-goal-month-label');
+    if (labelEl) labelEl.textContent = y + '년 ' + (m0 + 1) + '월';
+
+    if (!_revAllEntries) {
+      wrap.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
+      _revBuildData().then(renderSalesGoalReport);
+      return;
+    }
+
+    db.ref('sales_goal_config').once('value').then(snap => {
+      const rows = snap.val() || {};
+      const rowIds = Object.keys(rows);
+      const weekRanges = _goalWeekRangesOfMonth(y, m0);
+
+      const inMonth = (e) => { const p = _goalParseDate(e.date); return p && p.y === y && p.m === (m0 + 1); };
+      const dayOf = (e) => { const p = _goalParseDate(e.date); return p ? p.d : 0; };
+
+      const rowResults = rowIds.map(id => {
+        const r = rows[id] || {};
+        const progs = Object.keys(r.programs || {});
+        const matched = !r.trainerId ? [] : _revAllEntries.filter(e => {
+          if (!inMonth(e)) return false;
+          return progs.some(p => {
+            if (!_goalProgMatch(e.progKey, p)) return false;
+            if (p === 'PT' || p === '기구필라테스개인') return e.trainerId === r.trainerId;
+            return e.salesStaffId === r.trainerId;
+          });
+        });
+        const weekSums = weekRanges.map(w => matched.filter(e => { const dd = dayOf(e); return dd >= w.startDay && dd <= w.endDay; }).reduce((s, e) => s + (e.price || 0), 0));
+        const monthSum = weekSums.reduce((a, b) => a + b, 0);
+        return { id, role: r.role || '(직책 미입력)', trainerName: r.trainerName || '(직원 미선택)', goalAmount: r.goalAmount || 0, weekSums, monthSum };
+      });
+
+      // 담당강사(PT/기구필라테스개인) 미지정 매출
+      const unassignedEntries = _revAllEntries.filter(e => inMonth(e) && (e.progKey === 'PT' || e.progKey === '기구필라테스개인') && !e.trainerId);
+      const unassignedWeekSums = weekRanges.map(w => unassignedEntries.filter(e => { const dd = dayOf(e); return dd >= w.startDay && dd <= w.endDay; }).reduce((s, e) => s + (e.price || 0), 0));
+      const unassignedSum = unassignedWeekSums.reduce((a, b) => a + b, 0);
+
+      const totalGoal = rowResults.reduce((s, r) => s + r.goalAmount, 0);
+      const weekTotals = weekRanges.map((_, i) => rowResults.reduce((s, r) => s + r.weekSums[i], 0) + unassignedWeekSums[i]);
+      const totalActual = rowResults.reduce((s, r) => s + r.monthSum, 0) + unassignedSum;
+
+      const fmt = n => (n || 0).toLocaleString() + '원';
+      const rateColor = (rate) => rate >= 100 ? '#22c55e' : (rate >= 70 ? 'var(--text)' : '#ef4444');
+
+      if (!rowIds.length) {
+        wrap.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-hint);font-size:13.5px;">설정 탭 &gt; 목표매출 설정에서 먼저 직책을 등록해주세요.</div>';
+        return;
+      }
+
+      let html = '<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:' + (600 + weekRanges.length * 90) + 'px;">';
+      html += '<thead><tr style="background:var(--bg);">';
+      html += '<th style="padding:8px 6px;text-align:left;white-space:nowrap;">직책</th><th style="padding:8px 6px;text-align:left;white-space:nowrap;">이름</th>';
+      weekRanges.forEach((w, i) => { html += `<th style="padding:8px 6px;text-align:right;white-space:nowrap;">${i + 1}주차<br><span style="font-weight:400;color:var(--text-hint);">(${m0 + 1}/${w.startDay}~${m0 + 1}/${w.endDay})</span></th>`; });
+      html += '<th style="padding:8px 6px;text-align:right;white-space:nowrap;">월 매출합계</th><th style="padding:8px 6px;text-align:right;white-space:nowrap;">목표 매출액</th><th style="padding:8px 6px;text-align:right;white-space:nowrap;">달성 필요액</th><th style="padding:8px 6px;text-align:right;white-space:nowrap;">달성률</th>';
+      html += '</tr></thead><tbody>';
+
+      rowResults.forEach(r => {
+        const rate = r.goalAmount > 0 ? Math.round(r.monthSum / r.goalAmount * 100) : 0;
+        const need = Math.max(r.goalAmount - r.monthSum, 0);
+        html += `<tr style="border-top:1px solid var(--border);">
+          <td style="padding:8px 6px;">${r.role}</td><td style="padding:8px 6px;">${r.trainerName}</td>`;
+        r.weekSums.forEach(w => { html += `<td style="padding:8px 6px;text-align:right;">${fmt(w)}</td>`; });
+        html += `<td style="padding:8px 6px;text-align:right;font-weight:700;">${fmt(r.monthSum)}</td>
+          <td style="padding:8px 6px;text-align:right;">${fmt(r.goalAmount)}</td>
+          <td style="padding:8px 6px;text-align:right;color:${need > 0 ? '#ef4444' : 'var(--text-hint)'};">${need > 0 ? '-' + fmt(need) : '-'}</td>
+          <td style="padding:8px 6px;text-align:right;font-weight:700;color:${rateColor(rate)};">${r.goalAmount > 0 ? rate + '%' : '-'}</td>
+        </tr>`;
+      });
+
+      if (unassignedSum > 0) {
+        html += `<tr style="border-top:1px solid var(--border);color:var(--text-hint);">
+          <td style="padding:8px 6px;" colspan="2">담당강사 미정 (PT/기구필라테스개인)</td>`;
+        unassignedWeekSums.forEach(w => { html += `<td style="padding:8px 6px;text-align:right;">${fmt(w)}</td>`; });
+        html += `<td style="padding:8px 6px;text-align:right;font-weight:700;">${fmt(unassignedSum)}</td><td style="padding:8px 6px;text-align:right;">-</td><td style="padding:8px 6px;text-align:right;">-</td><td style="padding:8px 6px;text-align:right;">-</td>
+        </tr>`;
+      }
+
+      const totalRate = totalGoal > 0 ? Math.round(totalActual / totalGoal * 100) : 0;
+      const totalNeed = Math.max(totalGoal - totalActual, 0);
+      html += `<tr style="border-top:2px solid var(--border-strong,var(--border));font-weight:700;">
+        <td style="padding:8px 6px;" colspan="2">합계</td>`;
+      weekTotals.forEach(w => { html += `<td style="padding:8px 6px;text-align:right;">${fmt(w)}</td>`; });
+      html += `<td style="padding:8px 6px;text-align:right;">${fmt(totalActual)}</td>
+        <td style="padding:8px 6px;text-align:right;">${fmt(totalGoal)}</td>
+        <td style="padding:8px 6px;text-align:right;color:${totalNeed > 0 ? '#ef4444' : 'var(--text-hint)'};">${totalNeed > 0 ? '-' + fmt(totalNeed) : '-'}</td>
+        <td style="padding:8px 6px;text-align:right;color:${rateColor(totalRate)};">${totalGoal > 0 ? totalRate + '%' : '-'}</td>
+      </tr>`;
+      html += '</tbody></table>';
+
+      // 하단 요약 카드
+      const now = new Date();
+      const isCurrentMonth = now.getFullYear() === y && now.getMonth() === m0;
+      const lastDay = new Date(y, m0 + 1, 0).getDate();
+      const daysLeft = isCurrentMonth ? Math.max(lastDay - now.getDate(), 0) : (y > now.getFullYear() || (y === now.getFullYear() && m0 > now.getMonth()) ? lastDay : 0);
+
+      html += `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:14px;">
+        <div style="background:var(--bg);border-radius:10px;padding:10px;"><div style="font-size:11px;color:var(--text-hint);">현재 총 매출</div><div style="font-size:14px;font-weight:700;">${fmt(totalActual)}</div></div>
+        <div style="background:var(--bg);border-radius:10px;padding:10px;"><div style="font-size:11px;color:var(--text-hint);">총 목표 매출액</div><div style="font-size:14px;font-weight:700;">${fmt(totalGoal)}</div></div>
+        <div style="background:var(--bg);border-radius:10px;padding:10px;"><div style="font-size:11px;color:var(--text-hint);">필요 매출액</div><div style="font-size:14px;font-weight:700;color:${totalNeed > 0 ? '#ef4444' : 'var(--text-hint)'};">${totalNeed > 0 ? '-' + fmt(totalNeed) : '-'}</div></div>
+        <div style="background:var(--bg);border-radius:10px;padding:10px;"><div style="font-size:11px;color:var(--text-hint);">총 매출 달성률 / 남은일수</div><div style="font-size:14px;font-weight:700;color:${rateColor(totalRate)};">${totalGoal > 0 ? totalRate + '%' : '-'} · ${daysLeft}일</div></div>
+      </div>`;
+
+      wrap.innerHTML = html;
+    }).catch(err => {
+      console.error('목표매출 결과표 오류:', err);
+      wrap.innerHTML = '<div style="text-align:center;padding:24px;color:var(--red);font-size:13px;">불러오기에 실패했어요.</div>';
+    });
+  }
+  window.renderSalesGoalReport = renderSalesGoalReport;
 
   // ── 전체 회원 기간 일괄연장 ──
   // 날짜문자열(0패딩 여부 무관)에 일수를 더해서 ISO(YYYY-MM-DD)로 반환
