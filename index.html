@@ -4552,6 +4552,10 @@
             style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);border:1.5px solid var(--border);">
             🗓️ 일괄작업
           </button>
+          <button id="settings-subtab-goal" onclick="switchSettingsSubtab('goal')"
+            style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);border:1.5px solid var(--border);">
+            🎯 목표매출
+          </button>
         </div>
 
         <!-- 서브탭: 비밀번호 -->
@@ -4664,6 +4668,21 @@
             </div>
             <button onclick="openBulkExtendFlow()" class="btn-primary" style="width:100%;">전체 회원 기간 연장 시작</button>
             <button onclick="openBulkExtendHistory()" style="width:100%;margin-top:8px;padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗓️ 지난 이력 보기</button>
+          </div>
+        </div>
+
+        <!-- 서브탭: 목표매출 설정 -->
+        <div id="settings-view-goal" style="display:none;">
+          <div class="admin-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <div class="admin-card-title" style="margin:0;">🎯 목표매출 설정</div>
+              <button onclick="addSalesGoalRow()" style="background:var(--blue);color:white;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 직책 추가</button>
+            </div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:14px;line-height:1.6;">
+              직책마다 담당 직원, 매출구성범위(중복선택 가능), 이번달 목표매출을 설정하세요.<br>
+              PT/기구필라테스개인은 계약서 항목의 "담당강사 지정"을 기준으로 자동 집계돼요.
+            </div>
+            <div id="sales-goal-rows"><div style="text-align:center;padding:24px;color:var(--text-hint);font-size:14px;">불러오는 중...</div></div>
           </div>
         </div>
 

@@ -9212,7 +9212,7 @@
 
   // ── 설정탭 서브탭 전환 ──
   function switchSettingsSubtab(tab) {
-    const tabs = ['pw', 'equipment', 'terms', 'business', 'bulk'];
+    const tabs = ['pw', 'equipment', 'terms', 'business', 'bulk', 'goal'];
     tabs.forEach(t => {
       const btn  = document.getElementById('settings-subtab-' + t);
       const view = document.getElementById('settings-view-' + t);
@@ -9227,6 +9227,7 @@
     if (tab === 'equipment') loadAdminEquipmentList();
     if (tab === 'terms')     loadTerms();
     if (tab === 'business')  loadBusinessInfo();
+    if (tab === 'goal')      loadSalesGoalConfig();
   }
   window.switchSettingsSubtab = switchSettingsSubtab;
 
@@ -9258,6 +9259,157 @@
     });
   }
   window.saveBusinessInfo = saveBusinessInfo;
+
+  // ── 목표매출 설정 (설정 탭) ──
+  const SALES_GOAL_PROG_LIST = ['헬스', 'GX', 'PT', '기구필라테스개인', '기구필라테스그룹', '락카', '일일권', '양도'];
+  let _salesGoalRows = {};       // { rowId: { role, trainerId, trainerName, programs:{prog:true}, goalAmount } }
+  let _salesGoalTrainerOpts = []; // [{id, name}]
+
+  function _fetchTrainerOptionsForGoal() {
+    return Promise.all([
+      db.ref('users').once('value'),
+      db.ref('trainers').once('value')
+    ]).then(([usersSnap, trainersSnap]) => {
+      const seen = new Set();
+      const list = [];
+      if (trainersSnap.exists()) {
+        trainersSnap.forEach(child => {
+          const info = child.val();
+          if (!seen.has(child.key)) { seen.add(child.key); list.push({ id: child.key, name: info.name || child.key }); }
+        });
+      }
+      if (usersSnap.exists()) {
+        usersSnap.forEach(child => {
+          const role = child.val().role;
+          if ((role === 'trainer' || role === 'manager' || role === 'admin') && !seen.has(child.key)) {
+            seen.add(child.key);
+            list.push({ id: child.key, name: child.val().name || child.key });
+          }
+        });
+      }
+      return list;
+    });
+  }
+
+  function loadSalesGoalConfig() {
+    const wrap = document.getElementById('sales-goal-rows');
+    if (!wrap) return;
+    wrap.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-hint);font-size:14px;">불러오는 중...</div>';
+    Promise.all([
+      db.ref('sales_goal_config').once('value'),
+      _fetchTrainerOptionsForGoal()
+    ]).then(([snap, trainerOpts]) => {
+      _salesGoalTrainerOpts = trainerOpts;
+      _salesGoalRows = snap.val() || {};
+      _renderSalesGoalRows();
+    }).catch(err => {
+      console.error('목표매출 설정 불러오기 오류:', err);
+      wrap.innerHTML = '<div style="text-align:center;padding:24px;color:var(--red);font-size:13px;">불러오기에 실패했어요.</div>';
+    });
+  }
+  window.loadSalesGoalConfig = loadSalesGoalConfig;
+
+  function _renderSalesGoalRows() {
+    const wrap = document.getElementById('sales-goal-rows');
+    if (!wrap) return;
+    const ids = Object.keys(_salesGoalRows);
+    if (!ids.length) {
+      wrap.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-hint);font-size:13.5px;">아직 등록된 직책이 없어요.<br>"+ 직책 추가"를 눌러 시작하세요.</div>';
+      return;
+    }
+    const trainerOptHtml = (selectedId) => '<option value="">선택</option>' +
+      _salesGoalTrainerOpts.map(t => `<option value="${t.id}" ${t.id === selectedId ? 'selected' : ''}>${t.name}</option>`).join('');
+
+    wrap.innerHTML = ids.map(id => {
+      const row = _salesGoalRows[id] || {};
+      const programs = row.programs || {};
+      return `
+        <div style="border-top:1px solid var(--border);padding:12px 0;">
+          <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+            <input type="text" value="${(row.role || '').replace(/"/g, '&quot;')}" placeholder="직책 (예: 점장)"
+              onchange="updateSalesGoalRow('${id}','role',this.value)"
+              style="flex:1;min-width:100px;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13.5px;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+            <select onchange="updateSalesGoalRow('${id}','trainerId',this.value)"
+              style="flex:1;min-width:100px;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13.5px;font-family:'Noto Sans KR',sans-serif;outline:none;">
+              ${trainerOptHtml(row.trainerId)}
+            </select>
+            <input type="text" inputmode="numeric" value="${row.goalAmount ? Number(row.goalAmount).toLocaleString() : ''}" placeholder="목표매출(원)"
+              onchange="updateSalesGoalRow('${id}','goalAmount',this.value)"
+              style="width:130px;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13.5px;text-align:right;font-family:'Noto Sans KR',sans-serif;outline:none;" />
+            <button onclick="deleteSalesGoalRow('${id}')" style="padding:9px 12px;border:none;background:var(--card);border-radius:8px;color:var(--red);font-size:13px;cursor:pointer;">삭제</button>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            ${SALES_GOAL_PROG_LIST.map(p => {
+              const active = !!programs[p];
+              return `<span onclick="toggleSalesGoalProgram('${id}','${p}')"
+                style="cursor:pointer;font-size:12px;padding:5px 10px;border-radius:14px;font-weight:700;
+                background:${active ? 'var(--blue)' : 'var(--card)'};color:${active ? 'white' : 'var(--text-hint)'};
+                border:1px solid ${active ? 'var(--blue)' : 'var(--border)'};">${p}</span>`;
+            }).join('')}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function addSalesGoalRow() {
+    const newRef = db.ref('sales_goal_config').push();
+    const newRow = { role: '', trainerId: '', goalAmount: 0, programs: {} };
+    newRef.set(newRow).then(() => {
+      _salesGoalRows[newRef.key] = newRow;
+      _renderSalesGoalRows();
+    }).catch(err => {
+      console.error('목표매출 직책 추가 오류:', err);
+      showToast('추가 중 오류가 발생했어요.', 'error');
+    });
+  }
+  window.addSalesGoalRow = addSalesGoalRow;
+
+  function deleteSalesGoalRow(id) {
+    showConfirm('이 직책을 삭제할까요?', () => {
+      db.ref('sales_goal_config/' + id).remove().then(() => {
+        delete _salesGoalRows[id];
+        _renderSalesGoalRows();
+      }).catch(err => {
+        console.error('목표매출 직책 삭제 오류:', err);
+        showToast('삭제 중 오류가 발생했어요.', 'error');
+      });
+    });
+  }
+  window.deleteSalesGoalRow = deleteSalesGoalRow;
+
+  function updateSalesGoalRow(id, field, value) {
+    if (!_salesGoalRows[id]) return;
+    let v = value;
+    if (field === 'goalAmount') v = parseInt(String(value).replace(/[^0-9]/g, '')) || 0;
+    if (field === 'trainerId') {
+      const opt = _salesGoalTrainerOpts.find(t => t.id === value);
+      _salesGoalRows[id].trainerName = opt ? opt.name : '';
+      db.ref('sales_goal_config/' + id + '/trainerName').set(_salesGoalRows[id].trainerName);
+    }
+    _salesGoalRows[id][field] = v;
+    db.ref('sales_goal_config/' + id + '/' + field).set(v).then(() => {
+      if (field === 'goalAmount') _renderSalesGoalRows();
+    }).catch(err => {
+      console.error('목표매출 저장 오류:', err);
+      showToast('저장 중 오류가 발생했어요.', 'error');
+    });
+  }
+  window.updateSalesGoalRow = updateSalesGoalRow;
+
+  function toggleSalesGoalProgram(id, prog) {
+    if (!_salesGoalRows[id]) return;
+    if (!_salesGoalRows[id].programs) _salesGoalRows[id].programs = {};
+    const cur = !!_salesGoalRows[id].programs[prog];
+    if (cur) {
+      delete _salesGoalRows[id].programs[prog];
+      db.ref('sales_goal_config/' + id + '/programs/' + prog).remove();
+    } else {
+      _salesGoalRows[id].programs[prog] = true;
+      db.ref('sales_goal_config/' + id + '/programs/' + prog).set(true);
+    }
+    _renderSalesGoalRows();
+  }
+  window.toggleSalesGoalProgram = toggleSalesGoalProgram;
 
   // ── 전체 회원 기간 일괄연장 ──
   // 날짜문자열(0패딩 여부 무관)에 일수를 더해서 ISO(YYYY-MM-DD)로 반환
