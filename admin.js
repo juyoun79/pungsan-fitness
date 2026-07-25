@@ -7603,6 +7603,12 @@
               </div>
             </div>
           </div>
+          <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:10px;">
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">담당자 (매출 귀속용)</div>
+            <select id="ld-staff" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;">
+              <option value="">선택 안 함 (미정)</option>
+            </select>
+          </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:16px;">
           <button onclick="assignLocker('${catId}','${no}')"
@@ -7839,6 +7845,10 @@
     const lock  = document.getElementById('ld-lock')?.value.trim();
     if (!phone) { showToast('연락처를 입력해주세요.', 'error'); return; }
 
+    const staffSel = document.getElementById('ld-staff');
+    const staffId  = staffSel ? staffSel.value : '';
+    const staffName = staffId ? (staffSel.options[staffSel.selectedIndex].getAttribute('data-name') || '') : '';
+
     const numField = id => parseInt((document.getElementById(id)?.value || '0').replace(/[^0-9]/g, '')) || 0;
     const price    = numField('ld-price');
     const cash     = numField('ld-cash');
@@ -7883,6 +7893,7 @@
           signDate,
           createdAt: Date.now(),
           registeredBy: localStorage.getItem('current_user') || 'admin',
+          salesStaffId: staffId, salesStaffName: staffName,
           source: 'locker_tab',
         });
       } catch (e) {
@@ -7946,6 +7957,13 @@
       ${html}</div>`;
     document.body.appendChild(modal);
     modal.addEventListener('click', e => { if (e.target === modal) closeLockerDetail(); });
+    const staffSel = document.getElementById('ld-staff');
+    if (staffSel) {
+      _fetchTrainerOptionsForGoal().then(opts => {
+        staffSel.innerHTML = '<option value="">선택 안 함 (미정)</option>' +
+          opts.map(t => `<option value="${t.id}" data-name="${t.name}">${t.name}</option>`).join('');
+      }).catch(() => {});
+    }
   }
 
   function closeLockerDetail() {
