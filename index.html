@@ -97,6 +97,24 @@
   }
 
 
+  // ── 통계 제목 옆 ⓘ 클릭 시 뜨는 짧은 설명 팝업 (다른 통계에도 재사용 가능) ──
+  function showStatInfo(title, text) {
+    const existing = document.getElementById('app-statinfo-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-statinfo-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+    modal.innerHTML = '<div style="background:var(--bg, #fff);border-radius:16px;padding:20px;width:100%;max-width:300px;font-family:\'Noto Sans KR\',sans-serif;">'
+      + '<div style="font-size:14.5px;font-weight:700;color:var(--text,#1a1a1a);margin-bottom:8px;">' + title + '</div>'
+      + '<div style="font-size:13px;color:var(--text-hint,#888);margin-bottom:16px;line-height:1.6;white-space:pre-line;">' + text + '</div>'
+      + '<button id="app-statinfo-ok" style="width:100%;padding:11px;background:#7F77DD;border:none;border-radius:10px;font-size:13.5px;font-weight:700;color:white;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">확인</button>'
+      + '</div>';
+    document.body.appendChild(modal);
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    document.getElementById('app-statinfo-ok').onclick = () => modal.remove();
+  }
+  window.showStatInfo = showStatInfo;
+
   // ── 커스텀 입력 팝업 ──
   function showInput(title, placeholder, defaultVal, onConfirm, onCancel, inputType) {
     const existing = document.getElementById('app-input-modal');
@@ -2681,7 +2699,7 @@
         <div id="dash-flex-wrap">
           <div class="admin-card dash-flex-card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-              <div class="admin-card-title" style="margin-bottom:0;">🧩 유효회원 구성 비율</div>
+              <div class="admin-card-title" style="margin-bottom:0;display:flex;align-items:center;gap:5px;">🧩 유효회원 구성 비율<span onclick="showStatInfo('🧩 유효회원 구성 비율','현재 유효한 계약을 기준으로, 프로그램별 이용 인원 비율을 보여줘요.\n패키지 상품은 패키지 안에서 가장 비싼 프로그램 하나로 표시돼요.')" style="cursor:pointer;color:var(--text-hint);font-size:13px;">ⓘ</span></div>
               <div id="dash-net-change-badge" style="font-size:11.5px;font-weight:700;"></div>
             </div>
             <div style="display:flex;align-items:center;justify-content:center;gap:18px;flex:1;">
@@ -2694,7 +2712,7 @@
 
           <div class="admin-card dash-flex-card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-              <div class="admin-card-title" style="margin-bottom:0;">👥 연령별 현황</div>
+              <div class="admin-card-title" style="margin-bottom:0;display:flex;align-items:center;gap:5px;">👥 연령별 현황<span onclick="showStatInfo('👥 연령별 현황','유효회원/전체회원 토글과 프로그램 필터 칩에 따라, 연령대별 인원과 비율(남/여 구분)을 보여줘요.')" style="cursor:pointer;color:var(--text-hint);font-size:13px;">ⓘ</span></div>
               <div style="display:flex;gap:4px;">
                 <button id="dash-age-btn-valid" class="dash-age-toggle-btn active" onclick="switchDashAgeBasis('valid')">유효회원</button>
                 <button id="dash-age-btn-all" class="dash-age-toggle-btn" onclick="switchDashAgeBasis('all')">전체회원</button>
@@ -2839,7 +2857,7 @@
           </div>
 
           <div class="admin-card">
-            <div class="admin-card-title">🆕 신규 vs 재등록</div>
+            <div class="admin-card-title" style="display:flex;align-items:center;gap:5px;">🆕 신규 vs 재등록<span onclick="showStatInfo('🆕 신규 vs 재등록','선택한 기간 동안 처음 가입한 회원(신규)과 재가입한 회원(재등록)의 매출 비율이에요.')" style="cursor:pointer;color:var(--text-hint);font-size:13px;">ⓘ</span></div>
             <div style="position:relative;height:180px;margin-bottom:8px;">
               <canvas id="rev-newre-chart"></canvas>
             </div>

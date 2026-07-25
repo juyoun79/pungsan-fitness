@@ -1540,7 +1540,7 @@
       if (netEl) {
         const sign = netChange > 0 ? '▲' : (netChange < 0 ? '▼' : '');
         const color = netChange > 0 ? '#22c55e' : (netChange < 0 ? '#ef4444' : 'var(--text-hint)');
-        netEl.innerHTML = `<span onclick="showNetChangeDetail()" style="color:${color};cursor:pointer;text-decoration:underline dotted;">이번달 순증감 ${sign}${Math.abs(netChange)}명</span>`;
+        netEl.innerHTML = `<span onclick="showNetChangeDetail()" style="color:${color};cursor:pointer;text-decoration:underline dotted;">이번달 순증감 ${sign}${Math.abs(netChange)}명</span> <span onclick="showStatInfo('📊 이번달 순증감','이번달 신규가입 인원에서 이번달 만료된 인원을 뺀 숫자예요.\\n숫자를 누르면 대상 명단도 볼 수 있어요.')" style="cursor:pointer;color:var(--text-hint);font-size:11px;">ⓘ</span>`;
       }
     };
     if (_revAllEntries) finishRevenuePart();
