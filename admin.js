@@ -9393,7 +9393,7 @@
   window.saveBusinessInfo = saveBusinessInfo;
 
   // ── 목표매출 설정 (설정 탭) ──
-  const SALES_GOAL_PROG_LIST = ['헬스', 'GX', 'PT', '기구필라테스개인', '기구필라테스그룹', '락카', '일일권', '양도비'];
+  const SALES_GOAL_PROG_LIST = ['헬스', 'GX', 'PT', '기구필라테스개인', '기구필라테스그룹', '락카', '운동복', '일일권', '양도비'];
   let _salesGoalRows = {};       // { rowId: { role, trainerId, trainerName, programs:{prog:true}, goalAmount } }
   let _salesGoalTrainerOpts = []; // [{id, name}]
 
@@ -9556,6 +9556,7 @@
   // 설정에 선택된 매출구성범위(예: '락카','일일권')를 실제 매출데이터의 progKey와 매칭
   function _goalProgMatch(entryProgKey, selLabel) {
     if (selLabel === '락카') return entryProgKey === 'extra:locker';
+    if (selLabel === '운동복') return entryProgKey === 'extra:cloth';
     if (selLabel === '일일권') return typeof entryProgKey === 'string' && entryProgKey.indexOf('daypass') === 0;
     if (selLabel === '양도비') return entryProgKey === '양도';
     return entryProgKey === selLabel;
@@ -9641,7 +9642,7 @@
       // 헬스/GX/기구필라테스그룹/락카/일일권/양도비 등 일반 카테고리 중 담당자 미지정 매출 (환불도 같이 차감)
       const isGeneralCategory = (progKey) => {
         if (progKey === 'PT' || progKey === '기구필라테스개인') return false;
-        if (progKey === '헬스' || progKey === 'GX' || progKey === '기구필라테스그룹' || progKey === 'extra:locker' || progKey === '양도') return true;
+        if (progKey === '헬스' || progKey === 'GX' || progKey === '기구필라테스그룹' || progKey === 'extra:locker' || progKey === 'extra:cloth' || progKey === '양도') return true;
         return typeof progKey === 'string' && progKey.indexOf('daypass') === 0;
       };
       const genUnassignedEntries = _revAllEntries.filter(e => inMonth(e) && isGeneralCategory(e.progKey) && !e.salesStaffId);
