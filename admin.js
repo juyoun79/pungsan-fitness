@@ -1763,7 +1763,8 @@
     ['헬스', '헬스'], ['GX', 'GX'], ['PT', 'PT'],
     ['기구필라테스개인', '기구필라테스 개인'], ['기구필라테스그룹', '기구필라테스 그룹'],
     ['extra:locker', '🔑 락카'], ['extra:cloth', '👕 운동복'],
-    ['daypass', '🎫 일일권'], ['daypass_pt', '🏋️ PT 체험'], ['daypass_pilates', '🧘 기구필라테스 체험']
+    ['daypass', '🎫 일일권'], ['daypass_pt', '🏋️ PT 체험'], ['daypass_pilates', '🧘 기구필라테스 체험'],
+    ['양도', '🔁 양도비']
   ];
 
   function initRevenueTab() {
@@ -1935,6 +1936,7 @@
     ]).then(([contractsSnap, members, daypassSnap]) => {
       const entries = [];
       const refunds = [];
+      const seenTransferFeeKeys = new Set(); // 패키지 양도 시 항목마다 동일한 transferOut이 찍히므로 중복집계 방지
       contractsSnap.forEach(phoneSnap => {
         const phone = phoneSnap.key;
         const memberInfo = members[phone];
@@ -1974,6 +1976,23 @@
             }
             if (d.refund) {
               refunds.push({ phone, name, progKey: it.progKey, label, refundAmount: d.refund.refundAmount || 0, date: d.refund.date || '', method: d.refund.method || '' });
+            }
+            // 양도비 — 패키지는 항목마다 같은 transferOut이 찍히므로 계약+처리시각 기준으로 한 번만 집계
+            if (d.transferOut && (d.transferOut.fee || 0) > 0) {
+              const tKey = cSnap.key + '::' + (d.transferOut.processedAt || d.transferOut.date);
+              if (!seenTransferFeeKeys.has(tKey)) {
+                seenTransferFeeKeys.add(tKey);
+                const fee = d.transferOut.fee || 0;
+                entries.push({
+                  phone, name, progKey: '양도', label: '🔁 양도비',
+                  price: fee,
+                  cash: d.transferOut.method === 'cash' ? fee : 0,
+                  card: d.transferOut.method === 'card' ? fee : 0,
+                  transfer: d.transferOut.method === 'transfer' ? fee : 0,
+                  date: d.transferOut.date || '', contractType: '신규', trainerId: '',
+                  salesStaffId: c.salesStaffId || '', salesStaffName: c.salesStaffName || ''
+                });
+              }
             }
           });
           Object.entries(c.extras || {}).forEach(([key, e]) => {
@@ -9482,7 +9501,7 @@
   function _goalProgMatch(entryProgKey, selLabel) {
     if (selLabel === '락카') return entryProgKey === 'extra:locker';
     if (selLabel === '일일권') return typeof entryProgKey === 'string' && entryProgKey.indexOf('daypass') === 0;
-    if (selLabel === '양도') return false; // 현재 매출 데이터에 '양도'를 별도 항목으로 집계하는 구조가 없음
+    if (selLabel === '양도') return entryProgKey === '양도';
     return entryProgKey === selLabel;
   }
 
