@@ -1513,9 +1513,13 @@
       const today = _todayISO();
       const monthPrefix = today.slice(0, 8); // 'YYYY-MM-' (이미 zero-padded)
       const entries = _revAllEntries || [];
-      const todayRevenue = entries.filter(e => e.date === today).reduce((s, e) => s + e.cash + e.card + e.transfer, 0);
+      const refundsAll = _revAllRefunds || [];
+      const todayRevenue = entries.filter(e => e.date === today).reduce((s, e) => s + e.cash + e.card + e.transfer, 0)
+        - refundsAll.filter(rf => rf.date === today).reduce((s, rf) => s + (rf.refundAmount || 0), 0);
       const monthEntries = entries.filter(e => (e.date || '').startsWith(monthPrefix));
-      const monthRevenue = monthEntries.reduce((s, e) => s + e.cash + e.card + e.transfer, 0);
+      const monthRefunds = refundsAll.filter(rf => (rf.date || '').startsWith(monthPrefix));
+      const monthRevenue = monthEntries.reduce((s, e) => s + e.cash + e.card + e.transfer, 0)
+        - monthRefunds.reduce((s, rf) => s + (rf.refundAmount || 0), 0);
       const newCount = monthEntries.filter(e => e.contractType === '신규' && !e.isSettlement).length;
       const reCount = monthEntries.filter(e => e.contractType === '재등록' && !e.isSettlement).length;
 
@@ -4368,12 +4372,9 @@
       : (unpaid > 0
         ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">미수금 ${unpaid.toLocaleString()}원</div>`
         : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">${methodLabel ? methodLabel + ' · ' : ''}완납 ✓</div>`);
-    const menuId = 'extra-menu-' + contractKey + '-' + extKey;
-    const menuHtml = e.refund ? '' : `<div style="margin-top:6px;max-width:140px;">${_renderContractMenuButton(menuId, phone, contractKey, 'extra:' + extKey, '처리', true)}</div>`;
     return `<div class="md-item-row" style="padding:8px 0;border-top:1px solid var(--border);">
       <div class="md-col-prog">
         <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${_extraLabel(extKey, e)}</div>
-        ${menuHtml}
       </div>
       <div class="md-col-months" style="display:none;font-size:12px;color:var(--text-hint);">-</div>
       <div class="md-col-count"  style="display:none;font-size:12px;color:var(--text-hint);">-</div>
@@ -4389,9 +4390,9 @@
     </div>`;
   }
 
-  // 처리▾ 버튼 + 펼침 메뉴 (단독카드/패키지프로그램별 공통으로 사용, isExtra=true면 락카/운동복용으로 정보수정·영수증·환불만 노출)
-  function _renderContractMenuButton(menuId, phone, contractKeyOrKeys, progKey, label, isExtra) {
-    const fullActions = [
+  // 처리▾ 버튼 + 펼침 메뉴 (단독카드/패키지프로그램별 공통으로 사용)
+  function _renderContractMenuButton(menuId, phone, contractKeyOrKeys, progKey, label) {
+    const actions = [
       { icon: '✏️', name: '정보 수정', act: 'edit' },
       { icon: '🧾', name: '영수증', act: 'receipt' },
       { icon: '💰', name: '환불', act: 'refund' },
@@ -4399,7 +4400,6 @@
       { icon: '🔄', name: '프로그램 변경', act: 'change' },
       { icon: '⏸️', name: '정지/휴회', act: 'pause' },
     ];
-    const actions = isExtra ? fullActions.filter(a => ['edit', 'receipt', 'refund'].includes(a.act)) : fullActions;
     const progArg = progKey ? `'${progKey}'` : 'null';
     const itemsHtml = actions.map(a =>
       `<button onclick="handleContractAction('${a.act}','${phone}','${contractKeyOrKeys}',${progArg})"
@@ -4959,7 +4959,11 @@
         openRefundModal(phone, contractKey, progKey);
         return;
       }
-      const items = _flattenContractItems(snap.val()).filter(it => _isItemEligible(it.data));
+      const progItems = _flattenContractItems(snap.val()).filter(it => _isItemEligible(it.data));
+      const extraItems = Object.entries(snap.val().extras || {})
+        .filter(([, e]) => !e.deleted && !e.refund)
+        .map(([key, e]) => ({ progKey: 'extra:' + key, data: e, pkgName: null, pkgIndex: null }));
+      const items = progItems.concat(extraItems);
       if (items.length === 1) {
         openRefundModal(phone, contractKey, items[0].progKey);
       } else if (items.length > 1) {
@@ -5268,9 +5272,11 @@
         const refundRecord = { refundAmount: amount, method, date, processedAt: Date.now(), multiRefund: true };
         const updates = {};
         checkedItems.forEach(it => {
-          const basePath = it.pkgIndex === null
-            ? 'contracts/' + phone + '/' + contractKey + '/programs/' + it.progKey
-            : 'contracts/' + phone + '/' + contractKey + '/packages/' + it.pkgIndex + '/items/' + it.progKey;
+          const basePath = it.progKey.indexOf('extra:') === 0
+            ? 'contracts/' + phone + '/' + contractKey + '/extras/' + it.progKey.replace('extra:', '')
+            : (it.pkgIndex === null
+              ? 'contracts/' + phone + '/' + contractKey + '/programs/' + it.progKey
+              : 'contracts/' + phone + '/' + contractKey + '/packages/' + it.pkgIndex + '/items/' + it.progKey);
           updates[basePath + '/refund'] = refundRecord;
         });
         await db.ref().update(updates);
