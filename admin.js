@@ -8187,7 +8187,18 @@
       document.getElementById('ct-sign-date').textContent =
         now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일';
       renderCtSignSummary();
+      _populateCtStaffSelect();
     }
+  }
+
+  // 계약서 담당자 드롭다운 채우기 (목표매출 설정에 등록된 직원 목록 기준)
+  function _populateCtStaffSelect() {
+    const sel = document.getElementById('ct-staff');
+    if (!sel) return;
+    _fetchTrainerOptionsForGoal().then(opts => {
+      sel.innerHTML = '<option value="">선택 안 함 (미정)</option>' +
+        opts.map(t => `<option value="${t.id}" data-name="${t.name}">${t.name}</option>`).join('');
+    }).catch(() => {});
   }
 
   function ctNext(step) {
@@ -9965,6 +9976,9 @@
     const address= document.getElementById('ct-address').value.trim();
     const type   = document.getElementById('ct-type').value;
     const memo   = document.getElementById('ct-memo').value.trim();
+    const staffSel = document.getElementById('ct-staff');
+    const staffId  = staffSel ? staffSel.value : '';
+    const staffName = staffId ? (staffSel.options[staffSel.selectedIndex].getAttribute('data-name') || '') : '';
     const pw     = hashPw(phone.slice(-4));
 
     // 프로그램별 데이터 수집
@@ -10088,6 +10102,7 @@
         terms: termsText,
         createdAt: Date.now(),
         registeredBy: localStorage.getItem('current_user') || 'admin',
+        salesStaffId: staffId, salesStaffName: staffName,
       };
       const contractKey = signDate + '_' + Date.now();
       await db.ref('contracts/' + phone + '/' + contractKey).set(contractData);
