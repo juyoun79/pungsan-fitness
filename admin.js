@@ -9411,6 +9411,7 @@
               ${trainerOptHtml(row.trainerId)}
             </select>
             <input type="text" inputmode="numeric" value="${row.goalAmount ? Number(row.goalAmount).toLocaleString() : ''}" placeholder="목표매출(원)"
+              oninput="_formatMoneyInput(this)"
               onchange="updateSalesGoalRow('${id}','goalAmount',this.value)"
               style="width:130px;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13.5px;text-align:right;font-family:'Noto Sans KR',sans-serif;outline:none;" />
             <button onclick="deleteSalesGoalRow('${id}')" style="padding:9px 12px;border:none;background:var(--card);border-radius:8px;color:var(--red);font-size:13px;cursor:pointer;">삭제</button>
