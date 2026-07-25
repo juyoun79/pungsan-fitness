@@ -2024,6 +2024,12 @@
                 salesStaffId: c.salesStaffId || '', salesStaffName: c.salesStaffName || ''
               });
             }
+            if (e.refund) {
+              refunds.push({
+                phone, name, progKey: 'extra:' + key, label, refundAmount: e.refund.refundAmount || 0, date: e.refund.date || '', method: e.refund.method || '',
+                trainerId: '', salesStaffId: c.salesStaffId || ''
+              });
+            }
           });
         });
       });
@@ -4357,12 +4363,16 @@
     const startLabel = _normDate(e.startDate);
     const endLabel = _normDate(e.endDate);
     const methodLabel = _paymentMethodLabel(e);
-    const statusHtml = unpaid > 0
-      ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">미수금 ${unpaid.toLocaleString()}원</div>`
-      : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">${methodLabel ? methodLabel + ' · ' : ''}완납 ✓</div>`;
+    const statusHtml = e.refund
+      ? `<div style="font-size:10.5px;color:#a855f7;font-weight:700;">🔻 환불완료 ${(e.refund.refundAmount||0).toLocaleString()}원</div>`
+      : (unpaid > 0
+        ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">미수금 ${unpaid.toLocaleString()}원</div>`
+        : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">${methodLabel ? methodLabel + ' · ' : ''}완납 ✓</div>`);
+    const refundBtn = e.refund ? '' :
+      `<button onclick="openRefundModal('${phone}','${contractKey}','extra:${extKey}')" style="margin-left:8px;padding:3px 9px;background:none;border:1px solid var(--border);border-radius:6px;font-size:10.5px;color:var(--text-hint);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💰 환불</button>`;
     return `<div class="md-item-row" style="padding:8px 0;border-top:1px solid var(--border);">
       <div class="md-col-prog">
-        <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${_extraLabel(extKey, e)}</div>
+        <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${_extraLabel(extKey, e)}${refundBtn}</div>
       </div>
       <div class="md-col-months" style="display:none;font-size:12px;color:var(--text-hint);">-</div>
       <div class="md-col-count"  style="display:none;font-size:12px;color:var(--text-hint);">-</div>
@@ -4937,7 +4947,7 @@
 
   // ══════════════ 환불 기능 ══════════════
   const REFUND_PERIOD_PROGS = ['헬스', 'GX']; // 기간제 — 위약금10%+사용일수 자동계산 / 그 외는 횟수제(직접입력)
-  const REFUND_PROG_NAMES = { '헬스':'헬스', 'GX':'GX', 'PT':'PT', '기구필라테스개인':'기구필라테스 개인', '기구필라테스그룹':'기구필라테스 그룹', 'daypass':'🎫 일일권', 'daypass_pt':'🏋️ PT 체험', 'daypass_pilates':'🧘 기구필라테스 체험' };
+  const REFUND_PROG_NAMES = { '헬스':'헬스', 'GX':'GX', 'PT':'PT', '기구필라테스개인':'기구필라테스 개인', '기구필라테스그룹':'기구필라테스 그룹', 'daypass':'🎫 일일권', 'daypass_pt':'🏋️ PT 체험', 'daypass_pilates':'🧘 기구필라테스 체험', 'extra:locker':'🔑 락카', 'extra:cloth':'👕 운동복' };
 
   // 환불 시작 — progKey가 없으면(여러 프로그램이 있는 계약서) 먼저 어떤 프로그램을 환불할지 선택하게 함
   function startRefund(phone, contractKey, progKey) {
@@ -5003,7 +5013,16 @@
     document.getElementById('app-refund-picker')?.remove();
     db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
       if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
-      const items = _flattenContractItems(snap.val());
+      const c = snap.val();
+      if (typeof progKey === 'string' && progKey.indexOf('extra:') === 0) {
+        const extKey = progKey.replace('extra:', '');
+        const e = (c.extras || {})[extKey];
+        if (!e) { showToast('해당 항목을 찾을 수 없어요.', 'error'); return; }
+        if (e.refund) { showToast('이미 환불된 항목이에요.', 'error'); return; }
+        _renderRefundForm(phone, contractKey, { progKey, data: e, pkgName: null, pkgIndex: null });
+        return;
+      }
+      const items = _flattenContractItems(c);
       const item = items.find(it => it.progKey === progKey);
       if (!item) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
       if (item.data.refund) { showToast('이미 환불된 프로그램이에요.', 'error'); return; }
@@ -5146,12 +5165,19 @@
     showConfirm('환불 ' + refundAmt.toLocaleString() + '원을 처리할까요?\n(위약금 ' + penalty.toLocaleString() + '원, 공제 ' + deduct.toLocaleString() + '원)\n\n※ 잔여횟수/이용기간 종료는 자동으로 처리되지 않으니, 필요하면 따로 처리해주세요.', () => {
       db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
         if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
-        const items = _flattenContractItems(snap.val());
-        const item = items.find(it => it.progKey === progKey);
-        if (!item) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
-        const basePath = item.pkgIndex === null
-          ? 'contracts/' + phone + '/' + contractKey + '/programs/' + progKey
-          : 'contracts/' + phone + '/' + contractKey + '/packages/' + item.pkgIndex + '/items/' + progKey;
+        let basePath;
+        if (typeof progKey === 'string' && progKey.indexOf('extra:') === 0) {
+          const extKey = progKey.replace('extra:', '');
+          if (!(snap.val().extras || {})[extKey]) { showToast('해당 항목을 찾을 수 없어요.', 'error'); return; }
+          basePath = 'contracts/' + phone + '/' + contractKey + '/extras/' + extKey;
+        } else {
+          const items = _flattenContractItems(snap.val());
+          const item = items.find(it => it.progKey === progKey);
+          if (!item) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
+          basePath = item.pkgIndex === null
+            ? 'contracts/' + phone + '/' + contractKey + '/programs/' + progKey
+            : 'contracts/' + phone + '/' + contractKey + '/packages/' + item.pkgIndex + '/items/' + progKey;
+        }
         const updates = {};
         updates[basePath + '/refund'] = {
           penalty, deduct, refundAmount: refundAmt, method,
