@@ -9338,7 +9338,7 @@
   window.saveBusinessInfo = saveBusinessInfo;
 
   // ── 목표매출 설정 (설정 탭) ──
-  const SALES_GOAL_PROG_LIST = ['헬스', 'GX', 'PT', '기구필라테스개인', '기구필라테스그룹', '락카', '일일권', '양도'];
+  const SALES_GOAL_PROG_LIST = ['헬스', 'GX', 'PT', '기구필라테스개인', '기구필라테스그룹', '락카', '일일권', '양도비'];
   let _salesGoalRows = {};       // { rowId: { role, trainerId, trainerName, programs:{prog:true}, goalAmount } }
   let _salesGoalTrainerOpts = []; // [{id, name}]
 
@@ -9502,7 +9502,7 @@
   function _goalProgMatch(entryProgKey, selLabel) {
     if (selLabel === '락카') return entryProgKey === 'extra:locker';
     if (selLabel === '일일권') return typeof entryProgKey === 'string' && entryProgKey.indexOf('daypass') === 0;
-    if (selLabel === '양도') return entryProgKey === '양도';
+    if (selLabel === '양도비') return entryProgKey === '양도';
     return entryProgKey === selLabel;
   }
 
