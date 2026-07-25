@@ -1975,7 +1975,11 @@
               });
             }
             if (d.refund) {
-              refunds.push({ phone, name, progKey: it.progKey, label, refundAmount: d.refund.refundAmount || 0, date: d.refund.date || '', method: d.refund.method || '' });
+              refunds.push({
+                phone, name, progKey: it.progKey, label, refundAmount: d.refund.refundAmount || 0, date: d.refund.date || '', method: d.refund.method || '',
+                trainerId: (it.progKey === 'PT' || it.progKey === '기구필라테스개인') ? (d.trainerId || '') : '',
+                salesStaffId: c.salesStaffId || ''
+              });
             }
             // 양도비 — 패키지는 항목마다 같은 transferOut이 찍히므로 계약+처리시각 기준으로 한 번만 집계
             if (d.transferOut && (d.transferOut.fee || 0) > 0) {
@@ -9552,22 +9556,35 @@
       const rowResults = rowIds.map(id => {
         const r = rows[id] || {};
         const progs = Object.keys(r.programs || {});
+        const staffMatches = (progKey, e) => {
+          if (progKey === 'PT' || progKey === '기구필라테스개인') return e.trainerId === r.trainerId;
+          return e.salesStaffId === r.trainerId;
+        };
         const matched = !r.trainerId ? [] : _revAllEntries.filter(e => {
           if (!inMonth(e)) return false;
-          return progs.some(p => {
-            if (!_goalProgMatch(e.progKey, p)) return false;
-            if (p === 'PT' || p === '기구필라테스개인') return e.trainerId === r.trainerId;
-            return e.salesStaffId === r.trainerId;
-          });
+          return progs.some(p => _goalProgMatch(e.progKey, p) && staffMatches(p, e));
         });
-        const weekSums = weekRanges.map(w => matched.filter(e => { const dd = dayOf(e); return dd >= w.startDay && dd <= w.endDay; }).reduce((s, e) => s + (e.price || 0), 0));
+        const matchedRefunds = !r.trainerId ? [] : _revAllRefunds.filter(rf => {
+          if (!inMonth(rf)) return false;
+          return progs.some(p => _goalProgMatch(rf.progKey, p) && staffMatches(p, rf));
+        });
+        const weekSums = weekRanges.map(w => {
+          const sales = matched.filter(e => { const dd = dayOf(e); return dd >= w.startDay && dd <= w.endDay; }).reduce((s, e) => s + (e.price || 0), 0);
+          const refund = matchedRefunds.filter(rf => { const dd = dayOf(rf); return dd >= w.startDay && dd <= w.endDay; }).reduce((s, rf) => s + (rf.refundAmount || 0), 0);
+          return sales - refund;
+        });
         const monthSum = weekSums.reduce((a, b) => a + b, 0);
         return { id, role: r.role || '(직책 미입력)', trainerName: r.trainerName || '(직원 미선택)', goalAmount: r.goalAmount || 0, weekSums, monthSum };
       });
 
-      // 담당강사(PT/기구필라테스개인) 미지정 매출
+      // 담당강사(PT/기구필라테스개인) 미지정 매출 (환불도 같이 차감)
       const unassignedEntries = _revAllEntries.filter(e => inMonth(e) && (e.progKey === 'PT' || e.progKey === '기구필라테스개인') && !e.trainerId);
-      const unassignedWeekSums = weekRanges.map(w => unassignedEntries.filter(e => { const dd = dayOf(e); return dd >= w.startDay && dd <= w.endDay; }).reduce((s, e) => s + (e.price || 0), 0));
+      const unassignedRefunds = _revAllRefunds.filter(rf => inMonth(rf) && (rf.progKey === 'PT' || rf.progKey === '기구필라테스개인') && !rf.trainerId);
+      const unassignedWeekSums = weekRanges.map(w => {
+        const sales = unassignedEntries.filter(e => { const dd = dayOf(e); return dd >= w.startDay && dd <= w.endDay; }).reduce((s, e) => s + (e.price || 0), 0);
+        const refund = unassignedRefunds.filter(rf => { const dd = dayOf(rf); return dd >= w.startDay && dd <= w.endDay; }).reduce((s, rf) => s + (rf.refundAmount || 0), 0);
+        return sales - refund;
+      });
       const unassignedSum = unassignedWeekSums.reduce((a, b) => a + b, 0);
 
       const totalGoal = rowResults.reduce((s, r) => s + r.goalAmount, 0);
