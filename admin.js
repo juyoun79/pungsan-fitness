@@ -672,7 +672,7 @@
         if (remain === 0) remain0.push(info.name || memberId);
         else if (remain <= 3) remainLow.push(info.name || memberId);
         else remainOk.push(info.name || memberId);
-        if (info.addedAt && isThisMonth(new Date(info.addedAt).toISOString().slice(0,10))) newMembers++;
+        if (info.addedAt && isThisMonth(_isoDate(new Date(info.addedAt)))) newMembers++;
         const regs = info.registrations ? Object.values(info.registrations) : [];
         const thisMonthRegs = regs.filter(r => r && r.date && isThisMonth(r.date));
         if (thisMonthRegs.length > 0) reMembers++;
@@ -5187,7 +5187,7 @@
         const updates = {};
         updates[basePath + '/refund'] = {
           penalty, deduct, refundAmount: refundAmt, method,
-          date: refundDate || new Date().toISOString().slice(0,10),
+          date: refundDate || _todayISO(),
           processedAt: Date.now()
         };
         db.ref().update(updates).then(() => {
@@ -7026,7 +7026,7 @@
         db.ref('users/' + currentMemberPhone + '/points').set(pt).then(() => {
           // 포인트 변경 내역 기록
           if (diff !== 0) {
-            const today = new Date().toISOString().slice(0, 10);
+            const today = _todayISO();
             const histKey = db.ref('users/' + currentMemberPhone + '/pointHistory').push().key;
             db.ref('users/' + currentMemberPhone + '/pointHistory/' + histKey).set({
               amount: diff, date: today, label: '관리자 지급'
@@ -7443,7 +7443,7 @@
   function computeLockerStats(catId) {
     const today = _todayISO();
     const soon = new Date(); soon.setDate(soon.getDate() + 7);
-    const soonDate = soon.toISOString().slice(0, 10);
+    const soonDate = _isoDate(soon);
     const stats = { total: 0, inuse: 0, empty: 0, expiring: 0, expired: 0, disabled: 0 };
     const cats = catId ? lockerCategories.filter(c => c.id === catId) : lockerCategories;
     cats.forEach(cat => {
@@ -7461,7 +7461,7 @@
   function _computeExpiredLockersInfo() {
     const today = _todayISO();
     const soon = new Date(); soon.setDate(soon.getDate() + 7);
-    const soonDate = soon.toISOString().slice(0, 10);
+    const soonDate = _isoDate(soon);
     const byCat = [];
     let firstCatId = null;
     let count = 0;
@@ -7539,7 +7539,7 @@
 
     const today = _todayISO();
     const soon = new Date(); soon.setDate(soon.getDate() + 7);
-    const soonDate = soon.toISOString().slice(0,10);
+    const soonDate = _isoDate(soon);
 
     const nos = [];
     for (let n = cat.startNo; n <= cat.endNo; n++) nos.push(n);
@@ -8432,7 +8432,7 @@
     if (pkg.items[prog]) {
       delete pkg.items[prog];
     } else {
-      const today = new Date().toISOString().slice(0,10);
+      const today = _todayISO();
       pkg.items[prog] = { months:0, count:0, price:0, cash:0, card:0, transfer:0, startDate:today, endDate:'' };
     }
     updateCtPackageName(pkg);
@@ -8573,7 +8573,7 @@
     });
 
     list.innerHTML = ctPackages.map(pkg => {
-      const today = new Date().toISOString().slice(0,10);
+      const today = _todayISO();
       const progButtons = CT_PROG_LIST.map(prog => {
         const sel = !!pkg.items[prog];
         const it  = pkg.items[prog];
@@ -9239,7 +9239,7 @@
       const snap = await db.ref('lockers').once('value');
       const lockerSnap = snap.val() || {};
 
-      const today = new Date().toISOString().slice(0,10);
+      const today = _todayISO();
       const items = [];
       for (let no = startNo; no <= endNo; no++) {
         const key = catId + '_' + no;
@@ -14158,7 +14158,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
 
   function adminUseCoupon(memberId, couponId) {
     showConfirm('쿠폰을 사용 처리할까요?', () => {
-      db.ref('coupons/' + memberId + '/' + couponId).update({ used: true, usedAt: new Date().toISOString().slice(0, 10) }).then(() => {
+      db.ref('coupons/' + memberId + '/' + couponId).update({ used: true, usedAt: _todayISO() }).then(() => {
         showToast('사용 처리 완료! ✅', 'success');
         loadAdminCouponList();
       });
@@ -14167,7 +14167,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
 
   function adminUsePointCoupon(memberId, couponId) {
     showConfirm('포인트 쿠폰을 사용 처리할까요?', () => {
-      db.ref('coupons/' + memberId + '/' + couponId).update({ used: true, usedAt: new Date().toISOString().slice(0, 10) }).then(() => {
+      db.ref('coupons/' + memberId + '/' + couponId).update({ used: true, usedAt: _todayISO() }).then(() => {
         showToast('사용 처리 완료! ✅', 'success');
         loadAdminCouponList();
       });
@@ -14295,7 +14295,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
 
   function memberUseCoupon(userId, couponId) {
     showConfirm('쿠폰을 사용할까요?\n사용 후에는 되돌릴 수 없어요.', () => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = _todayISO();
       db.ref('coupons/' + userId + '/' + couponId).update({ used: true, usedAt: today }).then(() => {
         showToast('쿠폰이 사용됐어요! ✅', 'success');
         loadMyCoupons();
@@ -14305,7 +14305,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
 
   function usePointCoupon(userId, couponId) {
     showConfirm('포인트 쿠폰을 사용할까요?\n사용 후에는 되돌릴 수 없어요.', () => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = _todayISO();
       db.ref('coupons/' + userId + '/' + couponId).update({ used: true, usedAt: today }).then(() => {
         showToast('쿠폰이 사용됐어요! ✅', 'success');
         loadMyCoupons();
@@ -14478,7 +14478,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     if (expireDays > 0) {
       const expireDate = new Date();
       expireDate.setDate(expireDate.getDate() + expireDays);
-      expire = expireDate.toISOString().slice(0, 10);
+      expire = _isoDate(expireDate);
     }
     const memoText = cond.memo ? '자동 발행 | ' + cond.memo : '자동 발행';
     const couponData = {
@@ -14780,7 +14780,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
           if (!tier.active) return;
           const expireDays = 30;
           const expireDate = new Date(); expireDate.setDate(expireDate.getDate() + expireDays);
-          const expire = expireDate.toISOString().slice(0,10);
+          const expire = _isoDate(expireDate);
 
           if (tier.type === 'repeat') {
             // 반복형: 실제 이전 포인트 기준으로 구간 횟수 계산 → 건너뛴 구간도 발행
@@ -16645,7 +16645,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         else remainOk.push(info.name || memberId);
 
         // 신규: addedAt 이번 달 기준
-        if (info.addedAt && isThisMonth(new Date(info.addedAt).toISOString().slice(0,10))) {
+        if (info.addedAt && isThisMonth(_isoDate(new Date(info.addedAt)))) {
           newMembers++;
         }
 

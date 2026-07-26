@@ -294,7 +294,7 @@
   // ── 카테고리별 임시저장 (운동팁/자유) ──
   function savePostDraft(cat) {
     if (cat === '식단') return; // 식단은 saveDietDraft()로 처리
-    const today = new Date().toISOString().slice(0, 10);
+    const today = _todayISO();
     const content = document.getElementById('post-content')?.value || '';
     localStorage.setItem('post_draft_' + cat, JSON.stringify({ date: today, content }));
   }
@@ -304,7 +304,7 @@
       setTimeout(() => loadDietDraft(), 100);
       return;
     }
-    const today = new Date().toISOString().slice(0, 10);
+    const today = _todayISO();
     try {
       const draft = JSON.parse(localStorage.getItem('post_draft_' + cat) || 'null');
       if (!draft || draft.date !== today) return;
@@ -635,7 +635,7 @@
   }
 
   async function saveDietDraftAuto() {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = _todayISO();
     // 사진 압축 후 저장 (용량 초과 방지)
     const compressedPhotos = await Promise.all(
       mealPhotos.map(p => p ? compressPhotoForDraft(p) : Promise.resolve(null))
@@ -788,7 +788,7 @@
   window.saveDietDraftAndExit = saveDietDraftAndExit;
 
   function loadDietDraft() {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = _todayISO();
     const userId = localStorage.getItem('current_user');
 
     function applyDraft(draft, fromFirebase) {

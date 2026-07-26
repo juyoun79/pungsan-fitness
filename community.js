@@ -1353,7 +1353,7 @@ function loadCommunityChallengePins() {
     const data = snap.val();
     if (!data) { pinWrap.style.display = 'none'; return; }
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = _todayISO();
     const challenges = Object.entries(data).map(([id, c]) => ({ id, ...c })).filter(c => {
       if (c.hidden) return false; // 숨긴 챌린지 제외
       if (c.status === 'ongoing') return true;
@@ -1419,7 +1419,7 @@ function loadAdminCommunityChallengePins() {
     if (challenges.length === 0) { pinWrap.style.display = 'none'; return; }
     pinWrap.style.display = 'block';
     pinList.innerHTML = challenges.map(c => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = _todayISO();
       const end = c.endDate || '';
       let dDay = '';
       if (end) {

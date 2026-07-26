@@ -34,6 +34,12 @@
   const db = firebase.database();
   const storage = firebase.storage();
 
+  // ── 한국 시간(로컬) 기준 0채움 날짜 헬퍼 — toISOString()(UTC 기준, 자정~오전9시 사이 날짜가 하루 어긋남)을 대체 ──
+  function _isoDate(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function _todayISO() { return _isoDate(new Date()); }
+
   // FCM 메시징 초기화 (지원 환경에서만)
   let messaging = null;
   try {
@@ -63,7 +69,7 @@
   // ── 포인트 적립 + 히스토리 기록 헬퍼 ──
   function addPointWithHistory(userId, pts, label) {
     if (!pts || pts <= 0) return;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = _todayISO();
     // 적립 전 포인트 먼저 읽기 → 구간 쿠폰 정확한 계산을 위해
     db.ref('users/' + userId + '/points').once('value', prevSnap => {
       const prevPoints = prevSnap.val() || 0;
@@ -6930,7 +6936,7 @@
       if (inbodyFilter > 0) {
         const cutoff = new Date();
         cutoff.setMonth(cutoff.getMonth() - inbodyFilter);
-        const cutStr = cutoff.toISOString().substring(0, 10);
+        const cutStr = _isoDate(cutoff);
         filtered = all.filter(e => e.date >= cutStr);
       }
       if (filtered.length === 0) filtered = all.slice(0, 1);
@@ -8436,12 +8442,12 @@
     if (curPts < point) { showToast('포인트가 부족해요!', 'error'); return; }
     // 만료일 계산
     const now = new Date();
-    const today = now.toISOString().slice(0, 10);
+    const today = _isoDate(now);
     let expireDate = null;
     if (expireDays > 0) {
       const exp = new Date(now);
       exp.setDate(exp.getDate() + expireDays);
-      expireDate = exp.toISOString().slice(0, 10);
+      expireDate = _isoDate(exp);
     }
     const expireMsg = expireDate ? `\n사용기한: ~${expireDate}` : '';
     showConfirm(name + ' 쿠폰을 받을까요?\n' + point + 'P가 차감돼요.' + expireMsg, async () => {
@@ -10926,7 +10932,7 @@ function openAdminChallengeDetailOverlay(challengeId) {
     };
     const color = CHALLENGE_COLORS[c.type] || '#7F77DD';
     const participants = c.participants ? Object.keys(c.participants).length : 0;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = _todayISO();
     const isOngoing = c.status === 'ongoing';
     const dDay = c.endDate ? (() => {
       const diff = Math.ceil((new Date(c.endDate) - new Date(today)) / 86400000);
@@ -11184,9 +11190,9 @@ async function payChalllengeReward(challengeId) {
       entry.rank = currentRank;
     });
 
-    const today    = new Date().toISOString().slice(0, 10);
+    const today    = _todayISO();
     const expStart = c.couponExpireStart || today;
-    const expEnd   = c.couponExpireEnd   || new Date(Date.now() + 30*86400000).toISOString().slice(0,10);
+    const expEnd   = c.couponExpireEnd   || _isoDate(new Date(Date.now() + 30*86400000));
 
     for (let i = 0; i < sorted.length; i++) {
       const { uid } = sorted[i];
@@ -11202,7 +11208,7 @@ async function payChalllengeReward(challengeId) {
         if (total > 0) {
           await db.ref('users/' + uid + '/points').transaction(cur => (cur || 0) + total);
           // 포인트 히스토리 기록
-          const today2 = new Date().toISOString().slice(0, 10);
+          const today2 = _todayISO();
           const histKey = db.ref('users/' + uid + '/pointHistory').push().key;
           const curPtsSnap2 = await db.ref('users/' + uid + '/points').once('value');
           await db.ref('users/' + uid + '/pointHistory/' + histKey).set({
