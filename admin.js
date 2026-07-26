@@ -16854,8 +16854,9 @@ function exitKiosk() {
         // 탭바 복원
         const tabRow = document.querySelector('.admin-tab-row');
         const pcHeader = document.getElementById('admin-header-pc');
+        const layoutMode = localStorage.getItem('admin_layout') || 'pc';
         if (tabRow) tabRow.style.display = '';
-        if (pcHeader) pcHeader.style.display = '';
+        if (pcHeader) pcHeader.style.display = (layoutMode === 'pc') ? 'flex' : 'none';
         // 관리자 화면으로 복귀
         document.getElementById('screen-kiosk').style.display = 'none';
         document.getElementById('screen-kiosk').classList.remove('active');
