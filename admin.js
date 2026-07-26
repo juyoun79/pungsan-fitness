@@ -16072,7 +16072,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
     db.ref('pilates_exceptions').once('value').then(snap => {
       const list = [];
-      snap.forEach(child => list.push({ date: child.key, val: child.val() }));
+      snap.forEach(child => { list.push({ date: child.key, val: child.val() }); });
       list.sort((a, b) => a.date.localeCompare(b.date));
       if (!list.length) {
         el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">등록된 휴무가 없어요</div>';

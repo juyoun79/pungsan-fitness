@@ -6652,7 +6652,7 @@
         return;
       }
       const entries = [];
-      snap.forEach(c => entries.push({ date: c.key, ...c.val() }));
+      snap.forEach(c => { entries.push({ date: c.key, ...c.val() }); });
       entries.sort((a, b) => b.date.localeCompare(a.date));
       const latest = entries[0];
       const prev = entries.length > 1 ? entries[1] : null;
@@ -6922,7 +6922,7 @@
       }
 
       let all = [];
-      snap.forEach(c => all.push({ date: c.key, ...c.val() }));
+      snap.forEach(c => { all.push({ date: c.key, ...c.val() }); });
       all.sort((a, b) => b.date.localeCompare(a.date));
 
       // 기간 필터
