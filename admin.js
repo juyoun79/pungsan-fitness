@@ -1312,6 +1312,12 @@
   function closeEditWorkoutModal() {
     document.getElementById('edit-workout-modal').classList.remove('active');
     editWorkoutKey = null; editWorkoutDate = null;
+    // 강사용으로 바꿔치기된 저장/삭제 버튼이 남아있으면 원래(회원용)대로 복원 (X로 닫아도 상태 누수 방지)
+    const deleteBtn = document.querySelector('#edit-workout-modal button[onclick="deleteTrainerWorkoutFromEdit()"]');
+    if (deleteBtn) deleteBtn.setAttribute('onclick', 'deleteWorkoutRecord()');
+    const saveBtn = document.querySelector('#edit-workout-modal button[onclick="saveTrainerEditedWorkout()"]');
+    if (saveBtn) saveBtn.setAttribute('onclick', 'saveEditedWorkout()');
+    trainerEditTraineeId = null; trainerEditEqKey = null; trainerEditDateStr = null;
   }
 
   // ══════════════════════════════
