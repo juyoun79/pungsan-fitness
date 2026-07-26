@@ -11754,7 +11754,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       if (remain <= 0) { showToast('잔여 횟수가 없어요!', 'error'); return; }
       showConfirm(info.name + '님 오늘 수업 출석 체크할까요?\n잔여 횟수: ' + remain + ' → ' + (remain - 1) + '회', () => {
         const today = new Date();
-        const dateStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+        const dateStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
         const dateStrPad3 = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
         const updateObj3 = { remain: remain - 1 };
         if (remain - 1 === 0) updateObj3.expiredAt = dateStrPad3;
@@ -12679,7 +12679,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     const logText = document.getElementById('trainee-log-input').value.trim();
     if (!logText) { showToast('수업 내용을 입력해주세요!', 'error'); return; }
     const today = new Date();
-    const dateStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+    const dateStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
     const savedAt = String(today.getHours()).padStart(2,'0')+':'+String(today.getMinutes()).padStart(2,'0');
     const key = dateStr + '_' + Date.now();
     const log = { date: dateStr, content: logText, savedAt };
@@ -12908,7 +12908,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     showConfirm(signTargetMemberName + ' 회원님을 당일취소 처리할까요?', () => {
       const trainerId = localStorage.getItem('current_user');
       const today = new Date();
-      const dateStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+      const dateStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
       const savedAt = String(today.getHours()).padStart(2,'0')+':'+String(today.getMinutes()).padStart(2,'0');
       const signData = { date: dateStr, savedAt, noShow: true, memberName: signTargetMemberName };
 
@@ -12930,7 +12930,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
           const updateData2 = { remain: newRemain };
           if (newRemain === 0) {
             const now2 = new Date();
-            updateData2.expiredAt = now2.getFullYear() + '-' + (now2.getMonth()+1) + '-' + now2.getDate();
+            updateData2.expiredAt = now2.getFullYear() + '-' + String(now2.getMonth()+1).padStart(2,'0') + '-' + String(now2.getDate()).padStart(2,'0');
           }
           ref2.update(updateData2).then(() => {
             refreshTraineeView(signTargetMemberId);
@@ -12949,7 +12949,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
 
     const trainerId = localStorage.getItem('current_user');
     const today = new Date();
-    const dateStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+    const dateStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
     const savedAt = String(today.getHours()).padStart(2,'0')+':'+String(today.getMinutes()).padStart(2,'0');
 
     // 캔버스를 이미지로 변환
@@ -12985,7 +12985,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
           const updateData = { remain: newRemain };
           if (newRemain === 0) {
             const now = new Date();
-            updateData.expiredAt = now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate();
+            updateData.expiredAt = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
           }
           ref2.update(updateData).then(() => {
             refreshTraineeView(signTargetMemberId);
@@ -13103,7 +13103,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       const firstDay = new Date(year, month - 1, 1).getDay();
       const lastDate = new Date(year, month, 0).getDate();
       const today = new Date();
-      const todayStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+      const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
 
       let calHtml = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
@@ -13207,7 +13207,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     const calGrid = document.getElementById('trainer-cal-grid');
     if (!calGrid) return;
     const today = new Date();
-    const todayStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+    const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
     calGrid.querySelectorAll('[data-date]').forEach(el => {
       const d = el.getAttribute('data-date');
       const isSelected = d === trainerCalSelectedDate;
@@ -16437,7 +16437,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     ref.once('value').then(snap => {
       const info = snap.val() || {};
       const _now = new Date();
-      const dateStr = _now.getFullYear() + '-' + (_now.getMonth()+1) + '-' + _now.getDate();
+      const dateStr = _now.getFullYear() + '-' + String(_now.getMonth()+1).padStart(2,'0') + '-' + String(_now.getDate()).padStart(2,'0');
       const regKey = 'reg_' + Date.now();
       const prevReg = { type: info.type || type, total: info.total || 0, remain: info.remain || 0, date: dateStr };
       const newRemain = (info.remain || 0) + count;
@@ -16956,7 +16956,7 @@ async function _resolveHoldsAndCheckEligibility(phone) {
 async function _kioskCheckIn(phone) {
   // getToday()와 동일한 unpadded 형식 사용 (예: 2026-6-9) — 출석기록 키 형식은 그대로 유지
   const _d = new Date();
-  const today = _d.getFullYear() + '-' + (_d.getMonth()+1) + '-' + _d.getDate();
+  const today = _d.getFullYear() + '-' + String(_d.getMonth()+1).padStart(2,'0') + '-' + String(_d.getDate()).padStart(2,'0');
   const todayPadded = today; // unpadded 형식으로 통일
   try {
     // 회원 존재 확인

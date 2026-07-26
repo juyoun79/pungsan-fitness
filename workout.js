@@ -856,7 +856,7 @@
 
   function _saveDualWorkout(userId, innerSets, outerSets, saveDate) {
     const now = new Date();
-    const date = saveDate || (now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate());
+    const date = saveDate || (now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0'));
     const dateParts = date.split('-');
     const dateLabel = dateParts[0] + '년 ' + dateParts[1] + '월 ' + dateParts[2] + '일';
     const savedAt = String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
@@ -928,7 +928,7 @@
     if (sets.length === 0) { showToast('최소 1세트 이상 입력해주세요!', 'error'); return; }
     const memo = document.getElementById('workout-memo').value;
     const now = new Date();
-    const date = saveDate || (now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate());
+    const date = saveDate || (now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0'));
     const dateParts = date.split('-');
     const dateLabel = dateParts[0] + '년 ' + dateParts[1] + '월 ' + dateParts[2] + '일';
     const workoutVol = sets.reduce((s, r) => s + r.weight * r.reps, 0);
@@ -1076,7 +1076,7 @@
   function loadAttendanceStats(userId) {
     const now = new Date();
     const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
-    const today = now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate();
+    const today = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
     db.ref('users/' + userId + '/attendance').once('value', snap => {
       let total = 0, month = 0;
       let todayDone = false;
@@ -1215,7 +1215,7 @@
     if (!label || !grid) return;
     label.textContent = _attCalYear + '년 ' + (_attCalMonth + 1) + '월';
     const now      = new Date();
-    const todayStr = now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate();
+    const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
     // 이달 필터 여부
     const filterMonth = _attCalMode === 'month';
     const prefix = _attCalYear + '-' + (_attCalMonth + 1) + '-';
@@ -1718,7 +1718,7 @@
     const canvas = document.getElementById('owunwan-canvas');
     canvas.width = 0; canvas.height = 0;
   }
-  function getToday() { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate(); }
+  function getToday() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 
   function updateStats() {
     const userId = localStorage.getItem('current_user');
@@ -1873,7 +1873,7 @@
     const now = new Date();
     const cfg = CARDIO_CONFIG[type];
     const isEdit = !!cardioEditDate;
-    const recordDate = isEdit ? cardioEditDate : (now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate());
+    const recordDate = isEdit ? cardioEditDate : (now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0'));
     const dateLabel = (() => { const parts = recordDate.split('-'); return parts[0] + '년 ' + parseInt(parts[1]) + '월 ' + parseInt(parts[2]) + '일'; })();
     const record = { date: recordDate, dateLabel, type, min, sec: 0, dist, incline, kcal, distUnit: cfg.distUnit, memo, savedAt: String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0') };
     const safeKey = 'cardio_' + type + '_' + userId;
@@ -1957,7 +1957,7 @@
     const memo = document.getElementById('class-memo').value.trim();
     const userId = localStorage.getItem('current_user');
     const now = new Date();
-    const date = classEditDate || (now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate());
+    const date = classEditDate || (now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0'));
     const dateLabel = date.split('-').join('년 ').replace('-', '월 ') + '일';
     const met = CLASS_MET[type] || 3.5;
     const { weight } = getBodyInfo();
@@ -2153,7 +2153,7 @@
     const userId = isTrainerMode ? trainerTargetId : localStorage.getItem('current_user');
     const memo = document.getElementById('fw-memo').value.trim();
     const now = new Date();
-    const date = (isTrainerMode && trainerTargetDate) ? trainerTargetDate : (now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate());
+    const date = (isTrainerMode && trainerTargetDate) ? trainerTargetDate : (now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0'));
     const dateParts = date.split('-');
     const dateLabel = dateParts[0] + '년 ' + dateParts[1] + '월 ' + dateParts[2] + '일';
     const totalVolFw = sets.reduce((s, r) => s + r.weight * r.reps, 0);
@@ -3178,7 +3178,7 @@
     const { exercises, routineName } = currentRoutineWorkout;
     const userId = localStorage.getItem('current_user');
     const now = new Date();
-    const date = now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate();
+    const date = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
     const dateLabel = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일';
     const savedAt = (now.getHours()<10?'0':'') + now.getHours() + ':' + (now.getMinutes()<10?'0':'') + now.getMinutes();
     let savedCount = 0;

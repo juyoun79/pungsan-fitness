@@ -914,7 +914,7 @@
     // 식단 게시물 하루 1개 제한 체크
     if (category === '식단') {
       const today = new Date();
-      const todayStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+      const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
       const dietSnap = await db.ref('users/' + userId + '/diet_post_date').once('value');
       if (dietSnap.exists() && dietSnap.val() === todayStr) {
         showToast('오늘은 이미 식단 게시물을 올렸어요! 😊', 'info');
@@ -968,7 +968,7 @@
 
       // 식단 게시물 오늘 날짜 기록 (하루 1개 제한용)
       if (category === '식단') {
-        const todayStr = new Date().getFullYear() + '-' + (new Date().getMonth()+1) + '-' + new Date().getDate();
+        const todayStr = new Date().getFullYear() + '-' + String(new Date().getMonth()+1).padStart(2,'0') + '-' + String(new Date().getDate()).padStart(2,'0');
         await db.ref('users/' + userId + '/diet_post_date').set(todayStr);
       }
 

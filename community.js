@@ -1209,7 +1209,7 @@
       });
       // 오늘 날짜 제한 해제 (본인이 삭제할 때만)
       const today = new Date();
-      const todayStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+      const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
       db.ref('users/' + post.authorId + '/diet_post_date').once('value', snap => {
         if (snap.val() === todayStr) db.ref('users/' + post.authorId + '/diet_post_date').remove();
       });
