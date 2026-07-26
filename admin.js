@@ -10268,7 +10268,7 @@
 
   function clearCtSign() {
     if (ctSignCtx) ctSignCtx.clearRect(0, 0, ctSignCanvas.width, ctSignCanvas.height);
-    document.getElementById('ct-sign-placeholder').style.display = '';
+    document.getElementById('ct-sign-placeholder').style.display = 'flex';
   }
 
   // 계약서 최종 저장

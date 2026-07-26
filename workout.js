@@ -1272,9 +1272,9 @@
     const qrCard   = document.querySelector('#screen-attendance .attend-card');
     const todayRow = document.querySelector('#screen-attendance [id="att-today-dot"]')?.closest('div[style*="justify-content:space-between"]');
     if (doneWrap) doneWrap.style.display  = 'none';
-    if (gpsCard)  gpsCard.style.display   = '';
+    if (gpsCard)  gpsCard.style.display   = 'flex';
     if (qrCard)   qrCard.style.display    = '';
-    if (todayRow) todayRow.style.display  = '';
+    if (todayRow) todayRow.style.display  = 'flex';
   }
 
   function startAttendQr() {
