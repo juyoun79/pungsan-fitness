@@ -1980,7 +1980,7 @@
                 card: settleMethod === 'card' ? settleAmt : 0,
                 transfer: settleMethod === 'transfer' ? settleAmt : 0,
                 date: d.unpaidSettledAt, contractType,
-                trainerId: '', isSettlement: true,
+                trainerId: (it.progKey === 'PT' || it.progKey === '기구필라테스개인') ? (d.trainerId || '') : '', isSettlement: true,
                 salesStaffId: c.salesStaffId || '', salesStaffName: c.salesStaffName || ''
               });
             }
@@ -2373,10 +2373,18 @@
       if (filters.search && !(entry.name.includes(filters.search) || entry.phone.includes(filters.search))) return false;
       return true;
     };
+    // 환불데이터는 contractType/price/cash/card/transfer 필드가 없어 매출필터를 그대로 못 쓰므로,
+    // 의미가 통하는 항목(프로그램/강사/검색어)만 골라서 별도로 적용 (환불액·순매출 카드가 매출필터 무시하던 버그 수정)
+    const matchesRefundFilters = (r) => {
+      if (filters.programs.size && !filters.programs.has(r.progKey)) return false;
+      if (filters.trainerId && r.trainerId !== filters.trainerId) return false;
+      if (filters.search && !(r.name.includes(filters.search) || r.phone.includes(filters.search))) return false;
+      return true;
+    };
     const inRange = (dateStr, r) => dateStr && dateStr >= r.start && dateStr <= r.end;
 
     const curEntries = _revAllEntries.filter(e => inRange(e.date, range) && matchesFilters(e));
-    const curRefunds = _revAllRefunds.filter(r => inRange(r.date, range));
+    const curRefunds = _revAllRefunds.filter(r => inRange(r.date, range) && matchesRefundFilters(r));
     _revFilteredEntries = curEntries;
 
     const filterCount = filters.programs.size + filters.types.size + filters.methods.size +
