@@ -7078,7 +7078,7 @@
       db.ref('members/' + newPhone).once('value').then(snap => {
         if (snap.exists()) { showToast('이미 사용 중인 전화번호예요.', 'error'); return; }
         proceedWithNicknameCheck(() => {
-          showConfirm('전화번호를 ' + newPhone + '으로 변경할까요?\n로그인 아이디도 바뀌고, 계약·PT·활동기록도 함께 이관돼요.\n⚠️ 회원이 지금 앱에 로그인 중이 아닌지 확인해주세요.', () => {
+          showConfirm('전화번호를 ' + newPhone + '으로 변경할까요?\n로그인 아이디도 바뀌고, 계약·PT·활동기록·락카·프로필사진도 함께 이관돼요.\n⚠️ 회원이 지금 앱에 로그인 중이 아닌지 확인해주세요.', () => {
             doSave();
           });
         });
