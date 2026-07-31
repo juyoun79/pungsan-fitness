@@ -6952,7 +6952,23 @@
       await db.ref('trainers/' + trainerId + '/trainees/' + newPhone).set(traineeDataByTrainer[trainerId]);
     }
 
-    // 4. 프로필 사진 (실패해도 나머지 이관에는 영향 없음 — 비필수 처리)
+    // 4. 락카 배정 정보 (phone, linkedContract.phone — 계약서 날짜 동기화에 쓰이는 참조값)
+    const lockersSnap = await db.ref('lockers').once('value');
+    const lockerKeysToUpdate = [];
+    lockersSnap.forEach(l => {
+      const v = l.val();
+      if (v && v.phone === oldPhone) lockerKeysToUpdate.push(l.key);
+    });
+    for (const lockerKey of lockerKeysToUpdate) {
+      const lockerUpdates = { ['lockers/' + lockerKey + '/phone']: newPhone };
+      const linkedSnap = await db.ref('lockers/' + lockerKey + '/linkedContract').once('value');
+      if (linkedSnap.exists() && linkedSnap.val().phone === oldPhone) {
+        lockerUpdates['lockers/' + lockerKey + '/linkedContract/phone'] = newPhone;
+      }
+      await db.ref().update(lockerUpdates);
+    }
+
+    // 5. 프로필 사진 (실패해도 나머지 이관에는 영향 없음 — 비필수 처리)
     try {
       const url = await storage.ref('members/' + oldPhone + '/profile.jpg').getDownloadURL();
       result.hadPhoto = true;
@@ -6962,7 +6978,7 @@
       result.photoMigrated = true;
     } catch (e) { /* 사진 없거나 이관 실패 — 무시하고 계속 진행 */ }
 
-    // 5. 위 복사가 전부 끝난 뒤 옛 경로 정리
+    // 6. 위 복사가 전부 끝난 뒤 옛 경로 정리
     if (contractsData) await db.ref('contracts/' + oldPhone).remove();
     if (usersData) await db.ref('users/' + oldPhone).remove();
     for (const trainerId of Object.keys(traineeDataByTrainer)) {
