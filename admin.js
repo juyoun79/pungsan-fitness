@@ -6926,6 +6926,55 @@
     document.getElementById('edit-member-modal').classList.remove('active');
   }
 
+  // 전화번호 변경 시 핵심 데이터(계약·매출, PT/서명기록, 활동기록, 프로필사진) 이관
+  // 복사가 전부 성공한 뒤에만 옛 경로를 삭제 (중간 실패 시 데이터 유실 방지)
+  async function _migrateMemberPhoneData(oldPhone, newPhone) {
+    const result = { photoMigrated: false, hadPhoto: false };
+
+    // 1. 계약/매출 데이터
+    const contractsSnap = await db.ref('contracts/' + oldPhone).once('value');
+    const contractsData = contractsSnap.val();
+    if (contractsData) await db.ref('contracts/' + newPhone).set(contractsData);
+
+    // 2. 활동기록(출석/운동/포인트/필라테스예약 등)
+    const usersSnap = await db.ref('users/' + oldPhone).once('value');
+    const usersData = usersSnap.val();
+    if (usersData) await db.ref('users/' + newPhone).set(usersData);
+
+    // 3. 담당강사-회원 관계(PT 잔여횟수/서명기록/수업일지) — 해당 회원을 담당하는 강사 찾기
+    const trainersSnap = await db.ref('trainers').once('value');
+    const traineeDataByTrainer = {};
+    trainersSnap.forEach(t => {
+      const traineeSnap = t.child('trainees/' + oldPhone);
+      if (traineeSnap.exists()) traineeDataByTrainer[t.key] = traineeSnap.val();
+    });
+    for (const trainerId of Object.keys(traineeDataByTrainer)) {
+      await db.ref('trainers/' + trainerId + '/trainees/' + newPhone).set(traineeDataByTrainer[trainerId]);
+    }
+
+    // 4. 프로필 사진 (실패해도 나머지 이관에는 영향 없음 — 비필수 처리)
+    try {
+      const url = await storage.ref('members/' + oldPhone + '/profile.jpg').getDownloadURL();
+      result.hadPhoto = true;
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      await storage.ref('members/' + newPhone + '/profile.jpg').put(blob);
+      result.photoMigrated = true;
+    } catch (e) { /* 사진 없거나 이관 실패 — 무시하고 계속 진행 */ }
+
+    // 5. 위 복사가 전부 끝난 뒤 옛 경로 정리
+    if (contractsData) await db.ref('contracts/' + oldPhone).remove();
+    if (usersData) await db.ref('users/' + oldPhone).remove();
+    for (const trainerId of Object.keys(traineeDataByTrainer)) {
+      await db.ref('trainers/' + trainerId + '/trainees/' + oldPhone).remove();
+    }
+    if (result.photoMigrated) {
+      try { await storage.ref('members/' + oldPhone + '/profile.jpg').delete(); } catch (e) {}
+    }
+
+    return result;
+  }
+
   function saveEditMember() {
     const newPhone    = document.getElementById('edit-member-phone').value.trim().replace(/-/g, '');
     const newNickname = (document.getElementById('edit-member-nickname')?.value || '').trim();
@@ -6960,16 +7009,25 @@
 
       if (phoneChanged) {
         const newData = { ...info, ...updateData };
-        db.ref('members/' + newPhone).set(newData).then(() => {
-          db.ref('members/' + oldPhone).remove();
-          // users에도 닉네임 업데이트
-          if (newNickname) db.ref('users/' + newPhone + '/nickname').set(newNickname);
-          if (newNickname) localStorage.setItem('nickname_' + newPhone, newNickname);
-          applyNicknameIndex(newPhone);
-          closeEditMemberModal();
-          closeMemberModal();
-          loadMemberList();
-          showToast('✅ 회원정보가 수정됐어요!', 'success');
+        db.ref('members/' + newPhone).set(newData).then(async () => {
+          try {
+            const migResult = await _migrateMemberPhoneData(oldPhone, newPhone);
+            db.ref('members/' + oldPhone).remove();
+            // users에도 닉네임 업데이트
+            if (newNickname) db.ref('users/' + newPhone + '/nickname').set(newNickname);
+            if (newNickname) localStorage.setItem('nickname_' + newPhone, newNickname);
+            applyNicknameIndex(newPhone);
+            closeEditMemberModal();
+            closeMemberModal();
+            loadMemberList();
+            if (migResult.hadPhoto && !migResult.photoMigrated) {
+              showToast('회원정보는 수정됐지만 프로필사진 이관은 실패했어요. 회원이 다시 등록해야 해요.', 'error');
+            } else {
+              showToast('✅ 회원정보와 계약·PT·활동기록이 전부 이관됐어요!', 'success');
+            }
+          } catch (e) {
+            showToast('일부 데이터 이관에 실패했어요. 다시 시도해주세요.', 'error');
+          }
         });
       } else {
         db.ref('members/' + oldPhone).update(updateData).then(() => {
@@ -7004,7 +7062,7 @@
       db.ref('members/' + newPhone).once('value').then(snap => {
         if (snap.exists()) { showToast('이미 사용 중인 전화번호예요.', 'error'); return; }
         proceedWithNicknameCheck(() => {
-          showConfirm('전화번호를 ' + newPhone + '으로 변경할까요?\n로그인 아이디도 바뀌어요.', () => {
+          showConfirm('전화번호를 ' + newPhone + '으로 변경할까요?\n로그인 아이디도 바뀌고, 계약·PT·활동기록도 함께 이관돼요.\n⚠️ 회원이 지금 앱에 로그인 중이 아닌지 확인해주세요.', () => {
             doSave();
           });
         });
