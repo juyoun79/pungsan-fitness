@@ -1954,7 +1954,7 @@
         phoneSnap.forEach(cSnap => {
           const c = cSnap.val();
           if (!c) return;
-          const contractType = c.type === 're' ? '재등록' : (c.type === 'progChange' ? '변경' : '신규');
+          const contractType = c.type === 're' ? '재등록' : (c.type === 'progChange' ? '변경' : (c.type === 'import' ? '이관' : '신규'));
           _flattenContractItems(c).forEach(it => {
             const d = it.data;
             const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
@@ -4125,6 +4125,9 @@
   }
 
   function _renderItemStatusBadge(data, phone, contractKey, progKey) {
+    if (data.isMigrated) {
+      return `<div style="font-size:10.5px;color:#0ea5e9;font-weight:700;">📥 이관데이터 (${data.startDate||''}~${data.endDate||''}, 결제정보 없음)</div>`;
+    }
     if (_isActivelyOnHold(data)) {
       const h = data.activeHold;
       return `<div style="font-size:10.5px;color:#8b5cf6;font-weight:700;">⏸️ 휴회중 (${h.startDate}~예정 ${h.newEndDate}, ${h.days}일)</div>${_renderCancelBtn('hold', phone, contractKey, progKey)}`;
@@ -4264,7 +4267,7 @@
     </div>` : '';
 
     // 프로그램 없이 부가서비스만 있는 계약(락카탭 직접배정 등)은 신규/재등록 대신 "부가서비스"로 표시
-    const typeLabel = items.length === 0 && extrasList.length > 0 ? '부가서비스' : (c.isProgChange ? '변경' : (c.type === 're' ? '재등록' : (c.type === 'progChange' ? '변경' : '신규')));
+    const typeLabel = items.length === 0 && extrasList.length > 0 ? '부가서비스' : (c.isProgChange ? '변경' : (c.type === 're' ? '재등록' : (c.type === 'progChange' ? '변경' : (c.type === 'import' ? '이관' : '신규'))));
 
     return `<div style="background:var(--card);border-radius:10px;padding:16px;border:1px solid var(--border);">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
@@ -9432,7 +9435,7 @@
 
   // ── 설정탭 서브탭 전환 ──
   function switchSettingsSubtab(tab) {
-    const tabs = ['pw', 'equipment', 'terms', 'business', 'bulk', 'goal'];
+    const tabs = ['pw', 'equipment', 'terms', 'business', 'bulk', 'goal', 'import'];
     tabs.forEach(t => {
       const btn  = document.getElementById('settings-subtab-' + t);
       const view = document.getElementById('settings-view-' + t);
@@ -9448,6 +9451,10 @@
     if (tab === 'terms')     loadTerms();
     if (tab === 'business')  loadBusinessInfo();
     if (tab === 'goal')      loadSalesGoalConfig();
+    if (tab === 'import') {
+      if (!_mImport || !_mImport.headers || !_mImport.headers.length) renderMemberImportStep();
+      loadMemberImportHistory();
+    }
   }
   window.switchSettingsSubtab = switchSettingsSubtab;
 
@@ -9631,6 +9638,448 @@
     _renderSalesGoalRows();
   }
   window.toggleSalesGoalProgram = toggleSalesGoalProgram;
+
+  // ── 회원 엑셀 일괄가져오기 (설정 탭) ──
+  let _mImport = {
+    step: 1, headers: [], rows: [], mapping: {}, progMap: {},
+    parsedMembers: [], importErrors: [], dupAction: 'addContractOnly'
+  };
+
+  const IMPORT_ROLE_OPTS = [
+    ['', '사용안함'], ['name', '이름'], ['phone', '전화번호'], ['birth', '생년월일'],
+    ['gender', '성별'], ['address', '주소'], ['memo', '회원메모'],
+    ['startDate', '수강시작일'], ['endDate', '수강만료일'],
+    ['progText', '프로그램구분(자동분류용)'], ['ref', '참고텍스트(메모에 첨부)']
+  ];
+  const IMPORT_ROLE_GUESS = {
+    name: ['이름', '성명', '회원명'], phone: ['전화', '휴대폰', '연락처', '핸드폰'],
+    birth: ['생년월일', '생일'], gender: ['성별'], address: ['주소'], memo: ['메모', '비고'],
+    startDate: ['시작일', '시작', '개시일'], endDate: ['만료일', '종료일', '만료', '종료'],
+    progText: ['결제명', '상품명', '프로그램', '회원권']
+  };
+  const IMPORT_PROG_KEYWORDS = [['PT', ['PT', '피티']], ['기구필라테스개인', ['필라테스']], ['GX', ['GX']]];
+  const IMPORT_PROG_OPTS = ['헬스', 'GX', 'PT', '기구필라테스개인', '기구필라테스그룹'];
+
+  // xlsx(SheetJS) 라이브러리를 실제 사용 시점에만 불러옴(초기 로딩속도 유지), 여러 CDN 순차 시도
+  function _loadSheetJS() {
+    if (window.XLSX) return Promise.resolve();
+    if (window._xlsxLoadingPromise) return window._xlsxLoadingPromise;
+    window._xlsxLoadingPromise = new Promise((resolve, reject) => {
+      const urls = [
+        'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+      ];
+      let idx = 0;
+      function tryLoad() {
+        if (idx >= urls.length) { reject(new Error('라이브러리 로드 실패')); return; }
+        const s = document.createElement('script');
+        s.src = urls[idx++];
+        s.onload = () => resolve();
+        s.onerror = () => tryLoad();
+        document.head.appendChild(s);
+      }
+      tryLoad();
+    });
+    return window._xlsxLoadingPromise;
+  }
+
+  function resetMemberImport() {
+    _mImport = { step: 1, headers: [], rows: [], mapping: {}, progMap: {}, parsedMembers: [], importErrors: [], dupAction: 'addContractOnly' };
+    renderMemberImportStep();
+  }
+  window.resetMemberImport = resetMemberImport;
+
+  function _guessImportMapping(headers) {
+    const mapping = {};
+    headers.forEach((h, idx) => {
+      // 락커/락카 관련 컬럼은 "수강시작일/성별" 등과 이름이 겹쳐 잘못 추측되기 쉬우므로 자동추측에서 제외 (사용자가 직접 판단)
+      if (h.includes('락커') || h.includes('락카')) { mapping[idx] = ''; return; }
+      let matched = '';
+      for (const [role, keywords] of Object.entries(IMPORT_ROLE_GUESS)) {
+        if (keywords.some(k => h.includes(k))) { matched = role; break; }
+      }
+      mapping[idx] = matched;
+    });
+    return mapping;
+  }
+
+  function handleImportFileSelect(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const area = document.getElementById('import-step-area');
+    if (area) area.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);">파일 읽는 중...</div>';
+    _loadSheetJS().then(() => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const wb = XLSX.read(data, { type: 'array' });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
+          if (!json.length) { showToast('엑셀 내용이 비어있어요.', 'error'); renderMemberImportStep(); return; }
+          _mImport.headers = json[0].map(h => String(h || '').trim());
+          _mImport.rows = json.slice(1).filter(r => r.some(c => String(c || '').trim() !== ''));
+          _mImport.mapping = _guessImportMapping(_mImport.headers);
+          _mImport.step = 2;
+          renderMemberImportStep();
+        } catch (err) {
+          console.error('엑셀 읽기 오류:', err);
+          showToast('엑셀 파일을 읽는 중 오류가 발생했어요. 파일 형식을 확인해주세요.', 'error');
+          renderMemberImportStep();
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }).catch(err => {
+      console.error(err);
+      showToast('필요한 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인해주세요.', 'error');
+      renderMemberImportStep();
+    });
+  }
+  window.handleImportFileSelect = handleImportFileSelect;
+
+  function renderMemberImportStep() {
+    const area = document.getElementById('import-step-area');
+    if (!area) return;
+    if (_mImport.step === 1) {
+      area.innerHTML = `
+        <div style="text-align:center;padding:20px 10px;">
+          <div style="font-size:13px;color:var(--text-sub);margin-bottom:14px;line-height:1.6;">
+            기존에 사용하던 회원관리 프로그램에서 내려받은 엑셀 파일(.xlsx)을 업로드하세요.
+          </div>
+          <label style="display:inline-block;padding:12px 20px;background:var(--blue);color:white;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+            📂 엑셀 파일 선택
+            <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="handleImportFileSelect(this)">
+          </label>
+        </div>`;
+      return;
+    }
+    if (_mImport.step === 2) { _renderImportMappingStep(area); return; }
+    if (_mImport.step === 3) { _renderImportProgClassifyStep(area); return; }
+    if (_mImport.step === 4) { _renderImportPreviewStep(area); return; }
+  }
+  window.renderMemberImportStep = renderMemberImportStep;
+
+  function _renderImportMappingStep(area) {
+    const rows = _mImport.headers.map((h, idx) => {
+      const opts = IMPORT_ROLE_OPTS.map(([v, l]) => `<option value="${v}" ${(_mImport.mapping[idx] || '') === v ? 'selected' : ''}>${l}</option>`).join('');
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="flex:1;font-size:13px;color:var(--text);">${escapeHtml(h || ('(이름없음 열' + (idx + 1) + ')'))}</div>
+        <div style="font-size:11px;color:var(--text-hint);">→</div>
+        <select onchange="_updateImportMapping(${idx}, this.value)" style="flex:1;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'Noto Sans KR',sans-serif;">
+          ${opts}
+        </select>
+      </div>`;
+    }).join('');
+    area.innerHTML = `
+      <div style="font-size:12.5px;color:var(--text-hint);margin-bottom:10px;line-height:1.6;">
+        엑셀의 각 항목이 우리 앱의 어떤 정보에 해당하는지 연결해주세요. 비슷한 이름은 자동으로 맞춰놨어요, 확인하고 필요하면 수정해주세요.<br>
+        <b>이름</b>과 <b>전화번호</b>는 필수예요.
+      </div>
+      <div style="max-height:400px;overflow-y:auto;margin-bottom:14px;">${rows}</div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="resetMemberImport()" style="flex:1;padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">처음부터</button>
+        <button onclick="_goToImportStep3()" class="btn-primary" style="flex:2;padding:11px;">다음</button>
+      </div>`;
+  }
+
+  function _updateImportMapping(idx, val) { _mImport.mapping[idx] = val; }
+  window._updateImportMapping = _updateImportMapping;
+
+  function _goToImportStep3() {
+    const roles = Object.values(_mImport.mapping);
+    if (!roles.includes('name') || !roles.includes('phone')) {
+      showToast('이름과 전화번호 항목은 반드시 연결해야 해요.', 'error');
+      return;
+    }
+    _mImport.step = roles.includes('progText') ? 3 : 4;
+    renderMemberImportStep();
+  }
+  window._goToImportStep3 = _goToImportStep3;
+
+  function _classifyProgGuess(text) {
+    for (const [type, kws] of IMPORT_PROG_KEYWORDS) {
+      if (kws.some(k => text.includes(k))) return type;
+    }
+    return '헬스';
+  }
+
+  function _renderImportProgClassifyStep(area) {
+    const progIdxEntry = Object.entries(_mImport.mapping).find(([, v]) => v === 'progText');
+    const progIdx = progIdxEntry ? parseInt(progIdxEntry[0]) : -1;
+    const counts = {};
+    _mImport.rows.forEach(r => {
+      const val = String(r[progIdx] || '').trim() || '(빈값)';
+      counts[val] = (counts[val] || 0) + 1;
+    });
+    Object.keys(counts).forEach(text => {
+      if (!(text in _mImport.progMap)) _mImport.progMap[text] = _classifyProgGuess(text);
+    });
+    const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([text, count]) => {
+      const opts = IMPORT_PROG_OPTS.map(p => `<option value="${p}" ${_mImport.progMap[text] === p ? 'selected' : ''}>${p}</option>`).join('');
+      const safeText = text.replace(/'/g, "\\'");
+      return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);">
+        <div style="flex:1;font-size:12.5px;color:var(--text);word-break:break-all;">${escapeHtml(text)} <span style="color:var(--text-hint);">(${count}명)</span></div>
+        <select onchange="_updateProgMap('${safeText}', this.value)" style="width:150px;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'Noto Sans KR',sans-serif;">
+          ${opts}
+        </select>
+      </div>`;
+    }).join('');
+    area.innerHTML = `
+      <div style="font-size:12.5px;color:var(--text-hint);margin-bottom:10px;line-height:1.6;">
+        엑셀에 있던 상품명/결제명별로 어떤 프로그램인지 확인해주세요 (총 ${Object.keys(counts).length}가지). 키워드로 추측해서 미리 선택해뒀어요.
+      </div>
+      <div style="max-height:400px;overflow-y:auto;margin-bottom:14px;">${rows || '표시할 항목이 없어요.'}</div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="_mImport.step=2;renderMemberImportStep();" style="flex:1;padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
+        <button onclick="_mImport.step=4;renderMemberImportStep();" class="btn-primary" style="flex:2;padding:11px;">다음</button>
+      </div>`;
+  }
+  function _updateProgMap(text, val) { _mImport.progMap[text] = val; }
+  window._updateProgMap = _updateProgMap;
+
+  // 날짜 문자열을 최대한 YYYY-MM-DD 형태로 정규화 (2026.7.28 / 2026/7/28 / 260728 등 대응)
+  function _normalizeImportDate(v) {
+    if (!v) return '';
+    const s = String(v).trim();
+    let m = s.match(/^(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
+    if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
+    m = s.match(/^(\d{2})(\d{2})(\d{2})$/);
+    if (m) return '20' + m[1] + '-' + m[2] + '-' + m[3];
+    return s;
+  }
+
+  function _buildParsedMembers() {
+    const idxOf = (role) => { const e = Object.entries(_mImport.mapping).find(([, v]) => v === role); return e ? parseInt(e[0]) : -1; };
+    const iName = idxOf('name'), iPhone = idxOf('phone'), iBirth = idxOf('birth'),
+      iGender = idxOf('gender'), iAddress = idxOf('address'), iMemo = idxOf('memo'),
+      iStart = idxOf('startDate'), iEnd = idxOf('endDate'), iProg = idxOf('progText');
+    const refIdxs = Object.entries(_mImport.mapping).filter(([, v]) => v === 'ref').map(([k]) => parseInt(k));
+
+    const errors = [];
+    const parsed = [];
+    _mImport.rows.forEach((r, rowIdx) => {
+      const name = iName >= 0 ? String(r[iName] || '').trim() : '';
+      const phone = iPhone >= 0 ? String(r[iPhone] || '').replace(/[^0-9]/g, '') : '';
+      if (!name || !phone) { errors.push({ rowIdx, reason: !name ? '이름없음' : '전화번호없음' }); return; }
+      const birth = iBirth >= 0 ? _normalizeImportDate(r[iBirth]) : '';
+      const genderRaw = iGender >= 0 ? String(r[iGender] || '').trim() : '';
+      const gender = genderRaw.includes('여') ? 'female' : (genderRaw.includes('남') ? 'male' : '');
+      const address = iAddress >= 0 ? String(r[iAddress] || '').trim() : '';
+      const memo = iMemo >= 0 ? String(r[iMemo] || '').trim() : '';
+      const startDate = iStart >= 0 ? _normalizeImportDate(r[iStart]) : '';
+      const endDate = iEnd >= 0 ? _normalizeImportDate(r[iEnd]) : '';
+      const progTextRaw = iProg >= 0 ? String(r[iProg] || '').trim() : '';
+      const progType = iProg >= 0 ? (_mImport.progMap[progTextRaw || '(빈값)'] || '헬스') : '헬스';
+
+      const refParts = [];
+      refIdxs.forEach(ci => {
+        const v = String(r[ci] || '').trim();
+        if (v) refParts.push((_mImport.headers[ci] || '참고') + ': ' + v);
+      });
+      if (progTextRaw) refParts.unshift('기존상품명: ' + progTextRaw);
+      let importMemo = memo;
+      if (refParts.length) importMemo = (importMemo ? importMemo + '\n' : '') + '[이관참고] ' + refParts.join(' / ');
+
+      parsed.push({ name, phone, birth, gender, address, importMemo, startDate, endDate, progType, progTextRaw });
+    });
+    return { parsed, errors };
+  }
+
+  function _renderImportPreviewStep(area) {
+    area.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);">확인 중...</div>';
+    const { parsed, errors } = _buildParsedMembers();
+    db.ref('members').once('value').then(snap => {
+      const existing = snap.val() || {};
+      let dupCount = 0, newCount = 0;
+      parsed.forEach(p => {
+        if (existing[p.phone]) { p.isDup = true; p.existingMemo = existing[p.phone].memo || ''; dupCount++; }
+        else newCount++;
+      });
+      _mImport.parsedMembers = parsed;
+      _mImport.importErrors = errors;
+
+      const sampleRows = parsed.slice(0, 8).map(p =>
+        `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
+          <span>${escapeHtml(p.name)} (${p.phone.slice(-4)})</span>
+          <span style="color:${p.isDup ? '#f59e0b' : 'var(--text-hint)'};">${p.isDup ? '⚠️ 중복' : p.progType + (p.startDate ? (' · ' + p.startDate + '~' + p.endDate) : '')}</span>
+        </div>`
+      ).join('');
+
+      area.innerHTML = `
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+          <div style="flex:1;background:var(--card);border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:20px;font-weight:800;color:var(--blue);">${newCount}</div>
+            <div style="font-size:11.5px;color:var(--text-hint);">신규 등록</div>
+          </div>
+          <div style="flex:1;background:var(--card);border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:20px;font-weight:800;color:#f59e0b;">${dupCount}</div>
+            <div style="font-size:11.5px;color:var(--text-hint);">중복(이미 등록됨)</div>
+          </div>
+          <div style="flex:1;background:var(--card);border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:20px;font-weight:800;color:#ef4444;">${errors.length}</div>
+            <div style="font-size:11.5px;color:var(--text-hint);">오류(제외됨)</div>
+          </div>
+        </div>
+        ${dupCount > 0 ? `
+        <div style="font-size:12.5px;margin-bottom:10px;">
+          중복 회원은 어떻게 처리할까요?
+          <select id="import-dup-action" onchange="_mImport.dupAction=this.value;" style="margin-left:6px;padding:5px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'Noto Sans KR',sans-serif;">
+            <option value="addContractOnly" ${_mImport.dupAction === 'addContractOnly' ? 'selected' : ''}>기본정보는 유지하고 이관계약만 추가</option>
+            <option value="skip" ${_mImport.dupAction === 'skip' ? 'selected' : ''}>건너뛰기 (손대지 않음)</option>
+          </select>
+        </div>` : ''}
+        <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">미리보기 (최대 8명)</div>
+        <div style="max-height:260px;overflow-y:auto;margin-bottom:14px;">${sampleRows || '표시할 데이터가 없어요.'}</div>
+        <div style="font-size:11.5px;color:var(--text-hint);margin-bottom:14px;line-height:1.6;">
+          · 결제금액/상품명 등 세부 계약정보는 매출에 포함되지 않는 참고용으로 회원메모에 남겨져요.<br>
+          · 수강시작일~종료일이 있으면 출석체크·만료알림이 정상 작동하도록 "이관 계약"이 함께 등록돼요.
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="_mImport.step=${Object.values(_mImport.mapping).includes('progText') ? 3 : 2};renderMemberImportStep();" style="flex:1;padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
+          <button onclick="executeMemberImport()" class="btn-primary" style="flex:2;padding:11px;" ${(newCount + dupCount) === 0 ? 'disabled' : ''}>가져오기 실행 (${newCount + dupCount}명)</button>
+        </div>`;
+    }).catch(err => {
+      console.error('회원목록 확인 오류:', err);
+      area.innerHTML = '<div style="color:#ef4444;text-align:center;padding:20px;">회원 목록을 불러오지 못했어요.</div>';
+    });
+  }
+
+  function executeMemberImport() {
+    const list = _mImport.parsedMembers || [];
+    const targets = list.filter(p => !p.isDup || _mImport.dupAction !== 'skip');
+    if (!targets.length) { showToast('등록할 대상이 없어요.', 'error'); return; }
+
+    showConfirm('총 ' + targets.length + '명을 등록할까요?\n\n실행 후에는 "가져오기 이력"에서 최근 1건에 한해 되돌릴 수 있어요.', () => {
+      const area = document.getElementById('import-step-area');
+      if (area) area.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);">등록 중... (' + targets.length + '명)</div>';
+
+      const updates = {};
+      const newMemberPhones = [];
+      const contractEntries = []; // { phone, contractKey, isNew } — 되돌리기 시 이 목록 기준으로 정확히 제거
+      const importedAt = Date.now();
+      const logKey = 'import_' + _todayISO() + '_' + importedAt;
+
+      targets.forEach(p => {
+        const contractKey = 'import_' + importedAt + '_' + p.phone;
+        const contractData = {
+          name: p.name, phone: p.phone, birth: p.birth || '', gender: p.gender || '', address: p.address || '',
+          type: 'import', memo: '',
+          programs: {
+            [p.progType]: {
+              price: 0, cash: 0, card: 0, transfer: 0,
+              startDate: p.startDate || _todayISO(), endDate: p.endDate || p.startDate || _todayISO(),
+              isMigrated: true, originalText: p.progTextRaw || ''
+            }
+          },
+          packages: [], extras: {},
+          signDate: p.startDate || _todayISO(), signUrl: '', terms: '',
+          createdAt: importedAt, registeredBy: 'import', importBatch: logKey,
+          salesStaffId: '', salesStaffName: ''
+        };
+        updates['contracts/' + p.phone + '/' + contractKey] = contractData;
+        contractEntries.push({ phone: p.phone, contractKey, isNew: !p.isDup });
+
+        if (!p.isDup) {
+          const memberData = { name: p.name + '(' + p.phone.slice(-4) + ')', pw: p.phone.slice(-4), programs: {} };
+          if (p.birth) memberData.birth = p.birth;
+          if (p.address) memberData.address = p.address;
+          if (p.gender) memberData['body/gender'] = p.gender;
+          if (p.importMemo) memberData.memo = p.importMemo;
+          updates['members/' + p.phone] = memberData;
+          newMemberPhones.push(p.phone);
+        } else if (p.importMemo) {
+          // 기존회원 기본정보는 그대로 두고, 메모만 기존 내용 뒤에 이어붙임 (덮어쓰지 않음)
+          const mergedMemo = p.existingMemo ? (p.existingMemo + '\n' + p.importMemo) : p.importMemo;
+          updates['members/' + p.phone + '/memo'] = mergedMemo;
+        }
+      });
+
+      const safeLog = JSON.parse(JSON.stringify({
+        executedAt: importedAt, date: _todayISO(),
+        totalCount: targets.length, newCount: newMemberPhones.length, dupCount: contractEntries.length - newMemberPhones.length,
+        newMemberPhones, contractEntries
+      }));
+      updates['member_import_logs/' + logKey] = safeLog;
+
+      db.ref().update(updates).then(() => {
+        if (area) area.innerHTML = `<div style="text-align:center;padding:24px 10px;">
+          <div style="font-size:34px;margin-bottom:10px;">✅</div>
+          <div style="font-size:15px;font-weight:700;margin-bottom:6px;">가져오기 완료!</div>
+          <div style="font-size:13px;color:var(--text-sub);">신규 ${newMemberPhones.length}명 · 기존회원 계약추가 ${contractEntries.length - newMemberPhones.length}명</div>
+          <button onclick="resetMemberImport()" class="btn-primary" style="margin-top:16px;padding:10px 20px;">새로 가져오기</button>
+        </div>`;
+        loadMemberImportHistory();
+        showToast('✅ 회원 가져오기가 완료됐어요.', 'success');
+      }).catch(err => {
+        console.error('회원 가져오기 오류:', err);
+        if (area) area.innerHTML = '<div style="color:#ef4444;text-align:center;padding:20px;">등록 중 오류가 발생했어요: ' + err.message + '</div>';
+      });
+    });
+  }
+  window.executeMemberImport = executeMemberImport;
+
+  // ── 회원 가져오기 이력 & 되돌리기 ──
+  function loadMemberImportHistory() {
+    const el = document.getElementById('import-history-list');
+    if (!el) return;
+    el.innerHTML = '<div style="text-align:center;color:var(--text-hint);padding:12px 0;">불러오는 중...</div>';
+    db.ref('member_import_logs').once('value').then(snap => {
+      const logs = [];
+      snap.forEach(s => logs.push(Object.assign({ key: s.key }, s.val())));
+      logs.sort((a, b) => (b.executedAt || 0) - (a.executedAt || 0));
+      _renderImportHistoryList(logs);
+    }).catch(() => { el.innerHTML = '<div style="text-align:center;color:#ef4444;">불러오기 실패</div>'; });
+  }
+  window.loadMemberImportHistory = loadMemberImportHistory;
+
+  function _renderImportHistoryList(logs) {
+    const el = document.getElementById('import-history-list');
+    if (!el) return;
+    if (!logs.length) { el.innerHTML = '<div style="text-align:center;color:var(--text-hint);padding:12px 0;">아직 가져온 이력이 없어요.</div>'; return; }
+    el.innerHTML = logs.map((log, idx) => {
+      const dt = log.executedAt ? new Date(log.executedAt) : null;
+      const timeLabel = dt ? (log.date + ' ' + String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0')) : log.date;
+      const canUndo = idx === 0 && !log.reverted;
+      const undoBtn = log.reverted
+        ? '<div style="margin-top:6px;font-size:11.5px;color:#22c55e;font-weight:700;">✅ 되돌림 완료</div>'
+        : (canUndo ? `<button onclick="undoMemberImport('${log.key}')" style="margin-top:8px;width:100%;padding:8px;background:none;border:1px solid #ef4444;color:#ef4444;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">↩️ 이 가져오기 되돌리기</button>` : '');
+      return `<div style="background:var(--card);border-radius:10px;padding:12px;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);">${timeLabel}</div>
+        <div style="font-size:12px;color:var(--text-hint);margin-top:2px;">총 ${log.totalCount || 0}명 (신규 ${log.newCount || 0} · 기존회원 계약추가 ${log.dupCount || 0})</div>
+        ${undoBtn}
+      </div>`;
+    }).join('');
+  }
+
+  function undoMemberImport(logKey) {
+    db.ref('member_import_logs/' + logKey).once('value').then(snap => {
+      const log = snap.val();
+      if (!log) { showToast('이력을 찾을 수 없어요.', 'error'); return; }
+      if (log.reverted) { showToast('이미 되돌린 이력이에요.', 'error'); return; }
+      showConfirm(
+        '이 가져오기(신규 ' + (log.newCount || 0) + '명, 기존회원 계약추가 ' + (log.dupCount || 0) + '명)를 되돌릴까요?\n\n' +
+        '⚠️ 이 작업 이후 해당 회원에게 출석기록/추가계약/메모 수정 등이 있었다면 함께 사라질 수 있어요.',
+        () => {
+          const removeUpdates = {};
+          (log.contractEntries || []).forEach(en => {
+            removeUpdates['contracts/' + en.phone + '/' + en.contractKey] = null;
+          });
+          (log.newMemberPhones || []).forEach(phone => {
+            removeUpdates['members/' + phone] = null;
+          });
+          db.ref().update(removeUpdates).then(() => {
+            return db.ref('member_import_logs/' + logKey + '/reverted').set(true);
+          }).then(() => {
+            showToast('✅ 되돌리기 완료!', 'success');
+            loadMemberImportHistory();
+          }).catch(err => {
+            showToast('되돌리기 실패: ' + err.message, 'error');
+          });
+        }
+      );
+    });
+  }
+  window.undoMemberImport = undoMemberImport;
 
   // ── 매출통계 탭: 목표매출 결과표 ──
   let _goalRefDate = new Date();
