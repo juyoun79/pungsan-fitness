@@ -9983,11 +9983,9 @@
           const memberData = { name: p.name + '(' + p.phone.slice(-4) + ')', pw: p.phone.slice(-4), programs: {} };
           if (p.birth) memberData.birth = p.birth;
           if (p.address) memberData.address = p.address;
+          if (p.gender) memberData.body = { gender: p.gender };
           if (p.importMemo) memberData.memo = p.importMemo;
           updates['members/' + p.phone] = memberData;
-          // 'body/gender'처럼 슬래시가 든 키는 값 객체 안에 중첩하면 안 되고, 별도의 최상위 경로키로 분리해야 함
-          // (한 건씩 하는 update()와 달리, 586명을 한번에 묶는 대량 update()에서는 중첩객체 안 슬래시 키를 허용하지 않음)
-          if (p.gender) updates['members/' + p.phone + '/body/gender'] = p.gender;
           newMemberPhones.push(p.phone);
         } else if (p.importMemo) {
           // 기존회원 기본정보는 그대로 두고, 메모만 기존 내용 뒤에 이어붙임 (덮어쓰지 않음)
