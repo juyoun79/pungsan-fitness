@@ -18386,8 +18386,9 @@ async function _kioskCheckIn(phone) {
     }
     // 출석 저장
     await db.ref('users/' + phone + '/attendance/' + today).set(true);
-    // 포인트 적립
-    const pts = member.attendPoint || 2;
+    // 포인트 적립 (앱 QR 출석과 동일하게 전역 설정값 사용)
+    const ptSettingSnap = await db.ref('point_settings/attend').once('value');
+    const pts = ptSettingSnap.val() ?? (member.attendPoint || 2);
     if (typeof addUserPoints === 'function') {
       addUserPoints(phone, pts, '출석');
     } else {

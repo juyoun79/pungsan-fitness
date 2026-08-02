@@ -1363,9 +1363,23 @@
     );
   }
 
-  function doCompleteAttendance() {
+  async function doCompleteAttendance() {
     const userId = localStorage.getItem('current_user');
     const today = getToday();
+
+    // 회원권 만료/휴회 여부 확인 (키오스크 출석과 동일 기준)
+    if (typeof _resolveHoldsAndCheckEligibility === 'function') {
+      try {
+        const { hasEligible } = await _resolveHoldsAndCheckEligibility(userId);
+        if (!hasEligible) {
+          showToast('이용 가능한 회원권이 없어요. 등록 후 다시 이용해주세요.', 'error');
+          return;
+        }
+      } catch (e) {
+        console.error('출석 자격 확인 오류(무시하고 진행):', e);
+      }
+    }
+
     db.ref('users/' + userId + '/attendance/' + today).set(true);
     const todayKey = 'attend_' + userId + '_' + today;
     localStorage.setItem(todayKey, 'done');
