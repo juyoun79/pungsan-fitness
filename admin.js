@@ -9966,6 +9966,14 @@
   window._updateLockerCatMap = _updateLockerCatMap;
 
   // 날짜 문자열을 최대한 YYYY-MM-DD 형태로 정규화 (2026.7.28 / 2026/7/28 / 260728 등 대응)
+  // 락커번호를 앱의 슬롯 키 형식(앞자리 0 없는 순수 숫자)에 맞게 정규화. "008" -> "8", "052" -> "52"
+  // 이걸 빼먹으면 실제 슬롯과 다른 키로 저장되어 락카 현황 화면에 반영이 안 되는(붕 뜨는) 문제가 생김
+  function _normalizeLockerNo(raw) {
+    const s = String(raw || '').trim();
+    if (/^\d+$/.test(s)) return String(parseInt(s, 10));
+    return s;
+  }
+
   function _normalizeImportDate(v) {
     if (!v) return '';
     const s = String(v).trim();
@@ -10002,7 +10010,7 @@
       const progType = iProg >= 0 ? (_mImport.progMap[progTextRaw || '(빈값)'] || '헬스') : '헬스';
 
       const lockerTypeRaw = iLockType >= 0 ? String(r[iLockType] || '').trim() : '';
-      const lockerNo = iLockNo >= 0 ? String(r[iLockNo] || '').trim() : '';
+      const lockerNo = iLockNo >= 0 ? _normalizeLockerNo(r[iLockNo]) : '';
       const lockerStart = iLockStart >= 0 ? _normalizeImportDate(r[iLockStart]) : (startDate || '');
       const lockerEnd = iLockEnd >= 0 ? _normalizeImportDate(r[iLockEnd]) : (endDate || '');
 
@@ -10051,6 +10059,11 @@
           if (!catId || !cat) {
             p.lockerCase = 'unmatched';
           } else {
+            const noNum = parseInt(p.lockerNo, 10);
+            const outOfRange = cat.startNo != null && cat.endNo != null && !isNaN(noNum) && (noNum < cat.startNo || noNum > cat.endNo);
+            if (outOfRange) {
+              p.lockerCase = 'outOfRange';
+            } else {
             const cname = cat.name || '';
             const genderMismatch = p.gender && ((p.gender === 'male' && cname.includes('여') && !cname.includes('남')) || (p.gender === 'female' && cname.includes('남') && !cname.includes('여')));
             if (genderMismatch) {
@@ -10071,10 +10084,11 @@
               p.lockerKey = lockerKey; p.lockerCatId = catId;
               p.lockerSlot = slot || null;
             }
+            }
           }
           if (p.lockerCase && p.lockerCase !== 'free' && p.lockerCase !== 'exact') {
             lockerNeedCheck++;
-            const reasonLabel = { unmatched: '락커종류 매칭안됨', mismatch: '성별 불일치', conflict: '다른 회원이 사용중', ownsOther: '이미 다른 락커 보유' }[p.lockerCase] || '확인필요';
+            const reasonLabel = { unmatched: '락커종류 매칭안됨', mismatch: '성별 불일치', conflict: '다른 회원이 사용중', ownsOther: '이미 다른 락커 보유', outOfRange: '락커번호가 설정범위 밖' }[p.lockerCase] || '확인필요';
             p.importMemo = (p.importMemo ? p.importMemo + '\n' : '') + '[락커 확인필요: ' + reasonLabel + '] ' + p.lockerTypeRaw + ' ' + p.lockerNo + '번 (' + p.lockerStart + '~' + p.lockerEnd + ')';
           }
         }
@@ -10546,7 +10560,7 @@
     _lImport.rows.forEach((r, rowIdx) => {
       const phone = iPhone >= 0 ? String(r[iPhone] || '').replace(/[^0-9]/g, '') : '';
       const lockerTypeRaw = iType >= 0 ? String(r[iType] || '').trim() : '';
-      const lockerNo = iNo >= 0 ? String(r[iNo] || '').trim() : '';
+      const lockerNo = iNo >= 0 ? _normalizeLockerNo(r[iNo]) : '';
       if (!phone || !lockerTypeRaw || !lockerNo) { errors.push({ rowIdx, reason: !phone ? '전화번호없음' : '락커정보없음' }); return; }
       const name = iName >= 0 ? String(r[iName] || '').trim() : '';
       const lockerStart = iStart >= 0 ? _normalizeImportDate(r[iStart]) : _todayISO();
@@ -10578,6 +10592,10 @@
         const catId = _lImport.lockerCatMap[p.lockerTypeRaw] || '';
         const cat = catById[catId];
         if (!catId || !cat) { p.lockerCase = 'unmatched'; needCheckCount++; return; }
+        const noNum = parseInt(p.lockerNo, 10);
+        if (cat.startNo != null && cat.endNo != null && !isNaN(noNum) && (noNum < cat.startNo || noNum > cat.endNo)) {
+          p.lockerCase = 'outOfRange'; needCheckCount++; return;
+        }
         const cname = cat.name || '';
         const genderMismatch = gender && ((gender === 'male' && cname.includes('여') && !cname.includes('남')) || (gender === 'female' && cname.includes('남') && !cname.includes('여')));
         if (genderMismatch) { p.lockerCase = 'mismatch'; needCheckCount++; return; }
@@ -10600,7 +10618,7 @@
       _lImport.parsedRows = parsed;
       _lImport.importErrors = errors;
 
-      const caseLabel = { free: '🔑자동배정', exact: '🔑이미일치', mismatch: '⚠️성별불일치', conflict: '⚠️다른회원사용중', ownsOther: '⚠️이미다른락커보유', unmatched: '⚠️종류매칭안됨', noMember: '❌회원없음' };
+      const caseLabel = { free: '🔑자동배정', exact: '🔑이미일치', mismatch: '⚠️성별불일치', conflict: '⚠️다른회원사용중', ownsOther: '⚠️이미다른락커보유', unmatched: '⚠️종류매칭안됨', outOfRange: '⚠️번호가 설정범위밖', noMember: '❌회원없음' };
       const sampleRows = parsed.slice(0, 10).map(p =>
         `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
           <span>${escapeHtml(p.memberName || p.name || p.phone)} (${p.phone.slice(-4)})</span>
