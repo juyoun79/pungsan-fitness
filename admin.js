@@ -10311,7 +10311,7 @@
     el.innerHTML = '<div style="text-align:center;color:var(--text-hint);padding:12px 0;">불러오는 중...</div>';
     db.ref('member_import_logs').once('value').then(snap => {
       const logs = [];
-      snap.forEach(s => logs.push(Object.assign({ key: s.key }, s.val())));
+      snap.forEach(s => { logs.push(Object.assign({ key: s.key }, s.val())); });
       logs.sort((a, b) => (b.executedAt || 0) - (a.executedAt || 0));
       _renderImportHistoryList(logs);
     }).catch(() => { el.innerHTML = '<div style="text-align:center;color:#ef4444;">불러오기 실패</div>'; });
@@ -10847,7 +10847,7 @@
     el.innerHTML = '<div style="text-align:center;color:var(--text-hint);padding:12px 0;">불러오는 중...</div>';
     db.ref('locker_import_logs').once('value').then(snap => {
       const logs = [];
-      snap.forEach(s => logs.push(Object.assign({ key: s.key }, s.val())));
+      snap.forEach(s => { logs.push(Object.assign({ key: s.key }, s.val())); });
       logs.sort((a, b) => (b.executedAt || 0) - (a.executedAt || 0));
       _renderLockerImportHistoryList(logs);
     }).catch(() => { el.innerHTML = '<div style="text-align:center;color:#ef4444;">불러오기 실패</div>'; });
