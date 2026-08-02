@@ -4378,6 +4378,14 @@
 
   // 부가서비스 항목 한 줄 렌더링 — 프로그램용 환불/양도/휴회 시스템과 완전히 분리된 단순 결제관리(수정/삭제)만 지원
   function _renderExtraRow(phone, contractKey, extKey, e) {
+    if (e.isMigrated) {
+      return `<div class="md-item-row" style="padding:8px 0;border-top:1px solid var(--border);">
+        <div class="md-col-prog"><div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${_extraLabel(extKey, e)}</div></div>
+        <div class="md-col-right" style="margin-left:auto;">
+          <div class="md-col-status" style="font-size:10.5px;color:#0ea5e9;font-weight:700;text-align:right;">📥 이관데이터 (${e.startDate||''}~${e.endDate||''})</div>
+        </div>
+      </div>`;
+    }
     const amt = e.price || 0;
     const paid = (e.cash||0) + (e.card||0) + (e.transfer||0);
     const unpaid = amt - paid;
@@ -9641,7 +9649,8 @@
 
   // ── 회원 엑셀 일괄가져오기 (설정 탭) ──
   let _mImport = {
-    step: 1, headers: [], rows: [], mapping: {}, progMap: {},
+    step: 'upload', headers: [], rows: [], mapping: {}, progMap: {},
+    lockerCatMap: {}, lockerCategories: null, lockerToggle: true, lockerExactAction: 'keep',
     parsedMembers: [], importErrors: [], dupAction: 'addContractOnly'
   };
 
@@ -9649,7 +9658,10 @@
     ['', '사용안함'], ['name', '이름'], ['phone', '전화번호'], ['birth', '생년월일'],
     ['gender', '성별'], ['address', '주소'], ['memo', '회원메모'],
     ['startDate', '수강시작일'], ['endDate', '수강만료일'],
-    ['progText', '프로그램구분(자동분류용)'], ['ref', '참고텍스트(메모에 첨부)']
+    ['progText', '프로그램구분(자동분류용)'],
+    ['lockerType', '락커종류(자동배정용)'], ['lockerNo', '락커번호(자동배정용)'],
+    ['lockerStart', '락커 시작일'], ['lockerEnd', '락커 만료일'],
+    ['ref', '참고텍스트(메모에 첨부)']
   ];
   const IMPORT_ROLE_GUESS = {
     name: ['이름', '성명', '회원명'], phone: ['전화', '휴대폰', '연락처', '핸드폰'],
@@ -9684,16 +9696,47 @@
   }
 
   function resetMemberImport() {
-    _mImport = { step: 1, headers: [], rows: [], mapping: {}, progMap: {}, parsedMembers: [], importErrors: [], dupAction: 'addContractOnly' };
+    _mImport = {
+      step: 'upload', headers: [], rows: [], mapping: {}, progMap: {},
+      lockerCatMap: {}, lockerCategories: null, lockerToggle: true, lockerExactAction: 'keep',
+      parsedMembers: [], importErrors: [], dupAction: 'addContractOnly'
+    };
     renderMemberImportStep();
   }
   window.resetMemberImport = resetMemberImport;
 
+  // 마법사 진행순서 — 매핑된 항목에 따라 필요한 단계만 순서대로 포함
+  function _importActiveSteps() {
+    const roles = Object.values(_mImport.mapping);
+    const steps = ['upload', 'mapping'];
+    if (roles.includes('progText')) steps.push('progClassify');
+    if (roles.includes('lockerType') && roles.includes('lockerNo')) steps.push('lockerClassify');
+    steps.push('preview');
+    return steps;
+  }
+  function _goImportStep(delta) {
+    const seq = _importActiveSteps();
+    const curIdx = seq.indexOf(_mImport.step);
+    const nextIdx = curIdx + delta;
+    if (nextIdx < 0 || nextIdx >= seq.length) return;
+    _mImport.step = seq[nextIdx];
+    renderMemberImportStep();
+  }
+  window._goImportStep = _goImportStep;
+
+  // 락커/락카 관련 컬럼은 종류/번호/시작일/만료일로 구체적으로 추측, 그 외는 일반 항목으로 추측
   function _guessImportMapping(headers) {
     const mapping = {};
     headers.forEach((h, idx) => {
-      // 락커/락카 관련 컬럼은 "수강시작일/성별" 등과 이름이 겹쳐 잘못 추측되기 쉬우므로 자동추측에서 제외 (사용자가 직접 판단)
-      if (h.includes('락커') || h.includes('락카')) { mapping[idx] = ''; return; }
+      const isLockerCol = h.includes('락커') || h.includes('락카');
+      if (isLockerCol) {
+        if (h.includes('종류')) { mapping[idx] = 'lockerType'; return; }
+        if (h.includes('번호')) { mapping[idx] = 'lockerNo'; return; }
+        if (h.includes('시작')) { mapping[idx] = 'lockerStart'; return; }
+        if (h.includes('만료') || h.includes('종료')) { mapping[idx] = 'lockerEnd'; return; }
+        mapping[idx] = ''; // 락커 성별 등 나머지는 사용자가 직접 판단
+        return;
+      }
       let matched = '';
       for (const [role, keywords] of Object.entries(IMPORT_ROLE_GUESS)) {
         if (keywords.some(k => h.includes(k))) { matched = role; break; }
@@ -9720,7 +9763,7 @@
           _mImport.headers = json[0].map(h => String(h || '').trim());
           _mImport.rows = json.slice(1).filter(r => r.some(c => String(c || '').trim() !== ''));
           _mImport.mapping = _guessImportMapping(_mImport.headers);
-          _mImport.step = 2;
+          _mImport.step = 'mapping';
           renderMemberImportStep();
         } catch (err) {
           console.error('엑셀 읽기 오류:', err);
@@ -9740,7 +9783,7 @@
   function renderMemberImportStep() {
     const area = document.getElementById('import-step-area');
     if (!area) return;
-    if (_mImport.step === 1) {
+    if (_mImport.step === 'upload') {
       area.innerHTML = `
         <div style="text-align:center;padding:20px 10px;">
           <div style="font-size:13px;color:var(--text-sub);margin-bottom:14px;line-height:1.6;">
@@ -9753,9 +9796,10 @@
         </div>`;
       return;
     }
-    if (_mImport.step === 2) { _renderImportMappingStep(area); return; }
-    if (_mImport.step === 3) { _renderImportProgClassifyStep(area); return; }
-    if (_mImport.step === 4) { _renderImportPreviewStep(area); return; }
+    if (_mImport.step === 'mapping') { _renderImportMappingStep(area); return; }
+    if (_mImport.step === 'progClassify') { _renderImportProgClassifyStep(area); return; }
+    if (_mImport.step === 'lockerClassify') { _renderImportLockerClassifyStep(area); return; }
+    if (_mImport.step === 'preview') { _renderImportPreviewStep(area); return; }
   }
   window.renderMemberImportStep = renderMemberImportStep;
 
@@ -9773,28 +9817,29 @@
     area.innerHTML = `
       <div style="font-size:12.5px;color:var(--text-hint);margin-bottom:10px;line-height:1.6;">
         엑셀의 각 항목이 우리 앱의 어떤 정보에 해당하는지 연결해주세요. 비슷한 이름은 자동으로 맞춰놨어요, 확인하고 필요하면 수정해주세요.<br>
-        <b>이름</b>과 <b>전화번호</b>는 필수예요.
+        <b>이름</b>과 <b>전화번호</b>는 필수예요. 락커종류+락커번호를 둘 다 연결하면 락커 자동배정 단계가 추가돼요.
       </div>
       <div style="max-height:400px;overflow-y:auto;margin-bottom:14px;">${rows}</div>
       <div style="display:flex;gap:8px;">
         <button onclick="resetMemberImport()" style="flex:1;padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">처음부터</button>
-        <button onclick="_goToImportStep3()" class="btn-primary" style="flex:2;padding:11px;">다음</button>
+        <button onclick="_goFromMapping()" class="btn-primary" style="flex:2;padding:11px;">다음</button>
       </div>`;
   }
 
   function _updateImportMapping(idx, val) { _mImport.mapping[idx] = val; }
   window._updateImportMapping = _updateImportMapping;
 
-  function _goToImportStep3() {
+  function _goFromMapping() {
     const roles = Object.values(_mImport.mapping);
     if (!roles.includes('name') || !roles.includes('phone')) {
       showToast('이름과 전화번호 항목은 반드시 연결해야 해요.', 'error');
       return;
     }
-    _mImport.step = roles.includes('progText') ? 3 : 4;
+    const seq = _importActiveSteps();
+    _mImport.step = seq[seq.indexOf('mapping') + 1];
     renderMemberImportStep();
   }
-  window._goToImportStep3 = _goToImportStep3;
+  window._goFromMapping = _goFromMapping;
 
   function _classifyProgGuess(text) {
     for (const [type, kws] of IMPORT_PROG_KEYWORDS) {
@@ -9830,12 +9875,95 @@
       </div>
       <div style="max-height:400px;overflow-y:auto;margin-bottom:14px;">${rows || '표시할 항목이 없어요.'}</div>
       <div style="display:flex;gap:8px;">
-        <button onclick="_mImport.step=2;renderMemberImportStep();" style="flex:1;padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
-        <button onclick="_mImport.step=4;renderMemberImportStep();" class="btn-primary" style="flex:2;padding:11px;">다음</button>
+        <button onclick="_goImportStep(-1)" style="flex:1;padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
+        <button onclick="_goImportStep(1)" class="btn-primary" style="flex:2;padding:11px;">다음</button>
       </div>`;
   }
   function _updateProgMap(text, val) { _mImport.progMap[text] = val; }
   window._updateProgMap = _updateProgMap;
+
+  // 엑셀 락커종류 텍스트 ↔ 앱 락카 카테고리 자동 추측 (이름 겹침 우선, 없으면 남/여 키워드로 보조 매칭)
+  function _guessLockerCatMatch(text, categories) {
+    for (const cat of categories) {
+      const cname = cat.name || '';
+      if (!cname) continue;
+      if (text.includes(cname) || cname.includes(text)) return cat.id;
+    }
+    const hasFemale = text.includes('여');
+    const hasMale = text.includes('남') && !hasFemale;
+    if (hasFemale || hasMale) {
+      for (const cat of categories) {
+        const cname = cat.name || '';
+        if (hasFemale && cname.includes('여')) return cat.id;
+        if (hasMale && cname.includes('남')) return cat.id;
+      }
+    }
+    return '';
+  }
+
+  function _renderImportLockerClassifyStep(area) {
+    if (!_mImport.lockerCategories) {
+      area.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);">락카 설정 불러오는 중...</div>';
+      db.ref('locker_settings/categories').once('value').then(snap => {
+        const val = snap.val() || {};
+        _mImport.lockerCategories = Object.entries(val).map(([id, v]) => Object.assign({ id }, v));
+        renderMemberImportStep();
+      }).catch(() => { _mImport.lockerCategories = []; renderMemberImportStep(); });
+      return;
+    }
+    const categories = _mImport.lockerCategories;
+    const idxEntry = Object.entries(_mImport.mapping).find(([, v]) => v === 'lockerType');
+    const idx = idxEntry ? parseInt(idxEntry[0]) : -1;
+    const counts = {};
+    _mImport.rows.forEach(r => {
+      const val = String(r[idx] || '').trim();
+      if (!val) return;
+      counts[val] = (counts[val] || 0) + 1;
+    });
+
+    if (!categories.length) {
+      area.innerHTML = `
+        <div style="font-size:12.5px;color:#ef4444;margin-bottom:14px;line-height:1.6;">
+          앱에 등록된 락카 종류가 없어서 자동배정을 할 수 없어요. 먼저 락카 탭 → 설정에서 락카 종류를 등록해주세요.<br>
+          (이번엔 락커 정보는 자동배정하지 않고, 미리보기에서 참고텍스트로만 남길 수 있어요.)
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="_goImportStep(-1)" style="flex:1;padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
+          <button onclick="_mImport.lockerToggle=false;_goImportStep(1);" class="btn-primary" style="flex:2;padding:11px;">다음</button>
+        </div>`;
+      return;
+    }
+
+    Object.keys(counts).forEach(text => {
+      if (!(text in _mImport.lockerCatMap)) _mImport.lockerCatMap[text] = _guessLockerCatMatch(text, categories);
+    });
+
+    const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([text, count]) => {
+      const safeText = text.replace(/'/g, "\\'");
+      const optsHtml = ['<option value="">해당없음(배정 안 함)</option>']
+        .concat(categories.map(c => `<option value="${c.id}" ${_mImport.lockerCatMap[text] === c.id ? 'selected' : ''}>${escapeHtml(c.name || c.id)}</option>`))
+        .join('');
+      return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);">
+        <div style="flex:1;font-size:12.5px;color:var(--text);word-break:break-all;">${escapeHtml(text)} <span style="color:var(--text-hint);">(${count}명)</span></div>
+        <select onchange="_updateLockerCatMap('${safeText}', this.value)" style="width:170px;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'Noto Sans KR',sans-serif;">
+          ${optsHtml}
+        </select>
+      </div>`;
+    }).join('');
+
+    area.innerHTML = `
+      <div style="font-size:12.5px;color:var(--text-hint);margin-bottom:10px;line-height:1.6;">
+        엑셀에 있던 락커종류별로 우리 앱의 어떤 락카 종류에 해당하는지 연결해주세요 (총 ${Object.keys(counts).length}가지). 이름이 비슷하면 자동으로 맞춰놨어요.<br>
+        "해당없음"으로 두면 그 락커는 자동배정하지 않고 참고텍스트로만 남아요.
+      </div>
+      <div style="max-height:400px;overflow-y:auto;margin-bottom:14px;">${rows || '표시할 항목이 없어요.'}</div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="_goImportStep(-1)" style="flex:1;padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
+        <button onclick="_goImportStep(1)" class="btn-primary" style="flex:2;padding:11px;">다음</button>
+      </div>`;
+  }
+  function _updateLockerCatMap(text, val) { _mImport.lockerCatMap[text] = val; }
+  window._updateLockerCatMap = _updateLockerCatMap;
 
   // 날짜 문자열을 최대한 YYYY-MM-DD 형태로 정규화 (2026.7.28 / 2026/7/28 / 260728 등 대응)
   function _normalizeImportDate(v) {
@@ -9852,7 +9980,9 @@
     const idxOf = (role) => { const e = Object.entries(_mImport.mapping).find(([, v]) => v === role); return e ? parseInt(e[0]) : -1; };
     const iName = idxOf('name'), iPhone = idxOf('phone'), iBirth = idxOf('birth'),
       iGender = idxOf('gender'), iAddress = idxOf('address'), iMemo = idxOf('memo'),
-      iStart = idxOf('startDate'), iEnd = idxOf('endDate'), iProg = idxOf('progText');
+      iStart = idxOf('startDate'), iEnd = idxOf('endDate'), iProg = idxOf('progText'),
+      iLockType = idxOf('lockerType'), iLockNo = idxOf('lockerNo'),
+      iLockStart = idxOf('lockerStart'), iLockEnd = idxOf('lockerEnd');
     const refIdxs = Object.entries(_mImport.mapping).filter(([, v]) => v === 'ref').map(([k]) => parseInt(k));
 
     const errors = [];
@@ -9871,6 +10001,11 @@
       const progTextRaw = iProg >= 0 ? String(r[iProg] || '').trim() : '';
       const progType = iProg >= 0 ? (_mImport.progMap[progTextRaw || '(빈값)'] || '헬스') : '헬스';
 
+      const lockerTypeRaw = iLockType >= 0 ? String(r[iLockType] || '').trim() : '';
+      const lockerNo = iLockNo >= 0 ? String(r[iLockNo] || '').trim() : '';
+      const lockerStart = iLockStart >= 0 ? _normalizeImportDate(r[iLockStart]) : (startDate || '');
+      const lockerEnd = iLockEnd >= 0 ? _normalizeImportDate(r[iLockEnd]) : (endDate || '');
+
       const refParts = [];
       refIdxs.forEach(ci => {
         const v = String(r[ci] || '').trim();
@@ -9880,7 +10015,10 @@
       let importMemo = memo;
       if (refParts.length) importMemo = (importMemo ? importMemo + '\n' : '') + '[이관참고] ' + refParts.join(' / ');
 
-      parsed.push({ name, phone, birth, gender, address, importMemo, startDate, endDate, progType, progTextRaw });
+      parsed.push({
+        name, phone, birth, gender, address, importMemo, startDate, endDate, progType, progTextRaw,
+        lockerTypeRaw, lockerNo, lockerStart, lockerEnd
+      });
     });
     return { parsed, errors };
   }
@@ -9888,22 +10026,90 @@
   function _renderImportPreviewStep(area) {
     area.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);">확인 중...</div>';
     const { parsed, errors } = _buildParsedMembers();
-    db.ref('members').once('value').then(snap => {
-      const existing = snap.val() || {};
+    const roles = Object.values(_mImport.mapping);
+    const lockerMapped = roles.includes('lockerType') && roles.includes('lockerNo') && _mImport.lockerCategories && _mImport.lockerCategories.length;
+
+    Promise.all([
+      db.ref('members').once('value'),
+      lockerMapped ? db.ref('lockers').once('value') : Promise.resolve(null)
+    ]).then(([memSnap, lockSnap]) => {
+      const existing = memSnap.val() || {};
+      const existingLockers = lockSnap ? (lockSnap.val() || {}) : {};
+      const catById = {};
+      (_mImport.lockerCategories || []).forEach(c => { catById[c.id] = c; });
+
       let dupCount = 0, newCount = 0;
+      let lockerAuto = 0, lockerExact = 0, lockerNeedCheck = 0;
+
       parsed.forEach(p => {
         if (existing[p.phone]) { p.isDup = true; p.existingMemo = existing[p.phone].memo || ''; dupCount++; }
         else newCount++;
+
+        if (lockerMapped && p.lockerTypeRaw && p.lockerNo) {
+          const catId = _mImport.lockerCatMap[p.lockerTypeRaw] || '';
+          const cat = catById[catId];
+          if (!catId || !cat) {
+            p.lockerCase = 'unmatched';
+          } else {
+            const cname = cat.name || '';
+            const genderMismatch = p.gender && ((p.gender === 'male' && cname.includes('여') && !cname.includes('남')) || (p.gender === 'female' && cname.includes('남') && !cname.includes('여')));
+            if (genderMismatch) {
+              p.lockerCase = 'mismatch';
+            } else {
+              const lockerKey = catId + '_' + p.lockerNo;
+              const slot = existingLockers[lockerKey];
+              const memberCurLockerKey = existing[p.phone]?.lockerKey || '';
+              if (slot && slot.phone && slot.phone === p.phone) {
+                p.lockerCase = 'exact'; lockerExact++;
+              } else if (slot && slot.phone && slot.phone !== p.phone) {
+                p.lockerCase = 'conflict';
+              } else if (memberCurLockerKey && memberCurLockerKey !== lockerKey) {
+                p.lockerCase = 'ownsOther';
+              } else {
+                p.lockerCase = 'free'; lockerAuto++;
+              }
+              p.lockerKey = lockerKey; p.lockerCatId = catId;
+              p.lockerSlot = slot || null;
+            }
+          }
+          if (p.lockerCase && p.lockerCase !== 'free' && p.lockerCase !== 'exact') {
+            lockerNeedCheck++;
+            const reasonLabel = { unmatched: '락커종류 매칭안됨', mismatch: '성별 불일치', conflict: '다른 회원이 사용중', ownsOther: '이미 다른 락커 보유' }[p.lockerCase] || '확인필요';
+            p.importMemo = (p.importMemo ? p.importMemo + '\n' : '') + '[락커 확인필요: ' + reasonLabel + '] ' + p.lockerTypeRaw + ' ' + p.lockerNo + '번 (' + p.lockerStart + '~' + p.lockerEnd + ')';
+          }
+        }
       });
+
       _mImport.parsedMembers = parsed;
       _mImport.importErrors = errors;
 
-      const sampleRows = parsed.slice(0, 8).map(p =>
-        `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
+      const sampleRows = parsed.slice(0, 8).map(p => {
+        const lockerBadge = p.lockerCase === 'free' ? ' 🔑자동배정' : (p.lockerCase === 'exact' ? ' 🔑일치' : (p.lockerCase ? ' 🔑확인필요' : ''));
+        return `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
           <span>${escapeHtml(p.name)} (${p.phone.slice(-4)})</span>
-          <span style="color:${p.isDup ? '#f59e0b' : 'var(--text-hint)'};">${p.isDup ? '⚠️ 중복' : p.progType + (p.startDate ? (' · ' + p.startDate + '~' + p.endDate) : '')}</span>
-        </div>`
-      ).join('');
+          <span style="color:${p.isDup ? '#f59e0b' : 'var(--text-hint)'};">${p.isDup ? '⚠️ 중복' : p.progType + (p.startDate ? (' · ' + p.startDate + '~' + p.endDate) : '')}${lockerBadge}</span>
+        </div>`;
+      }).join('');
+
+      const lockerSummaryHtml = lockerMapped ? `
+        <div style="background:var(--card);border-radius:10px;padding:12px;margin-bottom:14px;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--text);cursor:pointer;">
+            <input type="checkbox" id="import-locker-toggle" ${_mImport.lockerToggle ? 'checked' : ''} onchange="_mImport.lockerToggle=this.checked;renderMemberImportStep();" style="width:16px;height:16px;">
+            🔑 락커 정보도 자동배정할까요?
+          </label>
+          ${_mImport.lockerToggle ? `
+          <div style="margin-top:8px;font-size:12px;color:var(--text-hint);line-height:1.6;">
+            자동배정 가능: <b style="color:var(--blue);">${lockerAuto}건</b> · 이미 정확히 일치: <b>${lockerExact}건</b> · 확인필요(건너뜀, 메모에만 기록): <b style="color:#ef4444;">${lockerNeedCheck}건</b>
+          </div>
+          ${lockerExact > 0 ? `
+          <div style="margin-top:8px;font-size:12.5px;">
+            이미 정확히 배정된 ${lockerExact}건은 어떻게 할까요?
+            <select onchange="_mImport.lockerExactAction=this.value;" style="margin-left:6px;padding:5px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'Noto Sans KR',sans-serif;">
+              <option value="keep" ${_mImport.lockerExactAction === 'keep' ? 'selected' : ''}>그대로 유지 (건드리지 않음)</option>
+              <option value="update" ${_mImport.lockerExactAction === 'update' ? 'selected' : ''}>기간만 엑셀 기준으로 갱신</option>
+            </select>
+          </div>` : ''}` : `<div style="margin-top:6px;font-size:12px;color:var(--text-hint);">끄면 락커 정보는 배정하지 않고, 참고텍스트로만 회원메모에 남아요.</div>`}
+        </div>` : '';
 
       area.innerHTML = `
         <div style="display:flex;gap:8px;margin-bottom:14px;">
@@ -9921,13 +10127,14 @@
           </div>
         </div>
         ${dupCount > 0 ? `
-        <div style="font-size:12.5px;margin-bottom:10px;">
+        <div style="font-size:12.5px;margin-bottom:14px;">
           중복 회원은 어떻게 처리할까요?
           <select id="import-dup-action" onchange="_mImport.dupAction=this.value;" style="margin-left:6px;padding:5px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'Noto Sans KR',sans-serif;">
             <option value="addContractOnly" ${_mImport.dupAction === 'addContractOnly' ? 'selected' : ''}>기본정보는 유지하고 이관계약만 추가</option>
             <option value="skip" ${_mImport.dupAction === 'skip' ? 'selected' : ''}>건너뛰기 (손대지 않음)</option>
           </select>
         </div>` : ''}
+        ${lockerSummaryHtml}
         <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">미리보기 (최대 8명)</div>
         <div style="max-height:260px;overflow-y:auto;margin-bottom:14px;">${sampleRows || '표시할 데이터가 없어요.'}</div>
         <div style="font-size:11.5px;color:var(--text-hint);margin-bottom:14px;line-height:1.6;">
@@ -9935,7 +10142,7 @@
           · 수강시작일~종료일이 있으면 출석체크·만료알림이 정상 작동하도록 "이관 계약"이 함께 등록돼요.
         </div>
         <div style="display:flex;gap:8px;">
-          <button onclick="_mImport.step=${Object.values(_mImport.mapping).includes('progText') ? 3 : 2};renderMemberImportStep();" style="flex:1;padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
+          <button onclick="_goImportStep(-1)" style="flex:1;padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
           <button onclick="executeMemberImport()" class="btn-primary" style="flex:2;padding:11px;" ${(newCount + dupCount) === 0 ? 'disabled' : ''}>가져오기 실행 (${newCount + dupCount}명)</button>
         </div>`;
     }).catch(err => {
@@ -9955,7 +10162,8 @@
 
       const updates = {};
       const newMemberPhones = [];
-      const contractEntries = []; // { phone, contractKey, isNew } — 되돌리기 시 이 목록 기준으로 정확히 제거
+      const contractEntries = []; // { phone, contractKey } — 되돌리기 시 이 목록 기준으로 정확히 제거
+      const lockerEntries = [];   // { lockerKey, isNew, prevStart, prevEnd } — 락커 되돌리기용
       const importedAt = Date.now();
       const logKey = 'import_' + _todayISO() + '_' + importedAt;
 
@@ -9976,28 +10184,65 @@
           createdAt: importedAt, registeredBy: 'import', importBatch: logKey,
           salesStaffId: '', salesStaffName: ''
         };
+
+        // 락커 자동배정 여부만 먼저 판단 (실제 members/ 경로 반영은 아래에서 신규/기존 여부에 따라 충돌 없이 처리)
+        let pendingLockerKey = null;
+        if (_mImport.lockerToggle && p.lockerCase === 'free' && p.lockerKey) {
+          contractData.extras = {
+            locker: {
+              lockerNo: p.lockerNo, lockerCatId: p.lockerCatId, lockerKey: p.lockerKey,
+              startDate: p.lockerStart, endDate: p.lockerEnd, months: 0,
+              price: 0, cash: 0, card: 0, transfer: 0,
+              isMigrated: true, originalText: p.lockerTypeRaw
+            }
+          };
+          updates['lockers/' + p.lockerKey] = {
+            lockerNo: p.lockerNo, phone: p.phone, name: p.name,
+            startDate: p.lockerStart, endDate: p.lockerEnd,
+            categoryId: p.lockerCatId, status: 'active',
+            linkedContract: { phone: p.phone, contractKey }, isMigrated: true
+          };
+          pendingLockerKey = p.lockerKey;
+          lockerEntries.push({ lockerKey: p.lockerKey, isNew: true });
+        } else if (_mImport.lockerToggle && p.lockerCase === 'exact' && _mImport.lockerExactAction === 'update' && p.lockerKey) {
+          updates['lockers/' + p.lockerKey + '/startDate'] = p.lockerStart;
+          updates['lockers/' + p.lockerKey + '/endDate'] = p.lockerEnd;
+          lockerEntries.push({
+            lockerKey: p.lockerKey, isNew: false,
+            prevStart: (p.lockerSlot && p.lockerSlot.startDate) || '',
+            prevEnd: (p.lockerSlot && p.lockerSlot.endDate) || ''
+          });
+        }
+
         updates['contracts/' + p.phone + '/' + contractKey] = contractData;
-        contractEntries.push({ phone: p.phone, contractKey, isNew: !p.isDup });
+        contractEntries.push({ phone: p.phone, contractKey });
 
         if (!p.isDup) {
+          // 신규회원: members/{phone} 전체를 한 번에 쓰므로, lockerKey도 반드시 이 객체 안에 같이 넣어야 함
+          // (전체객체 경로와 그 하위경로를 같은 update()에서 따로따로 쓰면 Firebase가 "경로충돌"로 거부함)
           const memberData = { name: p.name + '(' + p.phone.slice(-4) + ')', pw: p.phone.slice(-4), programs: {} };
           if (p.birth) memberData.birth = p.birth;
           if (p.address) memberData.address = p.address;
           if (p.gender) memberData.body = { gender: p.gender };
           if (p.importMemo) memberData.memo = p.importMemo;
+          if (pendingLockerKey) memberData.lockerKey = pendingLockerKey;
           updates['members/' + p.phone] = memberData;
           newMemberPhones.push(p.phone);
-        } else if (p.importMemo) {
-          // 기존회원 기본정보는 그대로 두고, 메모만 기존 내용 뒤에 이어붙임 (덮어쓰지 않음)
-          const mergedMemo = p.existingMemo ? (p.existingMemo + '\n' + p.importMemo) : p.importMemo;
-          updates['members/' + p.phone + '/memo'] = mergedMemo;
+        } else {
+          // 기존회원: 전체객체를 새로 쓰지 않으므로, 하위경로(memo, lockerKey)를 각각 따로 써도 충돌 없음
+          if (p.importMemo) {
+            const mergedMemo = p.existingMemo ? (p.existingMemo + '\n' + p.importMemo) : p.importMemo;
+            updates['members/' + p.phone + '/memo'] = mergedMemo;
+          }
+          if (pendingLockerKey) updates['members/' + p.phone + '/lockerKey'] = pendingLockerKey;
         }
       });
 
       const safeLog = JSON.parse(JSON.stringify({
         executedAt: importedAt, date: _todayISO(),
         totalCount: targets.length, newCount: newMemberPhones.length, dupCount: contractEntries.length - newMemberPhones.length,
-        newMemberPhones, contractEntries
+        lockerCount: lockerEntries.length,
+        newMemberPhones, contractEntries, lockerEntries
       }));
       updates['member_import_logs/' + logKey] = safeLog;
 
@@ -10005,7 +10250,7 @@
         if (area) area.innerHTML = `<div style="text-align:center;padding:24px 10px;">
           <div style="font-size:34px;margin-bottom:10px;">✅</div>
           <div style="font-size:15px;font-weight:700;margin-bottom:6px;">가져오기 완료!</div>
-          <div style="font-size:13px;color:var(--text-sub);">신규 ${newMemberPhones.length}명 · 기존회원 계약추가 ${contractEntries.length - newMemberPhones.length}명</div>
+          <div style="font-size:13px;color:var(--text-sub);">신규 ${newMemberPhones.length}명 · 기존회원 계약추가 ${contractEntries.length - newMemberPhones.length}명 · 락커배정 ${lockerEntries.length}건</div>
           <button onclick="resetMemberImport()" class="btn-primary" style="margin-top:16px;padding:10px 20px;">새로 가져오기</button>
         </div>`;
         loadMemberImportHistory();
@@ -10045,7 +10290,7 @@
         : (canUndo ? `<button onclick="undoMemberImport('${log.key}')" style="margin-top:8px;width:100%;padding:8px;background:none;border:1px solid #ef4444;color:#ef4444;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">↩️ 이 가져오기 되돌리기</button>` : '');
       return `<div style="background:var(--card);border-radius:10px;padding:12px;margin-bottom:8px;">
         <div style="font-size:13px;font-weight:700;color:var(--text);">${timeLabel}</div>
-        <div style="font-size:12px;color:var(--text-hint);margin-top:2px;">총 ${log.totalCount || 0}명 (신규 ${log.newCount || 0} · 기존회원 계약추가 ${log.dupCount || 0})</div>
+        <div style="font-size:12px;color:var(--text-hint);margin-top:2px;">총 ${log.totalCount || 0}명 (신규 ${log.newCount || 0} · 기존회원 계약추가 ${log.dupCount || 0} · 락커배정 ${log.lockerCount || 0}건)</div>
         ${undoBtn}
       </div>`;
     }).join('');
@@ -10057,8 +10302,8 @@
       if (!log) { showToast('이력을 찾을 수 없어요.', 'error'); return; }
       if (log.reverted) { showToast('이미 되돌린 이력이에요.', 'error'); return; }
       showConfirm(
-        '이 가져오기(신규 ' + (log.newCount || 0) + '명, 기존회원 계약추가 ' + (log.dupCount || 0) + '명)를 되돌릴까요?\n\n' +
-        '⚠️ 이 작업 이후 해당 회원에게 출석기록/추가계약/메모 수정 등이 있었다면 함께 사라질 수 있어요.',
+        '이 가져오기(신규 ' + (log.newCount || 0) + '명, 기존회원 계약추가 ' + (log.dupCount || 0) + '명, 락커배정 ' + (log.lockerCount || 0) + '건)를 되돌릴까요?\n\n' +
+        '⚠️ 이 작업 이후 해당 회원에게 출석기록/추가계약/메모 수정/락커 재배정 등이 있었다면 함께 사라질 수 있어요.',
         () => {
           const removeUpdates = {};
           (log.contractEntries || []).forEach(en => {
@@ -10066,6 +10311,14 @@
           });
           (log.newMemberPhones || []).forEach(phone => {
             removeUpdates['members/' + phone] = null;
+          });
+          (log.lockerEntries || []).forEach(en => {
+            if (en.isNew) {
+              removeUpdates['lockers/' + en.lockerKey] = null;
+            } else {
+              removeUpdates['lockers/' + en.lockerKey + '/startDate'] = en.prevStart || '';
+              removeUpdates['lockers/' + en.lockerKey + '/endDate'] = en.prevEnd || '';
+            }
           });
           db.ref().update(removeUpdates).then(() => {
             return db.ref('member_import_logs/' + logKey + '/reverted').set(true);
