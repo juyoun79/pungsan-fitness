@@ -7450,26 +7450,26 @@
   function switchLockerSubtab(tab) {
     const statusBtn  = document.getElementById('locker-subtab-status');
     const settingsBtn= document.getElementById('locker-subtab-settings');
+    const importBtn  = document.getElementById('locker-subtab-import');
     const statusView = document.getElementById('locker-view-status');
     const settingsView = document.getElementById('locker-view-settings');
+    const importView = document.getElementById('locker-view-import');
+    [statusView, settingsView, importView].forEach(v => { if (v) v.style.display = 'none'; });
+    [statusBtn, settingsBtn, importBtn].forEach(b => {
+      if (!b) return;
+      b.style.background = 'var(--card)'; b.style.color = 'var(--text)'; b.style.border = '1.5px solid var(--border)';
+    });
     if (tab === 'status') {
       statusView.style.display = 'block';
-      settingsView.style.display = 'none';
-      statusBtn.style.background = 'var(--blue)';
-      statusBtn.style.color = 'white';
-      statusBtn.style.border = 'none';
-      settingsBtn.style.background = 'var(--card)';
-      settingsBtn.style.color = 'var(--text)';
-      settingsBtn.style.border = '1.5px solid var(--border)';
-    } else {
-      statusView.style.display = 'none';
+      statusBtn.style.background = 'var(--blue)'; statusBtn.style.color = 'white'; statusBtn.style.border = 'none';
+    } else if (tab === 'settings') {
       settingsView.style.display = 'block';
-      settingsBtn.style.background = 'var(--blue)';
-      settingsBtn.style.color = 'white';
-      settingsBtn.style.border = 'none';
-      statusBtn.style.background = 'var(--card)';
-      statusBtn.style.color = 'var(--text)';
-      statusBtn.style.border = '1.5px solid var(--border)';
+      settingsBtn.style.background = 'var(--blue)'; settingsBtn.style.color = 'white'; settingsBtn.style.border = 'none';
+    } else if (tab === 'import') {
+      importView.style.display = 'block';
+      importBtn.style.background = 'var(--blue)'; importBtn.style.color = 'white'; importBtn.style.border = 'none';
+      if (!_lImport || !_lImport.headers || !_lImport.headers.length) renderLockerImportStep();
+      loadLockerImportHistory();
     }
   }
 
@@ -10203,7 +10203,7 @@
             linkedContract: { phone: p.phone, contractKey }, isMigrated: true
           };
           pendingLockerKey = p.lockerKey;
-          lockerEntries.push({ lockerKey: p.lockerKey, isNew: true });
+          lockerEntries.push({ lockerKey: p.lockerKey, isNew: true, phone: p.phone });
         } else if (_mImport.lockerToggle && p.lockerCase === 'exact' && _mImport.lockerExactAction === 'update' && p.lockerKey) {
           updates['lockers/' + p.lockerKey + '/startDate'] = p.lockerStart;
           updates['lockers/' + p.lockerKey + '/endDate'] = p.lockerEnd;
@@ -10309,12 +10309,15 @@
           (log.contractEntries || []).forEach(en => {
             removeUpdates['contracts/' + en.phone + '/' + en.contractKey] = null;
           });
-          (log.newMemberPhones || []).forEach(phone => {
+          const newPhoneSet = new Set(log.newMemberPhones || []);
+          newPhoneSet.forEach(phone => {
             removeUpdates['members/' + phone] = null;
           });
           (log.lockerEntries || []).forEach(en => {
             if (en.isNew) {
               removeUpdates['lockers/' + en.lockerKey] = null;
+              // 신규회원이면 members/{phone} 전체를 위에서 이미 통째로 지우므로, lockerKey만 따로 또 지우면 경로충돌 남
+              if (en.phone && !newPhoneSet.has(en.phone)) removeUpdates['members/' + en.phone + '/lockerKey'] = null;
             } else {
               removeUpdates['lockers/' + en.lockerKey + '/startDate'] = en.prevStart || '';
               removeUpdates['lockers/' + en.lockerKey + '/endDate'] = en.prevEnd || '';
@@ -10333,6 +10336,464 @@
     });
   }
   window.undoMemberImport = undoMemberImport;
+
+  // ══════════════════════════════════════════════════════════
+  // ── 락카 탭 전용: 엑셀로 "락커 정보만" 갱신 (회원 정보는 절대 안 건드림) ──
+  // 위 "회원 가져오기"와 상태를 완전히 분리(_lImport)해서 두 기능이 서로 간섭하지 않게 함.
+  // 파싱/락커매칭 관련 헬퍼(_loadSheetJS, _normalizeImportDate, _guessLockerCatMatch, escapeHtml)는 그대로 재사용.
+  // ══════════════════════════════════════════════════════════
+  let _lImport = {
+    step: 'upload', headers: [], rows: [], mapping: {}, lockerCatMap: {},
+    lockerCategories: null, exactAction: 'keep', parsedRows: [], importErrors: []
+  };
+
+  const LOCKER_ONLY_ROLE_OPTS = [
+    ['', '사용안함'], ['name', '이름(참고표시용)'], ['phone', '전화번호'],
+    ['lockerType', '락커종류'], ['lockerNo', '락커번호'],
+    ['lockerStart', '락커 시작일'], ['lockerEnd', '락커 만료일']
+  ];
+  const LOCKER_ONLY_ROLE_GUESS = {
+    name: ['이름', '성명', '회원명'], phone: ['전화', '휴대폰', '연락처', '핸드폰']
+  };
+
+  function resetLockerImport() {
+    _lImport = {
+      step: 'upload', headers: [], rows: [], mapping: {}, lockerCatMap: {},
+      lockerCategories: null, exactAction: 'keep', parsedRows: [], importErrors: []
+    };
+    renderLockerImportStep();
+  }
+  window.resetLockerImport = resetLockerImport;
+
+  function _guessLockerOnlyMapping(headers) {
+    const mapping = {};
+    headers.forEach((h, idx) => {
+      const isLockerCol = h.includes('락커') || h.includes('락카');
+      if (isLockerCol) {
+        if (h.includes('종류')) { mapping[idx] = 'lockerType'; return; }
+        if (h.includes('번호')) { mapping[idx] = 'lockerNo'; return; }
+        if (h.includes('시작')) { mapping[idx] = 'lockerStart'; return; }
+        if (h.includes('만료') || h.includes('종료')) { mapping[idx] = 'lockerEnd'; return; }
+        mapping[idx] = ''; return;
+      }
+      let matched = '';
+      for (const [role, keywords] of Object.entries(LOCKER_ONLY_ROLE_GUESS)) {
+        if (keywords.some(k => h.includes(k))) { matched = role; break; }
+      }
+      mapping[idx] = matched;
+    });
+    return mapping;
+  }
+
+  function handleLockerImportFileSelect(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const area = document.getElementById('locker-import-step-area');
+    if (area) area.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);">파일 읽는 중...</div>';
+    _loadSheetJS().then(() => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const wb = XLSX.read(data, { type: 'array' });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
+          if (!json.length) { showToast('엑셀 내용이 비어있어요.', 'error'); renderLockerImportStep(); return; }
+          _lImport.headers = json[0].map(h => String(h || '').trim());
+          _lImport.rows = json.slice(1).filter(r => r.some(c => String(c || '').trim() !== ''));
+          _lImport.mapping = _guessLockerOnlyMapping(_lImport.headers);
+          _lImport.step = 'mapping';
+          renderLockerImportStep();
+        } catch (err) {
+          console.error('엑셀 읽기 오류:', err);
+          showToast('엑셀 파일을 읽는 중 오류가 발생했어요. 파일 형식을 확인해주세요.', 'error');
+          renderLockerImportStep();
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }).catch(err => {
+      console.error(err);
+      showToast('필요한 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인해주세요.', 'error');
+      renderLockerImportStep();
+    });
+  }
+  window.handleLockerImportFileSelect = handleLockerImportFileSelect;
+
+  function renderLockerImportStep() {
+    const area = document.getElementById('locker-import-step-area');
+    if (!area) return;
+    if (_lImport.step === 'upload') {
+      area.innerHTML = `
+        <div style="text-align:center;padding:20px 10px;">
+          <div style="font-size:13px;color:var(--text-sub);margin-bottom:14px;line-height:1.6;">
+            락커 정보(전화번호+락커종류+락커번호+기간)가 담긴 엑셀 파일을 업로드하세요.
+          </div>
+          <label style="display:inline-block;padding:12px 20px;background:var(--blue);color:white;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+            📂 엑셀 파일 선택
+            <input type="file" accept=".xlsx,.xls" style="display:none;" onchange="handleLockerImportFileSelect(this)">
+          </label>
+        </div>`;
+      return;
+    }
+    if (_lImport.step === 'mapping') { _renderLockerOnlyMappingStep(area); return; }
+    if (_lImport.step === 'lockerClassify') { _renderLockerOnlyClassifyStep(area); return; }
+    if (_lImport.step === 'preview') { _renderLockerOnlyPreviewStep(area); return; }
+  }
+  window.renderLockerImportStep = renderLockerImportStep;
+
+  function _renderLockerOnlyMappingStep(area) {
+    const rows = _lImport.headers.map((h, idx) => {
+      const opts = LOCKER_ONLY_ROLE_OPTS.map(([v, l]) => `<option value="${v}" ${(_lImport.mapping[idx] || '') === v ? 'selected' : ''}>${l}</option>`).join('');
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="flex:1;font-size:13px;color:var(--text);">${escapeHtml(h || ('(이름없음 열' + (idx + 1) + ')'))}</div>
+        <div style="font-size:11px;color:var(--text-hint);">→</div>
+        <select onchange="_updateLockerOnlyMapping(${idx}, this.value)" style="flex:1;padding:7px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'Noto Sans KR',sans-serif;">
+          ${opts}
+        </select>
+      </div>`;
+    }).join('');
+    area.innerHTML = `
+      <div style="font-size:12.5px;color:var(--text-hint);margin-bottom:10px;line-height:1.6;">
+        <b>전화번호·락커종류·락커번호</b>는 필수예요. 회원 기본정보나 프로그램 계약은 여기서 전혀 안 건드려요.
+      </div>
+      <div style="max-height:400px;overflow-y:auto;margin-bottom:14px;">${rows}</div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="resetLockerImport()" style="flex:1;padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">처음부터</button>
+        <button onclick="_goFromLockerOnlyMapping()" class="btn-primary" style="flex:2;padding:11px;">다음</button>
+      </div>`;
+  }
+  function _updateLockerOnlyMapping(idx, val) { _lImport.mapping[idx] = val; }
+  window._updateLockerOnlyMapping = _updateLockerOnlyMapping;
+
+  function _goFromLockerOnlyMapping() {
+    const roles = Object.values(_lImport.mapping);
+    if (!roles.includes('phone') || !roles.includes('lockerType') || !roles.includes('lockerNo')) {
+      showToast('전화번호·락커종류·락커번호는 반드시 연결해야 해요.', 'error');
+      return;
+    }
+    _lImport.step = 'lockerClassify';
+    renderLockerImportStep();
+  }
+  window._goFromLockerOnlyMapping = _goFromLockerOnlyMapping;
+
+  function _renderLockerOnlyClassifyStep(area) {
+    if (!_lImport.lockerCategories) {
+      area.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);">락카 설정 불러오는 중...</div>';
+      db.ref('locker_settings/categories').once('value').then(snap => {
+        const val = snap.val() || {};
+        _lImport.lockerCategories = Object.entries(val).map(([id, v]) => Object.assign({ id }, v));
+        renderLockerImportStep();
+      }).catch(() => { _lImport.lockerCategories = []; renderLockerImportStep(); });
+      return;
+    }
+    const categories = _lImport.lockerCategories;
+    const idxEntry = Object.entries(_lImport.mapping).find(([, v]) => v === 'lockerType');
+    const idx = idxEntry ? parseInt(idxEntry[0]) : -1;
+    const counts = {};
+    _lImport.rows.forEach(r => {
+      const val = String(r[idx] || '').trim();
+      if (!val) return;
+      counts[val] = (counts[val] || 0) + 1;
+    });
+
+    if (!categories.length) {
+      area.innerHTML = `
+        <div style="font-size:12.5px;color:#ef4444;margin-bottom:14px;line-height:1.6;">
+          앱에 등록된 락카 종류가 없어요. 먼저 "⚙️ 설정" 탭에서 락카 종류를 등록해주세요.
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="_lImport.step='mapping';renderLockerImportStep();" style="flex:1;padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
+        </div>`;
+      return;
+    }
+
+    Object.keys(counts).forEach(text => {
+      if (!(text in _lImport.lockerCatMap)) _lImport.lockerCatMap[text] = _guessLockerCatMatch(text, categories);
+    });
+
+    const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([text, count]) => {
+      const safeText = text.replace(/'/g, "\\'");
+      const optsHtml = ['<option value="">해당없음(배정 안 함)</option>']
+        .concat(categories.map(c => `<option value="${c.id}" ${_lImport.lockerCatMap[text] === c.id ? 'selected' : ''}>${escapeHtml(c.name || c.id)}</option>`))
+        .join('');
+      return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);">
+        <div style="flex:1;font-size:12.5px;color:var(--text);word-break:break-all;">${escapeHtml(text)} <span style="color:var(--text-hint);">(${count}건)</span></div>
+        <select onchange="_updateLockerOnlyCatMap('${safeText}', this.value)" style="width:170px;padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'Noto Sans KR',sans-serif;">
+          ${optsHtml}
+        </select>
+      </div>`;
+    }).join('');
+
+    area.innerHTML = `
+      <div style="font-size:12.5px;color:var(--text-hint);margin-bottom:10px;line-height:1.6;">
+        엑셀 락커종류별로 우리 앱의 어떤 락카 종류에 해당하는지 연결해주세요 (총 ${Object.keys(counts).length}가지). 비슷한 이름은 자동으로 맞춰놨어요.
+      </div>
+      <div style="max-height:400px;overflow-y:auto;margin-bottom:14px;">${rows || '표시할 항목이 없어요.'}</div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="_lImport.step='mapping';renderLockerImportStep();" style="flex:1;padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
+        <button onclick="_lImport.step='preview';renderLockerImportStep();" class="btn-primary" style="flex:2;padding:11px;">다음</button>
+      </div>`;
+  }
+  function _updateLockerOnlyCatMap(text, val) { _lImport.lockerCatMap[text] = val; }
+  window._updateLockerOnlyCatMap = _updateLockerOnlyCatMap;
+
+  function _buildParsedLockerRows() {
+    const idxOf = (role) => { const e = Object.entries(_lImport.mapping).find(([, v]) => v === role); return e ? parseInt(e[0]) : -1; };
+    const iName = idxOf('name'), iPhone = idxOf('phone'), iType = idxOf('lockerType'), iNo = idxOf('lockerNo'),
+      iStart = idxOf('lockerStart'), iEnd = idxOf('lockerEnd');
+    const errors = [];
+    const parsed = [];
+    _lImport.rows.forEach((r, rowIdx) => {
+      const phone = iPhone >= 0 ? String(r[iPhone] || '').replace(/[^0-9]/g, '') : '';
+      const lockerTypeRaw = iType >= 0 ? String(r[iType] || '').trim() : '';
+      const lockerNo = iNo >= 0 ? String(r[iNo] || '').trim() : '';
+      if (!phone || !lockerTypeRaw || !lockerNo) { errors.push({ rowIdx, reason: !phone ? '전화번호없음' : '락커정보없음' }); return; }
+      const name = iName >= 0 ? String(r[iName] || '').trim() : '';
+      const lockerStart = iStart >= 0 ? _normalizeImportDate(r[iStart]) : _todayISO();
+      const lockerEnd = iEnd >= 0 ? _normalizeImportDate(r[iEnd]) : '';
+      parsed.push({ name, phone, lockerTypeRaw, lockerNo, lockerStart, lockerEnd });
+    });
+    return { parsed, errors };
+  }
+
+  function _renderLockerOnlyPreviewStep(area) {
+    area.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);">확인 중...</div>';
+    const { parsed, errors } = _buildParsedLockerRows();
+    Promise.all([
+      db.ref('members').once('value'),
+      db.ref('lockers').once('value')
+    ]).then(([memSnap, lockSnap]) => {
+      const existingMembers = memSnap.val() || {};
+      const existingLockers = lockSnap.val() || {};
+      const catById = {};
+      (_lImport.lockerCategories || []).forEach(c => { catById[c.id] = c; });
+
+      let noMemberCount = 0, autoCount = 0, exactCount = 0, needCheckCount = 0;
+      parsed.forEach(p => {
+        const member = existingMembers[p.phone];
+        if (!member) { p.lockerCase = 'noMember'; noMemberCount++; return; }
+        p.memberName = member.name || p.name || '';
+        const gender = (member.body && member.body.gender) || member['body/gender'] || '';
+
+        const catId = _lImport.lockerCatMap[p.lockerTypeRaw] || '';
+        const cat = catById[catId];
+        if (!catId || !cat) { p.lockerCase = 'unmatched'; needCheckCount++; return; }
+        const cname = cat.name || '';
+        const genderMismatch = gender && ((gender === 'male' && cname.includes('여') && !cname.includes('남')) || (gender === 'female' && cname.includes('남') && !cname.includes('여')));
+        if (genderMismatch) { p.lockerCase = 'mismatch'; needCheckCount++; return; }
+
+        const lockerKey = catId + '_' + p.lockerNo;
+        const slot = existingLockers[lockerKey];
+        const memberCurLockerKey = member.lockerKey || '';
+        if (slot && slot.phone && slot.phone === p.phone) {
+          p.lockerCase = 'exact'; exactCount++;
+        } else if (slot && slot.phone && slot.phone !== p.phone) {
+          p.lockerCase = 'conflict'; needCheckCount++;
+        } else if (memberCurLockerKey && memberCurLockerKey !== lockerKey) {
+          p.lockerCase = 'ownsOther'; needCheckCount++;
+        } else {
+          p.lockerCase = 'free'; autoCount++;
+        }
+        p.lockerKey = lockerKey; p.lockerCatId = catId; p.lockerSlot = slot || null;
+      });
+
+      _lImport.parsedRows = parsed;
+      _lImport.importErrors = errors;
+
+      const caseLabel = { free: '🔑자동배정', exact: '🔑이미일치', mismatch: '⚠️성별불일치', conflict: '⚠️다른회원사용중', ownsOther: '⚠️이미다른락커보유', unmatched: '⚠️종류매칭안됨', noMember: '❌회원없음' };
+      const sampleRows = parsed.slice(0, 10).map(p =>
+        `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
+          <span>${escapeHtml(p.memberName || p.name || p.phone)} (${p.phone.slice(-4)})</span>
+          <span style="color:${p.lockerCase === 'free' || p.lockerCase === 'exact' ? 'var(--text-hint)' : '#ef4444'};">${p.lockerTypeRaw} ${p.lockerNo}번 · ${caseLabel[p.lockerCase] || ''}</span>
+        </div>`
+      ).join('');
+
+      area.innerHTML = `
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:80px;background:var(--card);border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:18px;font-weight:800;color:var(--blue);">${autoCount}</div>
+            <div style="font-size:11px;color:var(--text-hint);">자동배정</div>
+          </div>
+          <div style="flex:1;min-width:80px;background:var(--card);border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:18px;font-weight:800;color:#22c55e;">${exactCount}</div>
+            <div style="font-size:11px;color:var(--text-hint);">이미 일치</div>
+          </div>
+          <div style="flex:1;min-width:80px;background:var(--card);border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:18px;font-weight:800;color:#ef4444;">${needCheckCount}</div>
+            <div style="font-size:11px;color:var(--text-hint);">확인필요</div>
+          </div>
+          <div style="flex:1;min-width:80px;background:var(--card);border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:18px;font-weight:800;color:var(--text-hint);">${noMemberCount + errors.length}</div>
+            <div style="font-size:11px;color:var(--text-hint);">제외(오류·회원없음)</div>
+          </div>
+        </div>
+        ${exactCount > 0 ? `
+        <div style="font-size:12.5px;margin-bottom:14px;">
+          이미 정확히 일치하는 ${exactCount}건은?
+          <select onchange="_lImport.exactAction=this.value;" style="margin-left:6px;padding:5px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'Noto Sans KR',sans-serif;">
+            <option value="keep" ${_lImport.exactAction === 'keep' ? 'selected' : ''}>그대로 유지</option>
+            <option value="update" ${_lImport.exactAction === 'update' ? 'selected' : ''}>기간만 엑셀 기준으로 갱신</option>
+          </select>
+        </div>` : ''}
+        <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">미리보기 (최대 10건)</div>
+        <div style="max-height:280px;overflow-y:auto;margin-bottom:14px;">${sampleRows || '표시할 데이터가 없어요.'}</div>
+        <div style="font-size:11.5px;color:var(--text-hint);margin-bottom:14px;line-height:1.6;">
+          · 확인필요 항목은 자동배정하지 않아요. 락카 탭에서 직접 확인 후 수동으로 처리해주세요.<br>
+          · 회원 기본정보/메모/프로그램 계약은 전혀 건드리지 않아요.
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="_lImport.step='lockerClassify';renderLockerImportStep();" style="flex:1;padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
+          <button onclick="executeLockerImport()" class="btn-primary" style="flex:2;padding:11px;" ${(autoCount + exactCount) === 0 ? 'disabled' : ''}>락커 반영 실행 (${autoCount + (_lImport.exactAction === 'update' ? exactCount : 0)}건)</button>
+        </div>`;
+    }).catch(err => {
+      console.error('락커 가져오기 확인 오류:', err);
+      area.innerHTML = '<div style="color:#ef4444;text-align:center;padding:20px;">회원/락카 정보를 불러오지 못했어요.</div>';
+    });
+  }
+
+  function executeLockerImport() {
+    const targets = (_lImport.parsedRows || []).filter(p => p.lockerCase === 'free' || (p.lockerCase === 'exact' && _lImport.exactAction === 'update'));
+    if (!targets.length) { showToast('반영할 대상이 없어요.', 'error'); return; }
+
+    showConfirm('총 ' + targets.length + '건의 락커 정보를 반영할까요?\n\n실행 후에는 이력에서 최근 1건에 한해 되돌릴 수 있어요.', () => {
+      const area = document.getElementById('locker-import-step-area');
+      if (area) area.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);">반영 중... (' + targets.length + '건)</div>';
+
+      const updates = {};
+      const lockerEntries = [];
+      const contractEntries = [];
+      const importedAt = Date.now();
+      const logKey = 'lockerimport_' + _todayISO() + '_' + importedAt;
+
+      targets.forEach(p => {
+        if (p.lockerCase === 'free') {
+          const contractKey = 'lockerimport_' + importedAt + '_' + p.phone;
+          updates['contracts/' + p.phone + '/' + contractKey] = {
+            name: p.memberName || p.name || '', phone: p.phone, birth: '', gender: '', address: '',
+            type: 'import', memo: '', programs: {}, packages: [],
+            extras: {
+              locker: {
+                lockerNo: p.lockerNo, lockerCatId: p.lockerCatId, lockerKey: p.lockerKey,
+                startDate: p.lockerStart, endDate: p.lockerEnd, months: 0,
+                price: 0, cash: 0, card: 0, transfer: 0,
+                isMigrated: true, originalText: p.lockerTypeRaw
+              }
+            },
+            signDate: p.lockerStart || _todayISO(), signUrl: '', terms: '',
+            createdAt: importedAt, registeredBy: 'import', importBatch: logKey,
+            salesStaffId: '', salesStaffName: ''
+          };
+          contractEntries.push({ phone: p.phone, contractKey });
+
+          updates['lockers/' + p.lockerKey] = {
+            lockerNo: p.lockerNo, phone: p.phone, name: p.memberName || p.name || '',
+            startDate: p.lockerStart, endDate: p.lockerEnd,
+            categoryId: p.lockerCatId, status: 'active',
+            linkedContract: { phone: p.phone, contractKey }, isMigrated: true
+          };
+          updates['members/' + p.phone + '/lockerKey'] = p.lockerKey;
+          lockerEntries.push({ lockerKey: p.lockerKey, isNew: true, phone: p.phone });
+        } else if (p.lockerCase === 'exact') {
+          updates['lockers/' + p.lockerKey + '/startDate'] = p.lockerStart;
+          updates['lockers/' + p.lockerKey + '/endDate'] = p.lockerEnd;
+          lockerEntries.push({
+            lockerKey: p.lockerKey, isNew: false,
+            prevStart: (p.lockerSlot && p.lockerSlot.startDate) || '',
+            prevEnd: (p.lockerSlot && p.lockerSlot.endDate) || ''
+          });
+        }
+      });
+
+      const safeLog = JSON.parse(JSON.stringify({
+        executedAt: importedAt, date: _todayISO(),
+        totalCount: targets.length, lockerEntries, contractEntries
+      }));
+      updates['locker_import_logs/' + logKey] = safeLog;
+
+      db.ref().update(updates).then(() => {
+        if (area) area.innerHTML = `<div style="text-align:center;padding:24px 10px;">
+          <div style="font-size:34px;margin-bottom:10px;">✅</div>
+          <div style="font-size:15px;font-weight:700;margin-bottom:6px;">락커 반영 완료!</div>
+          <div style="font-size:13px;color:var(--text-sub);">총 ${targets.length}건 처리됨</div>
+          <button onclick="resetLockerImport()" class="btn-primary" style="margin-top:16px;padding:10px 20px;">새로 가져오기</button>
+        </div>`;
+        loadLockerImportHistory();
+        showToast('✅ 락커 정보 반영 완료!', 'success');
+      }).catch(err => {
+        console.error('락커 가져오기 오류:', err);
+        if (area) area.innerHTML = '<div style="color:#ef4444;text-align:center;padding:20px;">반영 중 오류가 발생했어요: ' + err.message + '</div>';
+      });
+    });
+  }
+  window.executeLockerImport = executeLockerImport;
+
+  function loadLockerImportHistory() {
+    const el = document.getElementById('locker-import-history-list');
+    if (!el) return;
+    el.innerHTML = '<div style="text-align:center;color:var(--text-hint);padding:12px 0;">불러오는 중...</div>';
+    db.ref('locker_import_logs').once('value').then(snap => {
+      const logs = [];
+      snap.forEach(s => logs.push(Object.assign({ key: s.key }, s.val())));
+      logs.sort((a, b) => (b.executedAt || 0) - (a.executedAt || 0));
+      _renderLockerImportHistoryList(logs);
+    }).catch(() => { el.innerHTML = '<div style="text-align:center;color:#ef4444;">불러오기 실패</div>'; });
+  }
+  window.loadLockerImportHistory = loadLockerImportHistory;
+
+  function _renderLockerImportHistoryList(logs) {
+    const el = document.getElementById('locker-import-history-list');
+    if (!el) return;
+    if (!logs.length) { el.innerHTML = '<div style="text-align:center;color:var(--text-hint);padding:12px 0;">아직 가져온 이력이 없어요.</div>'; return; }
+    el.innerHTML = logs.map((log, idx) => {
+      const dt = log.executedAt ? new Date(log.executedAt) : null;
+      const timeLabel = dt ? (log.date + ' ' + String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0')) : log.date;
+      const canUndo = idx === 0 && !log.reverted;
+      const undoBtn = log.reverted
+        ? '<div style="margin-top:6px;font-size:11.5px;color:#22c55e;font-weight:700;">✅ 되돌림 완료</div>'
+        : (canUndo ? `<button onclick="undoLockerImport('${log.key}')" style="margin-top:8px;width:100%;padding:8px;background:none;border:1px solid #ef4444;color:#ef4444;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">↩️ 이 가져오기 되돌리기</button>` : '');
+      return `<div style="background:var(--card);border-radius:10px;padding:12px;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);">${timeLabel}</div>
+        <div style="font-size:12px;color:var(--text-hint);margin-top:2px;">총 ${log.totalCount || 0}건 처리</div>
+        ${undoBtn}
+      </div>`;
+    }).join('');
+  }
+
+  function undoLockerImport(logKey) {
+    db.ref('locker_import_logs/' + logKey).once('value').then(snap => {
+      const log = snap.val();
+      if (!log) { showToast('이력을 찾을 수 없어요.', 'error'); return; }
+      if (log.reverted) { showToast('이미 되돌린 이력이에요.', 'error'); return; }
+      showConfirm(
+        '이 락커 가져오기(총 ' + (log.totalCount || 0) + '건)를 되돌릴까요?\n\n⚠️ 이 작업 이후 해당 락커에 변경이 있었다면 함께 사라질 수 있어요.',
+        () => {
+          const removeUpdates = {};
+          (log.contractEntries || []).forEach(en => {
+            removeUpdates['contracts/' + en.phone + '/' + en.contractKey] = null;
+          });
+          (log.lockerEntries || []).forEach(en => {
+            if (en.isNew) {
+              removeUpdates['lockers/' + en.lockerKey] = null;
+              if (en.phone) removeUpdates['members/' + en.phone + '/lockerKey'] = null;
+            } else {
+              removeUpdates['lockers/' + en.lockerKey + '/startDate'] = en.prevStart || '';
+              removeUpdates['lockers/' + en.lockerKey + '/endDate'] = en.prevEnd || '';
+            }
+          });
+          db.ref().update(removeUpdates).then(() => {
+            return db.ref('locker_import_logs/' + logKey + '/reverted').set(true);
+          }).then(() => {
+            showToast('✅ 되돌리기 완료!', 'success');
+            loadLockerImportHistory();
+          }).catch(err => {
+            showToast('되돌리기 실패: ' + err.message, 'error');
+          });
+        }
+      );
+    });
+  }
+  window.undoLockerImport = undoLockerImport;
+
 
   // ── 매출통계 탭: 목표매출 결과표 ──
   let _goalRefDate = new Date();

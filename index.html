@@ -3137,6 +3137,8 @@
               style="padding:8px 18px;border-radius:20px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📊 현황</button>
             <button id="locker-subtab-settings" onclick="switchLockerSubtab('settings')"
               style="padding:8px 18px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">⚙️ 설정</button>
+            <button id="locker-subtab-import" onclick="switchLockerSubtab('import')"
+              style="padding:8px 18px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📥 엑셀로 가져오기</button>
           </div>
 
           <!-- 현황 뷰 -->
@@ -3156,6 +3158,23 @@
             </div>
             <button onclick="saveLockerSettings()"
               style="width:100%;padding:12px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 설정 저장</button>
+          </div>
+
+          <!-- 가져오기 뷰 (락커 정보만 갱신) -->
+          <div id="locker-view-import" style="display:none;">
+            <div class="admin-card">
+              <div class="admin-card-title">📥 엑셀로 락커 정보만 갱신</div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:14px;line-height:1.6;">
+                이미 앱에 등록된 회원들의 락커 정보만 엑셀로 반영해요. 회원 기본정보나 프로그램 계약은 전혀 건드리지 않아요.<br>
+                전화번호로 기존 회원을 찾아서, 비어있는 락커 슬롯만 자동배정하고, 애매한 경우는 확인필요 목록으로 분리해요.
+              </div>
+              <div id="locker-import-step-area"></div>
+            </div>
+            <div class="admin-card">
+              <div class="admin-card-title">🗓️ 락커 가져오기 이력</div>
+              <div style="font-size:11.5px;color:var(--text-hint);margin-bottom:10px;">가장 최근 1건에 한해서만 되돌릴 수 있어요.</div>
+              <div id="locker-import-history-list"><div style="text-align:center;color:var(--text-hint);padding:12px 0;">불러오는 중...</div></div>
+            </div>
           </div>
 
         </div>
