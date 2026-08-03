@@ -13023,6 +13023,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   // 담당 회원 상세 화면 열기
   function openTraineeDetail(memberId) {
     currentTraineeId = memberId;
+    trainerCalSelectedDate = null; // 이전 회원 상세에서 선택했던 날짜가 남아있지 않도록 초기화
     const trainerId = localStorage.getItem('current_user');
     db.ref('trainers/' + trainerId + '/trainees/' + memberId).once('value', snap => {
       const info = snap.val();
@@ -14964,7 +14965,9 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     clearTrainerEqSearch();
     isTrainerMode = true;
     trainerTargetId = traineeId;
-    trainerTargetDate = dateStr;
+    // dateStr은 검색창이 처음 그려질 때 박제된(오래된) 값일 수 있어서 신뢰하지 않고,
+    // 지금 실제로 달력에서 선택된 날짜(trainerCalSelectedDate)를 항상 우선 사용
+    trainerTargetDate = trainerCalSelectedDate || dateStr || null;
     const eq = EQUIPMENT_LIST.find(e => e.key === eqKey);
     if (eq) openGenericWorkout(eq);
   }
@@ -14973,7 +14976,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   function openTrainerFwWorkoutMode(dateStr, traineeId) {
     isTrainerMode = true;
     trainerTargetId = traineeId || currentTraineeId;
-    trainerTargetDate = dateStr || trainerCalSelectedDate || null;
+    trainerTargetDate = trainerCalSelectedDate || dateStr || null;
     openFreeweightModal();
   }
 
