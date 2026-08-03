@@ -178,7 +178,7 @@
     const userId = localStorage.getItem('current_user');
     const personalDays = new Set(); // 개인 기록
     const classDays = new Set();    // 수업 기록 (recordedBy: 'trainer')
-    const prefix = year + '-' + (month + 1) + '-';
+    const prefix = year + '-' + String(month + 1).padStart(2, '0') + '-';
 
     function classify(records) {
       for (const r of records) {
@@ -220,7 +220,7 @@
   let lessonDaysCache = new Set();
   function loadLessonDaysInMonth(year, month, callback) {
     const userId = localStorage.getItem('current_user');
-    const prefix = year + '-' + (month + 1) + '-';
+    const prefix = year + '-' + String(month + 1).padStart(2, '0') + '-';
     db.ref('users/' + userId + '/lessons').once('value', snap => {
       lessonDaysCache = new Set();
       snap.forEach(child => {
@@ -272,7 +272,7 @@
 
   function renderDayDetail(d) {
     const userId = localStorage.getItem('current_user');
-    const dateStr = calYear + '-' + (calMonth + 1) + '-' + d;
+    const dateStr = calYear + '-' + String(calMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
     const dateLabel = calYear + '년 ' + (calMonth + 1) + '월 ' + d + '일';
     const detail = document.getElementById('cal-day-detail');
     const dayRecords = [];
@@ -1038,7 +1038,7 @@
         }
         // 누적/이번달 출석 수 동기화
         db.ref('users/' + userId + '/attendance').once('value', aSnap => {
-          const monthPrefix = new Date().getFullYear() + '-' + (new Date().getMonth()+1) + '-';
+          const monthPrefix = new Date().getFullYear() + '-' + String(new Date().getMonth()+1).padStart(2,'0') + '-';
           let total = 0, month = 0;
           aSnap.forEach(c => { total++; if (c.key.startsWith(monthPrefix)) month++; });
           const elT = document.getElementById('att-done-total'); if (elT) elT.textContent = total;
@@ -1075,7 +1075,7 @@
 
   function loadAttendanceStats(userId) {
     const now = new Date();
-    const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
+    const monthPrefix = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-';
     const today = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
     db.ref('users/' + userId + '/attendance').once('value', snap => {
       let total = 0, month = 0;
@@ -1738,7 +1738,7 @@
     const userId = localStorage.getItem('current_user');
     if (!userId) return;
     const now = new Date();
-    const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
+    const monthPrefix = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-';
     db.ref('users/' + userId + '/attendance').once('value', snap => {
       let count = 0; snap.forEach(child => { if (child.key.startsWith(monthPrefix)) count++; });
       const el = document.getElementById('stat-days'); if (el) el.textContent = count;

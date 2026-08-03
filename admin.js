@@ -14546,7 +14546,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
           ${Array(firstDay).fill('<div></div>').join('')}
           ${Array.from({length:lastDate},(_,i)=>{
             const day = i+1;
-            const dateStr = year+'-'+month+'-'+day;
+            const dateStr = year+'-'+String(month).padStart(2,'0')+'-'+String(day).padStart(2,'0');
             const isToday = dateStr === todayStr;
             const isSelected = dateStr === trainerCalSelectedDate;
             const hasLesson = lessonDays.has(day);
@@ -18358,6 +18358,76 @@ async function _resolveHoldsAndCheckEligibility(phone) {
   }
   return { hasEligible, resolvedMsg };
 }
+
+// ── 일회성 정리 도구: 0 안 채운 날짜(예: 2026-8-3)로 잘못 저장된 기록을 정상 형식(2026-08-03)으로 고쳐줌 ──
+// 사용법: 브라우저 콘솔(F12)에서 runWorkoutDateMigration() 실행
+async function _fixUnpaddedDateKeys() {
+  const properRe = /^\d{4}-\d{2}-\d{2}$/;
+  const looseRe = /^\d{4}-\d{1,2}-\d{1,2}$/;
+  function padDate(key) {
+    const [y, m, d] = key.split('-');
+    return y + '-' + m.padStart(2, '0') + '-' + d.padStart(2, '0');
+  }
+
+  console.log('🔍 전체 회원 운동기록 점검 시작...');
+  const usersSnap = await db.ref('users').once('value');
+  if (!usersSnap.exists()) { console.log('users 데이터가 없어요.'); return; }
+
+  let fixedCount = 0, skippedCount = 0;
+  const updates = {};
+  const skippedList = [];
+
+  usersSnap.forEach(userSnap => {
+    const phone = userSnap.key;
+    const userData = userSnap.val() || {};
+
+    ['workouts', 'classes'].forEach(section => {
+      Object.entries(userData[section] || {}).forEach(([subKey, dateMap]) => {
+        if (!dateMap || typeof dateMap !== 'object') return;
+        Object.entries(dateMap).forEach(([dateKey, record]) => {
+          if (properRe.test(dateKey) || !looseRe.test(dateKey)) return;
+          const paddedKey = padDate(dateKey);
+          const basePath = 'users/' + phone + '/' + section + '/' + subKey;
+          if (dateMap[paddedKey]) {
+            skippedCount++;
+            skippedList.push(basePath + '/' + dateKey + ' (이미 ' + paddedKey + ' 존재해서 건너뜀)');
+            return;
+          }
+          updates[basePath + '/' + paddedKey] = Object.assign({}, record, { date: paddedKey });
+          updates[basePath + '/' + dateKey] = null;
+          fixedCount++;
+        });
+      });
+    });
+
+    const attendance = userData.attendance || {};
+    Object.keys(attendance).forEach(dateKey => {
+      if (properRe.test(dateKey) || !looseRe.test(dateKey)) return;
+      const paddedKey = padDate(dateKey);
+      const basePath = 'users/' + phone + '/attendance';
+      if (attendance[paddedKey]) {
+        skippedCount++;
+        skippedList.push(basePath + '/' + dateKey + ' (이미 ' + paddedKey + ' 존재해서 건너뜀)');
+        return;
+      }
+      updates[basePath + '/' + paddedKey] = attendance[dateKey];
+      updates[basePath + '/' + dateKey] = null;
+      fixedCount++;
+    });
+  });
+
+  if (Object.keys(updates).length === 0) {
+    console.log('✅ 점검 완료: 고칠 데이터가 없어요. 모두 정상 형식입니다.');
+    alert('점검 완료: 고칠 데이터가 없어요. 모두 정상 형식입니다.');
+    return;
+  }
+
+  await db.ref().update(updates);
+  console.log('✅ 마이그레이션 완료: ' + fixedCount + '건 수정, ' + skippedCount + '건 건너뜀(이미 정상 데이터 존재)');
+  if (skippedList.length) console.log('건너뛴 목록:', skippedList);
+  alert('✅ 정리 완료!\n\n고친 기록: ' + fixedCount + '건\n건너뛴 기록: ' + skippedCount + '건' + (skippedCount ? '\n\n건너뛴 목록은 콘솔(F12 → Console 탭)에서 확인 가능해요.' : ''));
+}
+window.runWorkoutDateMigration = _fixUnpaddedDateKeys;
 
 async function _kioskCheckIn(phone) {
   // getToday()와 동일한 unpadded 형식 사용 (예: 2026-6-9) — 출석기록 키 형식은 그대로 유지
