@@ -1369,7 +1369,7 @@
       const today = getToday();
       let todayCount = 0, monthCount = 0;
       const now = new Date();
-      const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
+      const monthPrefix = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-';
       const todayRows = [];
 
       // Firebase에서 전체 회원 출석 확인
@@ -2918,7 +2918,7 @@
       // Firebase에서 출석/포인트/계약 병렬 조회
       const now = new Date();
       const todayISO = _pgTodayISO();
-      const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
+      const monthPrefix = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-';
 
       // 개인수업(PT/개인필라테스) 잔여횟수는 trainers/*/trainees/{phone}에 있어서, 회원별로 따로 조회하지 않고 한 번만 불러와 맵으로 만들어둠
       return db.ref('trainers').once('value').then(trainersSnap => {
@@ -3280,7 +3280,7 @@
     if (mobileBody) mobileBody.scrollTop = 0;
 
     const now = new Date();
-    const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
+    const monthPrefix = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-';
     const today = getToday();
 
     // 헤더 이름
@@ -3487,18 +3487,18 @@
       const data = snap.val() || {};
       const daysInMonth = new Date(y, m + 1, 0).getDate();
       const firstDow = new Date(y, m, 1).getDay();
-      const todayKey = (typeof getToday === 'function') ? getToday() : (y + '-' + (m + 1) + '-' + now.getDate());
+      const todayKey = (typeof getToday === 'function') ? getToday() : (y + '-' + String(m + 1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0'));
       let cells = '';
       for (let i = 0; i < firstDow; i++) cells += '<div></div>';
       for (let d = 1; d <= daysInMonth; d++) {
-        const key = y + '-' + (m + 1) + '-' + d;
+        const key = y + '-' + String(m + 1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
         const present = !!data[key];
         const isToday = d === now.getDate();
         cells += `<div style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:8px;font-size:12px;
           background:${present ? 'var(--blue)' : 'transparent'};color:${present ? 'white' : 'var(--text)'};
           ${isToday && !present ? 'border:1.5px solid var(--blue);' : ''}box-sizing:border-box;">${d}</div>`;
       }
-      const monthPrefix = y + '-' + (m + 1) + '-';
+      const monthPrefix = y + '-' + String(m + 1).padStart(2,'0') + '-';
       const attendCount = Object.keys(data).filter(k => k.startsWith(monthPrefix)).length;
       const todayDone = !!data[todayKey];
 
@@ -3535,7 +3535,7 @@
         db.ref('users/' + phone + '/attendance').once('value').then(snap => {
           const data = snap.val() || {};
           const now = new Date();
-          const monthPrefix = now.getFullYear() + '-' + (now.getMonth() + 1) + '-';
+          const monthPrefix = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2,'0') + '-';
           const attendCount = Object.keys(data).filter(k => k.startsWith(monthPrefix)).length;
           const attendEl = document.getElementById('md-attend');
           if (attendEl) attendEl.textContent = attendCount + '일 ✅';
