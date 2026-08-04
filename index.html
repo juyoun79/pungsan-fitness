@@ -3106,8 +3106,12 @@
           <div style="background:var(--card);padding:16px;margin-bottom:8px;" class="md-section-card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
               <div style="font-size:12px;font-weight:700;color:var(--text-sub);">계약이력</div>
-              <button onclick="addNewContractForMember(currentMemberPhone)"
-                style="padding:5px 10px;background:var(--blue-light);color:var(--blue);border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">➕ 새 계약서 추가</button>
+              <div style="display:flex;gap:6px;">
+                <button onclick="openLockerRegisterModal(currentMemberPhone)"
+                  style="padding:5px 10px;background:var(--blue-light);color:var(--blue);border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔑 락카 등록</button>
+                <button onclick="addNewContractForMember(currentMemberPhone)"
+                  style="padding:5px 10px;background:var(--blue-light);color:var(--blue);border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">➕ 새 계약서 추가</button>
+              </div>
             </div>
             <div id="md-contracts" style="display:flex;flex-direction:column;gap:10px;">
               <div style="text-align:center;color:var(--text-hint);font-size:13px;padding:12px 0;">불러오는 중...</div>
@@ -5964,7 +5968,7 @@
 
     // 이번달 출석 - Firebase에서 불러오기
     const now = new Date();
-    const monthPrefix = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-';
+    const monthPrefix = now.getFullYear() + '-' + (now.getMonth()+1) + '-';
     db.ref('users/' + userId + '/attendance').once('value', snap => {
       let attendCount = 0;
       if (snap.exists()) {

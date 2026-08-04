@@ -3397,8 +3397,7 @@
       const d = snap.val();
       const lockerNo = d.lockerNo || lockerKey.split('_').pop();
       el.style.color = 'var(--text)';
-      el.innerHTML = lockerNo + '번' + (d.lockPassword ? ' · ' + d.lockPassword : '') +
-        ' <span onclick="event.stopPropagation();openLockerReregisterModal(\'' + phone + '\')" style="margin-left:6px;font-size:11px;color:var(--blue);text-decoration:underline;cursor:pointer;">🔄재등록</span>';
+      el.textContent = lockerNo + '번' + (d.lockPassword ? ' · ' + d.lockPassword : '');
     }).catch(() => { el.textContent = '-'; });
   }
 
@@ -7952,92 +7951,102 @@
   window.editLockerSlot = editLockerSlot;
   window.saveLockerEdit = saveLockerEdit;
 
-  // ── 락카 재등록 (회원상세에서 몇 번의 클릭으로 연장+결제까지 한번에) ──
-  async function openLockerReregisterModal(phone) {
+  // ── 락카 등록 (회원상세에서 클릭 한 번으로 재등록/신규배정 자동 분기) ──
+  async function openLockerRegisterModal(phone) {
     try {
       const memberSnap = await db.ref('members/' + phone).once('value');
       const memberInfo = memberSnap.val();
       if (!memberInfo) { showToast('회원 정보를 찾을 수 없어요.', 'error'); return; }
+
       const lockerKey = memberInfo.lockerKey;
-      if (!lockerKey) { showToast('현재 등록된 락카가 없어요. 락카관리 탭에서 새로 배정해주세요.', 'error'); return; }
+      let d = null;
+      if (lockerKey) {
+        const lockerSnap = await db.ref('lockers/' + lockerKey).once('value');
+        d = lockerSnap.val();
+      }
 
-      const lockerSnap = await db.ref('lockers/' + lockerKey).once('value');
-      const d = lockerSnap.val();
-      if (!d) { showToast('락카 정보를 찾을 수 없어요.', 'error'); return; }
-
-      const catId = d.categoryId || lockerKey.split('_')[0];
-      const lockerNo = d.lockerNo || lockerKey.split('_').pop();
-      const catSnap = await db.ref('locker_settings/categories/' + catId).once('value');
-      const catName = (catSnap.val() || {}).name || '';
-
-      const today = _todayISO();
-      const defaultStart = (d.endDate && d.endDate >= today)
-        ? _isoDate(new Date(new Date(d.endDate).getTime() + 86400000))
-        : today;
-      const rawName = (memberInfo.name || '').replace(/\(\d{4}\)$/, '').trim();
-
-      const html = `
-        <div style="padding:4px 0;">
-          <div style="font-size:15px;font-weight:700;margin-bottom:10px;">🔑 락카 재등록</div>
-          <div style="background:#e3f2fd;border-radius:10px;padding:10px 12px;margin-bottom:14px;">
-            <div style="font-size:13px;font-weight:700;color:#0c447c;">${rawName || phone}님</div>
-            <div style="font-size:12px;color:#185FA5;margin-top:2px;">현재 락카: ${catName} ${lockerNo}번 · 종료일 ${d.endDate || '-'}</div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:10px;">
-            <div>
-              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">연장 개월수</div>
-              <select id="lr-months" onchange="calcLrEndDate()"
-                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
-                <option value="1">1개월</option>
-                <option value="3" selected>3개월</option>
-                <option value="6">6개월</option>
-                <option value="12">12개월</option>
-              </select>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-              <div>
-                <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">시작일</div>
-                <input id="lr-start" type="date" value="${defaultStart}" onchange="calcLrEndDate()"
-                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
-              </div>
-              <div>
-                <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">종료일 (자동계산)</div>
-                <div id="lr-end-display" style="padding:9px 10px;border-radius:8px;background:#f5f7fa;font-size:13px;color:#059669;font-weight:700;">-</div>
-              </div>
-            </div>
-            <div>
-              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">결제금액</div>
-              <input id="lr-price" type="text" inputmode="numeric" placeholder="30000"
-                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
-            </div>
-            <div>
-              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">결제수단</div>
-              <div style="display:flex;gap:6px;">
-                <button type="button" onclick="selectLrMethod('cash')" id="lr-method-cash"
-                  style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:var(--blue);color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">현금</button>
-                <button type="button" onclick="selectLrMethod('card')" id="lr-method-card"
-                  style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:#f5f5f5;color:#666;font-size:12.5px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">카드</button>
-                <button type="button" onclick="selectLrMethod('transfer')" id="lr-method-transfer"
-                  style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:#f5f5f5;color:#666;font-size:12.5px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이체</button>
-              </div>
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:16px;">
-            <button onclick="saveLockerReregister('${phone}','${catId}','${lockerNo}','${lockerKey}')"
-              style="flex:1;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 저장</button>
-            <button onclick="closeLockerDetail()"
-              style="flex:1;padding:11px;background:#f5f5f5;color:#666;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
-          </div>
-        </div>`;
-
-      showLockerDetail(html);
-      window._lrSelectedMethod = 'cash';
-      calcLrEndDate();
+      if (d) {
+        await _renderLockerReregisterForm(phone, memberInfo, lockerKey, d);
+      } else {
+        await _renderLockerNewAssignForm(phone, memberInfo);
+      }
     } catch (e) {
       showToast('정보를 불러오지 못했어요: ' + e.message, 'error');
     }
   }
-  window.openLockerReregisterModal = openLockerReregisterModal;
+  window.openLockerRegisterModal = openLockerRegisterModal;
+
+  // ── 재등록 화면 (이미 락카를 쓰고 있는 회원) ──
+  async function _renderLockerReregisterForm(phone, memberInfo, lockerKey, d) {
+    const catId = d.categoryId || lockerKey.split('_')[0];
+    const lockerNo = d.lockerNo || lockerKey.split('_').pop();
+    const catSnap = await db.ref('locker_settings/categories/' + catId).once('value');
+    const catName = (catSnap.val() || {}).name || '';
+
+    const today = _todayISO();
+    const defaultStart = (d.endDate && d.endDate >= today)
+      ? _isoDate(new Date(new Date(d.endDate).getTime() + 86400000))
+      : today;
+    const rawName = (memberInfo.name || '').replace(/\(\d{4}\)$/, '').trim();
+
+    const html = `
+      <div style="padding:4px 0;">
+        <div style="font-size:15px;font-weight:700;margin-bottom:10px;">🔑 락카 재등록</div>
+        <div style="background:#e3f2fd;border-radius:10px;padding:10px 12px;margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:700;color:#0c447c;">${rawName || phone}님</div>
+          <div style="font-size:12px;color:#185FA5;margin-top:2px;">현재 락카: ${catName} ${lockerNo}번 · 종료일 ${d.endDate || '-'}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">연장 개월수</div>
+            <select id="lr-months" onchange="calcLrEndDate()"
+              style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+              <option value="1">1개월</option>
+              <option value="3" selected>3개월</option>
+              <option value="6">6개월</option>
+              <option value="12">12개월</option>
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">시작일</div>
+              <input id="lr-start" type="date" value="${defaultStart}" onchange="calcLrEndDate()"
+                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">종료일 (자동계산)</div>
+              <div id="lr-end-display" style="padding:9px 10px;border-radius:8px;background:#f5f7fa;font-size:13px;color:#059669;font-weight:700;">-</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">결제금액</div>
+            <input id="lr-price" type="text" inputmode="numeric" placeholder="30000"
+              style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">결제수단</div>
+            <div style="display:flex;gap:6px;">
+              <button type="button" onclick="selectLrMethod('cash')" id="lr-method-cash"
+                style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:var(--blue);color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">현금</button>
+              <button type="button" onclick="selectLrMethod('card')" id="lr-method-card"
+                style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:#f5f5f5;color:#666;font-size:12.5px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">카드</button>
+              <button type="button" onclick="selectLrMethod('transfer')" id="lr-method-transfer"
+                style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:#f5f5f5;color:#666;font-size:12.5px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이체</button>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:16px;">
+          <button onclick="saveLockerReregister('${phone}','${catId}','${lockerNo}','${lockerKey}')"
+            style="flex:1;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 저장</button>
+          <button onclick="closeLockerDetail()"
+            style="flex:1;padding:11px;background:#f5f5f5;color:#666;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        </div>
+      </div>`;
+
+    showLockerDetail(html);
+    window._lrSelectedMethod = 'cash';
+    calcLrEndDate();
+  }
 
   function calcLrEndDate() {
     const startVal = document.getElementById('lr-start')?.value;
@@ -8119,6 +8128,238 @@
     }
   }
   window.saveLockerReregister = saveLockerReregister;
+
+  // ── 신규배정 화면 (현재 락카가 없는 회원) ──
+  async function _renderLockerNewAssignForm(phone, memberInfo) {
+    const catSnap = await db.ref('locker_settings/categories').once('value');
+    const catVal = catSnap.val() || {};
+    const categories = Object.entries(catVal).map(([id, v]) => Object.assign({ id }, v));
+    const rawName = (memberInfo.name || '').replace(/\(\d{4}\)$/, '').trim();
+    window._lrnPhone = phone;
+    window._lrnMemberName = rawName || phone;
+    window._lrnSelected = null;
+
+    if (categories.length === 0) {
+      const html = `<div style="padding:4px 0;">
+        <div style="font-size:15px;font-weight:700;margin-bottom:10px;">🔑 락카 신규배정</div>
+        <div style="font-size:13px;color:var(--text-hint);text-align:center;padding:20px 0;">설정된 락카 종류가 없어요.<br>설정 탭에서 락카 종류를 먼저 등록해주세요.</div>
+      </div>`;
+      showLockerDetail(html);
+      return;
+    }
+
+    const html = `
+      <div style="padding:4px 0;">
+        <div style="font-size:15px;font-weight:700;margin-bottom:10px;">🔑 락카 신규배정</div>
+        <div style="background:#fff8e1;border-radius:10px;padding:10px 12px;margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:700;color:#8a6d00;">${rawName || phone}님</div>
+          <div style="font-size:12px;color:#a68300;margin-top:2px;">현재 배정된 락카가 없어요. 종류를 먼저 선택해주세요.</div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">락카 종류</div>
+          <select id="lrn-cat" onchange="onLrnCatChange()"
+            style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+            <option value="">선택해주세요</option>
+            ${categories.map(c => `<option value="${c.id}" data-start="${c.startNo||1}" data-end="${c.endNo||10}">${c.name}</option>`).join('')}
+          </select>
+        </div>
+        <div id="lrn-grid-wrap" style="display:none;margin-top:10px;">
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">빈 자리(초록)를 선택해주세요</div>
+          <div id="lrn-grid" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+        </div>
+        <div id="lrn-rest" style="display:none;flex-direction:column;gap:10px;margin-top:14px;">
+          <div id="lrn-selected-label" style="font-size:12.5px;font-weight:700;color:var(--blue);"></div>
+          <div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">사용 개월수</div>
+            <select id="lrn-months" onchange="calcLrnEndDate()"
+              style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+              <option value="1">1개월</option>
+              <option value="3" selected>3개월</option>
+              <option value="6">6개월</option>
+              <option value="12">12개월</option>
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">시작일</div>
+              <input id="lrn-start" type="date" value="${_todayISO()}" onchange="calcLrnEndDate()"
+                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">종료일 (자동계산)</div>
+              <div id="lrn-end-display" style="padding:9px 10px;border-radius:8px;background:#f5f7fa;font-size:13px;color:#059669;font-weight:700;">-</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">결제금액</div>
+            <input id="lrn-price" type="text" inputmode="numeric" placeholder="30000"
+              style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">결제수단</div>
+            <div style="display:flex;gap:6px;">
+              <button type="button" onclick="selectLrnMethod('cash')" id="lrn-method-cash"
+                style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:var(--blue);color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">현금</button>
+              <button type="button" onclick="selectLrnMethod('card')" id="lrn-method-card"
+                style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:#f5f5f5;color:#666;font-size:12.5px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">카드</button>
+              <button type="button" onclick="selectLrnMethod('transfer')" id="lrn-method-transfer"
+                style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:#f5f5f5;color:#666;font-size:12.5px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이체</button>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:16px;">
+          <button onclick="saveLockerNewAssign()"
+            style="flex:1;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 저장</button>
+          <button onclick="closeLockerDetail()"
+            style="flex:1;padding:11px;background:#f5f5f5;color:#666;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        </div>
+      </div>`;
+
+    showLockerDetail(html);
+    window._lrnSelectedMethod = 'cash';
+  }
+
+  async function onLrnCatChange() {
+    const sel = document.getElementById('lrn-cat');
+    const gridWrap = document.getElementById('lrn-grid-wrap');
+    const grid = document.getElementById('lrn-grid');
+    const rest = document.getElementById('lrn-rest');
+    if (!sel || !gridWrap || !grid) return;
+    const catId = sel.value;
+    window._lrnSelected = null;
+    if (rest) rest.style.display = 'none';
+    if (!catId) { gridWrap.style.display = 'none'; return; }
+
+    const opt = sel.options[sel.selectedIndex];
+    const startNo = parseInt(opt.dataset.start) || 1;
+    const endNo   = parseInt(opt.dataset.end) || 10;
+    gridWrap.style.display = '';
+    grid.innerHTML = '<span style="font-size:12px;color:var(--text-hint);">불러오는 중...</span>';
+
+    try {
+      const snap = await db.ref('lockers').once('value');
+      const lockerSnap = snap.val() || {};
+      const today = _todayISO();
+      const items = [];
+      for (let no = startNo; no <= endNo; no++) {
+        const key = catId + '_' + no;
+        const d = lockerSnap[key];
+        const isEmpty = !d || (!d.phone && d.status !== 'disabled') || (d.endDate && d.endDate < today);
+        items.push({ no, isEmpty });
+      }
+      grid.innerHTML = items.map(it => `
+        <div onclick="${it.isEmpty ? `selectLrnSlot('${catId}',${it.no})` : ''}" id="lrn-cell-${it.no}"
+          style="width:38px;height:38px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;box-sizing:border-box;
+          background:${it.isEmpty ? '#e8f5e9' : '#f5f5f5'};border:1.5px solid ${it.isEmpty ? '#81c784' : '#ccc'};
+          color:${it.isEmpty ? 'var(--text)' : '#aaa'};cursor:${it.isEmpty ? 'pointer' : 'not-allowed'};">${it.no}</div>`).join('');
+    } catch (e) {
+      grid.innerHTML = '<span style="font-size:12px;color:#ef4444;">로드 실패</span>';
+    }
+  }
+  window.onLrnCatChange = onLrnCatChange;
+
+  function selectLrnSlot(catId, no) {
+    window._lrnSelected = { catId, no };
+    document.querySelectorAll('[id^="lrn-cell-"]').forEach(cell => { cell.style.outline = 'none'; });
+    const cell = document.getElementById('lrn-cell-' + no);
+    if (cell) cell.style.outline = '2.5px solid var(--blue)';
+    const sel = document.getElementById('lrn-cat');
+    const catName = sel ? sel.options[sel.selectedIndex].textContent : '';
+    const label = document.getElementById('lrn-selected-label');
+    if (label) label.textContent = '✅ 선택됨: ' + catName + ' ' + no + '번';
+    const rest = document.getElementById('lrn-rest');
+    if (rest) rest.style.display = 'flex';
+    calcLrnEndDate();
+  }
+  window.selectLrnSlot = selectLrnSlot;
+
+  function calcLrnEndDate() {
+    const startVal = document.getElementById('lrn-start')?.value;
+    const months = parseInt(document.getElementById('lrn-months')?.value) || 0;
+    const displayEl = document.getElementById('lrn-end-display');
+    if (!displayEl) return;
+    if (!startVal || !months) { displayEl.textContent = '-'; return; }
+    const d = new Date(startVal);
+    d.setMonth(d.getMonth() + months);
+    d.setDate(d.getDate() - 1);
+    displayEl.textContent = _isoDate(d);
+  }
+  window.calcLrnEndDate = calcLrnEndDate;
+
+  function selectLrnMethod(method) {
+    window._lrnSelectedMethod = method;
+    ['cash', 'card', 'transfer'].forEach(m => {
+      const btn = document.getElementById('lrn-method-' + m);
+      if (!btn) return;
+      if (m === method) { btn.style.background = 'var(--blue)'; btn.style.color = '#fff'; btn.style.fontWeight = '700'; }
+      else { btn.style.background = '#f5f5f5'; btn.style.color = '#666'; btn.style.fontWeight = 'normal'; }
+    });
+  }
+  window.selectLrnMethod = selectLrnMethod;
+
+  async function saveLockerNewAssign() {
+    const phone = window._lrnPhone;
+    const sel = window._lrnSelected;
+    if (!phone || !sel) { showToast('락카 자리를 먼저 선택해주세요.', 'error'); return; }
+    const { catId, no } = sel;
+    const months = parseInt(document.getElementById('lrn-months')?.value) || 0;
+    const startDate = document.getElementById('lrn-start')?.value || '';
+    const priceRaw = document.getElementById('lrn-price')?.value || '0';
+    const price = parseInt(priceRaw.replace(/[^0-9]/g, '')) || 0;
+    const method = window._lrnSelectedMethod || 'cash';
+    if (!startDate) { showToast('시작일을 입력해주세요.', 'error'); return; }
+    if (!months) { showToast('개월수를 선택해주세요.', 'error'); return; }
+
+    const d = new Date(startDate);
+    d.setMonth(d.getMonth() + months);
+    d.setDate(d.getDate() - 1);
+    const endDate = _isoDate(d);
+    const lockerKey = catId + '_' + no;
+    const memberName = window._lrnMemberName || phone;
+
+    try {
+      const signDate = _todayISO();
+      const contractKey = signDate + '_' + Date.now();
+      const cash     = method === 'cash'     ? price : 0;
+      const card     = method === 'card'     ? price : 0;
+      const transfer = method === 'transfer' ? price : 0;
+
+      const updates = {};
+      updates['lockers/' + lockerKey] = {
+        phone, name: memberName, startDate, endDate,
+        categoryId: catId, lockerNo: no, status: 'active',
+        linkedContract: { phone, contractKey },
+      };
+      updates['members/' + phone + '/lockerKey'] = lockerKey;
+      updates['contracts/' + phone + '/' + contractKey] = {
+        name: memberName, phone,
+        programs: {}, packages: [],
+        extras: {
+          locker: {
+            lockerNo: no, lockerCatId: catId, lockerKey,
+            startDate, endDate, months,
+            price, cash, card, transfer,
+          }
+        },
+        signDate,
+        createdAt: Date.now(),
+        registeredBy: localStorage.getItem('current_user') || 'admin',
+        source: 'locker_new_assign',
+      };
+
+      await db.ref().update(updates);
+      _invalidateRevenueCache();
+      lockerData[lockerKey] = updates['lockers/' + lockerKey];
+
+      closeLockerDetail();
+      showToast('✅ 락카 신규배정 완료!', 'success');
+      try { _renderMdContracts(phone); } catch(e) { console.error('계약이력 갱신 오류(무시):', e); }
+      try { if (typeof cachedMembers !== 'undefined' && cachedMembers[phone]) _renderMdLockerMini(phone, cachedMembers[phone]); } catch(e) { console.error('락카 미니카드 갱신 오류(무시):', e); }
+    } catch (e) {
+      showToast('저장 실패: ' + e.message, 'error');
+    }
+  }
+  window.saveLockerNewAssign = saveLockerNewAssign;
 
   // 연락처 입력 시 이름 자동 불러오기
   let _autoFillTimer = null;
