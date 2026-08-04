@@ -4381,6 +4381,11 @@
     if (e.isMigrated) {
       return `<div class="md-item-row" style="padding:8px 0;border-top:1px solid var(--border);">
         <div class="md-col-prog"><div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${_extraLabel(extKey, e)}</div></div>
+        <div class="md-col-months" style="display:none;font-size:12px;color:var(--text-hint);">-</div>
+        <div class="md-col-count"  style="display:none;font-size:12px;color:var(--text-hint);">-</div>
+        <div class="md-col-start"  style="display:none;font-size:12px;color:var(--text);">${_normDate(e.startDate)}</div>
+        <div class="md-col-end"    style="display:none;font-size:12px;color:var(--text);">${_normDate(e.endDate)}</div>
+        <div class="md-col-trainer" style="display:none;font-size:12px;color:var(--text-hint);">-</div>
         <div class="md-col-right" style="margin-left:auto;">
           <div class="md-col-status" style="font-size:10.5px;color:#0ea5e9;font-weight:700;text-align:right;">📥 이관데이터 (${e.startDate||''}~${e.endDate||''})</div>
         </div>
