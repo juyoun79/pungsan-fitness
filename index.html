@@ -2596,6 +2596,7 @@
       <div style="display:flex;gap:6px;padding:0 14px 10px;">
         <div style="flex:1;position:relative;">
           <input id="global-search-input-m" type="text" placeholder="🔍 이름·전화번호·락카번호 검색" oninput="onGlobalSearchInput(this.value,'-m')"
+            onkeydown="if(event.key==='Enter')onGlobalSearchEnter('-m')"
             style="width:100%;box-sizing:border-box;padding:8px 12px;border:none;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
           <div id="global-search-results-m" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--card);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,0.2);max-height:300px;overflow-y:auto;z-index:500;"></div>
         </div>
@@ -2622,11 +2623,13 @@
     <!-- PC 모드 헤더 -->
     <div id="admin-header-pc" style="display:none;background:#185FA5;padding:12px 20px;align-items:center;justify-content:space-between;">
       <div style="display:flex;align-items:center;gap:12px;">
+        <button id="admin-back-btn" onclick="goBackAdmin()" style="display:none;background:rgba(255,255,255,0.2);border:none;border-radius:8px;padding:6px 10px;color:white;font-size:14px;cursor:pointer;font-weight:700;">← 뒤로</button>
         <div style="font-size:12px;opacity:0.7;color:white;">🔐 관리자 모드</div>
         <div style="font-size:16px;font-weight:700;color:white;">풍산휘트니스 관리</div>
       </div>
       <div style="flex:1;max-width:420px;margin:0 20px;position:relative;">
         <input id="global-search-input" type="text" placeholder="🔍 이름·전화번호·락카번호로 검색" oninput="onGlobalSearchInput(this.value,'')"
+          onkeydown="if(event.key==='Enter')onGlobalSearchEnter('')"
           style="width:100%;box-sizing:border-box;padding:8px 12px;border:none;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
         <div id="global-search-results" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--card);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,0.2);max-height:380px;overflow-y:auto;z-index:500;"></div>
       </div>

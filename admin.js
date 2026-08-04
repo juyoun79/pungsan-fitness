@@ -16,7 +16,53 @@
   }
 
   // ── 관리자 탭 전환 ──
+  // ── 관리자모드 자체 뒤로가기 (크롬 뒤로가기가 화면전환을 인식 못해서 별도로 구현) ──
+  let _adminNavStack = [];
+  let _isAdminNavigatingBack = false;
+
+  function _captureCurrentAdminScreen() {
+    const activeSection = document.querySelector('.admin-section.active');
+    const tabId = activeSection ? activeSection.id : 'tab-dashboard';
+    if (tabId === 'tab-members') {
+      const detailView = document.getElementById('member-detail-view');
+      const isDetailOpen = detailView && detailView.style.display !== 'none';
+      if (isDetailOpen && currentMemberPhone) {
+        return { fn: 'openMemberModal', args: [currentMemberPhone] };
+      }
+    }
+    return { fn: 'switchAdminTab', args: [tabId] };
+  }
+
+  function _pushAdminNavState(prevState) {
+    if (_isAdminNavigatingBack) return;
+    const last = _adminNavStack[_adminNavStack.length - 1];
+    if (last && last.fn === prevState.fn && last.args[0] === prevState.args[0]) return; // 같은 화면 중복 방지
+    _adminNavStack.push(prevState);
+    if (_adminNavStack.length > 20) _adminNavStack.shift();
+    _updateAdminBackBtn();
+  }
+
+  function _updateAdminBackBtn() {
+    const btn = document.getElementById('admin-back-btn');
+    if (btn) btn.style.display = _adminNavStack.length > 0 ? '' : 'none';
+  }
+
+  function goBackAdmin() {
+    if (_adminNavStack.length === 0) return;
+    const prev = _adminNavStack.pop();
+    _isAdminNavigatingBack = true;
+    try {
+      if (prev.fn === 'openMemberModal') openMemberModal(prev.args[0]);
+      else switchAdminTab(prev.args[0]);
+    } finally {
+      _isAdminNavigatingBack = false;
+    }
+    _updateAdminBackBtn();
+  }
+  window.goBackAdmin = goBackAdmin;
+
   function switchAdminTab(tabId) {
+    { const prevState = _captureCurrentAdminScreen(); if (prevState.args[0] !== tabId) _pushAdminNavState(prevState); }
     document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.admin-side-tab').forEach(t => t.classList.remove('active'));
@@ -2746,10 +2792,23 @@
     const q = value.trim();
     const resultsEl = document.getElementById('global-search-results' + suffix);
     if (!resultsEl) return;
-    if (!q) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; return; }
+    if (!q) {
+      resultsEl.style.display = 'none'; resultsEl.innerHTML = '';
+      window._lastGlobalSearchMatches = window._lastGlobalSearchMatches || {};
+      window._lastGlobalSearchMatches[suffix] = [];
+      return;
+    }
     _globalSearchDebounce = setTimeout(() => _runGlobalSearch(q, suffix), 150);
   }
   window.onGlobalSearchInput = onGlobalSearchInput;
+
+  function onGlobalSearchEnter(suffix) {
+    suffix = suffix || '';
+    const matches = (window._lastGlobalSearchMatches && window._lastGlobalSearchMatches[suffix]) || [];
+    if (matches.length === 0) return;
+    _selectGlobalSearchResult(matches[0][0], suffix);
+  }
+  window.onGlobalSearchEnter = onGlobalSearchEnter;
 
   function _runGlobalSearch(q, suffix) {
     const resultsEl = document.getElementById('global-search-results' + suffix);
@@ -2760,6 +2819,8 @@
         const lockerNo = info.lockerKey ? info.lockerKey.split('_').pop() : '';
         return name.includes(q) || phone.includes(q) || (lockerNo && lockerNo.includes(q));
       }).slice(0, 8);
+      window._lastGlobalSearchMatches = window._lastGlobalSearchMatches || {};
+      window._lastGlobalSearchMatches[suffix] = matches;
       if (matches.length === 0) {
         resultsEl.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-hint);font-size:12.5px;">검색 결과가 없어요</div>';
       } else {
@@ -3242,7 +3303,8 @@
   window.resetMemberSearch = resetMemberSearch;
 
   // ── 회원 상세 모달 ──
-  function openMemberModal(phone) {
+  function openMemberModal(phone, _prevStateOverride) {
+    const prevNavState = _prevStateOverride || _captureCurrentAdminScreen();
     currentMemberPhone = phone;
     let info = cachedMembers[phone];
     if (!info) {
@@ -3251,10 +3313,11 @@
         const fetched = snap.val();
         if (!fetched) { showToast('회원 정보를 찾을 수 없어요.', 'error'); return; }
         cachedMembers[phone] = fetched;
-        openMemberModal(phone);
+        openMemberModal(phone, prevNavState);
       }).catch(() => showToast('회원 정보를 불러오지 못했어요.', 'error'));
       return;
     }
+    if (prevNavState.fn !== 'openMemberModal' || prevNavState.args[0] !== phone) _pushAdminNavState(prevNavState);
 
     // 다른 탭(매출통계 등)에서 호출된 경우에도 "회원" 탭 섹션 자체가 화면에 보이도록 전환
     // (loadMemberList 재호출 등 부수효과가 있는 switchAdminTab 전체를 타지 않고, 탭 활성화 클래스만 직접 맞춰줌)
@@ -3696,8 +3759,8 @@
             </div>
             <div style="margin-top:8px;font-size:11px;color:var(--text-hint);text-align:center;">${traineeInfo ? (traineeInfo.type || '-') : '-'}</div>
           </div>
-          <div onclick="openPilatesGroupEditModal('${phone}')" style="background:var(--bg);border-radius:10px;padding:12px;cursor:pointer;">
-            <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:8px;text-align:center;">그룹수업 ✏️</div>
+          <div style="background:var(--bg);border-radius:10px;padding:12px;">
+            <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:8px;text-align:center;">그룹수업</div>
             <div style="display:flex;justify-content:space-around;align-items:baseline;">
               <div style="text-align:center;">
                 <div style="font-size:19px;font-weight:700;color:var(--blue);">${pg ? (pg.remain || 0) : 0}</div>
@@ -3718,64 +3781,6 @@
       el.innerHTML = '<div style="text-align:center;color:var(--text-hint);font-size:13px;padding:8px 0;">불러오기 실패</div>';
     });
   }
-
-  // ── 회원상세 "그룹수업" 칸 클릭 시 잔여/전체 횟수 빠른 수정 (이관작업 등에서 빠르게 고칠 때 사용) ──
-  async function openPilatesGroupEditModal(phone) {
-    try {
-      const [memberSnap, pgSnap] = await Promise.all([
-        db.ref('members/' + phone).once('value'),
-        db.ref('pilates_group/' + phone).once('value')
-      ]);
-      const memberInfo = memberSnap.val() || {};
-      const pg = pgSnap.val() || { remain: 0, total: 0 };
-      const rawName = (memberInfo.name || '').replace(/\(\d{4}\)$/, '').trim();
-
-      const html = `
-        <div style="padding:4px 0;">
-          <div style="font-size:15px;font-weight:700;margin-bottom:10px;">👥 기구필라테스 그룹수업 횟수 수정</div>
-          <div style="background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:14px;">
-            <div style="font-size:13px;font-weight:700;color:var(--text);">${rawName || phone}님</div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <div>
-              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">잔여 횟수</div>
-              <input id="pge-remain" type="number" value="${pg.remain || 0}"
-                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;" />
-            </div>
-            <div>
-              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">전체 횟수</div>
-              <input id="pge-total" type="number" value="${pg.total || 0}"
-                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;" />
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:16px;">
-            <button onclick="savePilatesGroupQuickEdit('${phone}')"
-              style="flex:1;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 저장</button>
-            <button onclick="closeLockerDetail()"
-              style="flex:1;padding:11px;background:#f5f5f5;color:#666;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
-          </div>
-        </div>`;
-
-      showLockerDetail(html);
-    } catch (e) {
-      showToast('정보를 불러오지 못했어요: ' + e.message, 'error');
-    }
-  }
-  window.openPilatesGroupEditModal = openPilatesGroupEditModal;
-
-  function savePilatesGroupQuickEdit(phone) {
-    const remain = parseInt(document.getElementById('pge-remain')?.value);
-    const total = parseInt(document.getElementById('pge-total')?.value);
-    if (isNaN(remain) || isNaN(total)) { showToast('숫자를 정확히 입력해주세요.', 'error'); return; }
-    db.ref('pilates_group/' + phone).set({ remain, total, updatedAt: Date.now() }).then(() => {
-      closeLockerDetail();
-      showToast('✅ 그룹수업 횟수가 저장됐어요!', 'success');
-      try { _renderMdClassStatus(phone); } catch(e) { console.error('그룹수업 카드 갱신 오류(무시):', e); }
-    }).catch(e => {
-      showToast('저장 실패: ' + e.message, 'error');
-    });
-  }
-  window.savePilatesGroupQuickEdit = savePilatesGroupQuickEdit;
 
   // ── 회원상세화면 프로필 사진 변경 (계약서탭 사진기능과 완전히 분리된 별도 코드) ──
 
