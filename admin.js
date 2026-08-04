@@ -3397,7 +3397,8 @@
       const d = snap.val();
       const lockerNo = d.lockerNo || lockerKey.split('_').pop();
       el.style.color = 'var(--text)';
-      el.textContent = lockerNo + '번' + (d.lockPassword ? ' · ' + d.lockPassword : '');
+      el.innerHTML = lockerNo + '번' + (d.lockPassword ? ' · ' + d.lockPassword : '') +
+        ' <span onclick="event.stopPropagation();openLockerReregisterModal(\'' + phone + '\')" style="margin-left:6px;font-size:11px;color:var(--blue);text-decoration:underline;cursor:pointer;">🔄재등록</span>';
     }).catch(() => { el.textContent = '-'; });
   }
 
@@ -7951,6 +7952,174 @@
   window.editLockerSlot = editLockerSlot;
   window.saveLockerEdit = saveLockerEdit;
 
+  // ── 락카 재등록 (회원상세에서 몇 번의 클릭으로 연장+결제까지 한번에) ──
+  async function openLockerReregisterModal(phone) {
+    try {
+      const memberSnap = await db.ref('members/' + phone).once('value');
+      const memberInfo = memberSnap.val();
+      if (!memberInfo) { showToast('회원 정보를 찾을 수 없어요.', 'error'); return; }
+      const lockerKey = memberInfo.lockerKey;
+      if (!lockerKey) { showToast('현재 등록된 락카가 없어요. 락카관리 탭에서 새로 배정해주세요.', 'error'); return; }
+
+      const lockerSnap = await db.ref('lockers/' + lockerKey).once('value');
+      const d = lockerSnap.val();
+      if (!d) { showToast('락카 정보를 찾을 수 없어요.', 'error'); return; }
+
+      const catId = d.categoryId || lockerKey.split('_')[0];
+      const lockerNo = d.lockerNo || lockerKey.split('_').pop();
+      const catSnap = await db.ref('locker_settings/categories/' + catId).once('value');
+      const catName = (catSnap.val() || {}).name || '';
+
+      const today = _todayISO();
+      const defaultStart = (d.endDate && d.endDate >= today)
+        ? _isoDate(new Date(new Date(d.endDate).getTime() + 86400000))
+        : today;
+      const rawName = (memberInfo.name || '').replace(/\(\d{4}\)$/, '').trim();
+
+      const html = `
+        <div style="padding:4px 0;">
+          <div style="font-size:15px;font-weight:700;margin-bottom:10px;">🔑 락카 재등록</div>
+          <div style="background:#e3f2fd;border-radius:10px;padding:10px 12px;margin-bottom:14px;">
+            <div style="font-size:13px;font-weight:700;color:#0c447c;">${rawName || phone}님</div>
+            <div style="font-size:12px;color:#185FA5;margin-top:2px;">현재 락카: ${catName} ${lockerNo}번 · 종료일 ${d.endDate || '-'}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">연장 개월수</div>
+              <select id="lr-months" onchange="calcLrEndDate()"
+                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+                <option value="1">1개월</option>
+                <option value="3" selected>3개월</option>
+                <option value="6">6개월</option>
+                <option value="12">12개월</option>
+              </select>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <div>
+                <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">시작일</div>
+                <input id="lr-start" type="date" value="${defaultStart}" onchange="calcLrEndDate()"
+                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
+              </div>
+              <div>
+                <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">종료일 (자동계산)</div>
+                <div id="lr-end-display" style="padding:9px 10px;border-radius:8px;background:#f5f7fa;font-size:13px;color:#059669;font-weight:700;">-</div>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">결제금액</div>
+              <input id="lr-price" type="text" inputmode="numeric" placeholder="30000"
+                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">결제수단</div>
+              <div style="display:flex;gap:6px;">
+                <button type="button" onclick="selectLrMethod('cash')" id="lr-method-cash"
+                  style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:var(--blue);color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">현금</button>
+                <button type="button" onclick="selectLrMethod('card')" id="lr-method-card"
+                  style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:#f5f5f5;color:#666;font-size:12.5px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">카드</button>
+                <button type="button" onclick="selectLrMethod('transfer')" id="lr-method-transfer"
+                  style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:#f5f5f5;color:#666;font-size:12.5px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이체</button>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:16px;">
+            <button onclick="saveLockerReregister('${phone}','${catId}','${lockerNo}','${lockerKey}')"
+              style="flex:1;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 저장</button>
+            <button onclick="closeLockerDetail()"
+              style="flex:1;padding:11px;background:#f5f5f5;color:#666;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+          </div>
+        </div>`;
+
+      showLockerDetail(html);
+      window._lrSelectedMethod = 'cash';
+      calcLrEndDate();
+    } catch (e) {
+      showToast('정보를 불러오지 못했어요: ' + e.message, 'error');
+    }
+  }
+  window.openLockerReregisterModal = openLockerReregisterModal;
+
+  function calcLrEndDate() {
+    const startVal = document.getElementById('lr-start')?.value;
+    const months = parseInt(document.getElementById('lr-months')?.value) || 0;
+    const displayEl = document.getElementById('lr-end-display');
+    if (!displayEl) return;
+    if (!startVal || !months) { displayEl.textContent = '-'; return; }
+    const d = new Date(startVal);
+    d.setMonth(d.getMonth() + months);
+    d.setDate(d.getDate() - 1);
+    displayEl.textContent = _isoDate(d);
+  }
+  window.calcLrEndDate = calcLrEndDate;
+
+  function selectLrMethod(method) {
+    window._lrSelectedMethod = method;
+    ['cash', 'card', 'transfer'].forEach(m => {
+      const btn = document.getElementById('lr-method-' + m);
+      if (!btn) return;
+      if (m === method) { btn.style.background = 'var(--blue)'; btn.style.color = '#fff'; btn.style.fontWeight = '700'; }
+      else { btn.style.background = '#f5f5f5'; btn.style.color = '#666'; btn.style.fontWeight = 'normal'; }
+    });
+  }
+  window.selectLrMethod = selectLrMethod;
+
+  async function saveLockerReregister(phone, catId, lockerNo, lockerKey) {
+    const months = parseInt(document.getElementById('lr-months')?.value) || 0;
+    const startDate = document.getElementById('lr-start')?.value || '';
+    const priceRaw = document.getElementById('lr-price')?.value || '0';
+    const price = parseInt(priceRaw.replace(/[^0-9]/g, '')) || 0;
+    const method = window._lrSelectedMethod || 'cash';
+    if (!startDate) { showToast('시작일을 입력해주세요.', 'error'); return; }
+    if (!months) { showToast('개월수를 선택해주세요.', 'error'); return; }
+
+    const d = new Date(startDate);
+    d.setMonth(d.getMonth() + months);
+    d.setDate(d.getDate() - 1);
+    const endDate = _isoDate(d);
+
+    try {
+      const memberSnap = await db.ref('members/' + phone).once('value');
+      const memberName = (memberSnap.val() || {}).name || phone;
+
+      const signDate = _todayISO();
+      const contractKey = signDate + '_' + Date.now();
+      const cash     = method === 'cash'     ? price : 0;
+      const card     = method === 'card'     ? price : 0;
+      const transfer = method === 'transfer' ? price : 0;
+
+      const updates = {};
+      updates['lockers/' + lockerKey + '/startDate'] = startDate;
+      updates['lockers/' + lockerKey + '/endDate'] = endDate;
+      updates['lockers/' + lockerKey + '/linkedContract'] = { phone, contractKey };
+      updates['contracts/' + phone + '/' + contractKey] = {
+        name: memberName, phone,
+        programs: {}, packages: [],
+        extras: {
+          locker: {
+            lockerNo, lockerCatId: catId, lockerKey,
+            startDate, endDate, months,
+            price, cash, card, transfer,
+          }
+        },
+        signDate,
+        createdAt: Date.now(),
+        registeredBy: localStorage.getItem('current_user') || 'admin',
+        source: 'locker_reregister',
+      };
+
+      await db.ref().update(updates);
+      _invalidateRevenueCache();
+
+      closeLockerDetail();
+      showToast('✅ 락카 재등록 완료!', 'success');
+      try { _renderMdContracts(phone); } catch(e) { console.error('계약이력 갱신 오류(무시):', e); }
+      try { if (typeof cachedMembers !== 'undefined' && cachedMembers[phone]) _renderMdLockerMini(phone, cachedMembers[phone]); } catch(e) { console.error('락카 미니카드 갱신 오류(무시):', e); }
+    } catch (e) {
+      showToast('저장 실패: ' + e.message, 'error');
+    }
+  }
+  window.saveLockerReregister = saveLockerReregister;
+
   // 연락처 입력 시 이름 자동 불러오기
   let _autoFillTimer = null;
   function autoFillLockerName(phone) {
@@ -9342,6 +9511,7 @@
     try {
       const snap = await db.ref('lockers').once('value');
       const lockerSnap = snap.val() || {};
+      const currentPhone = (document.getElementById('ct-phone')?.value || '').trim();
 
       const today = _todayISO();
       const items = [];
@@ -9354,6 +9524,9 @@
             bg='#f5f5f5'; border='#9e9e9e'; label='불가'; disabled=true; emoji='⚫';
           } else if (d.endDate && d.endDate < today) {
             bg='#ffebee'; border='#e57373'; label='만료'; disabled=false; emoji='🔴';
+          } else if (currentPhone && d.phone === currentPhone) {
+            // 지금 재등록하려는 회원 본인이 이미 쓰고 있는 락카 — 만료 전이어도 선택 가능하게 허용
+            bg='#fff8e1'; border='#ffb300'; label='내락카'; disabled=false; emoji='🟡';
           } else {
             bg='#e3f2fd'; border='#64b5f6';
             const rawName = (d.name||'').replace(/\(\d{4}\)$/,'').trim();
