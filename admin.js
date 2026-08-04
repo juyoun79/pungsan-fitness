@@ -3842,21 +3842,35 @@
 
   // ── 회원상세화면 프로필 사진 변경 (계약서탭 사진기능과 완전히 분리된 별도 코드) ──
 
+  let _mdCameraFacing = 'environment';
+
   function openMdWebcam() {
     const modal = document.getElementById('md-webcam-modal');
     if (!modal) return;
     modal.style.display = 'flex';
-    navigator.mediaDevices.getUserMedia({ video: true })
+    _startMdWebcamStream();
+  }
+
+  function _startMdWebcamStream() {
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: _mdCameraFacing } } })
       .then(stream => {
         mdWebcamStream = stream;
         const video = document.getElementById('md-webcam-video');
         if (video) video.srcObject = stream;
       })
       .catch(() => {
-        modal.style.display = 'none';
+        const modal = document.getElementById('md-webcam-modal');
+        if (modal) modal.style.display = 'none';
         showToast('카메라 권한이 필요해요. 파일 선택을 이용해주세요.', 'error');
       });
   }
+
+  function switchMdCamera() {
+    if (mdWebcamStream) { mdWebcamStream.getTracks().forEach(t => t.stop()); mdWebcamStream = null; }
+    _mdCameraFacing = (_mdCameraFacing === 'environment') ? 'user' : 'environment';
+    _startMdWebcamStream();
+  }
+  window.switchMdCamera = switchMdCamera;
 
   function closeMdWebcam() {
     if (mdWebcamStream) { mdWebcamStream.getTracks().forEach(t => t.stop()); mdWebcamStream = null; }
@@ -7382,7 +7396,7 @@
     const modal = document.getElementById('reg-webcam-modal');
     if (!modal) return;
     modal.style.display = 'flex';
-    navigator.mediaDevices.getUserMedia({ video: true })
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } })
       .then(stream => {
         regWebcamStream = stream;
         const video = document.getElementById('reg-webcam-video');
@@ -8803,21 +8817,35 @@
   let mdWebcamStream = null;
   let mdPhotoBlob    = null;
 
+  let _ctCameraFacing = 'environment';
+
   function openCtWebcam() {
     const modal = document.getElementById('ct-webcam-modal');
     if (!modal) return;
     modal.style.display = 'flex';
-    navigator.mediaDevices.getUserMedia({ video: true })
+    _startCtWebcamStream();
+  }
+
+  function _startCtWebcamStream() {
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: _ctCameraFacing } } })
       .then(stream => {
         ctWebcamStream = stream;
         const video = document.getElementById('ct-webcam-video');
         if (video) video.srcObject = stream;
       })
       .catch(() => {
-        modal.style.display = 'none';
+        const modal = document.getElementById('ct-webcam-modal');
+        if (modal) modal.style.display = 'none';
         showToast('카메라 권한이 필요해요. 파일 선택을 이용해주세요.', 'error');
       });
   }
+
+  function switchCtCamera() {
+    if (ctWebcamStream) { ctWebcamStream.getTracks().forEach(t => t.stop()); ctWebcamStream = null; }
+    _ctCameraFacing = (_ctCameraFacing === 'environment') ? 'user' : 'environment';
+    _startCtWebcamStream();
+  }
+  window.switchCtCamera = switchCtCamera;
 
   function closeCtWebcam() {
     if (ctWebcamStream) { ctWebcamStream.getTracks().forEach(t => t.stop()); ctWebcamStream = null; }

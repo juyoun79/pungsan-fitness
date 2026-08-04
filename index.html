@@ -11314,6 +11314,8 @@ async function payChalllengeReward(challengeId) {
       <video id="ct-webcam-video" autoplay playsinline
         style="width:240px;height:240px;object-fit:cover;border-radius:50%;border:3px solid var(--blue);background:#000;"></video>
       <div style="display:flex;gap:10px;width:100%;">
+        <button onclick="switchCtCamera()" title="카메라 전환"
+          style="padding:11px 14px;background:var(--bg);color:var(--text);border:1.5px solid var(--border);border-radius:10px;font-size:14px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔄</button>
         <button onclick="captureCtWebcam()"
           style="flex:1;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📸 촬영</button>
         <button onclick="closeCtWebcam()"
@@ -11331,6 +11333,8 @@ async function payChalllengeReward(challengeId) {
       <video id="md-webcam-video" autoplay playsinline
         style="width:240px;height:240px;object-fit:cover;border-radius:50%;border:3px solid var(--blue);background:#000;"></video>
       <div style="display:flex;gap:10px;width:100%;">
+        <button onclick="switchMdCamera()" title="카메라 전환"
+          style="padding:11px 14px;background:var(--bg);color:var(--text);border:1.5px solid var(--border);border-radius:10px;font-size:14px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔄</button>
         <button onclick="captureMdWebcam()"
           style="flex:1;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📸 촬영</button>
         <button onclick="closeMdWebcam()"
