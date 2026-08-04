@@ -3696,8 +3696,8 @@
             </div>
             <div style="margin-top:8px;font-size:11px;color:var(--text-hint);text-align:center;">${traineeInfo ? (traineeInfo.type || '-') : '-'}</div>
           </div>
-          <div style="background:var(--bg);border-radius:10px;padding:12px;">
-            <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:8px;text-align:center;">그룹수업</div>
+          <div onclick="openPilatesGroupEditModal('${phone}')" style="background:var(--bg);border-radius:10px;padding:12px;cursor:pointer;">
+            <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:8px;text-align:center;">그룹수업 ✏️</div>
             <div style="display:flex;justify-content:space-around;align-items:baseline;">
               <div style="text-align:center;">
                 <div style="font-size:19px;font-weight:700;color:var(--blue);">${pg ? (pg.remain || 0) : 0}</div>
@@ -3718,6 +3718,64 @@
       el.innerHTML = '<div style="text-align:center;color:var(--text-hint);font-size:13px;padding:8px 0;">불러오기 실패</div>';
     });
   }
+
+  // ── 회원상세 "그룹수업" 칸 클릭 시 잔여/전체 횟수 빠른 수정 (이관작업 등에서 빠르게 고칠 때 사용) ──
+  async function openPilatesGroupEditModal(phone) {
+    try {
+      const [memberSnap, pgSnap] = await Promise.all([
+        db.ref('members/' + phone).once('value'),
+        db.ref('pilates_group/' + phone).once('value')
+      ]);
+      const memberInfo = memberSnap.val() || {};
+      const pg = pgSnap.val() || { remain: 0, total: 0 };
+      const rawName = (memberInfo.name || '').replace(/\(\d{4}\)$/, '').trim();
+
+      const html = `
+        <div style="padding:4px 0;">
+          <div style="font-size:15px;font-weight:700;margin-bottom:10px;">👥 기구필라테스 그룹수업 횟수 수정</div>
+          <div style="background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:14px;">
+            <div style="font-size:13px;font-weight:700;color:var(--text);">${rawName || phone}님</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">잔여 횟수</div>
+              <input id="pge-remain" type="number" value="${pg.remain || 0}"
+                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;" />
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">전체 횟수</div>
+              <input id="pge-total" type="number" value="${pg.total || 0}"
+                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;" />
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:16px;">
+            <button onclick="savePilatesGroupQuickEdit('${phone}')"
+              style="flex:1;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 저장</button>
+            <button onclick="closeLockerDetail()"
+              style="flex:1;padding:11px;background:#f5f5f5;color:#666;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+          </div>
+        </div>`;
+
+      showLockerDetail(html);
+    } catch (e) {
+      showToast('정보를 불러오지 못했어요: ' + e.message, 'error');
+    }
+  }
+  window.openPilatesGroupEditModal = openPilatesGroupEditModal;
+
+  function savePilatesGroupQuickEdit(phone) {
+    const remain = parseInt(document.getElementById('pge-remain')?.value);
+    const total = parseInt(document.getElementById('pge-total')?.value);
+    if (isNaN(remain) || isNaN(total)) { showToast('숫자를 정확히 입력해주세요.', 'error'); return; }
+    db.ref('pilates_group/' + phone).set({ remain, total, updatedAt: Date.now() }).then(() => {
+      closeLockerDetail();
+      showToast('✅ 그룹수업 횟수가 저장됐어요!', 'success');
+      try { _renderMdClassStatus(phone); } catch(e) { console.error('그룹수업 카드 갱신 오류(무시):', e); }
+    }).catch(e => {
+      showToast('저장 실패: ' + e.message, 'error');
+    });
+  }
+  window.savePilatesGroupQuickEdit = savePilatesGroupQuickEdit;
 
   // ── 회원상세화면 프로필 사진 변경 (계약서탭 사진기능과 완전히 분리된 별도 코드) ──
 
