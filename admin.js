@@ -18495,7 +18495,176 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
 
     // 공지사항
     loadHomeNotices('trainer-notice-container');
+
+    // 전체회원 검색용 캐시 로드 (읽기전용 검색)
+    const tmsInput = document.getElementById('tms-search-input');
+    if (tmsInput) tmsInput.value = '';
+    const tmsResults = document.getElementById('tms-results');
+    if (tmsResults) tmsResults.style.display = 'none';
+    loadAllMembersForTrainerSearch();
   }
+
+  // ── 강사용 전체회원 검색 (읽기전용) ──────────────────────
+  window._allMemberSearchCache = null;
+
+  function loadAllMembersForTrainerSearch() {
+    db.ref('members').once('value').then(snap => {
+      const data = snap.val() || {};
+      const list = [];
+      Object.entries(data).forEach(([phone, info]) => {
+        if (!info || typeof info !== 'object') return;
+        list.push({ phone, name: info.name || phone });
+      });
+      window._allMemberSearchCache = list;
+    }).catch(e => { console.error('전체회원 검색 캐시 로드 실패:', e); });
+  }
+
+  function filterAllMemberSearch(query) {
+    const resultsEl = document.getElementById('tms-results');
+    if (!resultsEl) return;
+    const q = query.trim().toLowerCase();
+    if (!q) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; return; }
+    const cache = window._allMemberSearchCache || [];
+    const filtered = cache.filter(({ name, phone }) =>
+      name.toLowerCase().includes(q) || phone.includes(q)
+    ).slice(0, 30);
+
+    if (!filtered.length) {
+      resultsEl.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-hint);font-size:13px;">검색 결과가 없어요</div>';
+      resultsEl.style.display = 'block';
+      return;
+    }
+    resultsEl.innerHTML = filtered.map(({ phone, name }) => `
+      <div onclick="openTrainerMemberDetail('${phone}')"
+        style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);"
+        ontouchstart="this.style.background='var(--blue-light)'" ontouchend="this.style.background='transparent'">
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--blue);color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">${name[0] || '?'}</div>
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:700;color:var(--text);">${name}</div>
+          <div style="font-size:12px;color:var(--text-sub);">${phone}</div>
+        </div>
+      </div>
+    `).join('');
+    resultsEl.style.display = 'block';
+  }
+  window.filterAllMemberSearch = filterAllMemberSearch;
+
+  function closeTrainerMemberDetail() {
+    document.getElementById('tmd-modal').classList.remove('active');
+  }
+  window.closeTrainerMemberDetail = closeTrainerMemberDetail;
+
+  function toggleTmdMemo() {
+    const el = document.getElementById('tmd-memo-content');
+    const btn = document.getElementById('tmd-memo-btn');
+    if (!el) return;
+    const show = el.style.display === 'none';
+    el.style.display = show ? 'block' : 'none';
+    if (btn) btn.textContent = show ? '메모 숨기기' : '메모 보기';
+  }
+  window.toggleTmdMemo = toggleTmdMemo;
+
+  function toggleTmdMoreContracts() {
+    const el = document.getElementById('tmd-more-contracts');
+    const btn = document.getElementById('tmd-contracts-more-btn');
+    if (!el) return;
+    const show = el.style.display === 'none';
+    el.style.display = show ? 'block' : 'none';
+    if (btn) btn.textContent = show ? '이전 계약 접기 ▲' : '이전 계약 더보기 ▾';
+  }
+  window.toggleTmdMoreContracts = toggleTmdMoreContracts;
+
+  function _tmdRenderContractCard(c) {
+    const items = _flattenContractItems(c);
+    const totalAmt = items.reduce((s, it) => s + (it.data.price || 0), 0);
+    const extrasList = Object.entries(c.extras || {}).filter(([, e]) => !e.deleted);
+    const extrasAmt = extrasList.reduce((s, [, e]) => s + (e.price || 0), 0);
+    const grandTotal = totalAmt + extrasAmt;
+    const payLabel = _paymentMethodLabel(items[0] ? items[0].data : {}) || '-';
+    const dateStr = c.signDate || (c.createdAt ? _isoDate(new Date(c.createdAt)) : '-');
+    const progNames = items.map(it => it.progKey).join(', ') || (extrasList.length ? '부가서비스' : '-');
+    return `
+      <div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);">${dateStr} · ${(grandTotal||0).toLocaleString()}원 · ${payLabel}</div>
+        <div style="font-size:12px;color:var(--text-sub);margin-top:2px;">${progNames}</div>
+        ${c.salesStaffName ? `<div style="font-size:12px;color:var(--text-sub);">담당자 ${c.salesStaffName}</div>` : ''}
+      </div>`;
+  }
+
+  function openTrainerMemberDetail(phone) {
+    const modal = document.getElementById('tmd-modal');
+    const body = document.getElementById('tmd-body');
+    if (!modal || !body) return;
+    body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);">불러오는 중...</div>';
+    modal.classList.add('active');
+
+    Promise.all([
+      db.ref('members/' + phone).once('value'),
+      db.ref('users/' + phone + '/attendance').once('value'),
+      db.ref('users/' + phone + '/points').once('value'),
+      db.ref('contracts/' + phone).once('value'),
+    ]).then(async ([memberSnap, attSnap, ptsSnap, contractSnap]) => {
+      const info = memberSnap.val() || {};
+      const name = info.name || phone;
+      const pts = ptsSnap.val() || 0;
+      const attendData = attSnap.val() || {};
+      const attendDates = Object.keys(attendData).sort().reverse().slice(0, 5);
+
+      // 락커 정보
+      let lockerText = '미배정';
+      if (info.lockerKey) {
+        try {
+          const lockerSnap = await db.ref('lockers/' + info.lockerKey).once('value');
+          const lockerData = lockerSnap.val();
+          if (lockerData) lockerText = (lockerData.catName || '') + ' ' + (lockerData.number || '') + '번';
+        } catch (e) { /* 무시 */ }
+      }
+
+      // 계약이력
+      const contracts = [];
+      contractSnap.forEach(child => { contracts.push({ key: child.key, ...child.val() }); });
+      contracts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      const recentContracts = contracts.slice(0, 2);
+      const moreContracts = contracts.slice(2);
+
+      body.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+          <div style="width:44px;height:44px;border-radius:50%;background:var(--blue);color:white;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;flex-shrink:0;">${name[0] || '?'}</div>
+          <div>
+            <div style="font-size:16px;font-weight:700;color:var(--text);">${name}</div>
+            <div style="font-size:13px;color:var(--text-sub);">${phone}</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+          <div style="background:var(--bg);border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:2px;">락커</div>
+            <div style="font-size:13px;font-weight:700;">${lockerText}</div>
+          </div>
+          <div style="background:var(--bg);border-radius:8px;padding:10px;text-align:center;">
+            <div style="font-size:11px;color:var(--text-hint);margin-bottom:2px;">보유 포인트</div>
+            <div style="font-size:13px;font-weight:700;">${Number(pts).toLocaleString()}P</div>
+          </div>
+        </div>
+
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;">계약 및 결제내역</div>
+        ${recentContracts.length ? recentContracts.map(c => _tmdRenderContractCard(c)).join('') : '<div style="color:var(--text-hint);font-size:13px;padding:8px 0;">계약 이력이 없어요</div>'}
+        ${moreContracts.length ? `
+          <div id="tmd-more-contracts" style="display:none;">${moreContracts.map(c => _tmdRenderContractCard(c)).join('')}</div>
+          <button id="tmd-contracts-more-btn" onclick="toggleTmdMoreContracts()" style="width:100%;padding:8px;font-size:12px;color:var(--text-sub);background:var(--card);border:1px solid var(--border);border-radius:8px;cursor:pointer;margin-bottom:14px;font-family:'Noto Sans KR',sans-serif;">이전 계약 더보기 ▾</button>
+        ` : '<div style="margin-bottom:14px;"></div>'}
+
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;">최근 출석</div>
+        <div style="font-size:13px;color:var(--text-sub);margin-bottom:14px;">${attendDates.length ? attendDates.join(', ') : '출석 기록 없음'}</div>
+
+        <button id="tmd-memo-btn" onclick="toggleTmdMemo()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:9px;background:var(--card);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">메모 보기</button>
+        <div id="tmd-memo-content" style="display:none;margin-top:8px;background:var(--bg);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text);white-space:pre-wrap;">${info.memo ? info.memo.replace(/</g,'&lt;') : '메모 없음'}</div>
+      `;
+    }).catch(e => {
+      body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);">불러오기에 실패했어요: ' + e.message + '</div>';
+    });
+  }
+  window.openTrainerMemberDetail = openTrainerMemberDetail;
 
   // 오늘 그룹수업 (강사홈) — 시간표+휴무 반영, 시간대별 예약인원 표시, 눌러서 명단 펼치기
   let _thPgtNames = {}; // classId -> 예약자 명단 텍스트 (칩 클릭 시 하단에 표시)
