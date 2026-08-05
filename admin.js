@@ -13877,10 +13877,10 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         const idealFatPct = gender === 'male' ? 0.15 : 0.23;               // 이상적 체지방률
         const idealFatMass = stdWeight * idealFatPct;                      // 이상체지방량
 
-        const weightMin  = parseFloat((stdWeight * 0.9).toFixed(1));
-        const weightMax  = parseFloat((stdWeight * 1.1).toFixed(1));
-        const muscleMin  = parseFloat((idealSMM * 0.9).toFixed(1));
-        const muscleMax  = parseFloat((idealSMM * 1.1).toFixed(1));
+        const weightMin  = parseFloat((stdWeight * 0.85).toFixed(1));
+        const weightMax  = parseFloat((stdWeight * 1.15).toFixed(1));
+        const muscleMin  = parseFloat((idealSMM * 0.86).toFixed(1));
+        const muscleMax  = parseFloat((idealSMM * 1.05).toFixed(1));
         const fatMin2    = parseFloat((idealFatMass * 0.8).toFixed(1));
         const fatMax2    = parseFloat((idealFatMass * 1.6).toFixed(1));
         let fatRateMin, fatRateMax;
@@ -13964,7 +13964,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
           ${(latest.muscle !== undefined && latest.fat !== undefined) ? (() => {
             const stdMuscle = idealSMM;
             const stdFat    = idealFatMass;
-            const sc = Math.min(100, Math.max(0, Math.round(80 + (latest.muscle - stdMuscle) * 1.0 - (latest.fat - stdFat) * 1.3)));
+            const sc = Math.min(100, Math.max(0, Math.round(85 + (latest.muscle - stdMuscle) * 1.0 - (latest.fat - stdFat) * 1.3)));
             const color = sc >= 90 ? '#16a34a' : sc >= 80 ? '#2563eb' : sc >= 70 ? '#ca8a04' : sc >= 60 ? '#ea580c' : '#dc2626';
             const label = sc >= 90 ? '💚 매우강함' : sc >= 80 ? '🔵 강함' : sc >= 70 ? '🟡 보통' : sc >= 60 ? '🟠 약함' : '🔴 매우약함';
             const filled = (sc / 100) * 226;
