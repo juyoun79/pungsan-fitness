@@ -970,19 +970,19 @@
       <div style="display:flex;flex-direction:column;gap:10px;">
         <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
           <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">⚖️ 체중</div>
-          <div style="font-size:12px;color:var(--text-hint);line-height:1.6;">키와 성별로 표준체중 계산 후 ±10% 범위<br><span style="color:var(--blue);">표준체중 = 키(m)² × (남성 22 / 여성 21)</span></div>
+          <div style="font-size:12px;color:var(--text-hint);line-height:1.6;">키와 성별로 표준체중 계산 후 ±15% 범위<br><span style="color:var(--blue);">표준체중 = 키(m)² × (남성 22 / 여성 21)</span></div>
         </div>
         <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
           <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">💪 골격근량</div>
-          <div style="font-size:12px;color:var(--text-hint);line-height:1.6;">성별과 체중 기반<br><span style="color:var(--blue);">남성: 체중 × 40~50% / 여성: 체중 × 32~42%</span></div>
+          <div style="font-size:12px;color:var(--text-hint);line-height:1.6;">키와 성별로 이상골격근량 계산 후 86~105% 범위<br><span style="color:var(--blue);">이상골격근량 = 키(m)² × (남성 11.0 / 여성 9.05)</span></div>
         </div>
         <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
           <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">🔥 체지방량</div>
-          <div style="font-size:12px;color:var(--text-hint);line-height:1.6;">성별과 체중 기반<br><span style="color:var(--blue);">남성: 체중 × 10~20% / 여성: 체중 × 18~28%</span></div>
+          <div style="font-size:12px;color:var(--text-hint);line-height:1.6;">표준체중 기준 이상체지방량 계산 후 80~160% 범위<br><span style="color:var(--blue);">이상체지방량 = 표준체중 × (남성 15% / 여성 23%)</span></div>
         </div>
         <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
           <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">📉 체지방률</div>
-          <div style="font-size:12px;color:var(--text-hint);line-height:1.6;">성별과 나이 기반<br><span style="color:var(--blue);">남성: 10~20% / 여성: 18~28% (60세 이상 상한 +5%)</span></div>
+          <div style="font-size:12px;color:var(--text-hint);line-height:1.6;">성별과 나이 기반<br><span style="color:var(--blue);">남성: 10~20% (60세 이상 10~25%) / 여성: 18~28% (60세 이상 18~30%)</span></div>
         </div>
         <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
           <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">📐 BMI</div>
@@ -1001,7 +1001,7 @@
       <!-- 신체발달점수 기준 -->
       <div style="margin-top:14px;background:var(--bg);border-radius:10px;padding:12px 14px;">
         <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">💪 신체발달점수</div>
-        <div style="font-size:12px;color:var(--text-hint);line-height:1.6;margin-bottom:8px;">골격근량과 체지방량을 표준값과 비교해 계산해요.<br><span style="color:var(--blue);">80점 기준 + 근육 초과 kg당 +1점 − 체지방 초과 kg당 −1.3점</span></div>
+        <div style="font-size:12px;color:var(--text-hint);line-height:1.6;margin-bottom:8px;">골격근량과 체지방량을 표준값과 비교해 계산해요.<br><span style="color:var(--blue);">85점 기준 + 근육 초과 kg당 +1점 − 체지방 초과 kg당 −1.3점</span></div>
         <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:11px;">
           <span style="color:#16a34a;font-weight:700;">💚 90~100점</span><span style="color:var(--text);">매우강함 — 완벽한 체성분</span>
           <span style="color:#2563eb;font-weight:700;">🔵 80~89점</span><span style="color:var(--text);">강함 — 건강한 체성분</span>
