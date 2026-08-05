@@ -6840,6 +6840,17 @@
     return              { label: '🔴매우약함',    color: '#dc2626' };
   }
 
+  // 등급바는 매우약함(0~60)/약함(60~70)/보통(70~80)/강함(80~90)/매우강함(90~100) 5칸이 각각 20%씩 균등폭으로 그려짐
+  // 점수를 그대로 %로 쓰면 구간 폭이 실제와 안 맞아서 마커가 엉뚱한 칸에 찍힘 → 구간별 비율로 환산
+  function _scoreToBarPercent(score) {
+    const s = Math.max(0, Math.min(100, score));
+    if (s < 60) return (s / 60) * 20;
+    if (s < 70) return 20 + ((s - 60) / 10) * 20;
+    if (s < 80) return 40 + ((s - 70) / 10) * 20;
+    if (s < 90) return 60 + ((s - 80) / 10) * 20;
+    return 80 + ((s - 90) / 10) * 20;
+  }
+
   function _updateHomeScoreDonut(latest) {
     const userId = localStorage.getItem('current_user');
     const height = parseFloat(localStorage.getItem('body_height_' + userId)) || 0;
@@ -7069,10 +7080,15 @@
       const latest = filtered[0];
       const prev   = filtered.length > 1 ? filtered[1] : null;
 
-      // 회원 신체정보 기반 표준범위 계산
-      db.ref('users/' + userId + '/body').once('value').then(bodySnap => {
+      // 회원 신체정보 기반 표준범위 계산 (users/body 정보가 없으면 회원 등록정보의 성별로 대체)
+      Promise.all([
+        db.ref('users/' + userId + '/body').once('value'),
+        db.ref('members/' + userId).once('value')
+      ]).then(([bodySnap, memberSnap]) => {
         const body   = bodySnap.val() || {};
-        const gender = body.gender || 'female';
+        const member = memberSnap.val() || {};
+        const memberGender = (member.body && member.body.gender) || member['body/gender'] || null;
+        const gender = body.gender || memberGender || 'female';
         const age    = parseInt(body.age)    || 30;
         const height = parseFloat(body.height) || 165;
         const bWeight= parseFloat(body.weight) || 60;
@@ -7234,9 +7250,9 @@
             badge.style.color = g.color;
           }
 
-          // 마커 위치
+          // 마커 위치 (구간별 비율로 환산)
           const marker = document.getElementById('inbody-score-marker');
-          if (marker) marker.style.left = score + '%';
+          if (marker) marker.style.left = _scoreToBarPercent(score) + '%';
 
           // 날짜
           const dateEl = document.getElementById('inbody-score-date');

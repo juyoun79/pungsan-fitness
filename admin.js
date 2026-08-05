@@ -13888,8 +13888,15 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         else { fatRateMin = 18; fatRateMax = age >= 60 ? 30 : 28; }
         const bmiMin = 18.5, bmiMax = 24.9;
         let bmrStd;
-        if (gender === 'male') bmrStd = 88.4 + (13.4 * bWeight) + (4.8 * height) - (5.7 * age);
-        else bmrStd = 447.6 + (9.2 * bWeight) + (3.1 * height) - (4.3 * age);
+        if (latest.weight !== undefined && latest.fat !== undefined) {
+          // 카츠-맥아들 공식: 제지방량 기반 (실제 인바디 측정값과 더 유사, 회원용 화면과 동일 기준)
+          const lbm = latest.weight - latest.fat;
+          bmrStd = 370 + (21.6 * lbm);
+        } else {
+          // 해리스-베네딕트: 체지방 데이터 없을 때만 대체 사용
+          if (gender === 'male') bmrStd = 88.4 + (13.4 * bWeight) + (4.8 * height) - (5.7 * age);
+          else bmrStd = 447.6 + (9.2 * bWeight) + (3.1 * height) - (4.3 * age);
+        }
         const bmrMin = Math.round(bmrStd * 0.9);
         const bmrMax = Math.round(bmrStd * 1.1);
 
