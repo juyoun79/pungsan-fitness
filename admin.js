@@ -8443,6 +8443,8 @@
     const extras = {};
     const updates = {};
     let lockerKeyToLink = null;
+    const signDate = _todayISO();
+    const contractKey = signDate + '_' + Date.now();
 
     try {
       if (useLocker) {
@@ -8478,6 +8480,7 @@
           updates['lockers/' + lockerKey] = {
             phone, name: window._esMemberName, startDate, endDate,
             categoryId: catId, lockerNo, status: 'active',
+            linkedContract: { phone, contractKey },
           };
           updates['members/' + phone + '/lockerKey'] = lockerKey;
         }
@@ -8502,8 +8505,6 @@
         extras.cloth = { startDate, endDate: clothEndDate, months: clothMonths, price, cash, card, transfer };
       }
 
-      const signDate = _todayISO();
-      const contractKey = signDate + '_' + Date.now();
       updates['contracts/' + phone + '/' + contractKey] = {
         name: window._esMemberName, phone,
         programs: {}, packages: [],
@@ -8513,7 +8514,9 @@
         registeredBy: localStorage.getItem('current_user') || 'admin',
         source: 'extra_service_register',
       };
-      if (lockerKeyToLink) {
+      // 재등록(기존 락카)은 개별 항목 경로로만 저장하므로 linkedContract도 별도 경로로 추가 가능
+      // 신규배정은 락카 객체 전체를 통째로 쓰므로 linkedContract를 그 안에 이미 포함시켰음 (경로 충돌 방지)
+      if (lockerKeyToLink && window._esLockerData) {
         updates['lockers/' + lockerKeyToLink + '/linkedContract'] = { phone, contractKey };
       }
 
