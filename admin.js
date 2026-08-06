@@ -8162,13 +8162,26 @@
           <div id="es-cloth-section" style="display:none;background:var(--bg);border-radius:10px;padding:12px;margin:0 0 16px 0;">
             <div style="display:flex;flex-direction:column;gap:10px;">
               <div>
-                <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">지급일</div>
-                <input id="es-cloth-start" type="date" value="${today}"
-                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
+                <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">지급 개월수</div>
+                <select id="es-cloth-months" onchange="esCalcClothEndDate()"
+                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+                  <option value="1">1개월</option><option value="3" selected>3개월</option><option value="6">6개월</option><option value="12">12개월</option>
+                </select>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div>
+                  <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">지급일</div>
+                  <input id="es-cloth-start" type="date" value="${today}" onchange="esCalcClothEndDate()"
+                    style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
+                </div>
+                <div>
+                  <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">종료일 (자동계산)</div>
+                  <div id="es-cloth-end-display" style="padding:9px 10px;border-radius:8px;background:#f5f7fa;font-size:13px;color:#059669;font-weight:700;">-</div>
+                </div>
               </div>
               <div>
                 <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">결제금액</div>
-                <input id="es-cloth-price" type="text" inputmode="numeric" placeholder="30000"
+                <input id="es-cloth-price" type="text" inputmode="numeric" placeholder="30000" oninput="_formatMoneyInput(this)"
                   style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
               </div>
               <div>
@@ -8237,7 +8250,7 @@
         </div>
         <div>
           <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">결제금액</div>
-          <input id="es-lr-price" type="text" inputmode="numeric" placeholder="30000"
+          <input id="es-lr-price" type="text" inputmode="numeric" placeholder="30000" oninput="_formatMoneyInput(this)"
             style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
         </div>
         <div>
@@ -8295,7 +8308,7 @@
           </div>
           <div>
             <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">결제금액</div>
-            <input id="es-lrn-price" type="text" inputmode="numeric" placeholder="30000"
+            <input id="es-lrn-price" type="text" inputmode="numeric" placeholder="30000" oninput="_formatMoneyInput(this)"
               style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
           </div>
           <div>
@@ -8387,6 +8400,17 @@
   }
   window.esCalcLrnEndDate = esCalcLrnEndDate;
 
+  function esCalcClothEndDate() {
+    const startVal = document.getElementById('es-cloth-start')?.value;
+    const months = parseInt(document.getElementById('es-cloth-months')?.value) || 0;
+    const displayEl = document.getElementById('es-cloth-end-display');
+    if (!displayEl) return;
+    if (!startVal || !months) { displayEl.textContent = '-'; return; }
+    const d = new Date(startVal); d.setMonth(d.getMonth() + months); d.setDate(d.getDate() - 1);
+    displayEl.textContent = _isoDate(d);
+  }
+  window.esCalcClothEndDate = esCalcClothEndDate;
+
   function esSelectLockerMethod(method) {
     window._esLockerMethod = method;
     ['cash', 'card', 'transfer'].forEach(m => {
@@ -8458,12 +8482,18 @@
 
       if (useCloth) {
         const startDate = document.getElementById('es-cloth-start')?.value || _todayISO();
+        const clothMonths = parseInt(document.getElementById('es-cloth-months')?.value) || 0;
         const priceRaw = document.getElementById('es-cloth-price')?.value || '0';
         const price = parseInt(priceRaw.replace(/[^0-9]/g, '')) || 0;
         if (!price) { showToast('운동복 결제금액을 입력해주세요.', 'error'); return; }
         const method = window._esClothMethod || 'cash';
         const cash = method === 'cash' ? price : 0, card = method === 'card' ? price : 0, transfer = method === 'transfer' ? price : 0;
-        extras.cloth = { startDate, price, cash, card, transfer };
+        let clothEndDate = '';
+        if (clothMonths) {
+          const cd = new Date(startDate); cd.setMonth(cd.getMonth() + clothMonths); cd.setDate(cd.getDate() - 1);
+          clothEndDate = _isoDate(cd);
+        }
+        extras.cloth = { startDate, endDate: clothEndDate, months: clothMonths, price, cash, card, transfer };
       }
 
       const signDate = _todayISO();
