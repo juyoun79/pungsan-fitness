@@ -8111,6 +8111,392 @@
   }
   window.openLockerRegisterModal = openLockerRegisterModal;
 
+  // ── 부가서비스 등록 (락카+운동복 통합, 체크박스로 동시 선택 가능) ──
+  async function openExtraServiceModal(phone) {
+    try {
+      const memberSnap = await db.ref('members/' + phone).once('value');
+      const memberInfo = memberSnap.val();
+      if (!memberInfo) { showToast('회원 정보를 찾을 수 없어요.', 'error'); return; }
+      window._esPhone = phone;
+      window._esMemberName = (memberInfo.name || '').replace(/\(\d{4}\)$/, '').trim() || phone;
+
+      let lockerKey = memberInfo.lockerKey || null;
+      let lockerData = null;
+      if (lockerKey) {
+        const lockerSnap = await db.ref('lockers/' + lockerKey).once('value');
+        lockerData = lockerSnap.val();
+        if (!lockerData) lockerKey = null;
+      }
+      window._esLockerKey = lockerKey;
+      window._esLockerData = lockerData;
+      window._esLockerMethod = 'cash';
+      window._esClothMethod = 'cash';
+      window._esLrnSelected = null;
+
+      const catSnap = await db.ref('locker_settings/categories').once('value');
+      const catVal = catSnap.val() || {};
+      window._esCategories = Object.entries(catVal).map(([id, v]) => Object.assign({ id }, v));
+
+      const today = _todayISO();
+      const lockerSectionHtml = lockerData
+        ? _esRenderLockerReregisterFields(lockerData, lockerKey)
+        : _esRenderLockerNewAssignFields();
+
+      const html = `
+        <div style="padding:4px 0;">
+          <div style="font-size:15px;font-weight:700;margin-bottom:4px;">➕ 부가서비스 등록</div>
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:14px;">${window._esMemberName}님</div>
+
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;margin-bottom:8px;cursor:pointer;">
+            <input type="checkbox" id="es-chk-locker" onchange="esToggleSection('locker')" style="width:16px;height:16px;" />
+            🔑 락카${lockerData ? ' 재등록' : ' 신규배정'}
+          </label>
+          <div id="es-locker-section" style="display:none;background:var(--bg);border-radius:10px;padding:12px;margin:0 0 16px 0;">
+            ${lockerSectionHtml}
+          </div>
+
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;margin-bottom:8px;cursor:pointer;">
+            <input type="checkbox" id="es-chk-cloth" onchange="esToggleSection('cloth')" style="width:16px;height:16px;" />
+            👕 운동복
+          </label>
+          <div id="es-cloth-section" style="display:none;background:var(--bg);border-radius:10px;padding:12px;margin:0 0 16px 0;">
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div>
+                <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">지급일</div>
+                <input id="es-cloth-start" type="date" value="${today}"
+                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
+              </div>
+              <div>
+                <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">결제금액</div>
+                <input id="es-cloth-price" type="text" inputmode="numeric" placeholder="30000"
+                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
+              </div>
+              <div>
+                <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">결제수단</div>
+                <div style="display:flex;gap:6px;">
+                  <button type="button" onclick="esSelectClothMethod('cash')" id="es-cloth-method-cash"
+                    style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:var(--blue);color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">현금</button>
+                  <button type="button" onclick="esSelectClothMethod('card')" id="es-cloth-method-card"
+                    style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:#f5f5f5;color:#666;font-size:12.5px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">카드</button>
+                  <button type="button" onclick="esSelectClothMethod('transfer')" id="es-cloth-method-transfer"
+                    style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:#f5f5f5;color:#666;font-size:12.5px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이체</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:6px;">
+            <button onclick="saveExtraServices()"
+              style="flex:1;padding:11px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 저장</button>
+            <button onclick="closeLockerDetail()"
+              style="flex:1;padding:11px;background:#f5f5f5;color:#666;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+          </div>
+        </div>`;
+
+      showLockerDetail(html);
+    } catch (e) {
+      showToast('정보를 불러오지 못했어요: ' + e.message, 'error');
+    }
+  }
+  window.openExtraServiceModal = openExtraServiceModal;
+
+  function esToggleSection(type) {
+    const chk = document.getElementById('es-chk-' + type);
+    const section = document.getElementById('es-' + type + '-section');
+    if (section && chk) section.style.display = chk.checked ? 'block' : 'none';
+  }
+  window.esToggleSection = esToggleSection;
+
+  function _esRenderLockerReregisterFields(d, lockerKey) {
+    const catName = (window._esCategories || []).find(c => c.id === (d.categoryId || lockerKey.split('_')[0]))?.name || '';
+    const lockerNo = d.lockerNo || lockerKey.split('_').pop();
+    const today = _todayISO();
+    const defaultStart = (d.endDate && d.endDate >= today)
+      ? _isoDate(new Date(new Date(d.endDate).getTime() + 86400000))
+      : today;
+    return `
+      <div style="font-size:12px;color:var(--text-hint);margin-bottom:10px;">현재 락카: ${catName} ${lockerNo}번 · 종료일 ${d.endDate || '-'}</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div>
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">연장 개월수</div>
+          <select id="es-lr-months" onchange="esCalcLrEndDate()"
+            style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+            <option value="1">1개월</option><option value="3" selected>3개월</option><option value="6">6개월</option><option value="12">12개월</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">시작일</div>
+            <input id="es-lr-start" type="date" value="${defaultStart}" onchange="esCalcLrEndDate()"
+              style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">종료일 (자동계산)</div>
+            <div id="es-lr-end-display" style="padding:9px 10px;border-radius:8px;background:#f5f7fa;font-size:13px;color:#059669;font-weight:700;">-</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">결제금액</div>
+          <input id="es-lr-price" type="text" inputmode="numeric" placeholder="30000"
+            style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">결제수단</div>
+          <div style="display:flex;gap:6px;">
+            <button type="button" onclick="esSelectLockerMethod('cash')" id="es-lr-method-cash"
+              style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:var(--blue);color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">현금</button>
+            <button type="button" onclick="esSelectLockerMethod('card')" id="es-lr-method-card"
+              style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:#f5f5f5;color:#666;font-size:12.5px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">카드</button>
+            <button type="button" onclick="esSelectLockerMethod('transfer')" id="es-lr-method-transfer"
+              style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:#f5f5f5;color:#666;font-size:12.5px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이체</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function _esRenderLockerNewAssignFields() {
+    const cats = window._esCategories || [];
+    if (!cats.length) {
+      return `<div style="font-size:13px;color:var(--text-hint);">등록된 락카 종류가 없어요. 관리 &gt; 락커관리 탭에서 먼저 종류를 추가해주세요.</div>`;
+    }
+    const options = cats.map(c => `<option value="${c.id}" data-start="${c.startNo||1}" data-end="${c.endNo||10}">${c.name}</option>`).join('');
+    return `
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div>
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">락카 종류</div>
+          <select id="es-lrn-cat" onchange="esOnLrnCatChange()"
+            style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+            <option value="">선택해주세요</option>${options}
+          </select>
+        </div>
+        <div id="es-lrn-grid-wrap" style="display:none;">
+          <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">빈 자리(초록)를 선택해주세요</div>
+          <div id="es-lrn-grid" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+          <div id="es-lrn-selected-label" style="font-size:12.5px;font-weight:700;color:var(--blue);margin-top:6px;"></div>
+        </div>
+        <div id="es-lrn-rest" style="display:none;flex-direction:column;gap:10px;">
+          <div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">이용 개월수</div>
+            <select id="es-lrn-months" onchange="esCalcLrnEndDate()"
+              style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+              <option value="1">1개월</option><option value="3" selected>3개월</option><option value="6">6개월</option><option value="12">12개월</option>
+            </select>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">시작일</div>
+              <input id="es-lrn-start" type="date" value="${_todayISO()}" onchange="esCalcLrnEndDate()"
+                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">종료일 (자동계산)</div>
+              <div id="es-lrn-end-display" style="padding:9px 10px;border-radius:8px;background:#f5f7fa;font-size:13px;color:#059669;font-weight:700;">-</div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">결제금액</div>
+            <input id="es-lrn-price" type="text" inputmode="numeric" placeholder="30000"
+              style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
+          </div>
+          <div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">결제수단</div>
+            <div style="display:flex;gap:6px;">
+              <button type="button" onclick="esSelectLockerMethod('cash')" id="es-lr-method-cash"
+                style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:var(--blue);color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">현금</button>
+              <button type="button" onclick="esSelectLockerMethod('card')" id="es-lr-method-card"
+                style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:#f5f5f5;color:#666;font-size:12.5px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">카드</button>
+              <button type="button" onclick="esSelectLockerMethod('transfer')" id="es-lr-method-transfer"
+                style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);background:#f5f5f5;color:#666;font-size:12.5px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이체</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  async function esOnLrnCatChange() {
+    const sel = document.getElementById('es-lrn-cat');
+    const gridWrap = document.getElementById('es-lrn-grid-wrap');
+    const grid = document.getElementById('es-lrn-grid');
+    const rest = document.getElementById('es-lrn-rest');
+    if (!sel || !gridWrap || !grid) return;
+    const catId = sel.value;
+    window._esLrnSelected = null;
+    if (rest) rest.style.display = 'none';
+    if (!catId) { gridWrap.style.display = 'none'; return; }
+    const opt = sel.options[sel.selectedIndex];
+    const startNo = parseInt(opt.dataset.start) || 1;
+    const endNo = parseInt(opt.dataset.end) || 10;
+    gridWrap.style.display = '';
+    grid.innerHTML = '<span style="font-size:12px;color:var(--text-hint);">불러오는 중...</span>';
+    try {
+      const snap = await db.ref('lockers').once('value');
+      const lockerSnap = snap.val() || {};
+      const today = _todayISO();
+      const items = [];
+      for (let no = startNo; no <= endNo; no++) {
+        const key = catId + '_' + no;
+        const d = lockerSnap[key];
+        const isEmpty = !d || (!d.phone && d.status !== 'disabled') || (d.endDate && d.endDate < today);
+        items.push({ no, isEmpty });
+      }
+      grid.innerHTML = items.map(it => `
+        <div onclick="${it.isEmpty ? `esSelectLrnSlot('${catId}',${it.no})` : ''}" id="es-lrn-cell-${it.no}"
+          style="width:38px;height:38px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;box-sizing:border-box;
+          background:${it.isEmpty ? '#e8f5e9' : '#f5f5f5'};border:1.5px solid ${it.isEmpty ? '#81c784' : '#ccc'};
+          color:${it.isEmpty ? 'var(--text)' : '#aaa'};cursor:${it.isEmpty ? 'pointer' : 'not-allowed'};">${it.no}</div>`).join('');
+    } catch (e) {
+      grid.innerHTML = '<span style="font-size:12px;color:#ef4444;">로드 실패</span>';
+    }
+  }
+  window.esOnLrnCatChange = esOnLrnCatChange;
+
+  function esSelectLrnSlot(catId, no) {
+    window._esLrnSelected = { catId, no };
+    document.querySelectorAll('[id^="es-lrn-cell-"]').forEach(cell => { cell.style.outline = 'none'; });
+    const cell = document.getElementById('es-lrn-cell-' + no);
+    if (cell) cell.style.outline = '2.5px solid var(--blue)';
+    const sel = document.getElementById('es-lrn-cat');
+    const catName = sel ? sel.options[sel.selectedIndex].textContent : '';
+    const label = document.getElementById('es-lrn-selected-label');
+    if (label) label.textContent = '✅ 선택됨: ' + catName + ' ' + no + '번';
+    const rest = document.getElementById('es-lrn-rest');
+    if (rest) rest.style.display = 'flex';
+    esCalcLrnEndDate();
+  }
+  window.esSelectLrnSlot = esSelectLrnSlot;
+
+  function esCalcLrEndDate() {
+    const startVal = document.getElementById('es-lr-start')?.value;
+    const months = parseInt(document.getElementById('es-lr-months')?.value) || 0;
+    const displayEl = document.getElementById('es-lr-end-display');
+    if (!displayEl) return;
+    if (!startVal || !months) { displayEl.textContent = '-'; return; }
+    const d = new Date(startVal); d.setMonth(d.getMonth() + months); d.setDate(d.getDate() - 1);
+    displayEl.textContent = _isoDate(d);
+  }
+  window.esCalcLrEndDate = esCalcLrEndDate;
+
+  function esCalcLrnEndDate() {
+    const startVal = document.getElementById('es-lrn-start')?.value;
+    const months = parseInt(document.getElementById('es-lrn-months')?.value) || 0;
+    const displayEl = document.getElementById('es-lrn-end-display');
+    if (!displayEl) return;
+    if (!startVal || !months) { displayEl.textContent = '-'; return; }
+    const d = new Date(startVal); d.setMonth(d.getMonth() + months); d.setDate(d.getDate() - 1);
+    displayEl.textContent = _isoDate(d);
+  }
+  window.esCalcLrnEndDate = esCalcLrnEndDate;
+
+  function esSelectLockerMethod(method) {
+    window._esLockerMethod = method;
+    ['cash', 'card', 'transfer'].forEach(m => {
+      const btn = document.getElementById('es-lr-method-' + m);
+      if (!btn) return;
+      if (m === method) { btn.style.background = 'var(--blue)'; btn.style.color = '#fff'; btn.style.fontWeight = '700'; }
+      else { btn.style.background = '#f5f5f5'; btn.style.color = '#666'; btn.style.fontWeight = 'normal'; }
+    });
+  }
+  window.esSelectLockerMethod = esSelectLockerMethod;
+
+  function esSelectClothMethod(method) {
+    window._esClothMethod = method;
+    ['cash', 'card', 'transfer'].forEach(m => {
+      const btn = document.getElementById('es-cloth-method-' + m);
+      if (!btn) return;
+      if (m === method) { btn.style.background = 'var(--blue)'; btn.style.color = '#fff'; btn.style.fontWeight = '700'; }
+      else { btn.style.background = '#f5f5f5'; btn.style.color = '#666'; btn.style.fontWeight = 'normal'; }
+    });
+  }
+  window.esSelectClothMethod = esSelectClothMethod;
+
+  async function saveExtraServices() {
+    const phone = window._esPhone;
+    if (!phone) return;
+    const useLocker = document.getElementById('es-chk-locker')?.checked;
+    const useCloth  = document.getElementById('es-chk-cloth')?.checked;
+    if (!useLocker && !useCloth) { showToast('락카 또는 운동복을 선택해주세요.', 'error'); return; }
+
+    const extras = {};
+    const updates = {};
+    let lockerKeyToLink = null;
+
+    try {
+      if (useLocker) {
+        const isReregister = !!window._esLockerData;
+        const months = parseInt(document.getElementById(isReregister ? 'es-lr-months' : 'es-lrn-months')?.value) || 0;
+        const startDate = document.getElementById(isReregister ? 'es-lr-start' : 'es-lrn-start')?.value || '';
+        const priceRaw = document.getElementById(isReregister ? 'es-lr-price' : 'es-lrn-price')?.value || '0';
+        const price = parseInt(priceRaw.replace(/[^0-9]/g, '')) || 0;
+        const method = window._esLockerMethod || 'cash';
+        if (!startDate) { showToast('락카 시작일을 입력해주세요.', 'error'); return; }
+        if (!months) { showToast('락카 개월수를 선택해주세요.', 'error'); return; }
+        const d = new Date(startDate); d.setMonth(d.getMonth() + months); d.setDate(d.getDate() - 1);
+        const endDate = _isoDate(d);
+        const cash = method === 'cash' ? price : 0, card = method === 'card' ? price : 0, transfer = method === 'transfer' ? price : 0;
+
+        let catId, lockerNo, lockerKey;
+        if (isReregister) {
+          lockerKey = window._esLockerKey;
+          catId = window._esLockerData.categoryId || lockerKey.split('_')[0];
+          lockerNo = window._esLockerData.lockerNo || lockerKey.split('_').pop();
+          updates['lockers/' + lockerKey + '/startDate'] = startDate;
+          updates['lockers/' + lockerKey + '/endDate'] = endDate;
+        } else {
+          const sel = window._esLrnSelected;
+          if (!sel) { showToast('락카 자리를 선택해주세요.', 'error'); return; }
+          catId = sel.catId; lockerNo = sel.no;
+          lockerKey = catId + '_' + lockerNo;
+          updates['lockers/' + lockerKey] = {
+            phone, name: window._esMemberName, startDate, endDate,
+            categoryId: catId, lockerNo, status: 'active',
+          };
+          updates['members/' + phone + '/lockerKey'] = lockerKey;
+        }
+        lockerKeyToLink = lockerKey;
+        extras.locker = { lockerNo, lockerCatId: catId, lockerKey, startDate, endDate, months, price, cash, card, transfer };
+      }
+
+      if (useCloth) {
+        const startDate = document.getElementById('es-cloth-start')?.value || _todayISO();
+        const priceRaw = document.getElementById('es-cloth-price')?.value || '0';
+        const price = parseInt(priceRaw.replace(/[^0-9]/g, '')) || 0;
+        if (!price) { showToast('운동복 결제금액을 입력해주세요.', 'error'); return; }
+        const method = window._esClothMethod || 'cash';
+        const cash = method === 'cash' ? price : 0, card = method === 'card' ? price : 0, transfer = method === 'transfer' ? price : 0;
+        extras.cloth = { startDate, price, cash, card, transfer };
+      }
+
+      const signDate = _todayISO();
+      const contractKey = signDate + '_' + Date.now();
+      updates['contracts/' + phone + '/' + contractKey] = {
+        name: window._esMemberName, phone,
+        programs: {}, packages: [],
+        extras,
+        signDate,
+        createdAt: Date.now(),
+        registeredBy: localStorage.getItem('current_user') || 'admin',
+        source: 'extra_service_register',
+      };
+      if (lockerKeyToLink) {
+        updates['lockers/' + lockerKeyToLink + '/linkedContract'] = { phone, contractKey };
+      }
+
+      await db.ref().update(updates);
+      _invalidateRevenueCache();
+      if (lockerKeyToLink && typeof lockerData !== 'undefined' && updates['lockers/' + lockerKeyToLink]) {
+        lockerData[lockerKeyToLink] = updates['lockers/' + lockerKeyToLink];
+      }
+
+      closeLockerDetail();
+      showToast('✅ 부가서비스 등록 완료!', 'success');
+      try { _renderMdContracts(phone); } catch(e) { console.error('계약이력 갱신 오류(무시):', e); }
+      try { if (typeof cachedMembers !== 'undefined' && cachedMembers[phone]) _renderMdLockerMini(phone, cachedMembers[phone]); } catch(e) { console.error('락카 미니카드 갱신 오류(무시):', e); }
+    } catch (e) {
+      showToast('저장 실패: ' + e.message, 'error');
+    }
+  }
+  window.saveExtraServices = saveExtraServices;
+
   // ── 재등록 화면 (이미 락카를 쓰고 있는 회원) ──
   async function _renderLockerReregisterForm(phone, memberInfo, lockerKey, d) {
     const catId = d.categoryId || lockerKey.split('_')[0];
