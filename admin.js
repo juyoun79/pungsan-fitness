@@ -8176,7 +8176,7 @@
                 </div>
                 <div>
                   <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">종료일 (자동계산)</div>
-                  <div id="es-cloth-end-display" style="padding:9px 10px;border-radius:8px;background:#f5f7fa;font-size:13px;color:#059669;font-weight:700;">-</div>
+                  <input type="date" id="es-cloth-end-display" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;background:#f5f7fa;font-size:13px;color:#059669;font-weight:700;font-family:'Noto Sans KR',sans-serif;" />
                 </div>
               </div>
               <div>
@@ -8245,7 +8245,7 @@
           </div>
           <div>
             <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">종료일 (자동계산)</div>
-            <div id="es-lr-end-display" style="padding:9px 10px;border-radius:8px;background:#f5f7fa;font-size:13px;color:#059669;font-weight:700;">-</div>
+            <input type="date" id="es-lr-end-display" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;background:#f5f7fa;font-size:13px;color:#059669;font-weight:700;font-family:'Noto Sans KR',sans-serif;" />
           </div>
         </div>
         <div>
@@ -8303,7 +8303,7 @@
             </div>
             <div>
               <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">종료일 (자동계산)</div>
-              <div id="es-lrn-end-display" style="padding:9px 10px;border-radius:8px;background:#f5f7fa;font-size:13px;color:#059669;font-weight:700;">-</div>
+              <input type="date" id="es-lrn-end-display" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;background:#f5f7fa;font-size:13px;color:#059669;font-weight:700;font-family:'Noto Sans KR',sans-serif;" />
             </div>
           </div>
           <div>
@@ -8383,9 +8383,9 @@
     const months = parseInt(document.getElementById('es-lr-months')?.value) || 0;
     const displayEl = document.getElementById('es-lr-end-display');
     if (!displayEl) return;
-    if (!startVal || !months) { displayEl.textContent = '-'; return; }
+    if (!startVal || !months) { displayEl.value = ''; return; }
     const d = new Date(startVal); d.setMonth(d.getMonth() + months); d.setDate(d.getDate() - 1);
-    displayEl.textContent = _isoDate(d);
+    displayEl.value = _isoDate(d);
   }
   window.esCalcLrEndDate = esCalcLrEndDate;
 
@@ -8394,9 +8394,9 @@
     const months = parseInt(document.getElementById('es-lrn-months')?.value) || 0;
     const displayEl = document.getElementById('es-lrn-end-display');
     if (!displayEl) return;
-    if (!startVal || !months) { displayEl.textContent = '-'; return; }
+    if (!startVal || !months) { displayEl.value = ''; return; }
     const d = new Date(startVal); d.setMonth(d.getMonth() + months); d.setDate(d.getDate() - 1);
-    displayEl.textContent = _isoDate(d);
+    displayEl.value = _isoDate(d);
   }
   window.esCalcLrnEndDate = esCalcLrnEndDate;
 
@@ -8405,9 +8405,9 @@
     const months = parseInt(document.getElementById('es-cloth-months')?.value) || 0;
     const displayEl = document.getElementById('es-cloth-end-display');
     if (!displayEl) return;
-    if (!startVal || !months) { displayEl.textContent = '-'; return; }
+    if (!startVal || !months) { displayEl.value = ''; return; }
     const d = new Date(startVal); d.setMonth(d.getMonth() + months); d.setDate(d.getDate() - 1);
-    displayEl.textContent = _isoDate(d);
+    displayEl.value = _isoDate(d);
   }
   window.esCalcClothEndDate = esCalcClothEndDate;
 
@@ -8454,8 +8454,13 @@
         const method = window._esLockerMethod || 'cash';
         if (!startDate) { showToast('락카 시작일을 입력해주세요.', 'error'); return; }
         if (!months) { showToast('락카 개월수를 선택해주세요.', 'error'); return; }
-        const d = new Date(startDate); d.setMonth(d.getMonth() + months); d.setDate(d.getDate() - 1);
-        const endDate = _isoDate(d);
+        // 종료일은 자동계산되지만 화면에서 수동으로 고쳤을 수 있으므로, 계산값이 아니라 입력칸에 실제 보이는 값을 그대로 사용
+        const endDateEl = document.getElementById(isReregister ? 'es-lr-end-display' : 'es-lrn-end-display');
+        let endDate = endDateEl?.value || '';
+        if (!endDate) {
+          const d = new Date(startDate); d.setMonth(d.getMonth() + months); d.setDate(d.getDate() - 1);
+          endDate = _isoDate(d);
+        }
         const cash = method === 'cash' ? price : 0, card = method === 'card' ? price : 0, transfer = method === 'transfer' ? price : 0;
 
         let catId, lockerNo, lockerKey;
@@ -8488,8 +8493,9 @@
         if (!price) { showToast('운동복 결제금액을 입력해주세요.', 'error'); return; }
         const method = window._esClothMethod || 'cash';
         const cash = method === 'cash' ? price : 0, card = method === 'card' ? price : 0, transfer = method === 'transfer' ? price : 0;
-        let clothEndDate = '';
-        if (clothMonths) {
+        // 종료일은 자동계산되지만 화면에서 수동으로 고쳤을 수 있으므로, 입력칸에 실제 보이는 값을 그대로 사용
+        let clothEndDate = document.getElementById('es-cloth-end-display')?.value || '';
+        if (!clothEndDate && clothMonths) {
           const cd = new Date(startDate); cd.setMonth(cd.getMonth() + clothMonths); cd.setDate(cd.getDate() - 1);
           clothEndDate = _isoDate(cd);
         }
