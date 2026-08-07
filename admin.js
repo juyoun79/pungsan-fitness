@@ -5012,14 +5012,8 @@
       <div style="font-size:15px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">✏️ 정보 수정 — ${label}</div>
 
       <div style="font-size:12px;color:#888;margin-bottom:4px;">개월수</div>
-      <select id="ee-months"
+      <input type="number" id="ee-months" min="0" max="36" placeholder="개월 (0=해당없음)" value="${e.months || ''}"
         style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
-        <option value="0" ${!e.months ? 'selected' : ''}>해당없음</option>
-        <option value="1" ${e.months===1 ? 'selected' : ''}>1개월</option>
-        <option value="3" ${e.months===3 ? 'selected' : ''}>3개월</option>
-        <option value="6" ${e.months===6 ? 'selected' : ''}>6개월</option>
-        <option value="12" ${e.months===12 ? 'selected' : ''}>12개월</option>
-      </select>
 
       <div style="font-size:12px;color:#888;margin-bottom:4px;">시작일</div>
       <input id="ee-start" type="date" value="${e.startDate || ''}"
@@ -8178,10 +8172,8 @@
             <div style="display:flex;flex-direction:column;gap:10px;">
               <div>
                 <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">지급 개월수</div>
-                <select id="es-cloth-months" onchange="esCalcClothEndDate()"
-                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
-                  <option value="1">1개월</option><option value="3" selected>3개월</option><option value="6">6개월</option><option value="12">12개월</option>
-                </select>
+                <input type="number" id="es-cloth-months" min="1" max="36" placeholder="개월" value="3" oninput="esCalcClothEndDate()" onchange="esCalcClothEndDate()"
+                  style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                 <div>
@@ -8247,10 +8239,8 @@
       <div style="display:flex;flex-direction:column;gap:10px;">
         <div>
           <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">연장 개월수</div>
-          <select id="es-lr-months" onchange="esCalcLrEndDate()"
-            style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
-            <option value="1">1개월</option><option value="3" selected>3개월</option><option value="6">6개월</option><option value="12">12개월</option>
-          </select>
+          <input type="number" id="es-lr-months" min="1" max="36" placeholder="개월" value="3" oninput="esCalcLrEndDate()" onchange="esCalcLrEndDate()"
+            style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
           <div>
@@ -8305,10 +8295,8 @@
         <div id="es-lrn-rest" style="display:none;flex-direction:column;gap:10px;">
           <div>
             <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">이용 개월수</div>
-            <select id="es-lrn-months" onchange="esCalcLrnEndDate()"
-              style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
-              <option value="1">1개월</option><option value="3" selected>3개월</option><option value="6">6개월</option><option value="12">12개월</option>
-            </select>
+            <input type="number" id="es-lrn-months" min="1" max="36" placeholder="개월" value="3" oninput="esCalcLrnEndDate()" onchange="esCalcLrnEndDate()"
+              style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;" />
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
             <div>
