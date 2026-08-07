@@ -4542,7 +4542,7 @@
       <div class="md-col-prog">
         <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${_extraLabel(extKey, e)}</div>
       </div>
-      <div class="md-col-months" style="display:none;font-size:12px;color:var(--text-hint);">${monthsLabel}</div>
+      <div class="md-col-months" style="display:none;font-size:12px;color:var(--text);">${monthsLabel}</div>
       <div class="md-col-count"  style="display:none;font-size:12px;color:var(--text-hint);">-</div>
       <div class="md-col-start"  style="display:none;font-size:12px;color:var(--text);">${startLabel}</div>
       <div class="md-col-end"    style="display:none;font-size:12px;color:var(--text);">${endLabel}</div>
