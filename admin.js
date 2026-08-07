@@ -4021,7 +4021,7 @@
       setVal('ct-phone', phone);
       setVal('ct-birth', data.birth);
       setVal('ct-address', data.address);
-      if (data.memo) setVal('ct-memo', data.memo);
+      // ct-memo는 이 계약 건 전용 메모(2단계)라 회원 메모를 자동으로 채우지 않음
       try { selectCtGender((data.body && data.body.gender) || 'male'); } catch(e) { console.error('selectCtGender 오류(무시):', e); }
       try { selectCtType('re'); } catch(e) { console.error('selectCtType 오류(무시):', e); }
       if (data.photoUrl) {

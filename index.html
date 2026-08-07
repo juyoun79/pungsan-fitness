@@ -3316,14 +3316,6 @@
                 onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'" />
             </div>
 
-            <!-- 메모 -->
-            <div style="margin-bottom:14px;">
-              <label class="field-label">메모</label>
-              <textarea id="ct-memo" placeholder="특이사항, 메모 등 자유롭게 입력하세요."
-                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;resize:vertical;min-height:70px;line-height:1.5;"
-                onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"></textarea>
-            </div>
-
             <button class="btn-primary" style="padding:10px;font-size:14px;" onclick="ctNext(1)">다음 →</button>
             </div>
           </div>
@@ -3633,7 +3625,13 @@
               </div>
             </div>
 
-
+            <!-- 이 계약 메모 (계약이력에 표시, 회원 메모와는 별개) -->
+            <div style="margin-bottom:16px;">
+              <label class="field-label">이 계약 메모 <span style="font-weight:400;color:var(--text-sub);">(선택, 이 계약이력에만 표시돼요)</span></label>
+              <textarea id="ct-memo" placeholder="이 계약 건에 대한 특이사항을 입력하세요."
+                style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:4px;resize:vertical;min-height:70px;line-height:1.5;"
+                onfocus="this.style.borderColor='#1a6fd4'" onblur="this.style.borderColor='var(--border)'"></textarea>
+            </div>
 
             <div style="display:flex;gap:10px;">
               <button style="flex:1;padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;" onclick="ctPrev(2)">← 이전</button>
