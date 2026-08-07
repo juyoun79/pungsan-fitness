@@ -20,6 +20,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
   const firebaseConfig = {
     apiKey: "AIzaSyBlp0SIVRO0SKZWGGa7OLyhnEZTnruMnH8",
@@ -3646,6 +3647,18 @@
             <div style="max-width:900px;margin:0 auto;">
             <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;">📜 이용약관 확인</div>
 
+            <!-- 회원 기기로 서명 진행 (PC에서만 표시) -->
+            <div id="ct-mobile-sign-box" style="display:none;border:1.5px solid #bfdbfe;background:#f0f7ff;border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;">
+              <div style="display:flex;gap:14px;align-items:center;">
+                <div id="ct-mobile-qr" style="width:96px;height:96px;background:white;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"></div>
+                <div style="flex:1;">
+                  <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">📱 회원 핸드폰/태블릿으로 서명받기</div>
+                  <div id="ct-mobile-sign-status" style="font-size:12px;color:var(--text-sub);line-height:1.5;">QR을 스캔하면 회원 기기에서 계약내용·약관 확인 후 서명할 수 있어요</div>
+                  <button type="button" onclick="ctStartMobileSignSession(true)" style="margin-top:8px;padding:5px 10px;background:white;color:#185FA5;border:1px solid #185FA5;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔄 QR 새로고침</button>
+                </div>
+              </div>
+            </div>
+
             <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;max-height:420px;overflow-y:auto;font-size:13px;line-height:1.7;color:var(--text);margin-bottom:16px;">
               <div id="ct-terms-content" style="white-space:pre-wrap;">불러오는 중...</div>
             </div>
@@ -3676,6 +3689,12 @@
               <select id="ct-staff" style="width:100%;box-sizing:border-box;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:15px;font-family:'Noto Sans KR',sans-serif;outline:none;margin-top:6px;">
                 <option value="">선택 안 함 (미정)</option>
               </select>
+            </div>
+
+            <!-- 계약내용 요약 -->
+            <div style="margin-bottom:14px;">
+              <div style="font-size:12px;color:var(--text-sub);margin-bottom:6px;">계약 내용 요약</div>
+              <div id="ct-sign-summary" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;font-size:12px;color:var(--text);"></div>
             </div>
 
             <!-- 서명 캔버스 전체 너비 -->

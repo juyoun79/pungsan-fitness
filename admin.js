@@ -9418,6 +9418,12 @@
       if (el) el.style.display = (i === step) ? '' : 'none';
     }
     ctCurrentStep = step;
+    // 3단계 진입 시에만 모바일 서명 세션 유지, 그 외 단계는 정리
+    if (step === 3) {
+      ctStartMobileSignSession();
+    } else {
+      ctStopMobileSignListener();
+    }
     // 4단계 진입 시 서명 초기화 + 날짜 표시 + 계약내용 요약
     if (step === 4) {
       initCtSign();
@@ -9428,6 +9434,18 @@
         now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일';
       renderCtSignSummary();
       _populateCtStaffSelect();
+      // 모바일에서 이미 서명을 받은 경우, 캔버스에 그대로 그려서 보여줌
+      if (window._ctMobileSignUrl) {
+        const img = new Image();
+        img.onload = () => {
+          if (ctSignCtx) {
+            ctSignCtx.drawImage(img, 0, 0, ctSignCanvas.width, ctSignCanvas.height);
+            const ph = document.getElementById('ct-sign-placeholder');
+            if (ph) ph.style.display = 'none';
+          }
+        };
+        img.src = window._ctMobileSignUrl;
+      }
     }
   }
 
@@ -12502,11 +12520,85 @@
     }
   }
 
-  // 4단계 서명 화면 우측 계약내용 요약 렌더링
+  // ===== 모바일(QR) 서명 연동 =====
+  let _ctMobileSignId = null;
+  let _ctMobileSignRef = null;
+  window._ctMobileSignUrl = null; // 4단계 진입 시 캔버스에 그려줄 서명 데이터
+
+  // 터치 기반 기기(태블릿/폰) 여부 — 이미 그 기기로 작성 중이면 QR이 필요 없음
+  function isCtMobileDevice() {
+    return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  }
+
+  // 3단계 진입 시 호출 — PC일 때만 세션 생성 + QR 표시
+  function ctStartMobileSignSession(forceRefresh) {
+    const box = document.getElementById('ct-mobile-sign-box');
+    if (!box) return;
+    if (isCtMobileDevice()) { box.style.display = 'none'; return; }
+
+    ctStopMobileSignListener();
+    box.style.display = '';
+    const statusEl = document.getElementById('ct-mobile-sign-status');
+    const qrEl = document.getElementById('ct-mobile-qr');
+    if (qrEl) qrEl.innerHTML = '';
+    if (statusEl) statusEl.textContent = 'QR 생성 중...';
+
+    const sessionRef = db.ref('contract_sign_sessions').push();
+    _ctMobileSignId = sessionRef.key;
+    _ctMobileSignRef = sessionRef;
+    window._ctMobileSignUrl = null;
+
+    const now = Date.now();
+    sessionRef.set({
+      summaryHtml: buildCtSignSummaryHtml(),
+      status: 'pending',
+      createdAt: now,
+      expiresAt: now + 15 * 60 * 1000
+    }).then(() => {
+      const url = location.origin + '/sign.html?id=' + _ctMobileSignId;
+      if (qrEl && window.QRCode) {
+        new QRCode(qrEl, { text: url, width: 96, height: 96, correctLevel: QRCode.CorrectLevel.M });
+      }
+      if (statusEl) statusEl.textContent = 'QR을 스캔하면 회원 기기에서 계약내용·약관 확인 후 서명할 수 있어요';
+    }).catch(() => {
+      if (statusEl) statusEl.textContent = 'QR 생성에 실패했어요. 새로고침 버튼을 눌러주세요.';
+    });
+
+    sessionRef.on('value', snap => {
+      const data = snap.val();
+      if (!data) return;
+      if (statusEl) {
+        if (data.status === 'agreed') statusEl.textContent = '✅ 회원이 약관에 동의했어요. 서명 진행 중...';
+        else if (data.status === 'signed') statusEl.textContent = '✍️ 서명이 완료되었어요!';
+      }
+      if (data.status === 'signed' && data.signUrl) {
+        window._ctMobileSignUrl = data.signUrl;
+        const agreeBox = document.getElementById('ct-agree');
+        if (agreeBox && !agreeBox.checked) { agreeBox.checked = true; checkCtAgree(); }
+        ctStopMobileSignListener();
+        showToast('회원이 약관동의 및 서명을 완료했어요.', 'success');
+        if (ctCurrentStep === 3) ctNext(3);
+      }
+    });
+  }
+
+  function ctStopMobileSignListener() {
+    if (_ctMobileSignRef) { try { _ctMobileSignRef.off('value'); } catch(e) {} }
+    _ctMobileSignRef = null;
+    _ctMobileSignId = null;
+  }
+  window.ctStartMobileSignSession = ctStartMobileSignSession;
+  window.ctStopMobileSignListener = ctStopMobileSignListener;
+
+  // 4단계 서명 화면 계약내용 요약 렌더링
   function renderCtSignSummary() {
     const el = document.getElementById('ct-sign-summary');
     if (!el) return;
+    el.innerHTML = buildCtSignSummaryHtml();
+  }
 
+  // 계약내용 요약 HTML 생성 (PC 4단계 + 모바일 서명 세션 공통 사용)
+  function buildCtSignSummaryHtml() {
     const name    = document.getElementById('ct-name')?.value.trim() || '';
     const phone   = document.getElementById('ct-phone')?.value.trim() || '';
     const type    = document.getElementById('ct-type')?.value === 're' ? '재등록' : '신규';
@@ -12649,8 +12741,9 @@
         </div>` : ''}
       </div>`;
 
-    el.innerHTML = html;
+    return html;
   }
+  window.buildCtSignSummaryHtml = buildCtSignSummaryHtml;
 
   // 서명 초기화
   function initCtSign() {
@@ -13390,6 +13483,8 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   window.openContractPdf = openContractPdf;
 
   function resetContract() {
+    ctStopMobileSignListener();
+    window._ctMobileSignUrl = null;
     ctSelectedProgs = [];
     ctPackages = [];
     ctPkgIdCounter = 0;

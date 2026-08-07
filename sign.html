@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>계약서 서명 - 풍산휘트니스</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px; font-family: 'Noto Sans KR', sans-serif;
+    background: #f5f7fa; color: #1a1a1a; -webkit-tap-highlight-color: transparent;
+  }
+  .card {
+    max-width: 480px; margin: 0 auto; background: #fff; border-radius: 14px;
+    padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  h1 { font-size: 16px; font-weight: 700; margin: 0 0 4px; color: #1a1a1a; }
+  .sub { font-size: 12px; color: #888; margin: 0 0 14px; }
+  .summary-box, .terms-box {
+    background: #f8f9fb; border: 1px solid #e5e7eb; border-radius: 10px;
+    padding: 12px; font-size: 12.5px; line-height: 1.7; color: #333; margin-bottom: 12px;
+  }
+  .terms-box { max-height: 220px; overflow-y: auto; white-space: pre-wrap; }
+  label.agree {
+    display: flex; align-items: center; gap: 8px; padding: 12px;
+    background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px;
+    cursor: pointer; margin-bottom: 14px; font-size: 13px; font-weight: 600; color: #15803d;
+  }
+  label.agree input { width: 18px; height: 18px; accent-color: #16a34a; }
+  button {
+    width: 100%; padding: 13px; border: none; border-radius: 10px; font-size: 14px;
+    font-weight: 700; font-family: 'Noto Sans KR', sans-serif; cursor: pointer;
+  }
+  .btn-primary { background: #185FA5; color: #fff; }
+  .btn-primary:disabled { opacity: 0.4; pointer-events: none; }
+  .btn-outline {
+    background: #fff; color: #666; border: 1.5px solid #e5e7eb; margin-top: 8px;
+  }
+  .sign-wrap {
+    position: relative; border: 2px solid #e5e7eb; border-radius: 10px;
+    background: #fff; margin-bottom: 10px;
+  }
+  #sign-canvas { width: 100%; height: 180px; display: block; touch-action: none; }
+  #sign-placeholder {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: #ccc; font-size: 13px; pointer-events: none;
+  }
+  .state-box { text-align: center; padding: 40px 20px; }
+  .state-box .icon { font-size: 40px; margin-bottom: 10px; }
+  .state-box p { font-size: 14px; color: #666; line-height: 1.6; }
+  #screen-2 .summary-box { font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="card" id="app">
+  <div class="state-box" id="loading-state">
+    <div class="icon">⏳</div>
+    <p>불러오는 중...</p>
+  </div>
+</div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBlp0SIVRO0SKZWGGa7OLyhnEZTnruMnH8",
+    authDomain: "pungsan-fitness.firebaseapp.com",
+    databaseURL: "https://pungsan-fitness-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "pungsan-fitness",
+    storageBucket: "pungsan-fitness.firebasestorage.app",
+    messagingSenderId: "416807539212",
+    appId: "1:416807539212:web:486a9f2da61a686befd429"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  const DEFAULT_TERMS = '이용약관을 불러오지 못했어요. 직원에게 문의해주세요.';
+
+  const params = new URLSearchParams(location.search);
+  const sessionId = params.get('id');
+  const app = document.getElementById('app');
+
+  function renderError(msg) {
+    app.innerHTML = `
+      <div class="state-box">
+        <div class="icon">⚠️</div>
+        <p>${msg}</p>
+      </div>`;
+  }
+
+  if (!sessionId) {
+    renderError('잘못된 접근이에요. 직원에게 QR을 다시 요청해주세요.');
+  } else {
+    const sessionRef = db.ref('contract_sign_sessions/' + sessionId);
+    sessionRef.once('value').then(async snap => {
+      const data = snap.val();
+      if (!data) { renderError('유효하지 않은 서명 요청이에요. 직원에게 QR을 다시 요청해주세요.'); return; }
+      if (data.expiresAt && Date.now() > data.expiresAt) { renderError('서명 요청이 만료되었어요. 직원에게 QR을 다시 요청해주세요.'); return; }
+      if (data.status === 'signed') { renderSignedDone(); return; }
+
+      let termsText = DEFAULT_TERMS;
+      try {
+        const termsSnap = await db.ref('settings/terms').once('value');
+        if (termsSnap.exists()) termsText = termsSnap.val();
+      } catch (e) {}
+
+      renderScreen1(data.summaryHtml || '', termsText);
+    }).catch(() => renderError('불러오는 중 오류가 발생했어요. 다시 시도해주세요.'));
+  }
+
+  function renderSignedDone() {
+    app.innerHTML = `
+      <div class="state-box">
+        <div class="icon">✅</div>
+        <p>서명이 이미 완료되었어요.<br>직원 화면을 확인해주세요.</p>
+      </div>`;
+  }
+
+  function renderScreen1(summaryHtml, termsText) {
+    app.innerHTML = `
+      <h1>계약 내용 확인</h1>
+      <p class="sub">아래 내용을 확인하고 약관에 동의해주세요</p>
+      <div class="summary-box">${summaryHtml}</div>
+      <h1 style="margin-top:14px;">이용약관</h1>
+      <div class="terms-box">${escapeHtml(termsText)}</div>
+      <label class="agree">
+        <input type="checkbox" id="agree-check" onchange="onAgreeToggle()" />
+        위 계약내용과 이용약관을 모두 확인했으며 동의합니다.
+      </label>
+      <button class="btn-primary" id="agree-next-btn" disabled onclick="goSignScreen('${sessionId}')">동의하고 서명하기 →</button>
+    `;
+  }
+
+  function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  window.onAgreeToggle = function() {
+    const checked = document.getElementById('agree-check').checked;
+    document.getElementById('agree-next-btn').disabled = !checked;
+  };
+
+  window.goSignScreen = function(id) {
+    db.ref('contract_sign_sessions/' + id).update({ status: 'agreed', agreedAt: Date.now() }).catch(() => {});
+    renderScreen2(id);
+  };
+
+  function renderScreen2(id) {
+    app.innerHTML = `
+      <h1>서명</h1>
+      <p class="sub">아래 네모 칸에 손가락으로 서명해주세요</p>
+      <div class="sign-wrap">
+        <canvas id="sign-canvas" width="400" height="200"></canvas>
+        <div id="sign-placeholder">여기에 서명하세요</div>
+      </div>
+      <button class="btn-primary" id="sign-done-btn" onclick="submitSign('${id}')">서명 완료</button>
+      <button class="btn-outline" onclick="clearSignCanvas()">🔄 다시 서명</button>
+    `;
+    initSignCanvas();
+  }
+
+  let signCanvas, signCtx, signing = false, hasSigned = false;
+
+  function initSignCanvas() {
+    signCanvas = document.getElementById('sign-canvas');
+    signCtx = signCanvas.getContext('2d');
+    signCtx.strokeStyle = '#1a1a2e';
+    signCtx.lineWidth = 2.5;
+    signCtx.lineCap = 'round';
+    signCtx.lineJoin = 'round';
+
+    function getPos(e) {
+      const r = signCanvas.getBoundingClientRect();
+      const scaleX = signCanvas.width / r.width;
+      const scaleY = signCanvas.height / r.height;
+      const src = e.touches ? e.touches[0] : e;
+      return { x: (src.clientX - r.left) * scaleX, y: (src.clientY - r.top) * scaleY };
+    }
+    function start(e) {
+      signing = true; hasSigned = true;
+      const p = getPos(e);
+      signCtx.beginPath(); signCtx.moveTo(p.x, p.y);
+      const ph = document.getElementById('sign-placeholder');
+      if (ph) ph.style.display = 'none';
+    }
+    function move(e) {
+      if (!signing) return;
+      const p = getPos(e); signCtx.lineTo(p.x, p.y); signCtx.stroke();
+    }
+    function end() { signing = false; }
+
+    signCanvas.addEventListener('mousedown', start);
+    signCanvas.addEventListener('mousemove', move);
+    signCanvas.addEventListener('mouseup', end);
+    signCanvas.addEventListener('mouseleave', end);
+    signCanvas.addEventListener('touchstart', e => { e.preventDefault(); start(e); }, { passive: false });
+    signCanvas.addEventListener('touchmove', e => { e.preventDefault(); move(e); }, { passive: false });
+    signCanvas.addEventListener('touchend', e => { e.preventDefault(); end(); }, { passive: false });
+  }
+
+  window.clearSignCanvas = function() {
+    if (signCtx) signCtx.clearRect(0, 0, signCanvas.width, signCanvas.height);
+    hasSigned = false;
+    const ph = document.getElementById('sign-placeholder');
+    if (ph) ph.style.display = 'flex';
+  };
+
+  window.submitSign = function(id) {
+    if (!hasSigned) { alert('서명을 해주세요.'); return; }
+    const btn = document.getElementById('sign-done-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
+    const signUrl = signCanvas.toDataURL('image/png');
+    db.ref('contract_sign_sessions/' + id).update({
+      status: 'signed', signUrl: signUrl, signedAt: Date.now()
+    }).then(() => {
+      app.innerHTML = `
+        <div class="state-box">
+          <div class="icon">🎉</div>
+          <p>서명이 완료되었어요!<br>직원 화면을 확인해주세요.</p>
+        </div>`;
+    }).catch(() => {
+      if (btn) { btn.disabled = false; btn.textContent = '서명 완료'; }
+      alert('저장에 실패했어요. 다시 시도해주세요.');
+    });
+  };
+</script>
+
+</body>
+</html>
