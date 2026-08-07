@@ -4531,6 +4531,7 @@
     const unpaid = amt - paid;
     const startLabel = _normDate(e.startDate);
     const endLabel = _normDate(e.endDate);
+    const monthsLabel = e.months ? e.months + '개월' : '-';
     const methodLabel = _paymentMethodLabel(e);
     const statusHtml = e.refund
       ? `<div style="font-size:10.5px;color:#a855f7;font-weight:700;">🔻 환불완료 ${(e.refund.refundAmount||0).toLocaleString()}원</div>`
@@ -4541,7 +4542,7 @@
       <div class="md-col-prog">
         <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${_extraLabel(extKey, e)}</div>
       </div>
-      <div class="md-col-months" style="display:none;font-size:12px;color:var(--text-hint);">-</div>
+      <div class="md-col-months" style="display:none;font-size:12px;color:var(--text-hint);">${monthsLabel}</div>
       <div class="md-col-count"  style="display:none;font-size:12px;color:var(--text-hint);">-</div>
       <div class="md-col-start"  style="display:none;font-size:12px;color:var(--text);">${startLabel}</div>
       <div class="md-col-end"    style="display:none;font-size:12px;color:var(--text);">${endLabel}</div>
@@ -5010,6 +5011,16 @@
     modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:320px;font-family:'Noto Sans KR',sans-serif;">
       <div style="font-size:15px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">✏️ 정보 수정 — ${label}</div>
 
+      <div style="font-size:12px;color:#888;margin-bottom:4px;">개월수</div>
+      <select id="ee-months"
+        style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
+        <option value="0" ${!e.months ? 'selected' : ''}>해당없음</option>
+        <option value="1" ${e.months===1 ? 'selected' : ''}>1개월</option>
+        <option value="3" ${e.months===3 ? 'selected' : ''}>3개월</option>
+        <option value="6" ${e.months===6 ? 'selected' : ''}>6개월</option>
+        <option value="12" ${e.months===12 ? 'selected' : ''}>12개월</option>
+      </select>
+
       <div style="font-size:12px;color:#888;margin-bottom:4px;">시작일</div>
       <input id="ee-start" type="date" value="${e.startDate || ''}"
         style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
@@ -5067,9 +5078,11 @@
       const num = id => parseInt((document.getElementById(id)?.value || '0').replace(/[^0-9]/g, '')) || 0;
       const newStart = document.getElementById('ee-start')?.value || '';
       const newEnd   = document.getElementById('ee-end')?.value || '';
+      const newMonths = parseInt(document.getElementById('ee-months')?.value) || 0;
       const updates = {};
       updates[basePath + '/startDate'] = newStart;
       updates[basePath + '/endDate'] = newEnd;
+      updates[basePath + '/months'] = newMonths;
       updates[basePath + '/price'] = num('ee-price');
       updates[basePath + '/cash'] = num('ee-cash');
       updates[basePath + '/card'] = num('ee-card');
@@ -5084,6 +5097,7 @@
         }
       }
       await db.ref().update(updates);
+      _invalidateRevenueCache();
       document.getElementById('app-extra-edit-modal')?.remove();
       showToast('✅ 정보가 수정됐어요.', 'success');
       _renderMdContracts(ctx.phone);
@@ -5100,6 +5114,7 @@
       try {
         const basePath = 'contracts/' + ctx.phone + '/' + ctx.contractKey + '/extras/' + ctx.extraKey;
         await db.ref(basePath + '/deleted').set({ at: Date.now() });
+        _invalidateRevenueCache();
         document.getElementById('app-extra-edit-modal')?.remove();
         showToast('🗑️ 항목이 삭제됐어요.', 'success');
         _renderMdContracts(ctx.phone);
