@@ -2338,7 +2338,7 @@
     document.getElementById('rev-filter-types').innerHTML = ['신규', '재등록'].map(t => _revToggleFilterBtnHtml('types', t, t, false)).join('');
     document.getElementById('rev-filter-methods').innerHTML = [['cash', '현금'], ['card', '카드'], ['transfer', '계좌']].map(([k, l]) => _revToggleFilterBtnHtml('methods', k, l, false)).join('');
     document.getElementById('rev-filter-paystatus').innerHTML =
-      _revToggleFilterBtnHtml('paystatus', 'all', '전체', true) + _revToggleFilterBtnHtml('paystatus', 'unpaid', '미수금만', false);
+      _revToggleFilterBtnHtml('paystatus', 'all', '전체', true) + _revToggleFilterBtnHtml('paystatus', 'unpaid', '미수금만', false) + _revToggleFilterBtnHtml('paystatus', 'refund', '환불만', false);
     const sel = document.getElementById('rev-filter-trainer');
     if (sel) sel.innerHTML = '<option value="">전체</option>' + (typeof adminTrainerList !== 'undefined' ? adminTrainerList.map(t => `<option value="${t.id}">${t.name}</option>`).join('') : '');
   }
@@ -2365,6 +2365,16 @@
     loadRevenueStats();
   }
   window._revToggleChip = _revToggleChip;
+
+  // 요약탭 "환불액" 카드 클릭 → 상세내역 탭으로 이동 + "환불만" 필터 자동 적용
+  function showRefundOnlyDetail() {
+    switchRevSubTab('detail');
+    const panel = document.getElementById('rev-filter-panel');
+    if (panel) panel.style.display = 'block';
+    const chip = document.querySelector('.rev-chip[data-group="paystatus"][data-value="refund"]');
+    if (chip) _revToggleChip(chip);
+  }
+  window.showRefundOnlyDetail = showRefundOnlyDetail;
 
   function toggleRevFilterPanel() {
     const panel = document.getElementById('rev-filter-panel');
@@ -2429,9 +2439,16 @@
     };
     const inRange = (dateStr, r) => dateStr && dateStr >= r.start && dateStr <= r.end;
 
-    const curEntries = _revAllEntries.filter(e => inRange(e.date, range) && matchesFilters(e));
-    const curRefunds = _revAllRefunds.filter(r => inRange(r.date, range) && matchesRefundFilters(r));
-    _revFilteredEntries = curEntries;
+    const curEntries = filters.payStatus === 'refund' ? [] : _revAllEntries.filter(e => inRange(e.date, range) && matchesFilters(e));
+    const curRefunds = filters.payStatus === 'unpaid' ? [] : _revAllRefunds.filter(r => inRange(r.date, range) && matchesRefundFilters(r));
+    const _revRefundMethodNames = { cash: '현금', card: '카드', transfer: '계좌이체' };
+    const refundEntries = curRefunds.map(r => ({
+      phone: r.phone, name: r.name, label: r.label, date: r.date,
+      price: -(r.refundAmount || 0), cash: 0, card: 0, transfer: 0,
+      progKey: r.progKey, contractType: '환불', trainerId: r.trainerId || '', isRefund: true,
+      methodLabel: _revRefundMethodNames[r.method] || r.method || ''
+    }));
+    _revFilteredEntries = curEntries.concat(refundEntries);
 
     const filterCount = filters.programs.size + filters.types.size + filters.methods.size +
       (filters.payStatus !== 'all' ? 1 : 0) + (filters.trainerId ? 1 : 0) +
@@ -2479,8 +2496,8 @@
         <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">미수금</div>
         <div style="font-size:16px;font-weight:700;color:#e24b4a;">${unpaidTotal.toLocaleString()}원</div>
       </div>
-      <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
-        <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">환불액</div>
+      <div style="background:var(--bg);border-radius:10px;padding:12px 14px;cursor:pointer;" onclick="showRefundOnlyDetail()">
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">환불액 <span style="color:var(--blue);">🔍</span></div>
         <div style="font-size:16px;font-weight:700;color:#a855f7;">${refundTotal.toLocaleString()}원</div>
       </div>
     `;
@@ -2564,6 +2581,17 @@
 
   // 매출 내역 한 줄(회원명/프로그램/날짜/결제수단/금액) — 요약탭·상세내역탭 공통으로 사용
   function _revEntryRowHtml(e) {
+    if (e.isRefund) {
+      const clickable = !!e.phone;
+      return `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+          <div ${clickable ? `onclick="openMemberModal('${e.phone}')"` : ''} style="flex:1;min-width:0;${clickable ? 'cursor:pointer;' : ''}">
+            <div style="font-size:13px;font-weight:700;color:var(--text);">${e.name} <span style="font-size:11px;font-weight:600;color:#a855f7;">🔻 ${e.label} 환불</span></div>
+            <div style="font-size:11px;color:var(--text-hint);margin-top:2px;">${e.date} · 환불${e.methodLabel ? ' · ' + e.methodLabel : ''}${e.phone ? ' · ' + e.phone : ''}</div>
+          </div>
+          <div style="font-size:14px;font-weight:700;color:#a855f7;white-space:nowrap;">-${Math.abs(e.price).toLocaleString()}원</div>
+        </div>`;
+    }
     const methodLabel = _paymentMethodLabel(e) || '-';
     const unpaid = e.price - e.cash - e.card - e.transfer;
     const clickable = !!e.phone;
