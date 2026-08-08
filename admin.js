@@ -9673,6 +9673,13 @@
       }
       card.style.display = cfg.enabled ? '' : 'none';
     });
+
+    // 설정에서 삭제된 커스텀 프로그램의 카드가 화면에 남아있으면 제거 (기본 5개는 항상 settings에 있으므로 안전)
+    const validKeys = new Set(Object.keys(ctProgramSettings));
+    list.querySelectorAll('.ct-prog-card').forEach(card => {
+      const key = card.id.replace('ct-card-', '');
+      if (!validKeys.has(key)) card.remove();
+    });
   }
   window.applyCtProgramSettingsToUI = applyCtProgramSettingsToUI;
   window.loadCtProgramSettings = loadCtProgramSettings;
@@ -10662,7 +10669,10 @@
             <span style="font-size:14px;font-weight:700;${cfg.enabled ? '' : 'color:var(--text-hint);'}">${cfg.icon||'📦'} ${cfg.name||key}</span>
             ${cfg.isDefault ? '' : '<span style="font-size:10px;background:#dbeafe;color:#1a6fd4;padding:2px 6px;border-radius:8px;">신규</span>'}
           </div>
-          <button onclick="openRenameProgramPrompt('${key}')" style="font-size:12px;padding:5px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이름변경</button>
+          <div style="display:flex;gap:6px;">
+            <button onclick="openRenameProgramPrompt('${key}')" style="font-size:12px;padding:5px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이름변경</button>
+            ${cfg.isDefault ? '' : `<button onclick="deleteCustomProgram('${key}')" style="font-size:12px;padding:5px 10px;background:#fef2f2;color:#ef4444;border:1.5px solid #fecaca;border-radius:6px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>`}
+          </div>
         </div>
         <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;">
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-sub);cursor:pointer;">
@@ -10728,6 +10738,46 @@
     }).catch(() => showToast('추가에 실패했어요.', 'error'));
   }
   window.openAddProgramPrompt = openAddProgramPrompt;
+
+  // 프로그램 삭제 전, 이 프로그램키를 쓰는 계약서가 있는지 전체 스캔 (안전장치)
+  function _programKeyInUse(key) {
+    return db.ref('contracts').once('value').then(snap => {
+      let found = false;
+      snap.forEach(phoneSnap => {
+        phoneSnap.forEach(cSnap => {
+          const c = cSnap.val();
+          if (!c) return;
+          if (c.programs && c.programs[key]) { found = true; }
+          if (c.packages && c.packages.length) {
+            c.packages.forEach(pkg => {
+              if (pkg.items && pkg.items[key]) found = true;
+            });
+          }
+        });
+      });
+      return found;
+    });
+  }
+
+  function deleteCustomProgram(key) {
+    const cfg = ctProgramSettings[key];
+    if (!cfg) return;
+    if (cfg.isDefault) { showToast('기본 프로그램은 삭제할 수 없어요.', 'error'); return; }
+    showToast('계약서 사용 여부 확인 중...', 'info');
+    _programKeyInUse(key).then(inUse => {
+      if (inUse) {
+        showToast('이 프로그램으로 등록된 계약서가 있어 삭제할 수 없어요. 대신 "사용안함"으로 꺼주세요.', 'error');
+        return;
+      }
+      if (!confirm(`"${cfg.icon||'📦'} ${cfg.name||key}" 프로그램을 정말 삭제하시겠어요?\n이 작업은 되돌릴 수 없어요.`)) return;
+      db.ref('program_settings/' + key).remove().then(() => {
+        delete ctProgramSettings[key];
+        renderProgramSettingsList();
+        showToast('프로그램을 삭제했어요.', 'success');
+      }).catch(() => showToast('삭제에 실패했어요.', 'error'));
+    }).catch(() => showToast('확인 중 오류가 발생했어요.', 'error'));
+  }
+  window.deleteCustomProgram = deleteCustomProgram;
 
 
   function loadBusinessInfo() {
