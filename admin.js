@@ -10639,6 +10639,7 @@
     db.ref('program_settings/' + key + '/enabled').set(enabled).then(() => {
       ctProgramSettings[key] = ctProgramSettings[key] || {};
       ctProgramSettings[key].enabled = enabled;
+      renderProgramSettingsList();
       showToast(enabled ? '프로그램을 사용으로 설정했어요.' : '프로그램을 사용안함으로 설정했어요.', 'success');
     }).catch(() => showToast('저장에 실패했어요.', 'error'));
   }
