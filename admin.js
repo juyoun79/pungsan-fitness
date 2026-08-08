@@ -2666,7 +2666,7 @@
 
     const byProg = {};
     entries.forEach(e => {
-      const label = REFUND_PROG_NAMES[e.progKey] || e.progKey.replace('extra:', '');
+      const label = REFUND_PROG_NAMES[e.progKey] || getProgLabel(e.progKey);
       byProg[label] = (byProg[label] || 0) + e.cash + e.card + e.transfer;
     });
     const progLabels = Object.keys(byProg);
@@ -9601,6 +9601,9 @@
       }
       if (typeof IMPORT_PROG_OPTS !== 'undefined' && !IMPORT_PROG_OPTS.includes(key)) {
         IMPORT_PROG_OPTS.push(key);
+      }
+      if (typeof REV_PROGRAM_OPTIONS !== 'undefined' && !REV_PROGRAM_OPTIONS.some(([k]) => k === key)) {
+        REV_PROGRAM_OPTIONS.push([key, getProgLabel(key)]);
       }
     });
   }
