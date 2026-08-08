@@ -62,6 +62,7 @@
   window.goBackAdmin = goBackAdmin;
 
   function switchAdminTab(tabId) {
+    ensureCtProgramSettingsLoaded(); // 프로그램 설정값을 관리자모드 어디서든 쓸 수 있게 미리 로딩(최초 1회)
     { const prevState = _captureCurrentAdminScreen(); if (prevState.args[0] !== tabId) _pushAdminNavState(prevState); }
     document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
@@ -2015,7 +2016,7 @@
               phone, name, progKey: it.progKey, label, pkgGroupKey,
               price: (d.price || 0) - settleAmt, cash: signCash, card: signCard, transfer: signTransfer,
               date: c.signDate || '', contractType,
-              trainerId: (it.progKey === 'PT' || it.progKey === '기구필라테스개인') ? (d.trainerId || '') : '',
+              trainerId: ctProgramTrainerRequired(it.progKey) ? (d.trainerId || '') : '',
               salesStaffId: c.salesStaffId || '', salesStaffName: c.salesStaffName || ''
             });
             if (settleAmt > 0 && d.unpaidSettledAt) {
@@ -2026,14 +2027,14 @@
                 card: settleMethod === 'card' ? settleAmt : 0,
                 transfer: settleMethod === 'transfer' ? settleAmt : 0,
                 date: d.unpaidSettledAt, contractType,
-                trainerId: (it.progKey === 'PT' || it.progKey === '기구필라테스개인') ? (d.trainerId || '') : '', isSettlement: true,
+                trainerId: ctProgramTrainerRequired(it.progKey) ? (d.trainerId || '') : '', isSettlement: true,
                 salesStaffId: c.salesStaffId || '', salesStaffName: c.salesStaffName || ''
               });
             }
             if (d.refund) {
               refunds.push({
                 phone, name, progKey: it.progKey, label, refundAmount: d.refund.refundAmount || 0, date: d.refund.date || '', method: d.refund.method || '',
-                trainerId: (it.progKey === 'PT' || it.progKey === '기구필라테스개인') ? (d.trainerId || '') : '',
+                trainerId: ctProgramTrainerRequired(it.progKey) ? (d.trainerId || '') : '',
                 salesStaffId: c.salesStaffId || ''
               });
             }
@@ -3273,7 +3274,7 @@
         if (endDate) {
           const d = _daysUntil(endDate);
           if (d !== null) {
-            const dLabel = REFUND_PERIOD_PROGS.includes(it.progKey) ? (' D-' + d) : '';
+            const dLabel = ctProgramIsPeriodBased(it.progKey) ? (' D-' + d) : '';
             if (isPc) {
               // PC모드: 프로그램당 한 줄로 표시 (예: "GX D-35 (~2026-08-11)")
               remainParts.push(`<div style="white-space:nowrap;margin-bottom:4px;">${label}${dLabel} (~${endDate})</div>`);
@@ -4378,7 +4379,7 @@
       const endLabel = _normDate(it.data.endDate);
       const monthsLabel = it.data.months ? it.data.months + '개월' : '-';
       const countLabel  = it.data.count  ? it.data.count  + '회'   : '-';
-      const isTrainerProg = it.progKey === 'PT' || it.progKey === '기구필라테스개인';
+      const isTrainerProg = ctProgramTrainerRequired(it.progKey);
       const trainerName = it.data.trainerId ? ((typeof adminTrainerList !== 'undefined' ? adminTrainerList : []).find(t => t.id === it.data.trainerId)?.name || it.data.trainerId) : '';
       const trainerLink = isTrainerProg
         ? `<span onclick="openAssignItemTrainer('${phone}','${c.key}','${it.progKey}',${it.pkgIndex == null ? 'null' : it.pkgIndex})" style="cursor:pointer;color:${trainerName ? 'var(--text)' : 'var(--text-hint)'};text-decoration:underline dotted;">${trainerName || '미정'} ✏️</span>`
@@ -4386,7 +4387,7 @@
       return `<div class="md-item-row" style="padding:8px 0;border-top:1px solid var(--border);">
         <!-- 모바일: flex | PC: grid 7컬럼 (md-col-* 직접 배치, display:contents 미사용) -->
         <div class="md-col-prog">
-          <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${progLabels[it.progKey] || it.progKey}${hideBadge ? '' : ' ' + _renderPkgBadge(it.pkgName)}</div>
+          <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${progLabels[it.progKey] || getProgLabel(it.progKey)}${hideBadge ? '' : ' ' + _renderPkgBadge(it.pkgName)}</div>
           <div class="md-col-prog-sub" style="font-size:11px;color:var(--text-hint);margin-top:2px;">${_formatPeriodLabel(it.data)}</div>
           ${(startLabel !== '-' || endLabel !== '-') ? `<div class="md-col-daterange" style="font-size:11px;color:var(--text-hint);margin-top:2px;">${startLabel} ~ ${endLabel}</div>` : ''}
           ${isTrainerProg ? `<div class="md-col-trainer-mobile" style="font-size:11px;color:var(--text-hint);margin-top:2px;">담당강사: ${trainerLink}</div>` : ''}
@@ -5242,7 +5243,7 @@
   function _renderRefundForm(phone, contractKey, item) {
     const progKey = item.progKey;
     const data = item.data;
-    const isPeriod = REFUND_PERIOD_PROGS.includes(progKey);
+    const isPeriod = ctProgramIsPeriodBased(progKey);
     const price = data.price || 0;
     const startDate = data.startDate || '';
     const today = new Date();
@@ -5660,7 +5661,7 @@
     const ctx = window._transferCtx;
     const progKey = ctx.progKey;
     const data = ctx.item.data;
-    const isPeriod = REFUND_PERIOD_PROGS.includes(progKey);
+    const isPeriod = ctProgramIsPeriodBased(progKey);
     const defaultFee = isPeriod ? 10000 : 30000;
 
     document.getElementById('app-transfer-modal')?.remove();
@@ -5745,7 +5746,7 @@
   function _transferStep2Next() {
     const ctx = window._transferCtx;
     if (!ctx) return;
-    const isPeriod = REFUND_PERIOD_PROGS.includes(ctx.progKey);
+    const isPeriod = ctProgramIsPeriodBased(ctx.progKey);
     ctx.newStartDate = document.getElementById('tf-start-date')?.value || _todayISO();
     ctx.newEndDate = document.getElementById('tf-end-display')?.dataset.endDate || ctx.item.data.endDate || '';
     ctx.newCount = isPeriod ? (ctx.item.data.count || 0) : (parseInt(document.getElementById('tf-count')?.value) || 0);
@@ -6147,7 +6148,7 @@
     const ctx = window._changeCtx;
     const data = ctx.item.data;
     const progKey = ctx.progKey;
-    const isPeriod = REFUND_PERIOD_PROGS.includes(progKey);
+    const isPeriod = ctProgramIsPeriodBased(progKey);
     let totalUnit, unitLabel;
     if (isPeriod) {
       const sd = data.startDate ? new Date(data.startDate) : null;
@@ -6237,7 +6238,7 @@
 
   function _renderProgChangeStep2Fields() {
     const progKey = document.getElementById('pc2-prog')?.value;
-    const isPeriod = REFUND_PERIOD_PROGS.includes(progKey);
+    const isPeriod = ctProgramIsPeriodBased(progKey);
     const fieldsEl = document.getElementById('pc2-fields');
     if (!fieldsEl) return;
     if (isPeriod) {
@@ -6264,7 +6265,7 @@
     if (!ctx) return;
     const newProgKey = document.getElementById('pc2-prog')?.value;
     const price = _getMoneyVal('pc2-price');
-    const isPeriod = REFUND_PERIOD_PROGS.includes(newProgKey);
+    const isPeriod = ctProgramIsPeriodBased(newProgKey);
     ctx.newProgKey = newProgKey;
     ctx.newPrice = price;
     if (isPeriod) {
@@ -6457,7 +6458,7 @@
       }
 
       // 새 프로그램 종료일 계산 (기간제만 — 개월수 기준, 기존 계약서 작성과 동일한 방식)
-      const isNewPeriod = REFUND_PERIOD_PROGS.includes(ctx.newProgKey);
+      const isNewPeriod = ctProgramIsPeriodBased(ctx.newProgKey);
       let endDate = '';
       if (isNewPeriod) {
         const d = new Date(todayStr);
@@ -9579,6 +9580,7 @@
       console.error('프로그램 설정 로딩 오류(기본값 사용):', e);
       ctProgramSettings = JSON.parse(JSON.stringify(DEFAULT_PROGRAM_SETTINGS));
     }
+    try { _extendProgramListsWithCustom(); } catch(e) { console.error('커스텀 프로그램 목록 확장 오류(무시):', e); }
     return ctProgramSettings;
   }
 
@@ -9587,6 +9589,53 @@
     if (ctProgramSettings && ctProgramSettings[prog]) return !!ctProgramSettings[prog].trainerRequired;
     return (prog === 'PT' || prog === '기구필라테스개인');
   }
+
+  // 설정에 등록된 커스텀(신규추가) 프로그램들을, 목표매출/엑셀가져오기 목록에도 자동으로 반영
+  function _extendProgramListsWithCustom() {
+    const customKeys = Object.keys(ctProgramSettings).filter(k =>
+      ctProgramSettings[k] && ctProgramSettings[k].enabled && !ctProgramSettings[k].isDefault
+    );
+    customKeys.forEach(key => {
+      if (typeof SALES_GOAL_PROG_LIST !== 'undefined' && !SALES_GOAL_PROG_LIST.includes(key)) {
+        SALES_GOAL_PROG_LIST.splice(SALES_GOAL_PROG_LIST.length - 4, 0, key); // 락카/운동복/일일권/양도비 앞에 삽입
+      }
+      if (typeof IMPORT_PROG_OPTS !== 'undefined' && !IMPORT_PROG_OPTS.includes(key)) {
+        IMPORT_PROG_OPTS.push(key);
+      }
+    });
+  }
+  window._extendProgramListsWithCustom = _extendProgramListsWithCustom;
+
+  // 프로그램 표시이름(아이콘+이름) — 하드코딩된 목록에 없으면(=커스텀 프로그램) 설정값에서 가져옴
+  function getProgLabel(prog) {
+    if (ctProgramSettings && ctProgramSettings[prog]) {
+      const cfg = ctProgramSettings[prog];
+      return (cfg.icon || '📦') + ' ' + (cfg.name || prog);
+    }
+    return prog; // 설정도 없으면 어쩔 수 없이 키 그대로 표시 (마지막 안전장치)
+  }
+  window.getProgLabel = getProgLabel;
+
+  // 환불 계산 방식 — 기간제(위약금 자동계산) 여부. 설정값 우선, 없으면 기존 하드코딩 규칙
+  function ctProgramIsPeriodBased(prog) {
+    if (ctProgramSettings && ctProgramSettings[prog]) return !ctProgramSettings[prog].countBased;
+    return (prog === '헬스' || prog === 'GX');
+  }
+  window.ctProgramIsPeriodBased = ctProgramIsPeriodBased;
+
+  // 설정에 등록된 "사용중" 프로그램 키 목록 (기본 5개 + 커스텀 프로그램 전부)
+  function getAllEnabledProgKeys() {
+    if (!ctProgramSettings) return CT_PROG_LIST.slice();
+    return Object.keys(ctProgramSettings).filter(k => ctProgramSettings[k] && ctProgramSettings[k].enabled);
+  }
+  window.getAllEnabledProgKeys = getAllEnabledProgKeys;
+
+  // 계약서 화면 밖(매출통계/대시보드/PDF 등)에서도 쓸 수 있도록, 앱 시작 시 설정을 미리 한 번 로딩
+  function ensureCtProgramSettingsLoaded() {
+    if (Object.keys(ctProgramSettings).length > 0) return Promise.resolve(ctProgramSettings);
+    return loadCtProgramSettings();
+  }
+  window.ensureCtProgramSettingsLoaded = ensureCtProgramSettingsLoaded;
 
   // 계약서 2단계 진입 시, 설정값을 화면(카드 목록)에 반영
   async function applyCtProgramSettingsToUI() {
@@ -10794,7 +10843,7 @@
               return `<span onclick="toggleSalesGoalProgram('${id}','${p}')"
                 style="cursor:pointer;font-size:12px;padding:5px 10px;border-radius:14px;font-weight:700;
                 background:${active ? 'var(--blue)' : 'var(--card)'};color:${active ? 'white' : 'var(--text-hint)'};
-                border:1px solid ${active ? 'var(--blue)' : 'var(--border)'};">${p}</span>`;
+                border:1px solid ${active ? 'var(--blue)' : 'var(--border)'};">${getProgLabel(p)}</span>`;
             }).join('')}
           </div>
         </div>`;
@@ -11074,7 +11123,7 @@
       if (!(text in _mImport.progMap)) _mImport.progMap[text] = _classifyProgGuess(text);
     });
     const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([text, count]) => {
-      const opts = IMPORT_PROG_OPTS.map(p => `<option value="${p}" ${_mImport.progMap[text] === p ? 'selected' : ''}>${p}</option>`).join('');
+      const opts = IMPORT_PROG_OPTS.map(p => `<option value="${p}" ${_mImport.progMap[text] === p ? 'selected' : ''}>${getProgLabel(p)}</option>`).join('');
       const safeText = text.replace(/'/g, "\\'");
       return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);">
         <div style="flex:1;font-size:12.5px;color:var(--text);word-break:break-all;">${escapeHtml(text)} <span style="color:var(--text-hint);">(${count}명)</span></div>
@@ -12228,7 +12277,7 @@
         const r = rows[id] || {};
         const progs = Object.keys(r.programs || {});
         const staffMatches = (progKey, e) => {
-          if (progKey === 'PT' || progKey === '기구필라테스개인') return e.trainerId === r.trainerId;
+          if (ctProgramTrainerRequired(progKey)) return e.trainerId === r.trainerId;
           return e.salesStaffId === r.trainerId;
         };
         const matched = !r.trainerId ? [] : _revAllEntries.filter(e => {
@@ -12248,9 +12297,9 @@
         return { id, role: r.role || '(직책 미입력)', trainerName: r.trainerName || '(직원 미선택)', goalAmount: r.goalAmount || 0, weekSums, monthSum };
       });
 
-      // 담당강사(PT/기구필라테스개인) 미지정 매출 (환불도 같이 차감)
-      const unassignedEntries = _revAllEntries.filter(e => inMonth(e) && (e.progKey === 'PT' || e.progKey === '기구필라테스개인') && !e.trainerId);
-      const unassignedRefunds = _revAllRefunds.filter(rf => inMonth(rf) && (rf.progKey === 'PT' || rf.progKey === '기구필라테스개인') && !rf.trainerId);
+      // 담당강사(PT/기구필라테스개인 및 담당강사 지정을 켠 커스텀 프로그램) 미지정 매출 (환불도 같이 차감)
+      const unassignedEntries = _revAllEntries.filter(e => inMonth(e) && ctProgramTrainerRequired(e.progKey) && !e.trainerId);
+      const unassignedRefunds = _revAllRefunds.filter(rf => inMonth(rf) && ctProgramTrainerRequired(rf.progKey) && !rf.trainerId);
       const unassignedWeekSums = weekRanges.map(w => {
         const sales = unassignedEntries.filter(e => { const dd = dayOf(e); return dd >= w.startDay && dd <= w.endDay; }).reduce((s, e) => s + (e.cash || 0) + (e.card || 0) + (e.transfer || 0), 0);
         const refund = unassignedRefunds.filter(rf => { const dd = dayOf(rf); return dd >= w.startDay && dd <= w.endDay; }).reduce((s, rf) => s + (rf.refundAmount || 0), 0);
@@ -12260,9 +12309,11 @@
 
       // 헬스/GX/기구필라테스그룹/락카/일일권/양도비 등 일반 카테고리 중 담당자 미지정 매출 (환불도 같이 차감)
       const isGeneralCategory = (progKey) => {
-        if (progKey === 'PT' || progKey === '기구필라테스개인') return false;
+        if (ctProgramTrainerRequired(progKey)) return false;
         if (progKey === '헬스' || progKey === 'GX' || progKey === '기구필라테스그룹' || progKey === 'extra:locker' || progKey === 'extra:cloth' || progKey === '양도') return true;
-        return typeof progKey === 'string' && progKey.indexOf('daypass') === 0;
+        if (typeof progKey === 'string' && progKey.indexOf('daypass') === 0) return true;
+        // 새로 추가한 프로그램(담당강사 미지정 유형)도 일반 카테고리로 포함
+        return !!(ctProgramSettings && ctProgramSettings[progKey] && !ctProgramSettings[progKey].isDefault);
       };
       const genUnassignedEntries = _revAllEntries.filter(e => inMonth(e) && isGeneralCategory(e.progKey) && !e.salesStaffId);
       const genUnassignedRefunds = _revAllRefunds.filter(rf => inMonth(rf) && isGeneralCategory(rf.progKey) && !rf.salesStaffId);
@@ -12801,7 +12852,7 @@
 
       html += `
         <div style="margin-bottom:8px;padding:8px;background:white;border-radius:6px;border:1px solid var(--border);">
-          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;">${progLabels[prog] || prog}</div>
+          <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;">${progLabels[prog] || getProgLabel(prog)}</div>
           <div style="font-size:11px;color:var(--text-sub);line-height:1.6;">
             ${months ? months + '개월' : ''}${count ? ' · ' + count + '회' : ''}
             ${endDate ? '<br>종료: ' + endDate : ''}
@@ -13351,7 +13402,7 @@
     };
     if (d.programs) {
       Object.entries(d.programs).forEach(([prog, p]) => {
-        const label  = progNameMap[prog] || prog;
+        const label  = progNameMap[prog] || getProgLabel(prog);
         const paid   = (p.cash||0)+(p.card||0)+(p.transfer||0);
         const unpaid = (p.price||0)-paid;
         totalPrice    += (p.price||0);
@@ -13392,7 +13443,7 @@
         const pkgEntries = Object.entries(pkg.items||{});
         pkgEntries.forEach(([prog, it], idx) => {
           const isLast   = idx === pkgEntries.length - 1;
-          const progLabel = pdfProgNameMap[prog]||prog;
+          const progLabel = pdfProgNameMap[prog]||getProgLabel(prog);
           const pkgLabel  = idx===0 ? '📦 '+progLabel : '　 '+progLabel;
           const dateStr   = (it.startDate||'-') + ' ~ ' + (it.endDate||'-');
           const periodStr = (it.months?it.months+'개월':'') + (it.count?(it.months?' · ':'')+it.count+'회':'') || '-';
@@ -13602,6 +13653,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
 
     showToast('계약서 불러오는 중...', 'info');
     try {
+      await ensureCtProgramSettingsLoaded(); // 커스텀 프로그램 이름이 정확히 표시되도록 설정값 로딩
       const snap = await db.ref('contracts/' + phone).once('value');
       if (!snap.exists()) {
         showToast('등록된 계약서가 없어요.', 'error');
