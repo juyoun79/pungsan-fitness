@@ -3326,7 +3326,7 @@
             <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;">💳 프로그램 &amp; 결제</div>
 
             <!-- 프로그램 카드 목록 -->
-            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+            <div id="ct-prog-card-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
 
               <!-- 헬스 -->
               <div class="ct-prog-card" id="ct-card-헬스">
@@ -4651,6 +4651,10 @@
             style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);border:1.5px solid var(--border);">
             🏋️ 기구 관리
           </button>
+          <button id="settings-subtab-programs" onclick="switchSettingsSubtab('programs')"
+            style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);border:1.5px solid var(--border);">
+            📋 프로그램 관리
+          </button>
           <button id="settings-subtab-terms" onclick="switchSettingsSubtab('terms')"
             style="padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);border:1.5px solid var(--border);">
             📜 이용약관
@@ -4715,6 +4719,17 @@
               <button onclick="syncEquipmentToFirebase()" style="background:#059669;color:white;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔄 DB 동기화</button>
             </div>
             <div id="admin-equipment-list" style="max-width:700px;margin:0 auto;">
+              <div style="text-align:center;padding:30px;color:var(--text-hint);font-size:14px;">불러오는 중...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 서브탭: 프로그램 관리 -->
+        <div id="settings-view-programs" style="display:none;">
+          <div class="admin-card">
+            <div class="admin-card-title">📋 프로그램 관리</div>
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:14px;">계약서에 표시할 프로그램을 관리해요. 켜고 끄거나 이름을 바꿀 수 있고, 새 프로그램도 추가할 수 있어요.</div>
+            <div id="program-settings-list" style="max-width:700px;margin:0 auto;">
               <div style="text-align:center;padding:30px;color:var(--text-hint);font-size:14px;">불러오는 중...</div>
             </div>
           </div>

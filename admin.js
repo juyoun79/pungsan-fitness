@@ -9418,6 +9418,10 @@
       if (el) el.style.display = (i === step) ? '' : 'none';
     }
     ctCurrentStep = step;
+    // 2단계 진입 시 프로그램 설정(켜고끄기/이름/커스텀프로그램) 반영
+    if (step === 2) {
+      applyCtProgramSettingsToUI();
+    }
     // 3단계 진입 시에만 모바일 서명 세션 유지, 그 외 단계는 정리
     if (step === 3) {
       ctStartMobileSignSession();
@@ -9545,6 +9549,85 @@
     '기구필라테스개인':'🧘 기구필라테스 개인', '기구필라테스그룹':'👥 기구필라테스 그룹'
   };
   const CT_PROG_LIST = ['헬스','GX','PT','기구필라테스개인','기구필라테스그룹'];
+
+  // ===== 프로그램 설정 (설정탭에서 관리, Firebase: program_settings) =====
+  const DEFAULT_PROGRAM_SETTINGS = {
+    '헬스':            { name:'헬스',            icon:'🏋️', enabled:true, countBased:false, trainerRequired:false, isDefault:true, order:1 },
+    'GX':              { name:'GX',              icon:'🎶', enabled:true, countBased:false, trainerRequired:false, isDefault:true, order:2 },
+    'PT':              { name:'PT',              icon:'💪', enabled:true, countBased:true,  trainerRequired:true,  isDefault:true, order:3 },
+    '기구필라테스개인': { name:'기구필라테스 개인', icon:'🧘', enabled:true, countBased:true,  trainerRequired:true,  isDefault:true, order:4 },
+    '기구필라테스그룹': { name:'기구필라테스 그룹', icon:'👥', enabled:true, countBased:true,  trainerRequired:false, isDefault:true, order:5 }
+  };
+  let ctProgramSettings = {}; // Firebase에서 불러온 최신 설정 (키: 프로그램키)
+
+  // program_settings를 Firebase에서 불러오고, 없으면 기본값으로 최초 1회 저장
+  async function loadCtProgramSettings() {
+    try {
+      const snap = await db.ref('program_settings').once('value');
+      const data = snap.val() || {};
+      // 기본 5개 프로그램이 하나도 없으면 최초 세팅 (기존 데이터는 절대 덮어쓰지 않음)
+      const missing = {};
+      Object.keys(DEFAULT_PROGRAM_SETTINGS).forEach(key => {
+        if (!data[key]) missing[key] = DEFAULT_PROGRAM_SETTINGS[key];
+      });
+      if (Object.keys(missing).length > 0) {
+        await db.ref('program_settings').update(missing);
+        Object.assign(data, missing);
+      }
+      ctProgramSettings = data;
+    } catch (e) {
+      console.error('프로그램 설정 로딩 오류(기본값 사용):', e);
+      ctProgramSettings = JSON.parse(JSON.stringify(DEFAULT_PROGRAM_SETTINGS));
+    }
+    return ctProgramSettings;
+  }
+
+  // 담당강사 지정 필요 여부 — 설정값 우선, 없으면 기존 하드코딩 규칙으로 안전하게 대체
+  function ctProgramTrainerRequired(prog) {
+    if (ctProgramSettings && ctProgramSettings[prog]) return !!ctProgramSettings[prog].trainerRequired;
+    return (prog === 'PT' || prog === '기구필라테스개인');
+  }
+
+  // 계약서 2단계 진입 시, 설정값을 화면(카드 목록)에 반영
+  async function applyCtProgramSettingsToUI() {
+    const list = document.getElementById('ct-prog-card-list');
+    if (!list) return;
+    await loadCtProgramSettings();
+
+    const sorted = Object.entries(ctProgramSettings)
+      .sort((a, b) => (a[1].order||0) - (b[1].order||0));
+
+    sorted.forEach(([key, cfg]) => {
+      let card = document.getElementById('ct-card-' + key);
+      if (!card) {
+        // 커스텀 프로그램: 기존 5개와 동일한 구조로 카드를 새로 생성
+        const wrap = document.createElement('div');
+        wrap.innerHTML = `
+          <div class="ct-prog-card" id="ct-card-${key}">
+            <div class="ct-prog-card-header" onclick="toggleCtCard('${key}')">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <input type="checkbox" id="ct-chk-${key}" onclick="event.stopPropagation();toggleCtCard('${key}')" style="width:18px;height:18px;accent-color:var(--blue);cursor:pointer;">
+                <span id="ct-label-${key}" style="font-size:14px;font-weight:700;">${cfg.icon||'📦'} ${cfg.name||key}</span>
+              </div>
+              <span id="ct-summary-${key}" style="font-size:12px;background:#f1f5f9;padding:3px 8px;border-radius:20px;color:var(--text-sub);">미선택</span>
+            </div>
+            <div class="ct-prog-card-body" id="ct-body-${key}" style="display:none;" data-prog="${key}" data-has-count="${cfg.countBased ? 'true' : 'false'}"></div>
+          </div>`;
+        card = wrap.firstElementChild;
+        list.appendChild(card);
+      } else {
+        // 기존 5개 프로그램: 이름/아이콘만 최신 설정값으로 갱신
+        const labelEl = card.querySelector('.ct-prog-card-header > div > span');
+        if (labelEl) labelEl.textContent = (cfg.icon||'') + ' ' + (cfg.name||key);
+        const body = document.getElementById('ct-body-' + key);
+        if (body && !body.dataset.rendered) body.dataset.hasCount = cfg.countBased ? 'true' : 'false';
+      }
+      card.style.display = cfg.enabled ? '' : 'none';
+    });
+  }
+  window.applyCtProgramSettingsToUI = applyCtProgramSettingsToUI;
+  window.loadCtProgramSettings = loadCtProgramSettings;
+  window.ctProgramTrainerRequired = ctProgramTrainerRequired;
 
   let ctPkgIdCounter = 0;
 
@@ -9955,7 +10038,7 @@
               </select>
             </div>
           </div>
-          ${(prog === 'PT' || prog === '기구필라테스개인') ? `
+          ${ctProgramTrainerRequired(prog) ? `
           <div style="grid-column:1 / -1;">
             <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px;">담당강사</div>
             <select id="ct-${prog}-trainer" style="${inStyle}background:var(--card);">
@@ -10157,7 +10240,7 @@
       // 기간/횟수/금액 중 하나라도 있으면 breakdown에 표시 (0원짜리도 선택됐으면 보여줘야 함)
       if (months || count || price || cash || card || transfer) {
         breakdownItems.push({
-          label: (progLabels[prog] || prog) + (months ? ' ' + months + '개월' : '') + (count ? ' · ' + count + '회' : '') + (price === 0 && months ? ' (무료)' : ''),
+          label: (progLabels[prog] || ((ctProgramSettings[prog] && (ctProgramSettings[prog].icon+' '+ctProgramSettings[prog].name)) || prog)) + (months ? ' ' + months + '개월' : '') + (count ? ' · ' + count + '회' : '') + (price === 0 && months ? ' (무료)' : ''),
           price, cash, card, transfer
         });
       }
@@ -10485,7 +10568,7 @@
 
   // ── 설정탭 서브탭 전환 ──
   function switchSettingsSubtab(tab) {
-    const tabs = ['pw', 'equipment', 'terms', 'business', 'bulk', 'goal', 'import'];
+    const tabs = ['pw', 'equipment', 'programs', 'terms', 'business', 'bulk', 'goal', 'import'];
     tabs.forEach(t => {
       const btn  = document.getElementById('settings-subtab-' + t);
       const view = document.getElementById('settings-view-' + t);
@@ -10498,6 +10581,7 @@
       if (view) view.style.display = isActive ? '' : 'none';
     });
     if (tab === 'equipment') loadAdminEquipmentList();
+    if (tab === 'programs')  renderProgramSettingsList();
     if (tab === 'terms')     loadTerms();
     if (tab === 'business')  loadBusinessInfo();
     if (tab === 'goal')      loadSalesGoalConfig();
@@ -10508,7 +10592,94 @@
   }
   window.switchSettingsSubtab = switchSettingsSubtab;
 
-  // ── 사업자 정보 (영수증 등에 사용) ──
+  // ── 프로그램 관리 (설정탭) ──
+  async function renderProgramSettingsList() {
+    const wrap = document.getElementById('program-settings-list');
+    if (!wrap) return;
+    wrap.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);font-size:14px;">불러오는 중...</div>';
+    await loadCtProgramSettings();
+
+    const sorted = Object.entries(ctProgramSettings).sort((a, b) => (a[1].order||0) - (b[1].order||0));
+
+    wrap.innerHTML = sorted.map(([key, cfg]) => `
+      <div style="background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <label style="position:relative;display:inline-block;width:40px;height:22px;cursor:pointer;">
+              <input type="checkbox" ${cfg.enabled ? 'checked' : ''} onchange="toggleProgramEnabled('${key}', this.checked)" style="opacity:0;width:0;height:0;">
+              <span style="position:absolute;inset:0;background:${cfg.enabled ? 'var(--blue)' : '#d1d5db'};border-radius:22px;transition:0.2s;"></span>
+              <span style="position:absolute;top:2px;left:${cfg.enabled ? '20px' : '2px'};width:18px;height:18px;background:white;border-radius:50%;transition:0.2s;"></span>
+            </label>
+            <span style="font-size:14px;font-weight:700;${cfg.enabled ? '' : 'color:var(--text-hint);'}">${cfg.icon||'📦'} ${cfg.name||key}</span>
+            ${cfg.isDefault ? '' : '<span style="font-size:10px;background:#dbeafe;color:#1a6fd4;padding:2px 6px;border-radius:8px;">신규</span>'}
+          </div>
+          <button onclick="openRenameProgramPrompt('${key}')" style="font-size:12px;padding:5px 10px;background:var(--bg);border:1.5px solid var(--border);border-radius:6px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이름변경</button>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-sub);cursor:pointer;">
+            <input type="checkbox" ${cfg.countBased ? 'checked' : ''} onchange="toggleProgramField('${key}','countBased',this.checked)">
+            횟수제 (PT처럼 회당 결제)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-sub);cursor:pointer;">
+            <input type="checkbox" ${cfg.trainerRequired ? 'checked' : ''} onchange="toggleProgramField('${key}','trainerRequired',this.checked)">
+            담당강사 지정 사용
+          </label>
+        </div>
+      </div>
+    `).join('') + `
+      <button onclick="openAddProgramPrompt()" style="width:100%;padding:12px;border:1.5px dashed var(--border);background:transparent;border-radius:var(--radius-sm);color:var(--text-sub);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">+ 새 프로그램 추가</button>
+      <div style="margin-top:14px;padding:12px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--text-sub);line-height:1.6;">
+        💡 기구필라테스그룹은 별도의 예약시스템과 연결되어 있어 이 설정만으로는 그룹수업 캘린더가 만들어지지 않아요.<br>
+        💡 새로 추가한 프로그램은 매출통계·대시보드 등 일부 화면에는 아직 반영되지 않을 수 있어요.
+      </div>`;
+  }
+  window.renderProgramSettingsList = renderProgramSettingsList;
+
+  function toggleProgramEnabled(key, enabled) {
+    db.ref('program_settings/' + key + '/enabled').set(enabled).then(() => {
+      ctProgramSettings[key] = ctProgramSettings[key] || {};
+      ctProgramSettings[key].enabled = enabled;
+      showToast(enabled ? '프로그램을 사용으로 설정했어요.' : '프로그램을 사용안함으로 설정했어요.', 'success');
+    }).catch(() => showToast('저장에 실패했어요.', 'error'));
+  }
+  window.toggleProgramEnabled = toggleProgramEnabled;
+
+  function toggleProgramField(key, field, value) {
+    db.ref('program_settings/' + key + '/' + field).set(value).then(() => {
+      ctProgramSettings[key] = ctProgramSettings[key] || {};
+      ctProgramSettings[key][field] = value;
+      showToast('저장됐어요.', 'success');
+    }).catch(() => showToast('저장에 실패했어요.', 'error'));
+  }
+  window.toggleProgramField = toggleProgramField;
+
+  function openRenameProgramPrompt(key) {
+    const cur = (ctProgramSettings[key] && ctProgramSettings[key].name) || key;
+    const name = prompt('새 프로그램 이름을 입력하세요.', cur);
+    if (!name || !name.trim()) return;
+    db.ref('program_settings/' + key + '/name').set(name.trim()).then(() => {
+      ctProgramSettings[key] = ctProgramSettings[key] || {};
+      ctProgramSettings[key].name = name.trim();
+      renderProgramSettingsList();
+      showToast('이름을 변경했어요.', 'success');
+    }).catch(() => showToast('저장에 실패했어요.', 'error'));
+  }
+  window.openRenameProgramPrompt = openRenameProgramPrompt;
+
+  function openAddProgramPrompt() {
+    const name = prompt('새 프로그램 이름을 입력하세요. (예: 요가, 수영자유이용권)');
+    if (!name || !name.trim()) return;
+    const key = 'custom_' + db.ref('program_settings').push().key.replace(/^-/, '');
+    const newProg = { name: name.trim(), icon: '📦', enabled: true, countBased: false, trainerRequired: false, isDefault: false, order: 100 + Object.keys(ctProgramSettings).length };
+    db.ref('program_settings/' + key).set(newProg).then(() => {
+      ctProgramSettings[key] = newProg;
+      renderProgramSettingsList();
+      showToast('새 프로그램을 추가했어요.', 'success');
+    }).catch(() => showToast('추가에 실패했어요.', 'error'));
+  }
+  window.openAddProgramPrompt = openAddProgramPrompt;
+
+
   function loadBusinessInfo() {
     db.ref('business_info').once('value').then(snap => {
       const d = snap.val() || {};
@@ -12831,7 +13002,7 @@
         card      : numVal('card'),
         transfer  : numVal('transfer'),
       };
-      if (prog === 'PT' || prog === '기구필라테스개인') {
+      if (ctProgramTrainerRequired(prog)) {
         programs[prog].trainerId = document.getElementById('ct-' + prog + '-trainer')?.value || '';
       }
     });
