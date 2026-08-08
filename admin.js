@@ -5575,6 +5575,7 @@
   }
 
   function _renderTransferStep1() {
+    tfStopMobileSignListener();
     document.getElementById('app-transfer-modal')?.remove();
     const modal = document.createElement('div');
     modal.id = 'app-transfer-modal';
@@ -5664,6 +5665,7 @@
     const isPeriod = ctProgramIsPeriodBased(progKey);
     const defaultFee = isPeriod ? 10000 : 30000;
 
+    tfStopMobileSignListener();
     document.getElementById('app-transfer-modal')?.remove();
     const modal = document.createElement('div');
     modal.id = 'app-transfer-modal';
@@ -5766,6 +5768,15 @@
 
     const body = `<div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">🔁 양도 — 3/4 약관동의 및 서명</div>
       <div style="font-size:12px;color:#888;margin-bottom:14px;">${REFUND_PROG_NAMES[ctx.progKey]||ctx.progKey} · ${ctx.fromPhone} → ${ctx.toName}(${ctx.toPhone}) · 양도비 ${(ctx.transferFee||0).toLocaleString()}원</div>
+      <div id="tf-mobile-sign-box" style="display:none;border:1.5px solid #bfdbfe;background:#f0f7ff;border-radius:10px;padding:12px;margin-bottom:12px;">
+        <div style="display:flex;gap:12px;align-items:center;">
+          <div id="tf-mobile-qr" style="width:80px;height:80px;background:white;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"></div>
+          <div style="flex:1;">
+            <div style="font-size:12.5px;font-weight:700;color:var(--text,#1a1a1a);margin-bottom:3px;">📱 회원 기기로 서명받기</div>
+            <div id="tf-mobile-sign-status" style="font-size:11.5px;color:#888;line-height:1.5;">QR을 스캔하면 회원 기기에서 확인 후 서명할 수 있어요</div>
+          </div>
+        </div>
+      </div>
       <div style="background:var(--bg,#f7f7f7);border-radius:8px;padding:12px;font-size:12px;color:#555;white-space:pre-line;margin-bottom:10px;max-height:110px;overflow-y:auto;">${TRANSFER_TERMS_TEXT}</div>
       <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text,#1a1a1a);margin-bottom:14px;cursor:pointer;">
         <input id="tf-agree" type="checkbox" onchange="_updateTfStep3Btn()" style="width:16px;height:16px;"> 위 내용에 동의합니다
@@ -5784,6 +5795,7 @@
     modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">${body}</div>`;
     document.body.appendChild(modal);
     _initTfSign();
+    tfStartMobileSignSession();
   }
 
   let tfSignCanvas, tfSignCtx, tfSigning = false, tfHasSigned = false;
@@ -5843,7 +5855,86 @@
     btn.style.cursor = ok ? 'pointer' : 'not-allowed';
   }
 
+  // ===== 양도 — 모바일(QR) 서명 연동 =====
+  let _tfMobileSignId = null;
+  let _tfMobileSignRef = null;
+
+  function tfStartMobileSignSession() {
+    const box = document.getElementById('tf-mobile-sign-box');
+    if (!box) return;
+    if (isCtMobileDevice()) { box.style.display = 'none'; return; } // 태블릿/폰으로 직접 진행 중이면 QR 불필요
+
+    tfStopMobileSignListener();
+    box.style.display = '';
+    const statusEl = document.getElementById('tf-mobile-sign-status');
+    const qrEl = document.getElementById('tf-mobile-qr');
+    if (qrEl) qrEl.innerHTML = '';
+    if (statusEl) statusEl.textContent = 'QR 생성 중...';
+
+    const ctx = window._transferCtx;
+    const summaryHtml = `
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <tr><td style="color:#888;padding:2px 0">프로그램</td><td style="text-align:right;padding:2px 0">${getProgLabel(ctx.progKey)}</td></tr>
+        <tr><td style="color:#888;padding:2px 0">양도인</td><td style="text-align:right;padding:2px 0">${ctx.fromPhone}</td></tr>
+        <tr><td style="color:#888;padding:2px 0">양수인</td><td style="text-align:right;padding:2px 0">${ctx.toName} (${ctx.toPhone})</td></tr>
+        <tr><td style="color:#888;padding:2px 0">양도비</td><td style="text-align:right;padding:2px 0;font-weight:700">${(ctx.transferFee||0).toLocaleString()}원</td></tr>
+      </table>`;
+
+    const sessionRef = db.ref('transfer_sign_sessions').push();
+    _tfMobileSignId = sessionRef.key;
+    _tfMobileSignRef = sessionRef;
+
+    const now = Date.now();
+    sessionRef.set({
+      summaryHtml, termsText: TRANSFER_TERMS_TEXT,
+      status: 'pending', createdAt: now, expiresAt: now + 15 * 60 * 1000
+    }).then(() => {
+      const url = location.origin + '/sign.html?type=transfer&id=' + _tfMobileSignId;
+      if (qrEl && window.QRCode) {
+        new QRCode(qrEl, { text: url, width: 80, height: 80, correctLevel: QRCode.CorrectLevel.M });
+      }
+      if (statusEl) statusEl.textContent = 'QR을 스캔하면 회원 기기에서 확인 후 서명할 수 있어요';
+    }).catch(() => {
+      if (statusEl) statusEl.textContent = 'QR 생성에 실패했어요.';
+    });
+
+    sessionRef.on('value', snap => {
+      const data = snap.val();
+      if (!data) return;
+      if (statusEl) {
+        if (data.status === 'agreed') statusEl.textContent = '✅ 회원이 동의했어요. 서명 진행 중...';
+        else if (data.status === 'signed') statusEl.textContent = '✍️ 서명이 완료되었어요!';
+      }
+      if (data.status === 'signed' && data.signUrl) {
+        const agreeBox = document.getElementById('tf-agree');
+        if (agreeBox && !agreeBox.checked) agreeBox.checked = true;
+        tfHasSigned = true;
+        const img = new Image();
+        img.onload = () => {
+          if (tfSignCtx) {
+            tfSignCtx.drawImage(img, 0, 0, tfSignCanvas.width, tfSignCanvas.height);
+            const ph = document.getElementById('tf-sign-placeholder');
+            if (ph) ph.style.display = 'none';
+          }
+          _updateTfStep3Btn();
+        };
+        img.src = data.signUrl;
+        tfStopMobileSignListener();
+        showToast('회원이 동의 및 서명을 완료했어요.', 'success');
+      }
+    });
+  }
+  window.tfStartMobileSignSession = tfStartMobileSignSession;
+
+  function tfStopMobileSignListener() {
+    if (_tfMobileSignRef) { try { _tfMobileSignRef.off('value'); } catch(e) {} }
+    _tfMobileSignRef = null;
+    _tfMobileSignId = null;
+  }
+  window.tfStopMobileSignListener = tfStopMobileSignListener;
+
   async function _transferStep3Next() {
+    tfStopMobileSignListener();
     const ctx = window._transferCtx;
     if (!ctx || !tfHasSigned) return;
     try { ctx.signUrl = tfSignCanvas.toDataURL('image/png'); } catch(e) { ctx.signUrl = ''; }
