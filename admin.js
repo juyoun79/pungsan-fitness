@@ -9848,7 +9848,9 @@
   function updateCtPackageName(pkg) {
     const names = Object.keys(pkg.items).map(p => {
       const short = { '헬스':'헬스','GX':'GX','PT':'PT','기구필라테스개인':'기구P개인','기구필라테스그룹':'기구P그룹' };
-      return short[p] || p;
+      if (short[p]) return short[p];
+      if (ctProgramSettings && ctProgramSettings[p]) return ctProgramSettings[p].name || p;
+      return p;
     });
     pkg.name = names.length > 0 ? names.join('+') + ' 패키지' : '';
   }
@@ -9978,7 +9980,7 @@
 
     list.innerHTML = ctPackages.map(pkg => {
       const today = _todayISO();
-      const progButtons = CT_PROG_LIST.map(prog => {
+      const progButtons = getAllEnabledProgKeys().map(prog => {
         const sel = !!pkg.items[prog];
         const it  = pkg.items[prog];
         const badgeParts = sel ? [
@@ -9989,18 +9991,18 @@
         return `<button type="button" onclick="toggleCtPackageProg(${pkg.id},'${prog}')"
           style="padding:6px 10px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
           background:${sel?'#185FA5':'var(--card)'};color:${sel?'white':'var(--text-sub)'};border:${sel?'none':'1px solid var(--border)'};display:inline-flex;align-items:center;gap:4px;">
-          ${CT_PROG_LABELS[prog]}
+          ${getProgLabel(prog)}
           ${badgeParts.length ? `<span id="ct-pkg-${pkg.id}-${prog}-badge" style="font-size:10px;opacity:0.85;">${badgeParts.join(' · ')}</span>` : `<span id="ct-pkg-${pkg.id}-${prog}-badge" style="font-size:10px;opacity:0.85;display:none;"></span>`}
         </button>`;
       }).join('');
 
       const progInputs = Object.keys(pkg.items).map(prog => {
         const it = pkg.items[prog];
-        const hasCount = prog === 'PT' || prog === '기구필라테스개인' || prog === '기구필라테스그룹';
+        const hasCount = !ctProgramIsPeriodBased(prog);
         const startVal = it.startDate || today;
         return `
           <div style="background:var(--card);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:10px;margin-top:8px;">
-            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;">${CT_PROG_LABELS[prog]}</div>
+            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;">${getProgLabel(prog)}</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
               <div>
                 <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">시작일</div>
@@ -10038,7 +10040,7 @@
                   oninput="_formatMoneyInput(this);updateCtPkgField(${pkg.id},'${prog}','price',this.value)" />
               </div>
             </div>
-            ${(prog === 'PT' || prog === '기구필라테스개인') ? `
+            ${ctProgramTrainerRequired(prog) ? `
             <div style="margin-bottom:6px;">
               <div style="font-size:10px;color:var(--text-sub);margin-bottom:3px;">담당강사</div>
               <select id="ct-pkg-${pkg.id}-${prog}-trainer"
