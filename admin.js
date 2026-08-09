@@ -18083,7 +18083,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         <input type="hidden" id="assign-member-id">
 
         <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">수업 종류</div>
-        <input id="assign-type" type="text" placeholder="예) PT / 기구필라테스 / 기타"
+        <input id="assign-type" type="text" placeholder="예) PT / 기구필라테스 / 기타" oninput="this.value=this.value.toUpperCase()"
           style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:12px;outline:none;">
         <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">총 수업 횟수</div>
         <input id="assign-total" type="number" placeholder="예) 10, 20, 30"
@@ -19298,7 +19298,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
             <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">✏️ 수업 정보 수정</div>
             <div style="font-size:12px;color:var(--text-hint);margin-bottom:14px;">${memberName}</div>
             <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">수업 종류</div>
-            <input id="admin-edit-type" type="text" value="${info.type || ''}" placeholder="예) PT / 기구필라테스"
+            <input id="admin-edit-type" type="text" value="${info.type || ''}" placeholder="예) PT / 기구필라테스" oninput="this.value=this.value.toUpperCase()"
               style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:12px;outline:none;">
             <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">잔여 횟수</div>
             <input id="admin-edit-remain" type="number" value="${info.remain || ''}"
@@ -19348,7 +19348,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
           <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">🔄 재등록</div>
           <div style="font-size:12px;color:var(--text-hint);margin-bottom:14px;">${memberName}</div>
           <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">수업 종류</div>
-          <input id="admin-rereg-type" type="text" value="${currentType || ''}" placeholder="예) PT / 기구필라테스"
+          <input id="admin-rereg-type" type="text" value="${currentType || ''}" placeholder="예) PT / 기구필라테스" oninput="this.value=this.value.toUpperCase()"
             style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:12px;outline:none;">
           <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">추가 횟수</div>
           <input id="admin-rereg-total" type="number" placeholder="예) 10, 20, 30"
