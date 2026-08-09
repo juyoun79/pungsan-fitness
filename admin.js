@@ -2101,7 +2101,7 @@
           card: dp.method === 'card' ? (dp.amount || 0) : 0,
           transfer: dp.method === 'transfer' ? (dp.amount || 0) : 0,
           date: dp.date || '', contractType: meta.contractType, trainerId: '',
-          salesStaffId: '', salesStaffName: '',
+          salesStaffId: dp.salesStaffId || '', salesStaffName: dp.salesStaffName || '',
           daypassKey: dSnap.key, daypassType: dp.type || 'normal', daypassMethod: dp.method || ''
         });
       });
@@ -2150,6 +2150,13 @@
           ).join('')}
         </div>
 
+        <div style="border-top:1px solid var(--border);margin:0 0 14px;"></div>
+
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">담당자</div>
+        <select id="daypass-staff" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:16px;">
+          <option value="">미정</option>
+        </select>
+
         <div style="display:flex;gap:8px;">
           <button onclick="document.getElementById('daypass-modal').remove()" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
           <button onclick="_saveDaypass()" style="flex:1;padding:10px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
@@ -2159,6 +2166,13 @@
     window._daypassSelectedMethod = '';
     window._daypassSelectedType = 'normal';
     _daypassPickType('normal');
+    const staffSel = document.getElementById('daypass-staff');
+    if (staffSel) {
+      _fetchTrainerOptionsForGoal().then(opts => {
+        staffSel.innerHTML = '<option value="">미정</option>' +
+          opts.map(t => `<option value="${t.id}" data-name="${t.name}">${t.name}</option>`).join('');
+      }).catch(() => {});
+    }
   }
   window.openDaypassModal = openDaypassModal;
 
@@ -2193,8 +2207,11 @@
     const meta = DAYPASS_TYPE_META[type] || DAYPASS_TYPE_META.normal;
     if (!amount || amount <= 0) { showToast('금액을 입력해주세요.', 'error'); return; }
     if (!method) { showToast('결제수단을 선택해주세요.', 'error'); return; }
+    const staffSel = document.getElementById('daypass-staff');
+    const staffId = staffSel ? staffSel.value : '';
+    const staffName = staffSel && staffSel.selectedOptions[0] ? (staffSel.selectedOptions[0].dataset.name || '') : '';
     const date = _todayISO();
-    const entry = { name: name || null, phone: phone || null, amount, method, type, date, createdAt: Date.now() };
+    const entry = { name: name || null, phone: phone || null, amount, method, type, date, createdAt: Date.now(), salesStaffId: staffId || null, salesStaffName: staffName || null };
     const newRef = db.ref('daypass_sales').push();
     newRef.set(entry).then(() => {
       document.getElementById('daypass-modal')?.remove();
@@ -2208,7 +2225,7 @@
           card: method === 'card' ? amount : 0,
           transfer: method === 'transfer' ? amount : 0,
           date, contractType: meta.contractType, trainerId: '',
-          salesStaffId: '', salesStaffName: '',
+          salesStaffId: staffId || '', salesStaffName: staffName || '',
           daypassKey: newRef.key, daypassType: type, daypassMethod: method
         });
         loadRevenueStats();
@@ -2259,6 +2276,13 @@
           ).join('')}
         </div>
 
+        <div style="border-top:1px solid var(--border);margin:0 0 14px;"></div>
+
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:6px;">담당자</div>
+        <select id="daypass-edit-staff" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:16px;">
+          <option value="">미정</option>
+        </select>
+
         <div style="display:flex;gap:8px;">
           <button onclick="document.getElementById('daypass-edit-modal').remove()" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
           <button onclick="_saveDaypassEdit('${key}')" style="flex:1;padding:10px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
@@ -2267,6 +2291,13 @@
     document.body.appendChild(modal);
     _daypassEditPickType(entry.daypassType || 'normal');
     _daypassEditPickMethod(entry.daypassMethod || '');
+    const staffSel = document.getElementById('daypass-edit-staff');
+    if (staffSel) {
+      _fetchTrainerOptionsForGoal().then(opts => {
+        staffSel.innerHTML = '<option value="">미정</option>' +
+          opts.map(t => `<option value="${t.id}" data-name="${t.name}" ${t.id === entry.salesStaffId ? 'selected' : ''}>${t.name}</option>`).join('');
+      }).catch(() => {});
+    }
   }
   window.openDaypassEditModal = openDaypassEditModal;
 
@@ -2302,7 +2333,10 @@
     if (!amount || amount <= 0) { showToast('금액을 입력해주세요.', 'error'); return; }
     if (!date) { showToast('결제일을 선택해주세요.', 'error'); return; }
     if (!method) { showToast('결제수단을 선택해주세요.', 'error'); return; }
-    const updates = { name: name || null, phone: phone || null, amount, date, method, type };
+    const staffSel = document.getElementById('daypass-edit-staff');
+    const staffId = staffSel ? staffSel.value : '';
+    const staffName = staffSel && staffSel.selectedOptions[0] ? (staffSel.selectedOptions[0].dataset.name || '') : '';
+    const updates = { name: name || null, phone: phone || null, amount, date, method, type, salesStaffId: staffId || null, salesStaffName: staffName || null };
     db.ref('daypass_sales/' + key).update(updates).then(() => {
       document.getElementById('daypass-edit-modal')?.remove();
       showToast('✅ 수정됐어요.', 'success');
