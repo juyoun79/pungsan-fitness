@@ -19412,6 +19412,9 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
             <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">전체 횟수</div>
             <input id="admin-edit-total" type="number" value="${info.total || ''}"
               style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:12px;outline:none;">
+            <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">등록일자 ${info.regDate ? '' : '<span style="color:#e24b4a;">(비어있음)</span>'}</div>
+            <input id="admin-edit-regdate" type="date" value="${info.regDate || ''}"
+              style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:12px;outline:none;">
             <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">수정 사유 (선택)</div>
             <input id="admin-edit-memo" type="text" placeholder="예) 취소 수업 복구"
               style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);margin-bottom:16px;outline:none;">
@@ -19428,12 +19431,13 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   }
 
   function saveAdminEditTrainee(trainerId, traineeId) {
-    const type   = document.getElementById('admin-edit-type').value.trim();
-    const total  = parseInt(document.getElementById('admin-edit-total').value);
-    const remain = parseInt(document.getElementById('admin-edit-remain').value);
+    const type    = document.getElementById('admin-edit-type').value.trim();
+    const total   = parseInt(document.getElementById('admin-edit-total').value);
+    const remain  = parseInt(document.getElementById('admin-edit-remain').value);
+    const regDate = document.getElementById('admin-edit-regdate').value || '';
     if (!type) { showToast('수업 종류를 입력해주세요.', 'error'); return; }
     if (isNaN(total) || isNaN(remain)) { showToast('횟수를 입력해주세요.', 'error'); return; }
-    db.ref('trainers/' + trainerId + '/trainees/' + traineeId).update({ type, total, remain }).then(() => {
+    db.ref('trainers/' + trainerId + '/trainees/' + traineeId).update({ type, total, remain, regDate }).then(() => {
       showToast('✅ 수정됐어요!', 'success');
       document.getElementById('admin-edit-trainee-modal')?.remove();
       loadMonthlyReport();
