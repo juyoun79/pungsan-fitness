@@ -13125,10 +13125,10 @@
     ctSelectedProgs.forEach(prog => {
       const months   = parseInt(document.getElementById('ct-' + prog + '-months')?.value) || 0;
       const count    = parseInt(document.getElementById('ct-' + prog + '-count')?.value)  || 0;
-      const price    = parseInt(document.getElementById('ct-' + prog + '-price')?.value)  || 0;
-      const cash     = parseInt(document.getElementById('ct-' + prog + '-cash')?.value)   || 0;
-      const card     = parseInt(document.getElementById('ct-' + prog + '-card')?.value)   || 0;
-      const transfer = parseInt(document.getElementById('ct-' + prog + '-transfer')?.value) || 0;
+      const price    = parseInt((document.getElementById('ct-' + prog + '-price')?.value || '0').replace(/[^0-9]/g,''))  || 0;
+      const cash     = parseInt((document.getElementById('ct-' + prog + '-cash')?.value || '0').replace(/[^0-9]/g,''))   || 0;
+      const card     = parseInt((document.getElementById('ct-' + prog + '-card')?.value || '0').replace(/[^0-9]/g,''))   || 0;
+      const transfer = parseInt((document.getElementById('ct-' + prog + '-transfer')?.value || '0').replace(/[^0-9]/g,'')) || 0;
       const endDate  = document.getElementById('ct-' + prog + '-end')?.value || '';
       const paid     = cash + card + transfer;
       const unpaid   = price - paid;
@@ -13190,10 +13190,10 @@
       if (!check?.checked) return;
       const label    = key === 'cloth' ? '👕 운동복' : '🔑 개인 락카';
       const months   = parseInt(document.getElementById('ct-' + key + '-months')?.value)   || 0;
-      const price    = parseInt(document.getElementById('ct-' + key + '-price')?.value)    || 0;
-      const cash     = parseInt(document.getElementById('ct-' + key + '-cash')?.value)     || 0;
-      const card     = parseInt(document.getElementById('ct-' + key + '-card')?.value)     || 0;
-      const transfer = parseInt(document.getElementById('ct-' + key + '-transfer')?.value) || 0;
+      const price    = parseInt((document.getElementById('ct-' + key + '-price')?.value || '0').replace(/[^0-9]/g,''))    || 0;
+      const cash     = parseInt((document.getElementById('ct-' + key + '-cash')?.value || '0').replace(/[^0-9]/g,''))     || 0;
+      const card     = parseInt((document.getElementById('ct-' + key + '-card')?.value || '0').replace(/[^0-9]/g,''))     || 0;
+      const transfer = parseInt((document.getElementById('ct-' + key + '-transfer')?.value || '0').replace(/[^0-9]/g,'')) || 0;
       const paid     = cash + card + transfer;
       const unpaid   = price - paid;
       totalPrice += price; totalPaid += paid; totalCash += cash; totalCard += card; totalTransfer += transfer;
