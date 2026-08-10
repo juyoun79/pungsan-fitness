@@ -1904,6 +1904,35 @@
     _revSubTab = 'summary';
     _revUnit = 'day';
     _revRefDate = new Date();
+
+    // 안전장치: 이전에 목표매출 화면에 있다가 탭을 나갔다 다시 들어와도
+    // 항상 정상 상태(일별 요약 화면)로 복원되도록 화면 요소를 강제로 리셋
+    document.querySelectorAll('.rev-unit-btn').forEach(b => {
+      const active = b.dataset.unit === 'day';
+      b.style.background = active ? 'var(--blue)' : 'var(--card)';
+      b.style.color = active ? 'white' : 'var(--text)';
+      b.style.borderColor = active ? 'var(--blue)' : 'var(--border)';
+    });
+    const navRow = document.getElementById('rev-date-nav-row');
+    const customRow = document.getElementById('rev-custom-range');
+    const goalView = document.getElementById('rev-goal-view');
+    const subtabBar = document.getElementById('rev-subtab-bar-card');
+    const datenavCard = document.getElementById('rev-datenav-card');
+    if (subtabBar) subtabBar.style.display = '';
+    if (datenavCard) datenavCard.style.display = '';
+    if (goalView) goalView.style.display = 'none';
+    if (navRow) navRow.style.display = 'flex';
+    if (customRow) customRow.style.display = 'none';
+    document.querySelectorAll('.rev-subtab-btn').forEach(b => {
+      const active = b.dataset.subtab === 'summary';
+      b.style.background = active ? 'var(--blue)' : 'transparent';
+      b.style.color = active ? 'white' : 'var(--text-sub)';
+    });
+    ['summary', 'chart', 'detail'].forEach(t => {
+      const el = document.getElementById('rev-subtab-' + t);
+      if (el) el.style.display = (t === 'summary') ? '' : 'none';
+    });
+
     _revRenderFilterOptions();
     _revUpdateDateLabel();
     if (_revAllEntries) { loadRevenueStats(); return; }
@@ -1945,7 +1974,8 @@
 
     if (unit === 'goal') {
       if (subtabBar) subtabBar.style.display = 'none';
-      if (datenavCard) datenavCard.style.display = 'none';
+      if (navRow) navRow.style.display = 'none';
+      if (customRow) customRow.style.display = 'none';
       ['summary', 'chart', 'detail'].forEach(t => {
         const el = document.getElementById('rev-subtab-' + t);
         if (el) el.style.display = 'none';
