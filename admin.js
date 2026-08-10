@@ -1520,13 +1520,13 @@
     });
 
     standaloneItems.forEach(it => {
-      const label = REFUND_PROG_NAMES[it.progKey] || it.progKey;
+      const label = REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey);
       if (label !== '🎫 일일권') labels.add(label);
     });
 
     Object.values(pkgGroups).forEach(items => {
       const top = items.reduce((best, cur) => (cur.data.price || 0) > (best.data.price || 0) ? cur : best);
-      const label = REFUND_PROG_NAMES[top.progKey] || top.progKey;
+      const label = REFUND_PROG_NAMES[top.progKey] || getProgLabel(top.progKey);
       if (label !== '🎫 일일권') labels.add(label);
     });
 
@@ -2004,7 +2004,7 @@
           const contractType = c.type === 're' ? '재등록' : (c.type === 'progChange' ? '변경' : (c.type === 'import' ? '이관' : '신규'));
           _flattenContractItems(c).forEach(it => {
             const d = it.data;
-            const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
+            const label = (REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey)) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
             // 미수금을 나중에 완납한 경우, 그 정산분은 계약일이 아니라 "완납한 날짜"의 매출로 따로 잡음
             const settleAmt = d.unpaidSettleAmount || 0;
             const settleMethod = d.unpaidSettleMethod || '';
@@ -2654,7 +2654,7 @@
     const byProg = {};
     entries.forEach(e => { byProg[e.progKey] = (byProg[e.progKey] || 0) + e.cash + e.card + e.transfer; });
     const top = Object.entries(byProg).sort((a, b) => b[1] - a[1])[0];
-    const topLabel = top ? (REFUND_PROG_NAMES[top[0]] || top[0].replace('extra:', '')) : '-';
+    const topLabel = top ? (REFUND_PROG_NAMES[top[0]] || (top[0].startsWith('extra:') ? top[0].replace('extra:', '') : getProgLabel(top[0]))) : '-';
     const reRate = (newCount + reCount) ? Math.round(reCount / (newCount + reCount) * 100) : 0;
     el.style.display = 'block';
     el.innerHTML = `<div style="font-size:13px;color:var(--blue);line-height:1.6;">💡 이 기간 가장 매출이 높은 프로그램은 <b>${topLabel}</b>예요. 재등록 비율은 <b>${reRate}%</b>입니다.</div>`;
@@ -3103,7 +3103,7 @@
             let maxEndDate = null; // 날짜범위 필터(만료일 기준)용 - 가장 늦은 만료일 기준
             let anyOnHold = false;
             activeItems.forEach(it => {
-              const label = REFUND_PROG_NAMES[it.progKey] || it.progKey;
+              const label = REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey);
               if (!progNames.includes(label)) progNames.push(label);
               const onHold = _isActivelyOnHold(it.data);
               if (onHold) anyOnHold = true;
@@ -3302,7 +3302,7 @@
 
       const remainParts = [];
       activeItems.forEach(it => {
-        const label = REFUND_PROG_NAMES[it.progKey] || it.progKey;
+        const label = REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey);
         const onHold = _isActivelyOnHold(it.data);
         const endDate = onHold ? (it.data.activeHold && it.data.activeHold.newEndDate) : it.data.endDate;
         if (endDate) {
@@ -3772,7 +3772,7 @@
           if (!endDate) return;
           const remainDays = _daysUntil(endDate);
           if (remainDays === null) return;
-          const progLabel = REFUND_PROG_NAMES[it.progKey] || it.progKey;
+          const progLabel = REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey);
           let pkgGroupKey = null;
           if (it.pkgName) {
             pkgGroupKey = cSnap.key + '::' + it.pkgIndex + '::' + it.pkgName;
@@ -4091,7 +4091,7 @@
   function _renderMdTimeline(phone, contracts) {
     const el = document.getElementById('md-timeline');
     if (!el) return;
-    const progLabel = (k) => REFUND_PROG_NAMES[k] || (k === 'extra:locker' ? '🔑 락카' : k === 'extra:cloth' ? '👕 운동복' : k);
+    const progLabel = (k) => REFUND_PROG_NAMES[k] || (k === 'extra:locker' ? '🔑 락카' : k === 'extra:cloth' ? '👕 운동복' : getProgLabel(k));
     const events = [];
     let earliestDate = null;
 
@@ -4347,14 +4347,14 @@
         : o.diff < 0 ? ' · 환불 ' + (o.settleAmount||0).toLocaleString() + '원'
         : '';
       const mergedNote = (o.mergedCount && o.mergedCount > 1) ? ' (' + o.mergedLabel + ' 합산 1회 발생)' : '';
-      return `<div style="font-size:10.5px;color:#f59e0b;font-weight:700;">🔄 ${REFUND_PROG_NAMES[o.toProgKey]||o.toProgKey}로 변경됨${settleLabel}${mergedNote} · <span style="white-space:nowrap;">${o.date || ''}</span></div>${_renderCancelBtn('progChangeOut', phone, contractKey, progKey)}`;
+      return `<div style="font-size:10.5px;color:#f59e0b;font-weight:700;">🔄 ${REFUND_PROG_NAMES[o.toProgKey] || getProgLabel(o.toProgKey)}로 변경됨${settleLabel}${mergedNote} · <span style="white-space:nowrap;">${o.date || ''}</span></div>${_renderCancelBtn('progChangeOut', phone, contractKey, progKey)}`;
     }
     if (data.progChangeIn) {
       const i = data.progChangeIn;
       const settleLabel = i.diff > 0 ? ' · 추가결제 ' + (i.settleAmount||0).toLocaleString() + '원'
         : i.diff < 0 ? ' · 환불 ' + (i.settleAmount||0).toLocaleString() + '원'
         : '';
-      const fromLabel = i.fromLabel || (REFUND_PROG_NAMES[i.fromProgKey]||i.fromProgKey);
+      const fromLabel = i.fromLabel || (REFUND_PROG_NAMES[i.fromProgKey] || getProgLabel(i.fromProgKey));
       return `<div style="font-size:10.5px;color:#3b82f6;font-weight:700;">🔄 ${fromLabel}에서 변경됨 (잔여가치 ${(i.remainValueCarried||0).toLocaleString()}원 이전${settleLabel})</div>`;
     }
 
@@ -4681,7 +4681,7 @@
         <span style="flex:1;">${label}</span>
         <span style="color:var(--text-hint);">${(price||0).toLocaleString()}원</span>
       </label>`;
-    const itemBtns = items.map(it => rowHtml(it.progKey, (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : ''), it.data.price)).join('');
+    const itemBtns = items.map(it => rowHtml(it.progKey, (REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey)) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : ''), it.data.price)).join('');
     const extraBtns = extrasList.map(([extKey, e]) =>
       rowHtml('extra:' + extKey, extKey === 'locker' ? '🔑 락카' : extKey === 'cloth' ? '👕 운동복' : extKey, e.price)
     ).join('');
@@ -4727,7 +4727,7 @@
       progKeys.forEach(progKey => {
         const item = items.find(it => it.progKey === progKey);
         if (item) {
-          lines.push({ label: REFUND_PROG_NAMES[progKey] || progKey, data: item.data });
+          lines.push({ label: REFUND_PROG_NAMES[progKey] || getProgLabel(progKey), data: item.data });
         } else if (c.extras && c.extras[progKey.replace('extra:', '')]) {
           const e = c.extras[progKey.replace('extra:', '')];
           lines.push({ label: progKey === 'extra:locker' ? '🔑 락카' : progKey === 'extra:cloth' ? '👕 운동복' : progKey, data: e });
@@ -4887,7 +4887,7 @@
     modal.id = 'app-edit-picker';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
     const itemBtns = items.map(it => {
-      const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
+      const label = (REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey)) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
       return `<button onclick="document.getElementById('app-edit-picker').remove();openItemEditModal('${phone}','${contractKey}','${it.progKey}')"
         style="width:100%;text-align:left;padding:12px;margin-bottom:8px;background:var(--bg,#f7f7f7);border:1px solid #e0e0e0;border-radius:10px;font-size:14px;color:var(--text,#1a1a1a);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
         ${label} · ${(it.data.price||0).toLocaleString()}원</button>`;
@@ -4916,7 +4916,7 @@
     const modal = document.createElement('div');
     modal.id = 'app-edit-modal';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
-    const label = (REFUND_PROG_NAMES[item.progKey] || item.progKey) + (item.pkgName ? ' (📦 ' + item.pkgName + ')' : '');
+    const label = (REFUND_PROG_NAMES[item.progKey] || getProgLabel(item.progKey)) + (item.pkgName ? ' (📦 ' + item.pkgName + ')' : '');
 
     modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:320px;font-family:'Noto Sans KR',sans-serif;">
       <div style="font-size:15px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">✏️ 정보 수정 — ${label}</div>
@@ -5219,7 +5219,7 @@
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
     window._refundPickerItems = items;
     const itemRows = items.map((it, idx) => {
-      const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
+      const label = (REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey)) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
       return `<label style="display:flex;align-items:center;gap:8px;width:100%;padding:12px;margin-bottom:8px;background:var(--bg,#f7f7f7);border:1px solid #e0e0e0;border-radius:10px;font-size:14px;color:var(--text,#1a1a1a);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
         <input type="checkbox" class="prf-pick-item" data-idx="${idx}" style="width:18px;height:18px;flex-shrink:0;">
         <span style="flex:1;">${label} · ${(it.data.price||0).toLocaleString()}원</span>
@@ -5288,7 +5288,7 @@
     modal.id = 'app-refund-modal';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
 
-    let body = `<div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">💰 환불 — ${REFUND_PROG_NAMES[progKey]||progKey}${item.pkgName ? ' (📦 '+item.pkgName+')' : ''}</div>
+    let body = `<div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">💰 환불 — ${REFUND_PROG_NAMES[progKey] || getProgLabel(progKey)}${item.pkgName ? ' (📦 '+item.pkgName+')' : ''}</div>
       <div style="font-size:12px;color:#888;margin-bottom:16px;">등록금액 ${price.toLocaleString()}원 · 등록일 ${startDate || '-'}</div>`;
 
     if (isPeriod) {
@@ -5448,7 +5448,7 @@
     const totalPrice = checkedItems.reduce((s, it) => s + (it.data.price || 0), 0);
     const itemListHtml = checkedItems.map(it =>
       `<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #f0f0f0;">
-        <span style="color:var(--text-sub);">${REFUND_PROG_NAMES[it.progKey]||it.progKey}${it.pkgName?' ('+it.pkgName+')':''}</span>
+        <span style="color:var(--text-sub);">${REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey)}${it.pkgName?' ('+it.pkgName+')':''}</span>
         <span style="font-weight:600;">${(it.data.price||0).toLocaleString()}원</span>
       </div>`).join('');
     document.getElementById('app-multi-refund-modal')?.remove();
@@ -5503,7 +5503,7 @@
     const method = window._mrfMethod || 'cash';
     const checkedItems = window._mrfCheckedItems || [];
     if (!amount) { showToast('환불 금액을 입력해주세요.', 'error'); return; }
-    const names = checkedItems.map(it => REFUND_PROG_NAMES[it.progKey]||it.progKey).join(', ');
+    const names = checkedItems.map(it => REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey)).join(', ');
     showConfirm(`[${names}] 환불 ${amount.toLocaleString()}원을 처리할까요?`, async () => {
       try {
         const refundRecord = { refundAmount: amount, method, date, processedAt: Date.now(), multiRefund: true };
@@ -5555,7 +5555,7 @@
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
     window._transferPickerItems = items;
     const itemRows = items.map((it, idx) => {
-      const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
+      const label = (REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey)) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
       return `<label style="display:flex;align-items:center;gap:8px;width:100%;padding:12px;margin-bottom:8px;background:var(--bg,#f7f7f7);border:1px solid #e0e0e0;border-radius:10px;font-size:14px;color:var(--text,#1a1a1a);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
         <input type="checkbox" class="ptf-pick-item" data-idx="${idx}" style="width:18px;height:18px;flex-shrink:0;">
         <span style="flex:1;">${label} · ${(it.data.price||0).toLocaleString()}원</span>
@@ -5706,7 +5706,7 @@
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
 
     let body = `<div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">🔁 양도 — 2/4 양도 프로그램 정보</div>
-      <div style="font-size:12px;color:#888;margin-bottom:16px;">${REFUND_PROG_NAMES[progKey]||progKey} · ${ctx.fromPhone} → ${ctx.toName}(${ctx.toPhone})</div>
+      <div style="font-size:12px;color:#888;margin-bottom:16px;">${REFUND_PROG_NAMES[progKey] || getProgLabel(progKey)} · ${ctx.fromPhone} → ${ctx.toName}(${ctx.toPhone})</div>
       <div style="background:var(--bg,#f7f7f7);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#888;">
         원래 등록 정보: ${data.startDate||'-'} ~ ${data.endDate||'-'} ${data.count ? '· ' + data.count + '회' : ''} (${(data.price||0).toLocaleString()}원)
       </div>
@@ -5801,7 +5801,7 @@
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
 
     const body = `<div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">🔁 양도 — 3/4 약관동의 및 서명</div>
-      <div style="font-size:12px;color:#888;margin-bottom:14px;">${REFUND_PROG_NAMES[ctx.progKey]||ctx.progKey} · ${ctx.fromPhone} → ${ctx.toName}(${ctx.toPhone}) · 양도비 ${(ctx.transferFee||0).toLocaleString()}원</div>
+      <div style="font-size:12px;color:#888;margin-bottom:14px;">${REFUND_PROG_NAMES[ctx.progKey] || getProgLabel(ctx.progKey)} · ${ctx.fromPhone} → ${ctx.toName}(${ctx.toPhone}) · 양도비 ${(ctx.transferFee||0).toLocaleString()}원</div>
       <div id="tf-mobile-sign-box" style="display:none;border:1.5px solid #bfdbfe;background:#f0f7ff;border-radius:10px;padding:12px;margin-bottom:12px;">
         <div style="display:flex;gap:12px;align-items:center;">
           <div id="tf-mobile-qr" style="width:80px;height:80px;background:white;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"></div>
@@ -6042,7 +6042,7 @@
         birth: ctx.toBirth || (toExisted ? (toSnap.val().birth||'') : ''),
         gender: ctx.toGender === '여' ? 'female' : 'male',
         address: ctx.toAddress || (toExisted ? (toSnap.val().address||'') : ''),
-        memo: (REFUND_PROG_NAMES[ctx.progKey]||ctx.progKey) + ' — ' + (fromContract.name||ctx.fromPhone) + '님으로부터 양도받음 (양도비 ' + (ctx.transferFee||0).toLocaleString() + '원)',
+        memo: (REFUND_PROG_NAMES[ctx.progKey] || getProgLabel(ctx.progKey)) + ' — ' + (fromContract.name||ctx.fromPhone) + '님으로부터 양도받음 (양도비 ' + (ctx.transferFee||0).toLocaleString() + '원)',
         type: 'new',
         signDate: todayStr,
         signUrl: ctx.signUrl,
@@ -6115,7 +6115,7 @@
         };
       });
       const newKey = todayStr + '_' + Date.now();
-      const pkgLabel = ctx.pkgItems.map(it => REFUND_PROG_NAMES[it.progKey] || it.progKey).join('+');
+      const pkgLabel = ctx.pkgItems.map(it => REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey)).join('+');
       updates['contracts/' + ctx.toPhone + '/' + newKey] = {
         name: ctx.toName, phone: ctx.toPhone,
         birth: ctx.toBirth || (toExisted ? (toSnap.val().birth||'') : ''),
@@ -6147,7 +6147,7 @@
     const modal = document.createElement('div');
     modal.id = 'app-transfer-done';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
-    const pkgLabel = ctx.pkgItems.map(it => REFUND_PROG_NAMES[it.progKey] || it.progKey).join('+');
+    const pkgLabel = ctx.pkgItems.map(it => REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey)).join('+');
     modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:320px;text-align:center;font-family:'Noto Sans KR',sans-serif;">
       <div style="font-size:36px;margin-bottom:8px;">🎉</div>
       <div style="font-size:17px;font-weight:700;color:var(--text,#1a1a1a);margin-bottom:6px;">패키지 양도 완료!</div>
@@ -6165,7 +6165,7 @@
     modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:320px;text-align:center;font-family:'Noto Sans KR',sans-serif;">
       <div style="font-size:36px;margin-bottom:8px;">🎉</div>
       <div style="font-size:17px;font-weight:700;color:var(--text,#1a1a1a);margin-bottom:6px;">양도 완료!</div>
-      <div style="font-size:13px;color:#888;line-height:1.6;margin-bottom:16px;">${ctx.toName}님에게 ${REFUND_PROG_NAMES[ctx.progKey]||ctx.progKey} 양도가 완료됐어요.</div>
+      <div style="font-size:13px;color:#888;line-height:1.6;margin-bottom:16px;">${ctx.toName}님에게 ${REFUND_PROG_NAMES[ctx.progKey] || getProgLabel(ctx.progKey)} 양도가 완료됐어요.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
         <button onclick="openContractPdf()" style="padding:12px;background:#185FA5;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📄 PDF 저장</button>
         <button onclick="sendContractToMember()" style="padding:12px;background:#059669;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📱 앱 전송</button>
@@ -6221,7 +6221,7 @@
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
     window._progChangePickerItems = items; // 체크박스 인덱스로 다시 찾기 위해 임시저장
     const itemRows = items.map((it, idx) => {
-      const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
+      const label = (REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey)) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
       return `<label style="display:flex;align-items:center;gap:8px;width:100%;padding:12px;margin-bottom:8px;background:var(--bg,#f7f7f7);border:1px solid #e0e0e0;border-radius:10px;font-size:14px;color:var(--text,#1a1a1a);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
         <input type="checkbox" class="pc-pick-item" data-idx="${idx}" style="width:18px;height:18px;flex-shrink:0;">
         <span style="flex:1;">${label} · ${(it.data.price||0).toLocaleString()}원</span>
@@ -6250,7 +6250,7 @@
       window._changeCtx = {
         phone,
         pkgItems: checked.map(it => ({ contractKey, progKey: it.progKey, pkgIndex: it.pkgIndex, data: it.data })),
-        progKey: checked.map(it => REFUND_PROG_NAMES[it.progKey] || it.progKey).join(' + ')
+        progKey: checked.map(it => REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey)).join(' + ')
       };
       _renderPkgProgChangeStep1();
     }
@@ -6293,7 +6293,7 @@
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
 
     const body = `<div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">🔄 프로그램 변경 — 1/4 잔여가치 확인</div>
-      <div style="font-size:12px;color:#888;margin-bottom:14px;">${REFUND_PROG_NAMES[progKey]||progKey} · 등록금액 ${(data.price||0).toLocaleString()}원 · 총 ${totalUnit}${unitLabel}</div>
+      <div style="font-size:12px;color:#888;margin-bottom:14px;">${REFUND_PROG_NAMES[progKey] || getProgLabel(progKey)} · 등록금액 ${(data.price||0).toLocaleString()}원 · 총 ${totalUnit}${unitLabel}</div>
       <div style="font-size:12px;color:#888;margin-bottom:4px;">잔여 ${unitLabel}수 (직접 입력)</div>
       <input id="pc-remain" type="number" value="0" oninput="_recalcProgChange()"
         style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:6px;font-family:'Noto Sans KR',sans-serif;">
@@ -6499,8 +6499,8 @@
 
     const body = `<div style="font-size:15px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">🔄 프로그램 변경 — 4/4 최종 확인</div>
       <div style="background:var(--bg,#f7f7f7);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px;line-height:1.8;color:var(--text,#1a1a1a);">
-        <div>기존 프로그램: <b>${REFUND_PROG_NAMES[ctx.progKey]||ctx.progKey}</b></div>
-        <div>변경할 프로그램: <b>${REFUND_PROG_NAMES[ctx.newProgKey]||ctx.newProgKey}</b></div>
+        <div>기존 프로그램: <b>${REFUND_PROG_NAMES[ctx.progKey] || getProgLabel(ctx.progKey)}</b></div>
+        <div>변경할 프로그램: <b>${REFUND_PROG_NAMES[ctx.newProgKey] || getProgLabel(ctx.newProgKey)}</b></div>
         <div>잔여가치: ${ctx.remainValue.toLocaleString()}원</div>
         <div>변경후금액: ${ctx.newPrice.toLocaleString()}원</div>
         <div style="margin-top:6px;font-weight:700;color:#3b82f6;">${diffLine}</div>
@@ -6621,7 +6621,7 @@
       const newContractData = {
         name: contractInfo.name || '', phone: ctx.phone,
         birth: contractInfo.birth || '', gender: contractInfo.gender || '', address: contractInfo.address || '',
-        memo: ctx.progKey + ' → ' + (REFUND_PROG_NAMES[ctx.newProgKey]||ctx.newProgKey) + ' 프로그램 변경 (잔여가치 ' + ctx.remainValue.toLocaleString() + '원 이전)',
+        memo: ctx.progKey + ' → ' + (REFUND_PROG_NAMES[ctx.newProgKey] || getProgLabel(ctx.newProgKey)) + ' 프로그램 변경 (잔여가치 ' + ctx.remainValue.toLocaleString() + '원 이전)',
         // 매출통계에서는 원래 계약이 신규였으면 신규, 재등록이었으면 재등록으로 그대로 이어받음 (매출이 어디에도 안 빠지게)
         // isProgChange 플래그로 "프로그램변경으로 생긴 계약"이라는 사실은 별도로 남겨둠 (계약이력 카드에 "변경" 표시용)
         type: contractInfo.type === 're' ? 're' : 'new', isProgChange: true,
@@ -6662,7 +6662,7 @@
     const itemRows = ctx.pkgItems.map(it => {
       const d = it.data;
       return `<div style="font-size:12px;color:#888;padding:4px 0;border-bottom:1px solid #e5e5e5;">
-        ${REFUND_PROG_NAMES[it.progKey]||it.progKey} · ${(d.price||0).toLocaleString()}원 ${d.count ? '· '+d.count+'회':''} (${d.startDate||'-'}~${d.endDate||'-'})
+        ${REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey)} · ${(d.price||0).toLocaleString()}원 ${d.count ? '· '+d.count+'회':''} (${d.startDate||'-'}~${d.endDate||'-'})
       </div>`;
     }).join('');
 
@@ -6728,7 +6728,7 @@
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
     window._holdPickerItems = items; // 체크박스 인덱스로 다시 찾기 위해 임시저장
     const itemRows = items.map((it, idx) => {
-      const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
+      const label = (REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey)) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
       return `<label style="display:flex;align-items:center;gap:8px;width:100%;padding:12px;margin-bottom:8px;background:var(--bg,#f7f7f7);border:1px solid #e0e0e0;border-radius:10px;font-size:14px;color:var(--text,#1a1a1a);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
         <input type="checkbox" class="ph-pick-item" data-idx="${idx}" style="width:18px;height:18px;flex-shrink:0;">
         <span style="flex:1;">${label} · 종료일 ${it.data.endDate||'-'}</span>
@@ -6787,7 +6787,7 @@
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
 
     const body = `<div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">⏸️ 정지/휴회</div>
-      <div style="font-size:12px;color:#888;margin-bottom:14px;">${REFUND_PROG_NAMES[ctx.progKey]||ctx.progKey} · 현재 종료일 ${data.endDate||'-'}</div>
+      <div style="font-size:12px;color:#888;margin-bottom:14px;">${REFUND_PROG_NAMES[ctx.progKey] || getProgLabel(ctx.progKey)} · 현재 종료일 ${data.endDate||'-'}</div>
       <div style="font-size:12px;color:#888;margin-bottom:4px;">휴회 시작일</div>
       <input id="ph-start-date" type="date" value="${_todayISO()}" onchange="_onHoldDateChange()"
         style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;margin-bottom:10px;font-family:'Noto Sans KR',sans-serif;">
@@ -6883,7 +6883,7 @@
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
 
     const itemRows = ctx.items.map((it, idx) => {
-      const label = (REFUND_PROG_NAMES[it.progKey] || it.progKey) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
+      const label = (REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey)) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
       return `<div style="font-size:12px;color:#888;padding:6px 0;border-bottom:1px solid #e5e5e5;">
         ${label} · 현재 종료일 ${it.data.endDate||'-'}
         <div id="mh-end-${idx}" style="color:#3b82f6;font-weight:700;margin-top:2px;"></div>
@@ -12624,7 +12624,7 @@
             const newEnd = _addDaysToDate(it.data.endDate, days);
             if (!newEnd) return;
             updates[basePath + '/endDate'] = newEnd;
-            const detailEntry = { phone, name: memberName, type: 'program', label: REFUND_PROG_NAMES[it.progKey] || it.progKey, path: basePath, oldEnd: it.data.endDate, newEnd };
+            const detailEntry = { phone, name: memberName, type: 'program', label: REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey), path: basePath, oldEnd: it.data.endDate, newEnd };
             if (onHold) {
               const newHoldEnd = _addDaysToDate(it.data.activeHold.newEndDate, days);
               if (newHoldEnd) {
