@@ -3888,7 +3888,12 @@
         </div>
         <!-- 오늘 전체 스케줄 -->
         <div id="admin-sch-today">
-          <div id="admin-today-label" style="font-size:12px;color:var(--text-hint);margin-bottom:8px;"></div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px;position:relative;">
+            <button onclick="changeAdminTodayDate(-1)" style="width:30px;height:30px;padding:0;display:flex;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--border);border-radius:50%;cursor:pointer;font-size:14px;color:var(--text);">‹</button>
+            <button id="admin-today-label" onclick="toggleAdminTodayCalendar()" style="font-size:12px;color:var(--text-hint);background:none;border:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;gap:4px;padding:4px 8px;"></button>
+            <button onclick="changeAdminTodayDate(1)" style="width:30px;height:30px;padding:0;display:flex;align-items:center;justify-content:center;background:var(--card);border:1px solid var(--border);border-radius:50%;cursor:pointer;font-size:14px;color:var(--text);">›</button>
+            <div id="admin-today-calendar" style="display:none;position:absolute;top:36px;left:50%;transform:translateX(-50%);z-index:50;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:0 4px 16px rgba(0,0,0,0.15);width:260px;"></div>
+          </div>
           <div style="overflow-x:auto;">
             <table id="admin-today-table" style="border-collapse:collapse;width:100%;table-layout:fixed;">
               <thead id="admin-today-head"></thead>

@@ -361,8 +361,10 @@
   let adminTrainerList = [];
   let adminSelectedTrainer = null;
   let adminTrainerBaseDate = new Date();
+  let adminTodayBaseDate = new Date();
 
   function loadAdminTrainerSchedule() {
+    adminTodayBaseDate = new Date();
     loadAdminTrainerList();
     initReportMonth();
     switchAdminScheduleTab('today');
@@ -382,17 +384,89 @@
     } else {
       todayEl.style.display = 'none';
       trainerEl.style.display = 'block';
+      const cal = document.getElementById('admin-today-calendar');
+      if (cal) cal.style.display = 'none';
       btnTrainer.style.background = 'var(--blue)'; btnTrainer.style.color = 'white'; btnTrainer.style.border = 'none';
       btnToday.style.background = 'var(--card)'; btnToday.style.color = 'var(--text)'; btnToday.style.border = '1px solid var(--border)';
       loadAdminTrainerList();
     }
   }
 
+  function changeAdminTodayDate(dir) {
+    adminTodayBaseDate.setDate(adminTodayBaseDate.getDate() + dir);
+    renderAdminTodaySchedule();
+    const cal = document.getElementById('admin-today-calendar');
+    if (cal) cal.style.display = 'none';
+  }
+  window.changeAdminTodayDate = changeAdminTodayDate;
+
+  function toggleAdminTodayCalendar() {
+    const cal = document.getElementById('admin-today-calendar');
+    if (!cal) return;
+    if (cal.style.display === 'none' || !cal.style.display) {
+      _renderAdminTodayCalendarPicker();
+      cal.style.display = 'block';
+    } else {
+      cal.style.display = 'none';
+    }
+  }
+  window.toggleAdminTodayCalendar = toggleAdminTodayCalendar;
+
+  function _renderAdminTodayCalendarPicker() {
+    const cal = document.getElementById('admin-today-calendar');
+    if (!cal) return;
+    const base = adminTodayBaseDate;
+    const y = base.getFullYear(), m = base.getMonth();
+    const first = new Date(y, m, 1);
+    const startDow = first.getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const todayStr = _todayISO();
+    const selStr = _isoDate(base);
+    const dayLabels = ['일','월','화','수','목','금','토'];
+
+    let cells = '';
+    for (let i = 0; i < startDow; i++) cells += '<span></span>';
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dStr = y + '-' + String(m+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+      const isToday = dStr === todayStr;
+      const isSel = dStr === selStr;
+      const bg = isSel ? 'var(--blue)' : (isToday ? 'var(--bg-accent, #E6F1FB)' : 'transparent');
+      const color = isSel ? 'white' : 'var(--text)';
+      cells += '<span onclick="selectAdminTodayDate(' + y + ',' + m + ',' + d + ')" style="padding:5px 0;text-align:center;border-radius:50%;cursor:pointer;background:' + bg + ';color:' + color + ';font-size:11px;">' + d + '</span>';
+    }
+
+    cal.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
+        '<button onclick="_shiftAdminTodayCalendarMonth(-1)" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--text);padding:2px 6px;">‹</button>' +
+        '<span style="font-size:12.5px;font-weight:700;color:var(--text);">' + y + '년 ' + (m+1) + '월</span>' +
+        '<button onclick="_shiftAdminTodayCalendarMonth(1)" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--text);padding:2px 6px;">›</button>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;font-size:10px;text-align:center;color:var(--text-hint);margin-bottom:4px;">' +
+        dayLabels.map(d => '<span>'+d+'</span>').join('') +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">' + cells + '</div>';
+  }
+
+  function _shiftAdminTodayCalendarMonth(dir) {
+    adminTodayBaseDate.setMonth(adminTodayBaseDate.getMonth() + dir);
+    _renderAdminTodayCalendarPicker();
+  }
+  window._shiftAdminTodayCalendarMonth = _shiftAdminTodayCalendarMonth;
+
+  function selectAdminTodayDate(y, m, d) {
+    adminTodayBaseDate = new Date(y, m, d);
+    renderAdminTodaySchedule();
+    const cal = document.getElementById('admin-today-calendar');
+    if (cal) cal.style.display = 'none';
+  }
+  window.selectAdminTodayDate = selectAdminTodayDate;
+
   function renderAdminTodaySchedule() {
-    const today = new Date();
-    const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+    const today = adminTodayBaseDate;
+    const todayStr = _isoDate(today);
     const days = ['일','월','화','수','목','금','토'];
-    document.getElementById('admin-today-label').textContent =
+    document.getElementById('admin-today-label').innerHTML =
+      '📅 ' +
       today.getFullYear() + '년 ' + (today.getMonth()+1) + '월 ' + today.getDate() + '일 (' + days[today.getDay()] + ') 전체 스케줄';
 
     db.ref('trainers').once('value', snap => {
