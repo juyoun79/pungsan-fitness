@@ -840,10 +840,18 @@
       if (window.memberCache && Object.keys(window.memberCache).length > 0) {
         startFeedListener();
       } else {
+        let settled = false;
+        const timeoutId = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          _renderCommunityLoadError(cat);
+        }, 6000);
         Promise.all([
           db.ref('members').once('value'),
           db.ref('users').once('value')
         ]).then(([memberSnap, userSnap]) => {
+          if (settled) return; // 이미 타임아웃으로 에러화면이 떴으면 뒤늦게 도착한 응답은 무시
+          settled = true; clearTimeout(timeoutId);
           window.memberCache = {};
           memberSnap.forEach(child => {
             window.memberCache[child.key] = child.val().name || '';
@@ -857,11 +865,23 @@
             }
           });
           startFeedListener();
+        }).catch(() => {
+          settled = true; clearTimeout(timeoutId);
+          _renderCommunityLoadError(cat);
         });
       }
     } else {
       startFeedListener();
     }
+  }
+
+  function _renderCommunityLoadError(cat) {
+    const feedEl = document.getElementById('community-feed');
+    if (!feedEl) return;
+    feedEl.innerHTML = '<div style="text-align:center;padding:32px;">' +
+      '<div style="font-size:14px;color:var(--text-hint);margin-bottom:12px;">불러오지 못했어요. 네트워크 상태를 확인해주세요.</div>' +
+      '<button onclick="loadCommunityFeed(\'' + cat + '\')" style="padding:9px 18px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">🔄 다시 시도</button>' +
+      '</div>';
   }
 
   // ── 피드 카드 빌더 (작성자 클릭 기능 포함) ──

@@ -14314,11 +14314,32 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     const dates = getScheduleWeekDates(scheduleBaseDate);
     const startDate = fmtDate(dates[0]);
     const endDate = fmtDate(dates[6]);
-    db.ref('trainers/' + trainerId + '/schedule').once('value', snap => {
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      _renderScheduleLoadError();
+    }, 6000);
+    db.ref('trainers/' + trainerId + '/schedule').once('value').then(snap => {
+      if (settled) return; // 이미 타임아웃으로 에러화면이 떴으면 뒤늦게 도착한 응답은 무시
+      settled = true; clearTimeout(timeoutId);
       scheduleData = snap.val() || {};
       renderSchedule();
+    }).catch(() => {
+      settled = true; clearTimeout(timeoutId);
+      _renderScheduleLoadError();
     });
   }
+
+  function _renderScheduleLoadError() {
+    const body = document.getElementById('schedule-body');
+    if (!body) return;
+    body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px 12px;">' +
+      '<div style="font-size:13px;color:var(--text-hint);margin-bottom:10px;">불러오지 못했어요. 네트워크 상태를 확인해주세요.</div>' +
+      '<button onclick="loadScheduleData()" style="padding:8px 16px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">🔄 다시 시도</button>' +
+      '</td></tr>';
+  }
+  window.loadScheduleData = loadScheduleData;
 
   function renderSchedule() {
     const dates = getScheduleWeekDates(scheduleBaseDate);
@@ -14652,7 +14673,13 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     currentTraineeId = memberId;
     trainerCalSelectedDate = null; // 이전 회원 상세에서 선택했던 날짜가 남아있지 않도록 초기화
     const trainerId = localStorage.getItem('current_user');
-    db.ref('trainers/' + trainerId + '/trainees/' + memberId).once('value', snap => {
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      showToast('불러오지 못했어요. 다시 눌러주세요.', 'error');
+    }, 6000);
+    db.ref('trainers/' + trainerId + '/trainees/' + memberId).once('value').then(snap => {
+      settled = true; clearTimeout(timeoutId);
       const info = snap.val();
       if (!info) return;
       // members에서 최신 이름 실시간 읽기
@@ -14660,7 +14687,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         const realName = nameSnap.val() || info.name || memberId;
         document.getElementById('trainee-detail-name').textContent = realName;
         document.getElementById('trainee-card-name').textContent = realName;
-      });
+      }).catch(() => {});
       document.getElementById('trainee-card-type').textContent = info.type || '수업 종류 미설정';
       // 잔여/총횟수/차수는 loadTraineeHistory가 signs 기준으로 계산해서 표시
       const progressEl = document.getElementById('trainee-card-progress');
@@ -14673,6 +14700,9 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       refreshTraineeView(memberId);
       showScreen('screen-trainee-detail');
       switchTraineeTab('record');
+    }).catch(() => {
+      settled = true; clearTimeout(timeoutId);
+      showToast('불러오지 못했어요. 다시 눌러주세요.', 'error');
     });
   }
 
