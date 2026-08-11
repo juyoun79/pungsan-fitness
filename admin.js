@@ -8235,8 +8235,12 @@
           <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--text-hint);">기간</span><span style="font-size:13px;font-weight:600;">${d.startDate||'-'} ~ ${d.endDate||'-'}</span></div>
           <div style="display:flex;justify-content:space-between;"><span style="font-size:12px;color:var(--text-hint);">자물쇠</span><span style="font-size:13px;font-weight:600;">${d.lockPassword || '-'}</span></div>
         </div>
-        <button onclick="editLockerSlot('${catId}','${no}')"
-          style="width:100%;padding:11px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;">✏️ 정보 수정</button>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <button onclick="editLockerSlot('${catId}','${no}')"
+            style="flex:1;padding:11px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 정보 수정</button>
+          <button onclick="openLockerChangeNoModal('${catId}','${no}')"
+            style="flex:1;padding:11px;background:#E6F1FB;color:#0C447C;border:1.5px solid #B5D4F4;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔀 번호변경</button>
+        </div>
         <div style="display:flex;gap:8px;">
           ${d.status === 'expired' || (d.endDate && d.endDate < _todayISO())
             ? `<button onclick="collectLocker('${catId}','${no}')" style="flex:1;padding:11px;background:#fff3e0;color:#e65100;border:1.5px solid #ffb74d;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✅ 회수 완료</button>`
@@ -9355,6 +9359,89 @@
     renderLockerStatus();
     showToast('✅ 회수 완료! 락카가 비워졌어요.', 'success');
   }
+
+  // 락카 번호변경 — 기존 정보(이름/연락처/기간/자물쇠번호)를 그대로 유지한 채 다른 빈 번호로 옮김.
+  // 연결된 계약이력(linkedContract)이 있으면 그 안의 번호 정보도 같이 갱신해서 계약이력을 새로 남길 필요가 없게 처리.
+  function openLockerChangeNoModal(fromCatId, fromNo) {
+    const fromKey = fromCatId + '_' + fromNo;
+    const d = lockerData[fromKey];
+    if (!d) { showToast('락카 정보를 찾을 수 없어요.', 'error'); return; }
+    const fromCat = lockerCategories.find(c => c.id === fromCatId);
+
+    // 전체 구역에서 비어있는 번호만 모아서 옵션 목록 구성 (다른 구역으로도 이동 가능)
+    let optionsHtml = '';
+    lockerCategories.forEach(cat => {
+      const start = parseInt(cat.startNo) || 1;
+      const end = parseInt(cat.endNo) || start;
+      for (let no = start; no <= end; no++) {
+        const key = cat.id + '_' + no;
+        if (key === fromKey) continue;
+        const slot = lockerData[key];
+        const isEmpty = !slot || (!slot.phone && slot.status !== 'disabled');
+        if (isEmpty) optionsHtml += `<option value="${cat.id}_${no}">${cat.name} ${no}번</option>`;
+      }
+    });
+
+    if (!optionsHtml) {
+      showToast('옮길 수 있는 빈 번호가 없어요.', 'error');
+      return;
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'locker-changeno-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    modal.innerHTML = `
+      <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:320px;box-sizing:border-box;">
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:12px;">🔀 번호변경 — ${d.name || '-'}</div>
+        <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">현재 번호</div>
+        <div style="background:var(--bg);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text);margin-bottom:14px;">${fromCat ? fromCat.name : ''} ${fromNo}번</div>
+        <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">옮길 번호 (빈 번호만 표시)</div>
+        <select id="locker-changeno-target" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:16px;">
+          ${optionsHtml}
+        </select>
+        <div style="display:flex;gap:8px;">
+          <button onclick="document.getElementById('locker-changeno-modal').remove()" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+          <button onclick="saveLockerChangeNo('${fromCatId}','${fromNo}')" style="flex:1;padding:10px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이동</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  window.openLockerChangeNoModal = openLockerChangeNoModal;
+
+  async function saveLockerChangeNo(fromCatId, fromNo) {
+    const fromKey = fromCatId + '_' + fromNo;
+    const d = lockerData[fromKey];
+    const targetSel = document.getElementById('locker-changeno-target');
+    const toKey = targetSel ? targetSel.value : '';
+    if (!d || !toKey) return;
+    const [toCatId, toNo] = toKey.split('_');
+
+    const newEntry = { ...d, categoryId: toCatId, lockerNo: toNo };
+
+    try {
+      await db.ref('lockers/' + toKey).set(newEntry);
+      await db.ref('lockers/' + fromKey).remove();
+      if (d.phone) await db.ref('members/' + d.phone + '/lockerKey').set(toKey);
+
+      // 연결된 계약이력이 있으면, 그 안에 저장된 번호 정보도 같이 갱신해서 계약이력을 새로 남기지 않아도 되게 함
+      if (d.linkedContract && d.linkedContract.phone && d.linkedContract.contractKey) {
+        await db.ref('contracts/' + d.linkedContract.phone + '/' + d.linkedContract.contractKey + '/extras/locker').update({
+          lockerNo: toNo, lockerCatId: toCatId, lockerKey: toKey
+        });
+      }
+
+      delete lockerData[fromKey];
+      lockerData[toKey] = newEntry;
+      document.getElementById('locker-changeno-modal')?.remove();
+      closeLockerDetail();
+      renderLockerStatus();
+      showToast('✅ 번호가 변경됐어요.', 'success');
+    } catch (e) {
+      console.error('락카 번호변경 실패:', e);
+      showToast('번호변경 중 오류가 발생했어요.', 'error');
+    }
+  }
+  window.saveLockerChangeNo = saveLockerChangeNo;
 
   async function releaseLocker(catId, no) {
     const key = catId + '_' + no;
