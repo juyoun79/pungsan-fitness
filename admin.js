@@ -7866,6 +7866,16 @@
 
   // ── 락카 관리 ──
   let lockerCategories = []; // [{id, name, color, startNo, endNo}]
+
+  // 락카 배정/해제/변경 시, 회원상세 화면이 참조하는 cachedMembers도 같이 갱신 —
+  // 안 해주면 락카탭에서 바꾼 직후 회원상세를 열었을 때 "미배정"처럼 예전 상태가 그대로 보이는 문제가 생김
+  function _syncCachedMemberLocker(phone, lockerKeyOrNull) {
+    try {
+      if (typeof cachedMembers !== 'undefined' && cachedMembers[phone]) {
+        cachedMembers[phone].lockerKey = lockerKeyOrNull || null;
+      }
+    } catch (e) { /* 캐시 갱신 실패는 무시 — 다음 회원목록 새로고침 때 정상화됨 */ }
+  }
   let lockerData = {};       // {번호: {phone, name, startDate, endDate, lockPassword, status, categoryId}}
 
   async function loadLockerTab() {
@@ -9356,6 +9366,7 @@
     await db.ref('lockers/' + key).set(lockerEntry);
     // 회원 데이터에도 락카 번호 저장
     await db.ref('members/' + phone + '/lockerKey').set(key);
+    _syncCachedMemberLocker(phone, key);
     lockerData[key] = lockerEntry;
 
     try {
@@ -9388,7 +9399,7 @@
     const key = catId + '_' + no;
     await db.ref('lockers/' + key + '/status').set('collected');
     await db.ref('lockers/' + key).remove();
-    if (lockerData[key]?.phone) await db.ref('members/' + lockerData[key].phone + '/lockerKey').remove();
+    if (lockerData[key]?.phone) { await db.ref('members/' + lockerData[key].phone + '/lockerKey').remove(); _syncCachedMemberLocker(lockerData[key].phone, null); }
     delete lockerData[key];
     closeLockerDetail();
     renderLockerStatus();
@@ -9504,7 +9515,7 @@
     try {
       await db.ref('lockers/' + toKey).set(newEntry);
       await db.ref('lockers/' + fromKey).remove();
-      if (d.phone) await db.ref('members/' + d.phone + '/lockerKey').set(toKey);
+      if (d.phone) { await db.ref('members/' + d.phone + '/lockerKey').set(toKey); _syncCachedMemberLocker(d.phone, toKey); }
 
       // 연결된 계약이력이 있으면, 그 안에 저장된 번호 정보도 같이 갱신해서 계약이력을 새로 남기지 않아도 되게 함
       if (d.linkedContract && d.linkedContract.phone && d.linkedContract.contractKey) {
@@ -9656,6 +9667,7 @@
 
       await db.ref('lockers/' + key).set(lockerEntry);
       await db.ref('members/' + phone + '/lockerKey').set(key);
+      _syncCachedMemberLocker(phone, key);
       await db.ref('contracts/' + phone + '/' + contractKey + '/extras/locker').update({
         lockerNo: no, lockerCatId: catId, lockerKey: key
       });
@@ -9725,7 +9737,7 @@
   async function releaseLocker(catId, no) {
     const key = catId + '_' + no;
     showConfirm('이 락카를 해제할까요?', async () => {
-      if (lockerData[key]?.phone) await db.ref('members/' + lockerData[key].phone + '/lockerKey').remove();
+      if (lockerData[key]?.phone) { await db.ref('members/' + lockerData[key].phone + '/lockerKey').remove(); _syncCachedMemberLocker(lockerData[key].phone, null); }
       await db.ref('lockers/' + key).remove();
       delete lockerData[key];
       renderLockerStatus();
@@ -13899,6 +13911,7 @@
           linkedContract: { phone, contractKey }, // 계약이력 ↔ 락카탭 시작일/종료일 양방향 동기화용 연결고리
         });
         await db.ref('members/' + phone + '/lockerKey').set(lockerKey);
+        _syncCachedMemberLocker(phone, lockerKey);
       }
 
       // 4. 완료 화면
