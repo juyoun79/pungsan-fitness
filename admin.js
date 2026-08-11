@@ -9362,59 +9362,107 @@
 
   // 락카 번호변경 — 기존 정보(이름/연락처/기간/자물쇠번호)를 그대로 유지한 채 다른 빈 번호로 옮김.
   // 연결된 계약이력(linkedContract)이 있으면 그 안의 번호 정보도 같이 갱신해서 계약이력을 새로 남길 필요가 없게 처리.
+  // 각 구역별로 비어있는 번호 목록을 미리 계산해두는 헬퍼
+  function _getEmptyLockerNos(catId, excludeKey) {
+    const cat = lockerCategories.find(c => c.id === catId);
+    if (!cat) return [];
+    const start = parseInt(cat.startNo) || 1;
+    const end = parseInt(cat.endNo) || start;
+    const list = [];
+    for (let no = start; no <= end; no++) {
+      const key = catId + '_' + no;
+      if (key === excludeKey) continue;
+      const slot = lockerData[key];
+      const isEmpty = !slot || (!slot.phone && slot.status !== 'disabled');
+      if (isEmpty) list.push(no);
+    }
+    return list;
+  }
+
   function openLockerChangeNoModal(fromCatId, fromNo) {
     const fromKey = fromCatId + '_' + fromNo;
     const d = lockerData[fromKey];
     if (!d) { showToast('락카 정보를 찾을 수 없어요.', 'error'); return; }
     const fromCat = lockerCategories.find(c => c.id === fromCatId);
 
-    // 전체 구역에서 비어있는 번호만 모아서 옵션 목록 구성 (다른 구역으로도 이동 가능)
-    let optionsHtml = '';
-    lockerCategories.forEach(cat => {
-      const start = parseInt(cat.startNo) || 1;
-      const end = parseInt(cat.endNo) || start;
-      for (let no = start; no <= end; no++) {
-        const key = cat.id + '_' + no;
-        if (key === fromKey) continue;
-        const slot = lockerData[key];
-        const isEmpty = !slot || (!slot.phone && slot.status !== 'disabled');
-        if (isEmpty) optionsHtml += `<option value="${cat.id}_${no}">${cat.name} ${no}번</option>`;
-      }
-    });
-
-    if (!optionsHtml) {
+    // 빈 번호가 하나라도 있는 구역만 버튼으로 노출
+    const catsWithEmpty = lockerCategories.filter(cat => _getEmptyLockerNos(cat.id, fromKey).length > 0);
+    if (catsWithEmpty.length === 0) {
       showToast('옮길 수 있는 빈 번호가 없어요.', 'error');
       return;
     }
+    // 원래 구역에 빈 번호가 있으면 그 구역을 기본 선택, 없으면 첫 번째 구역
+    const defaultCatId = catsWithEmpty.find(c => c.id === fromCatId) ? fromCatId : catsWithEmpty[0].id;
 
     const modal = document.createElement('div');
     modal.id = 'locker-changeno-modal';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;';
     modal.innerHTML = `
-      <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:320px;box-sizing:border-box;">
+      <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:340px;box-sizing:border-box;max-height:80vh;overflow-y:auto;">
         <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:12px;">🔀 번호변경 — ${d.name || '-'}</div>
         <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">현재 번호</div>
         <div style="background:var(--bg);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text);margin-bottom:14px;">${fromCat ? fromCat.name : ''} ${fromNo}번</div>
-        <div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">옮길 번호 (빈 번호만 표시)</div>
-        <select id="locker-changeno-target" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:16px;">
-          ${optionsHtml}
-        </select>
-        <div style="display:flex;gap:8px;">
-          <button onclick="document.getElementById('locker-changeno-modal').remove()" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
-          <button onclick="saveLockerChangeNo('${fromCatId}','${fromNo}')" style="flex:1;padding:10px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이동</button>
-        </div>
+        <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">옮길 구역</div>
+        <div id="locker-changeno-cat-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"></div>
+        <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">옮길 번호 (빈 번호만 표시)</div>
+        <div id="locker-changeno-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:16px;"></div>
+        <button onclick="document.getElementById('locker-changeno-modal').remove()" style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
       </div>`;
     document.body.appendChild(modal);
+
+    modal.dataset.fromCatId = fromCatId;
+    modal.dataset.fromNo = fromNo;
+
+    const catBtnsEl = document.getElementById('locker-changeno-cat-btns');
+    catBtnsEl.innerHTML = catsWithEmpty.map(cat =>
+      `<button type="button" onclick="_selectLockerChangeNoCat('${cat.id}')" data-cat-id="${cat.id}"
+        style="padding:7px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
+        background:${cat.id === defaultCatId ? '#185FA5' : 'var(--card)'};color:${cat.id === defaultCatId ? 'white' : 'var(--text)'};border:${cat.id === defaultCatId ? 'none' : '1px solid var(--border)'};">
+        ${cat.name}</button>`
+    ).join('');
+
+    _selectLockerChangeNoCat(defaultCatId);
   }
   window.openLockerChangeNoModal = openLockerChangeNoModal;
 
-  async function saveLockerChangeNo(fromCatId, fromNo) {
+  function _selectLockerChangeNoCat(catId) {
+    const modal = document.getElementById('locker-changeno-modal');
+    if (!modal) return;
+    const fromCatId = modal.dataset.fromCatId;
+    const fromNo = modal.dataset.fromNo;
     const fromKey = fromCatId + '_' + fromNo;
+
+    document.querySelectorAll('#locker-changeno-cat-btns button').forEach(b => {
+      const sel = b.getAttribute('data-cat-id') === catId;
+      b.style.background = sel ? '#185FA5' : 'var(--card)';
+      b.style.color = sel ? 'white' : 'var(--text)';
+      b.style.border = sel ? 'none' : '1px solid var(--border)';
+    });
+
+    const emptyNos = _getEmptyLockerNos(catId, fromKey);
+    const gridEl = document.getElementById('locker-changeno-grid');
+    gridEl.innerHTML = emptyNos.length
+      ? emptyNos.map(no =>
+          `<button type="button" onclick="confirmLockerChangeNo('${fromCatId}','${fromNo}','${catId}','${no}')"
+            style="padding:9px 0;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:var(--card);color:var(--text);border:1px solid var(--border);">${no}</button>`
+        ).join('')
+      : '<div style="grid-column:1/-1;font-size:12px;color:var(--text-hint);text-align:center;padding:8px 0;">이 구역엔 빈 번호가 없어요</div>';
+  }
+  window._selectLockerChangeNoCat = _selectLockerChangeNoCat;
+
+  function confirmLockerChangeNo(fromCatId, fromNo, toCatId, toNo) {
+    const toCat = lockerCategories.find(c => c.id === toCatId);
+    showConfirm((toCat ? toCat.name : '') + ' ' + toNo + '번으로 옮길까요?', () => {
+      saveLockerChangeNo(fromCatId, fromNo, toCatId, toNo);
+    });
+  }
+  window.confirmLockerChangeNo = confirmLockerChangeNo;
+
+  async function saveLockerChangeNo(fromCatId, fromNo, toCatId, toNo) {
+    const fromKey = fromCatId + '_' + fromNo;
+    const toKey = toCatId + '_' + toNo;
     const d = lockerData[fromKey];
-    const targetSel = document.getElementById('locker-changeno-target');
-    const toKey = targetSel ? targetSel.value : '';
-    if (!d || !toKey) return;
-    const [toCatId, toNo] = toKey.split('_');
+    if (!d) return;
 
     const newEntry = { ...d, categoryId: toCatId, lockerNo: toNo };
 
