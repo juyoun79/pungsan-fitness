@@ -595,6 +595,7 @@
   let _monthlyReportListener = null;
   let _monthlyReportTrainerId = null;
   let _memberRemainListeners = {}; // 회원별 잔여횟수 실시간 리스너
+  let _traineeDetailListenerRef = null; // 회원상세 화면(강사앱) 실시간 감시 — 관리자가 다른 화면에서 수정해도 자동 반영되게
 
   // 회원별 잔여횟수 실시간 리스너 등록
   function startMemberRemainListeners(trainerId, memberIds) {
@@ -618,6 +619,15 @@
     });
     _memberRemainListeners = {};
   }
+
+  // 회원상세 화면(강사앱) 실시간 감시 해제 — 다른 회원상세로 이동하거나 화면을 나갈 때 호출
+  function stopTraineeDetailListener() {
+    if (_traineeDetailListenerRef) {
+      _traineeDetailListenerRef.off('value');
+      _traineeDetailListenerRef = null;
+    }
+  }
+  window.stopTraineeDetailListener = stopTraineeDetailListener;
 
   function loadMonthlyReport() {
     const sel = document.getElementById('report-trainer-select');
@@ -14843,6 +14853,16 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       refreshTraineeView(memberId);
       showScreen('screen-trainee-detail');
       switchTraineeTab('record');
+
+      // 실시간 감시 연결 — 관리자가 강사관리 화면에서 수업수정/재등록/등록취소 등을 해도
+      // 이 화면을 나갔다 들어오지 않아도 자동으로 반영되게 함
+      stopTraineeDetailListener();
+      let _firstFire = true;
+      _traineeDetailListenerRef = db.ref('trainers/' + trainerId + '/trainees/' + memberId);
+      _traineeDetailListenerRef.on('value', () => {
+        if (_firstFire) { _firstFire = false; return; } // 방금 위에서 이미 한 번 그렸으니 최초 1회는 건너뜀
+        if (currentTraineeId === memberId) refreshTraineeView(memberId);
+      });
     }).catch(() => {
       settled = true; clearTimeout(timeoutId);
       showToast('불러오지 못했어요. 다시 눌러주세요.', 'error');
