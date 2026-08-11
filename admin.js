@@ -9342,42 +9342,41 @@
     }
 
     const key = catId + '_' + no;
-    // 결제내역이 하나라도 입력됐으면 — 회원상세 계약이력에도 보이도록 별도 계약 레코드를 같이 만들고, 락카-계약 서로 연결고리(linkedContract/lockerKey)를 남겨 시작일/종료일 양방향 동기화가 되게 함
-    const hasPayment = price > 0 || cash > 0 || card > 0 || transfer > 0;
+    // 금액 여부와 상관없이 항상 계약이력을 같이 만들어서, 무료로 제공한 경우도 이력에 남도록 함
+    // (계약이력 카드는 금액이 0원이면 자동으로 "무료"라고 표시됨)
+    // 락카-계약 서로 연결고리(linkedContract/lockerKey)를 남겨 시작일/종료일 양방향 동기화도 계속 되게 함
     const signDate = _todayISO();
-    const contractKey = hasPayment ? (signDate + '_' + Date.now()) : null;
+    const contractKey = signDate + '_' + Date.now();
 
     const lockerEntry = {
       phone, name: memberName, startDate: start, endDate: end,
-      lockPassword: lock, status: 'active', categoryId: catId, lockerNo: no
+      lockPassword: lock, status: 'active', categoryId: catId, lockerNo: no,
+      linkedContract: { phone, contractKey }
     };
-    if (contractKey) lockerEntry.linkedContract = { phone, contractKey };
     await db.ref('lockers/' + key).set(lockerEntry);
     // 회원 데이터에도 락카 번호 저장
     await db.ref('members/' + phone + '/lockerKey').set(key);
     lockerData[key] = lockerEntry;
 
-    if (contractKey) {
-      try {
-        await db.ref('contracts/' + phone + '/' + contractKey).set({
-          name: memberName, phone,
-          programs: {}, packages: [],
-          extras: {
-            locker: {
-              lockerNo: no, lockerCatId: catId, lockerKey: key,
-              startDate: start || '', endDate: end || '',
-              price, cash, card, transfer,
-            }
-          },
-          signDate,
-          createdAt: Date.now(),
-          registeredBy: localStorage.getItem('current_user') || 'admin',
-          salesStaffId: staffId, salesStaffName: staffName,
-          source: 'locker_tab',
-        });
-      } catch (e) {
-        console.error('락카 결제내역 계약이력 저장 실패:', e);
-      }
+    try {
+      await db.ref('contracts/' + phone + '/' + contractKey).set({
+        name: memberName, phone,
+        programs: {}, packages: [],
+        extras: {
+          locker: {
+            lockerNo: no, lockerCatId: catId, lockerKey: key,
+            startDate: start || '', endDate: end || '',
+            price, cash, card, transfer,
+          }
+        },
+        signDate,
+        createdAt: Date.now(),
+        registeredBy: localStorage.getItem('current_user') || 'admin',
+        salesStaffId: staffId, salesStaffName: staffName,
+        source: 'locker_tab',
+      });
+    } catch (e) {
+      console.error('락카 계약이력 저장 실패:', e);
     }
 
     closeLockerDetail();
