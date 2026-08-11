@@ -9532,8 +9532,9 @@
   function openLockerAssignFromContractModal(phone, contractKey) {
     Promise.all([
       db.ref('contracts/' + phone + '/' + contractKey).once('value'),
+      db.ref('members/' + phone + '/lockerKey').once('value'),
       loadLockerData() // 락카탭을 아직 안 열어봤어도 최신 구역/빈번호 정보를 확실히 가져오도록 항상 갱신
-    ]).then(([snap]) => {
+    ]).then(([snap, curLockerKeySnap]) => {
       if (!snap.exists() || !snap.val().extras || !snap.val().extras.locker) {
         showToast('락카 정보를 찾을 수 없어요.', 'error');
         return;
@@ -9541,12 +9542,29 @@
       const c = snap.val();
       const e = c.extras.locker;
 
+      // 이 회원이 지금 이미 쓰고 있는 락카가 있으면 "이어받기" 후보로 취급
+      const curLockerKey = curLockerKeySnap.val() || null;
+      const carryOver = (curLockerKey && lockerData[curLockerKey]) ? {
+        key: curLockerKey,
+        catId: lockerData[curLockerKey].categoryId,
+        no: lockerData[curLockerKey].lockerNo,
+        catName: (lockerCategories.find(cc => cc.id === lockerData[curLockerKey].categoryId) || {}).name || ''
+      } : null;
+
       const catsWithEmpty = lockerCategories.filter(cat => _getEmptyLockerNos(cat.id, null).length > 0);
-      if (catsWithEmpty.length === 0) {
+      if (catsWithEmpty.length === 0 && !carryOver) {
         showToast('배정할 수 있는 빈 번호가 없어요.', 'error');
         return;
       }
-      const defaultCatId = catsWithEmpty[0].id;
+      const defaultCatId = catsWithEmpty.length > 0 ? catsWithEmpty[0].id : (carryOver ? carryOver.catId : null);
+
+      const carryOverHtml = carryOver ? `
+        <div style="background:#EAF3DE;border:1px solid #C0DD97;border-radius:10px;padding:12px;margin-bottom:14px;">
+          <div style="font-size:12.5px;font-weight:700;color:#3B6D11;margin-bottom:8px;">🔄 이 회원이 지금 쓰고 있는 락카가 있어요</div>
+          <button type="button" onclick="confirmLockerCarryOver('${phone}','${contractKey}','${carryOver.key}')"
+            style="width:100%;padding:10px;background:#3B6D11;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+            ${carryOver.catName} ${carryOver.no}번 그대로 이어받기</button>
+        </div>` : '';
 
       const modal = document.createElement('div');
       modal.id = 'locker-assignfromct-modal';
@@ -9554,7 +9572,8 @@
       modal.innerHTML = `
         <div style="background:var(--card,#fff);border-radius:16px;padding:20px;width:100%;max-width:340px;box-sizing:border-box;max-height:80vh;overflow-y:auto;">
           <div style="font-size:15px;font-weight:700;color:var(--text,#1a1a1a);margin-bottom:12px;">🔑 번호 배정 — ${c.name || phone}</div>
-          <div style="font-size:12px;color:#888;margin-bottom:6px;">배정할 구역</div>
+          ${carryOverHtml}
+          <div style="font-size:12px;color:#888;margin-bottom:6px;">${carryOver ? '또는 새 번호로 배정' : '배정할 구역'}</div>
           <div id="locker-assignfromct-cat-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"></div>
           <div style="font-size:12px;color:#888;margin-bottom:6px;">배정할 번호 (빈 번호만 표시)</div>
           <div id="locker-assignfromct-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:16px;"></div>
@@ -9566,17 +9585,22 @@
       modal.dataset.contractKey = contractKey;
 
       const catBtnsEl = document.getElementById('locker-assignfromct-cat-btns');
-      catBtnsEl.innerHTML = catsWithEmpty.map(cat =>
-        `<button type="button" onclick="_selectLockerAssignFromCtCat('${cat.id}')" data-cat-id="${cat.id}"
-          style="padding:7px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
-          background:${cat.id === defaultCatId ? '#185FA5' : '#fff'};color:${cat.id === defaultCatId ? 'white' : '#333'};border:${cat.id === defaultCatId ? 'none' : '1px solid #e0e0e0'};">
-          ${cat.name}</button>`
-      ).join('');
-
-      _selectLockerAssignFromCtCat(defaultCatId);
+      if (catsWithEmpty.length === 0) {
+        catBtnsEl.innerHTML = '';
+        document.getElementById('locker-assignfromct-grid').innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:#888;text-align:center;padding:8px 0;">새로 배정할 빈 번호가 없어요</div>';
+      } else {
+        catBtnsEl.innerHTML = catsWithEmpty.map(cat =>
+          `<button type="button" onclick="_selectLockerAssignFromCtCat('${cat.id}')" data-cat-id="${cat.id}"
+            style="padding:7px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
+            background:${cat.id === defaultCatId ? '#185FA5' : '#fff'};color:${cat.id === defaultCatId ? 'white' : '#333'};border:${cat.id === defaultCatId ? 'none' : '1px solid #e0e0e0'};">
+            ${cat.name}</button>`
+        ).join('');
+        _selectLockerAssignFromCtCat(defaultCatId);
+      }
     });
   }
   window.openLockerAssignFromContractModal = openLockerAssignFromContractModal;
+
 
   function _selectLockerAssignFromCtCat(catId) {
     const modal = document.getElementById('locker-assignfromct-modal');
@@ -9648,6 +9672,56 @@
     }
   }
   window.saveLockerAssignFromContract = saveLockerAssignFromContract;
+
+  // ── "이어받기" — 회원이 이미 쓰고 있는 락카를, 새로 배정하지 않고 그 자리를 새 계약으로 이어서 연결.
+  // 물리적 락카 자리(lockers/)는 그대로 두고, 연결된 계약(linkedContract)만 예전 계약 → 새 계약으로 옮김.
+  // 예전 계약이력에 남아있던 번호 표시는 그대로 유지되어 이력 확인에는 문제없음.
+  function confirmLockerCarryOver(phone, contractKey, lockerKey) {
+    const d = lockerData[lockerKey];
+    const cat = d ? lockerCategories.find(c => c.id === d.categoryId) : null;
+    const label = (cat ? cat.name : '') + ' ' + (d ? d.lockerNo : '') + '번';
+    showConfirm(label + '을 그대로 이어받을까요?\n새로 배정하지 않고, 지금 쓰고 있는 자리를 이 계약과 연결해요.', () => {
+      saveLockerCarryOver(phone, contractKey, lockerKey);
+    });
+  }
+  window.confirmLockerCarryOver = confirmLockerCarryOver;
+
+  async function saveLockerCarryOver(phone, contractKey, lockerKey) {
+    try {
+      const cSnap = await db.ref('contracts/' + phone + '/' + contractKey).once('value');
+      if (!cSnap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      const c = cSnap.val();
+      const e = c.extras && c.extras.locker ? c.extras.locker : {};
+      const d = lockerData[lockerKey];
+      if (!d) { showToast('락카 정보를 찾을 수 없어요.', 'error'); return; }
+
+      const updates = {};
+      // 연결된 계약을 새 계약으로 교체 (예전 계약 이력은 그대로 두고 건드리지 않음)
+      updates['lockers/' + lockerKey + '/linkedContract'] = { phone, contractKey };
+      // 새 계약에 기간이 입력되어 있으면 락카 자리 날짜도 같이 맞춰줌
+      if (e.startDate) updates['lockers/' + lockerKey + '/startDate'] = e.startDate;
+      if (e.endDate) updates['lockers/' + lockerKey + '/endDate'] = e.endDate;
+      // 새 계약이력에도 번호 정보 채워넣기
+      updates['contracts/' + phone + '/' + contractKey + '/extras/locker/lockerNo'] = d.lockerNo;
+      updates['contracts/' + phone + '/' + contractKey + '/extras/locker/lockerCatId'] = d.categoryId;
+      updates['contracts/' + phone + '/' + contractKey + '/extras/locker/lockerKey'] = lockerKey;
+
+      await db.ref().update(updates);
+
+      lockerData[lockerKey].linkedContract = { phone, contractKey };
+      if (e.startDate) lockerData[lockerKey].startDate = e.startDate;
+      if (e.endDate) lockerData[lockerKey].endDate = e.endDate;
+
+      document.getElementById('locker-assignfromct-modal')?.remove();
+      document.getElementById('app-extra-edit-modal')?.remove();
+      showToast('✅ 기존 락카를 이어받았어요.', 'success');
+      _renderMdContracts(phone);
+    } catch (err) {
+      console.error('락카 이어받기 실패:', err);
+      showToast('이어받기 중 오류가 발생했어요.', 'error');
+    }
+  }
+  window.saveLockerCarryOver = saveLockerCarryOver;
 
   async function releaseLocker(catId, no) {
     const key = catId + '_' + no;
