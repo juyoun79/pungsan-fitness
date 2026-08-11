@@ -19576,7 +19576,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       const _now = new Date();
       const dateStr = _now.getFullYear() + '-' + String(_now.getMonth()+1).padStart(2,'0') + '-' + String(_now.getDate()).padStart(2,'0');
       const regKey = 'reg_' + Date.now();
-      const prevReg = { type: info.type || type, total: info.total || 0, remain: info.remain || 0, date: dateStr };
+      const prevReg = { type: info.type || type, total: info.total || 0, remain: info.remain || 0, date: (info.regDate || dateStr) };
       const newRemain = (info.remain || 0) + count;
       Promise.all([
         db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/registrations/' + regKey).set(prevReg),
