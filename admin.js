@@ -950,7 +950,7 @@
       const newRemain = prevRemain + count;
 
       const regKey = 'reg_' + Date.now();
-      const prevReg = { type: prevType, total: prevTotal, remain: prevRemain, date: dateStr, completed: prevRemain === 0 };
+      const prevReg = { type: prevType, total: prevTotal, remain: prevRemain, date: (info.regDate || dateStr), completed: prevRemain === 0 };
 
       Promise.all([
         db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/registrations/' + regKey).set(prevReg),
@@ -962,7 +962,8 @@
         refreshTraineeView(currentTraineeId);
         showToast('✅ ' + count + '회 재등록 완료!', 'success');
         closeReregisterModal();
-        loadTrainerTab();
+        // 회원상세 화면에 그대로 머무는 중이라 회원목록(trainee-list) 새로고침은 불필요.
+        // 뒤로가기 시 loadTrainerTab()이 자동으로 다시 호출되어 최신 상태로 갱신됨.
       });
     });
   }
@@ -14908,7 +14909,15 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     const subContent = document.getElementById('memo-inbody-sub-content');
     if (!subContent) return;
     const trainerId = localStorage.getItem('current_user');
-    db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/memo').once('value', snap => {
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      _renderTraineeTabLoadError("switchMemoInbodySub('memo')", 'memo-inbody-sub-content');
+    }, 6000);
+    db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/memo').once('value').then(snap => {
+      if (settled) return; // 이미 타임아웃으로 에러화면이 떴으면 뒤늦게 도착한 응답은 무시
+      settled = true; clearTimeout(timeoutId);
       const memo = snap.val() || '';
       subContent.innerHTML = `
         <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
@@ -14917,6 +14926,9 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
             style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;resize:none;min-height:120px;background:var(--bg);color:var(--text);">${memo}</textarea>
           <button onclick="saveTraineeMemo()" style="width:100%;margin-top:8px;padding:12px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">💾 메모 저장</button>
         </div>`;
+    }).catch(() => {
+      settled = true; clearTimeout(timeoutId);
+      _renderTraineeTabLoadError("switchMemoInbodySub('memo')", 'memo-inbody-sub-content');
     });
   }
 
@@ -14924,8 +14936,16 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     const subContent = document.getElementById('memo-inbody-sub-content');
     if (!subContent) return;
     subContent.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      _renderTraineeTabLoadError("switchMemoInbodySub('inbody')", 'memo-inbody-sub-content');
+    }, 6000);
 
     db.ref('users/' + currentTraineeId + '/inbody').once('value').then(snap => {
+      if (settled) return; // 이미 타임아웃으로 에러화면이 떴으면 뒤늦게 도착한 응답은 무시
+      settled = true; clearTimeout(timeoutId);
       if (!snap.exists()) {
         subContent.innerHTML = `
           <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
@@ -15076,7 +15096,12 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
           <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">측정 이력</div>
           ${history}
           <div style="font-size:11px;color:var(--text-hint);text-align:center;margin-top:8px;">회원 본인 또는 담당 강사가 데이터를 입력/수정할 수 있어요</div>`;
+      }).catch(() => {
+        _renderTraineeTabLoadError("switchMemoInbodySub('inbody')", 'memo-inbody-sub-content');
       });
+    }).catch(() => {
+      settled = true; clearTimeout(timeoutId);
+      _renderTraineeTabLoadError("switchMemoInbodySub('inbody')", 'memo-inbody-sub-content');
     });
   }
   // ── 강사용 인바디 직접 입력 (회원 대신 강사가 측정값 등록/수정) ──
@@ -15208,11 +15233,19 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     if (!content || !currentTraineeId) return;
     const trainerId = localStorage.getItem('current_user');
     content.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      _renderTraineeTabLoadError('renderTraineeRoutineTab()', 'trainee-tab-content');
+    }, 6000);
 
     Promise.all([
       db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId + '/assignedRoutines').once('value'),
       db.ref('members/' + currentTraineeId + '/name').once('value')
     ]).then(([snap, nameSnap]) => {
+      if (settled) return; // 이미 타임아웃으로 에러화면이 떴으면 뒤늦게 도착한 응답은 무시
+      settled = true; clearTimeout(timeoutId);
       const data = snap.val();
       const memberName = nameSnap.val() || currentTraineeId;
 
@@ -15254,7 +15287,21 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       });
 
       content.innerHTML = html;
+    }).catch(() => {
+      settled = true; clearTimeout(timeoutId);
+      _renderTraineeTabLoadError('renderTraineeRoutineTab()', 'trainee-tab-content');
     });
+  }
+
+  // 회원상세 화면 내 각 탭(운동루틴/메모/인바디/수업기록)에서 공통으로 쓰는
+  // 데이터 불러오기 실패/응답없음 안내 + 재시도 버튼
+  function _renderTraineeTabLoadError(retryCallExpr, targetId) {
+    const content = document.getElementById(targetId || 'trainee-tab-content');
+    if (!content) return;
+    content.innerHTML = '<div style="text-align:center;padding:32px 16px;">' +
+      '<div style="font-size:13px;color:var(--text-hint);margin-bottom:12px;">불러오지 못했어요. 네트워크 상태를 확인해주세요.</div>' +
+      '<button onclick="' + retryCallExpr + '" style="padding:9px 18px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">🔄 다시 시도</button>' +
+      '</div>';
   }
 
   function openTraineeRoutineCreate() {
@@ -16101,6 +16148,13 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     if (!content || !currentTraineeId) return;
     const traineeId = currentTraineeId;
     const year = trainerCalYear, month = trainerCalMonth;
+    content.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-hint);font-size:13px;">불러오는 중...</div>';
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      _renderTraineeTabLoadError('renderTrainerCal()', 'trainee-tab-content');
+    }, 6000);
 
     // Firebase에서 해당 월 운동기록 날짜 가져오기
     Promise.all([
@@ -16108,6 +16162,8 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       db.ref('users/' + traineeId + '/classes').once('value'),
       db.ref('users/' + traineeId + '/lessons').once('value')
     ]).then(([snap, classSnap, lessonSnap]) => {
+      if (settled) return; // 이미 타임아웃으로 에러화면이 떴으면 뒤늦게 도착한 응답은 무시
+      settled = true; clearTimeout(timeoutId);
       const personalDays = new Set();
       const trainerDays = new Set();
       const lessonDays = new Set();
@@ -16157,7 +16213,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
 
       // 총 수업 횟수 = 해당 월 서명 횟수 기준
       const trainerId2 = localStorage.getItem('current_user');
-      db.ref('trainers/' + trainerId2 + '/trainees/' + traineeId + '/signs').once('value', signSnap => {
+      db.ref('trainers/' + trainerId2 + '/trainees/' + traineeId + '/signs').once('value').then(signSnap => {
         let totalLessons = 0;
         if (signSnap.exists()) {
           signSnap.forEach(s => {
@@ -16261,7 +16317,12 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
           renderTrainerDayDetail(trainerCalSelectedDate);
         }
       }
+      }).catch(() => { // signs 조회 실패
+        _renderTraineeTabLoadError('renderTrainerCal()', 'trainee-tab-content');
       }); // signs 조회 끝
+    }).catch(() => {
+      settled = true; clearTimeout(timeoutId);
+      _renderTraineeTabLoadError('renderTrainerCal()', 'trainee-tab-content');
     });
   }
 
