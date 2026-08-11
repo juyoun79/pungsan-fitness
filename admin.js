@@ -5192,9 +5192,25 @@
     modal.id = 'app-extra-edit-modal';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
     const label = _extraLabel(extraKey, e);
+    const isUnassignedLocker = extraKey === 'locker' && !e.lockerKey;
+    const assignedCat = (extraKey === 'locker' && e.lockerCatId) ? lockerCategories.find(c => c.id === e.lockerCatId) : null;
+    const lockerAssignSection = isUnassignedLocker ? `
+      <div style="background:#FFF7E6;border:1px solid #FFD98E;border-radius:10px;padding:12px;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:700;color:#8A5A00;margin-bottom:8px;">🔑 락카 번호: 아직 배정 안 됨</div>
+        <button type="button" onclick="openLockerAssignFromContractModal('${phone}','${contractKey}')"
+          style="width:100%;padding:10px;background:#F5A623;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:10px;">번호 배정하기</button>
+        <div style="font-size:11px;color:#8A5A00;margin-bottom:4px;">자물쇠 번호 (선택)</div>
+        <input id="ee-lock-password" type="text" placeholder="예: 1234" value="${e.lockPassword || ''}"
+          style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #FFD98E;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+      </div>` : (extraKey === 'locker' ? `
+      <div style="background:#E6F1FB;border:1px solid #B5D4F4;border-radius:10px;padding:12px;margin-bottom:14px;">
+        <div style="font-size:13px;font-weight:700;color:#0C447C;">🔑 현재 번호: ${assignedCat ? assignedCat.name : ''} ${e.lockerNo}번</div>
+        <div style="font-size:11px;color:#0C447C;margin-top:4px;">번호를 바꾸려면 락카 탭에서 "번호변경"을 이용해주세요.</div>
+      </div>` : '');
 
     modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:320px;font-family:'Noto Sans KR',sans-serif;">
       <div style="font-size:15px;font-weight:700;margin-bottom:14px;color:var(--text,#1a1a1a);">✏️ 정보 수정 — ${label}</div>
+      ${lockerAssignSection}
 
       <div style="font-size:12px;color:#888;margin-bottom:4px;">개월수</div>
       <input type="number" id="ee-months" min="0" max="36" placeholder="개월 (0=해당없음)" value="${e.months || ''}"
@@ -5266,6 +5282,9 @@
       updates[basePath + '/cash'] = num('ee-cash');
       updates[basePath + '/card'] = num('ee-card');
       updates[basePath + '/transfer'] = num('ee-transfer');
+      // 번호 미배정 상태에서 자물쇠번호만 먼저 입력해둔 경우 — 계약이력에 임시 저장, 번호 배정 시 lockers/로 함께 옮겨짐
+      const lockPwEl = document.getElementById('ee-lock-password');
+      if (lockPwEl) updates[basePath + '/lockPassword'] = lockPwEl.value.trim();
       // 락카 항목이고 연결된 락카(lockers/)가 있으면 — 날짜를 거기에도 같이 반영 (양방향 동기화)
       if (ctx.lockerKey) {
         updates['lockers/' + ctx.lockerKey + '/startDate'] = newStart;
@@ -9507,6 +9526,128 @@
     }
   }
   window.saveLockerChangeNo = saveLockerChangeNo;
+
+  // ── 계약이력에서 "번호 배정하기" — 이미 결제된(계약이력에 있는) 미배정 락카에 번호만 새로 연결.
+  // 새 계약/결제 기록 없이, 기존 계약의 extras.locker에 번호 정보만 채우고 lockers/에 실제 자리를 만듦.
+  function openLockerAssignFromContractModal(phone, contractKey) {
+    Promise.all([
+      db.ref('contracts/' + phone + '/' + contractKey).once('value'),
+      loadLockerData() // 락카탭을 아직 안 열어봤어도 최신 구역/빈번호 정보를 확실히 가져오도록 항상 갱신
+    ]).then(([snap]) => {
+      if (!snap.exists() || !snap.val().extras || !snap.val().extras.locker) {
+        showToast('락카 정보를 찾을 수 없어요.', 'error');
+        return;
+      }
+      const c = snap.val();
+      const e = c.extras.locker;
+
+      const catsWithEmpty = lockerCategories.filter(cat => _getEmptyLockerNos(cat.id, null).length > 0);
+      if (catsWithEmpty.length === 0) {
+        showToast('배정할 수 있는 빈 번호가 없어요.', 'error');
+        return;
+      }
+      const defaultCatId = catsWithEmpty[0].id;
+
+      const modal = document.createElement('div');
+      modal.id = 'locker-assignfromct-modal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;padding:16px;';
+      modal.innerHTML = `
+        <div style="background:var(--card,#fff);border-radius:16px;padding:20px;width:100%;max-width:340px;box-sizing:border-box;max-height:80vh;overflow-y:auto;">
+          <div style="font-size:15px;font-weight:700;color:var(--text,#1a1a1a);margin-bottom:12px;">🔑 번호 배정 — ${c.name || phone}</div>
+          <div style="font-size:12px;color:#888;margin-bottom:6px;">배정할 구역</div>
+          <div id="locker-assignfromct-cat-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"></div>
+          <div style="font-size:12px;color:#888;margin-bottom:6px;">배정할 번호 (빈 번호만 표시)</div>
+          <div id="locker-assignfromct-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:16px;"></div>
+          <button onclick="document.getElementById('locker-assignfromct-modal').remove()" style="width:100%;padding:10px;border-radius:8px;border:1px solid #e0e0e0;background:none;color:#888;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        </div>`;
+      document.body.appendChild(modal);
+
+      modal.dataset.phone = phone;
+      modal.dataset.contractKey = contractKey;
+
+      const catBtnsEl = document.getElementById('locker-assignfromct-cat-btns');
+      catBtnsEl.innerHTML = catsWithEmpty.map(cat =>
+        `<button type="button" onclick="_selectLockerAssignFromCtCat('${cat.id}')" data-cat-id="${cat.id}"
+          style="padding:7px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
+          background:${cat.id === defaultCatId ? '#185FA5' : '#fff'};color:${cat.id === defaultCatId ? 'white' : '#333'};border:${cat.id === defaultCatId ? 'none' : '1px solid #e0e0e0'};">
+          ${cat.name}</button>`
+      ).join('');
+
+      _selectLockerAssignFromCtCat(defaultCatId);
+    });
+  }
+  window.openLockerAssignFromContractModal = openLockerAssignFromContractModal;
+
+  function _selectLockerAssignFromCtCat(catId) {
+    const modal = document.getElementById('locker-assignfromct-modal');
+    if (!modal) return;
+    document.querySelectorAll('#locker-assignfromct-cat-btns button').forEach(b => {
+      const sel = b.getAttribute('data-cat-id') === catId;
+      b.style.background = sel ? '#185FA5' : '#fff';
+      b.style.color = sel ? 'white' : '#333';
+      b.style.border = sel ? 'none' : '1px solid #e0e0e0';
+    });
+    const emptyNos = _getEmptyLockerNos(catId, null);
+    const gridEl = document.getElementById('locker-assignfromct-grid');
+    gridEl.innerHTML = emptyNos.length
+      ? emptyNos.map(no =>
+          `<button type="button" onclick="confirmLockerAssignFromCt('${catId}','${no}')"
+            style="padding:9px 0;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:#fff;color:#333;border:1px solid #e0e0e0;">${no}</button>`
+        ).join('')
+      : '<div style="grid-column:1/-1;font-size:12px;color:#888;text-align:center;padding:8px 0;">이 구역엔 빈 번호가 없어요</div>';
+  }
+  window._selectLockerAssignFromCtCat = _selectLockerAssignFromCtCat;
+
+  function confirmLockerAssignFromCt(catId, no) {
+    const cat = lockerCategories.find(c => c.id === catId);
+    showConfirm((cat ? cat.name : '') + ' ' + no + '번을 배정할까요?', () => {
+      saveLockerAssignFromContract(catId, no);
+    });
+  }
+  window.confirmLockerAssignFromCt = confirmLockerAssignFromCt;
+
+  async function saveLockerAssignFromContract(catId, no) {
+    const modal = document.getElementById('locker-assignfromct-modal');
+    if (!modal) return;
+    const phone = modal.dataset.phone;
+    const contractKey = modal.dataset.contractKey;
+    const key = catId + '_' + no;
+
+    try {
+      const [cSnap, mSnap] = await Promise.all([
+        db.ref('contracts/' + phone + '/' + contractKey).once('value'),
+        db.ref('members/' + phone + '/name').once('value')
+      ]);
+      if (!cSnap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      const c = cSnap.val();
+      const e = c.extras && c.extras.locker ? c.extras.locker : {};
+      const memberName = mSnap.val() || c.name || phone;
+
+      const lockerEntry = {
+        phone, name: memberName,
+        startDate: e.startDate || '', endDate: e.endDate || '',
+        lockPassword: e.lockPassword || '', status: 'active',
+        categoryId: catId, lockerNo: no,
+        linkedContract: { phone, contractKey }
+      };
+
+      await db.ref('lockers/' + key).set(lockerEntry);
+      await db.ref('members/' + phone + '/lockerKey').set(key);
+      await db.ref('contracts/' + phone + '/' + contractKey + '/extras/locker').update({
+        lockerNo: no, lockerCatId: catId, lockerKey: key
+      });
+
+      lockerData[key] = lockerEntry;
+      modal.remove();
+      document.getElementById('app-extra-edit-modal')?.remove();
+      showToast('✅ 락카 번호가 배정됐어요.', 'success');
+      _renderMdContracts(phone);
+    } catch (err) {
+      console.error('락카 번호배정 실패:', err);
+      showToast('번호배정 중 오류가 발생했어요.', 'error');
+    }
+  }
+  window.saveLockerAssignFromContract = saveLockerAssignFromContract;
 
   async function releaseLocker(catId, no) {
     const key = catId + '_' + no;
