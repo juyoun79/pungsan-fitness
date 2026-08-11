@@ -4812,6 +4812,16 @@
             <button onclick="openBulkExtendFlow()" class="btn-primary" style="width:100%;">전체 회원 기간 연장 시작</button>
             <button onclick="openBulkExtendHistory()" style="width:100%;margin-top:8px;padding:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗓️ 지난 이력 보기</button>
           </div>
+
+          <div class="admin-card">
+            <div class="admin-card-title">🎂 생년월일 형식 일괄정리</div>
+            <div style="font-size:12.5px;color:var(--text-hint);line-height:1.6;margin-bottom:16px;">
+              엑셀로 가져온 회원 중 생년월일이 "1999-08-09"처럼 하이픈(-) 포함 형식으로 저장된 경우를 찾아서, 앱이 쓰는 형식인 "19990809"(하이픈 없는 8자리)로 한 번에 정리해요.<br>
+              · 실행 전에 몇 명이 대상인지 먼저 보여드려요<br>
+              · 이미 올바른 형식인 회원은 건드리지 않아요
+            </div>
+            <button onclick="openBulkFixBirthFlow()" class="btn-primary" style="width:100%;">생년월일 형식 확인 및 정리</button>
+          </div>
         </div>
 
         <!-- 서브탭: 목표매출 설정 -->

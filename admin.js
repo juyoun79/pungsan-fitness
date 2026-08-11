@@ -11898,6 +11898,20 @@
     return s;
   }
 
+  // 생년월일 전용 정규화 — 앱 전체에서 생년월일은 하이픈 없는 8자리 숫자(예: 19900101)로 저장/검증하므로
+  // 위 _normalizeImportDate(하이픈 형식, 시작일/종료일용)와 다른 형식으로 맞춰줌
+  function _normalizeImportBirth(v) {
+    if (!v) return '';
+    const s = String(v).trim();
+    let m = s.match(/^(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
+    if (m) return m[1] + m[2].padStart(2, '0') + m[3].padStart(2, '0');
+    m = s.match(/^(\d{2})(\d{2})(\d{2})$/);
+    if (m) return '20' + m[1] + m[2] + m[3];
+    m = s.match(/^(\d{8})$/);
+    if (m) return m[1];
+    return s.replace(/[^0-9]/g, '');
+  }
+
   function _buildParsedMembers() {
     const idxOf = (role) => { const e = Object.entries(_mImport.mapping).find(([, v]) => v === role); return e ? parseInt(e[0]) : -1; };
     const iName = idxOf('name'), iPhone = idxOf('phone'), iBirth = idxOf('birth'),
@@ -11913,7 +11927,7 @@
       const name = iName >= 0 ? String(r[iName] || '').trim() : '';
       const phone = iPhone >= 0 ? String(r[iPhone] || '').replace(/[^0-9]/g, '') : '';
       if (!name || !phone) { errors.push({ rowIdx, reason: !name ? '이름없음' : '전화번호없음' }); return; }
-      const birth = iBirth >= 0 ? _normalizeImportDate(r[iBirth]) : '';
+      const birth = iBirth >= 0 ? _normalizeImportBirth(r[iBirth]) : '';
       const genderRaw = iGender >= 0 ? String(r[iGender] || '').trim() : '';
       const gender = genderRaw.includes('여') ? 'female' : (genderRaw.includes('남') ? 'male' : '');
       const address = iAddress >= 0 ? String(r[iAddress] || '').trim() : '';
@@ -13188,6 +13202,44 @@
     };
   }
   window.openBulkExtendFlow = openBulkExtendFlow;
+
+  // ── 생년월일 형식 일괄정리 — 엑셀가져오기로 하이픈 형식(1999-08-09)이 섞여 들어간 기존 회원들을
+  // 앱 표준 형식(하이픈없는 8자리, 예: 19990809)으로 한 번에 정리 ──
+  function openBulkFixBirthFlow() {
+    showToast('대상 확인 중...', 'info');
+    db.ref('members').once('value').then(snap => {
+      const targets = []; // {phone, name, oldBirth, newBirth}
+      snap.forEach(child => {
+        const m = child.val();
+        const birth = m && m.birth ? String(m.birth) : '';
+        if (!birth) return;
+        if (/^\d{8}$/.test(birth)) return; // 이미 올바른 형식이면 건드리지 않음
+        const digitsOnly = birth.replace(/[^0-9]/g, '');
+        if (digitsOnly.length !== 8) return; // 형식을 알 수 없는 값은 안전하게 건너뜀 (수동 확인 필요)
+        targets.push({ phone: child.key, name: m.name || child.key, oldBirth: birth, newBirth: digitsOnly });
+      });
+
+      if (targets.length === 0) {
+        showToast('정리할 대상이 없어요. 모두 올바른 형식이에요.', 'success');
+        return;
+      }
+
+      const listPreview = targets.slice(0, 5).map(t => t.name + ' (' + t.oldBirth + ' → ' + t.newBirth + ')').join('\n')
+        + (targets.length > 5 ? '\n...외 ' + (targets.length - 5) + '명' : '');
+      showConfirm('총 ' + targets.length + '명의 생년월일 형식을 정리할까요?\n\n' + listPreview, () => {
+        const updates = {};
+        targets.forEach(t => { updates['members/' + t.phone + '/birth'] = t.newBirth; });
+        db.ref().update(updates).then(() => {
+          showToast('✅ ' + targets.length + '명의 생년월일 형식이 정리됐어요.', 'success');
+        }).catch(e => {
+          showToast('정리 실패: ' + e.message, 'error');
+        });
+      });
+    }).catch(e => {
+      showToast('확인 실패: ' + e.message, 'error');
+    });
+  }
+  window.openBulkFixBirthFlow = openBulkFixBirthFlow;
 
   // ── 일괄연장 이력 보기 ──
   function openBulkExtendHistory() {
