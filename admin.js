@@ -674,8 +674,9 @@
           db.ref('members/' + traineeId + '/name').once('value'),
           db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/signs').once('value'),
           db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/memo').once('value'),
-          db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/logs').once('value')
-        ]).then(([memberNameSnap, signsSnap, memoSnap, logsSnap]) => {
+          db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/logs').once('value'),
+          db.ref('trainers/' + trainerId + '/trainees/' + traineeId + '/registrations').once('value')
+        ]).then(([memberNameSnap, signsSnap, memoSnap, logsSnap, regsSnap]) => {
           const traineeName = memberNameSnap.val() || traineeInfo.name || traineeId;
           // 이번달 서명 필터
           const signs = [];
@@ -700,12 +701,28 @@
           // 메모
           const memo = memoSnap.exists() ? memoSnap.val() : '';
 
+          // 등록취소 버튼 노출 조건: 이전 등록이 있고, 가장 최근(현재) 등록에 서명이 아직 0회일 때만
+          // (강사 앱 서명기록 탭과 동일한 조건 — refreshTraineeView의 판단 로직과 맞춤)
+          const allRegs = [];
+          if (regsSnap.exists()) {
+            regsSnap.forEach(r => { if (r.val() && typeof r.val() === 'object') allRegs.push({ key: r.key, ...r.val() }); });
+            allRegs.sort((a, b) => a.key.localeCompare(b.key));
+          }
+          allRegs.push({ total: traineeInfo.total || 0 });
+          let prevSum = 0;
+          for (let i = 0; i < allRegs.length - 1; i++) prevSum += (allRegs[i].total || 0);
+          let totalSignsAllTime = 0;
+          if (signsSnap.exists()) {
+            signsSnap.forEach(s => { if (s.val() && typeof s.val() === 'object') totalSignsAllTime++; });
+          }
+          const canCancelReg = allRegs.length > 1 && totalSignsAllTime <= prevSum;
+
           totalSigns += signCount;
           totalNoShow += noShowCount;
           if (memo) totalMemos++;
           totalLogs += logs.length;
 
-          memberCards.push({ traineeName, signCount, noShowCount, memo, logs, traineeId, type: traineeInfo.type || '', remain: traineeInfo.remain || 0, total: traineeInfo.total || 0, traineeInfo });
+          memberCards.push({ traineeName, signCount, noShowCount, memo, logs, traineeId, type: traineeInfo.type || '', remain: traineeInfo.remain || 0, total: traineeInfo.total || 0, traineeInfo, canCancelReg });
         });
         promises.push(p);
       });
@@ -757,6 +774,7 @@
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
               <button onclick="openAdminEditTrainee('${trainerId}','${m.traineeId}')" style="font-size:11px;padding:4px 8px;background:#E6F1FB;color:#0C447C;border:1px solid #B5D4F4;border-radius:6px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✏️ 수업수정</button>
               <button onclick="openAdminReregister('${trainerId}','${m.traineeId}','${m.type}')" style="font-size:11px;padding:4px 8px;background:#EAF3DE;color:#3B6D11;border:1px solid #C0DD97;border-radius:6px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔄 재등록</button>
+              ${m.canCancelReg ? `<button onclick="adminCancelLastRegistration('${trainerId}','${m.traineeId}','${m.traineeName}')" style="font-size:11px;padding:4px 8px;background:#fff0f0;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">↩️ 등록취소</button>` : ''}
               <button onclick="adminDeleteTrainee('${trainerId}','${m.traineeId}','${m.traineeName}')" style="font-size:11px;padding:4px 8px;background:#FCEBEB;color:#A32D2D;border:1px solid #F7C1C1;border-radius:6px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑 담당해제</button>
             </div>
             <div id="${signBtnId}" style="display:none;margin-top:8px;background:var(--bg);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--text);line-height:1.8;">
@@ -1086,12 +1104,6 @@
 
             if (groupSigns.length === 0) {
               html += '<div style="padding:12px 14px;text-align:center;color:var(--text-hint);font-size:12px;">아직 서명 기록이 없어요</div>';
-              // 취소 버튼: 마지막 차수 + 서명 0회 + 이전 등록 있음
-              if (group.reg.idx === allRegs.length && allRegs.length > 1) {
-                html += '<div style="padding:6px 14px 10px;text-align:right;">';
-                html += '<button onclick="cancelLastRegistration()" style="font-size:12px;padding:4px 12px;background:#fff0f0;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">등록 취소</button>';
-                html += '</div>';
-              }
             } else {
               html += '<div style="padding:10px 14px;">';
               groupSigns.slice().reverse().forEach(function(s, idx) {
@@ -1124,11 +1136,6 @@
           tabContent.innerHTML = html;
         } else if (tabContent && signsArr.length === 0) {
           let noSignHtml = '<div style="text-align:center;padding:20px;color:var(--text-hint);font-size:14px;">아직 서명 기록이 없어요</div>';
-          if (allRegs.length > 1) {
-            noSignHtml += '<div style="text-align:right;padding:0 4px 8px;">';
-            noSignHtml += '<button onclick="cancelLastRegistration()" style="font-size:12px;padding:4px 12px;background:#fff0f0;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">최근 등록 취소</button>';
-            noSignHtml += '</div>';
-          }
           tabContent.innerHTML = noSignHtml;
         }
       }
@@ -14874,57 +14881,56 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
 
   // 담당 회원 삭제
 
-  // ── 마지막 등록 취소 ──
-  function cancelLastRegistration() {
-    if (!currentTraineeId) return;
-    showConfirm('가장 최근 등록을 취소할까요?\n이전 등록 상태로 되돌아가요.', () => {
-      const trainerId = localStorage.getItem('current_user');
-      const ref = db.ref('trainers/' + trainerId + '/trainees/' + currentTraineeId);
-      ref.once('value', snap => {
-      const info = snap.val() || {};
+  // ── 마지막 등록 취소 (관리자모드 전용 — 강사관리 탭 회원카드에서만 사용) ──
+  function adminCancelLastRegistration(trainerId, traineeId, traineeName) {
+    showConfirm(traineeName + '님의 가장 최근 등록을 취소할까요?\n이전 등록 상태로 되돌아가요.', () => {
+      const ref = db.ref('trainers/' + trainerId + '/trainees/' + traineeId);
+      ref.once('value').then(snap => {
+        const info = snap.val() || {};
 
-      // allRegs 구성
-      const allRegs = [];
-      if (info.registrations && typeof info.registrations === 'object') {
-        Object.entries(info.registrations).forEach(([key, val]) => {
-          if (val && typeof val === 'object') allRegs.push({ key, ...val });
+        // allRegs 구성
+        const allRegs = [];
+        if (info.registrations && typeof info.registrations === 'object') {
+          Object.entries(info.registrations).forEach(([key, val]) => {
+            if (val && typeof val === 'object') allRegs.push({ key, ...val });
+          });
+          allRegs.sort((a, b) => a.key.localeCompare(b.key));
+        }
+        allRegs.push({ total: info.total || 0, type: info.type || '', date: info.regDate || '' });
+
+        if (allRegs.length < 2) { showToast('취소할 이전 등록이 없어요.', 'error'); return; }
+
+        // 현재 총 서명 횟수
+        let totalSigns = 0;
+        if (info.signs && typeof info.signs === 'object') {
+          Object.values(info.signs).forEach(v => { if (v && typeof v === 'object') totalSigns++; });
+        }
+
+        // 복구할 등록 (마지막에서 두 번째)
+        const restoreReg = allRegs[allRegs.length - 2];
+
+        // 복구 후 remain 계산
+        let prevSum = 0;
+        for (let i = 0; i < allRegs.length - 2; i++) prevSum += allRegs[i].total;
+        const newRemain = Math.max(0, restoreReg.total - (totalSigns - prevSum));
+
+        // Firebase 업데이트: 이전 등록 복구 + 해당 registrations 항목 삭제
+        const updates = {
+          type: restoreReg.type,
+          total: restoreReg.total,
+          remain: newRemain,
+          regDate: restoreReg.date || ''
+        };
+        updates['registrations/' + restoreReg.key] = null;
+
+        ref.update(updates).then(() => {
+          showToast('✅ ' + traineeName + '님 등록이 취소됐어요.', 'success');
+          loadMonthlyReport();
         });
-        allRegs.sort((a, b) => a.key.localeCompare(b.key));
-      }
-      allRegs.push({ total: info.total || 0, type: info.type || '', date: info.regDate || '' });
-
-      if (allRegs.length < 2) { showToast('취소할 이전 등록이 없어요.', 'error'); return; }
-
-      // 현재 총 서명 횟수
-      let totalSigns = 0;
-      if (info.signs && typeof info.signs === 'object') {
-        Object.values(info.signs).forEach(v => { if (v && typeof v === 'object') totalSigns++; });
-      }
-
-      // 복구할 등록 (마지막에서 두 번째)
-      const restoreReg = allRegs[allRegs.length - 2];
-
-      // 복구 후 remain 계산
-      let prevSum = 0;
-      for (let i = 0; i < allRegs.length - 2; i++) prevSum += allRegs[i].total;
-      const newRemain = Math.max(0, restoreReg.total - (totalSigns - prevSum));
-
-      // Firebase 업데이트: 이전 등록 복구 + 해당 registrations 항목 삭제
-      const updates = {
-        type: restoreReg.type,
-        total: restoreReg.total,
-        remain: newRemain,
-        regDate: restoreReg.date || ''
-      };
-      updates['registrations/' + restoreReg.key] = null;
-
-      ref.update(updates).then(() => {
-        showToast('등록이 취소됐어요!', 'success');
-        refreshTraineeView(currentTraineeId);
-      });
       });
     });
   }
+  window.adminCancelLastRegistration = adminCancelLastRegistration;
   function deleteTraineeMember() {
     if (!currentTraineeId) return;
     const name = document.getElementById("trainee-detail-name").textContent;
