@@ -91,7 +91,7 @@
     if (existing) existing.remove();
     const modal = document.createElement('div');
     modal.id = 'app-confirm-modal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10500;display:flex;align-items:center;justify-content:center;padding:24px;';
     modal.innerHTML = '<div style="background:var(--bg, #fff);border-radius:16px;padding:24px;width:100%;max-width:280px;font-family:\'Noto Sans KR\',sans-serif;">'
       + '<div style="font-size:14px;color:var(--text,#1a1a1a);margin-bottom:20px;line-height:1.6;white-space:pre-line;">' + msg + '</div>'
       + '<div style="display:flex;gap:10px;">'
