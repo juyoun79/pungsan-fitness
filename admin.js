@@ -6746,8 +6746,8 @@
         <div>변경후금액: ${ctx.newPrice.toLocaleString()}원</div>
         <div style="margin-top:6px;font-weight:700;color:#3b82f6;">${diffLine}</div>
       </div>
-      <div style="margin-bottom:14px;">
-        <div style="font-size:12px;color:#888;margin-bottom:4px;">담당자 (매출 귀속용, PT/기구필라테스개인이 아닌 경우)</div>
+      <div id="pc4-staff-wrap" style="margin-bottom:14px;">
+        <div style="font-size:12px;color:#888;margin-bottom:4px;">담당자 (매출 귀속용 — 담당강사가 지정되는 프로그램에는 적용 안 돼요)</div>
         <select id="pc4-staff" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13.5px;font-family:'Noto Sans KR',sans-serif;">
           <option value="">선택 안 함 (미정)</option>
         </select>
@@ -6759,6 +6759,8 @@
 
     modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">${body}</div>`;
     document.body.appendChild(modal);
+    const staffWrap = document.getElementById('pc4-staff-wrap');
+    if (staffWrap) staffWrap.style.display = ctProgramTrainerRequired(ctx.newProgKey) ? 'none' : '';
     const staffSel = document.getElementById('pc4-staff');
     if (staffSel) {
       _fetchTrainerOptionsForGoal().then(opts => {
@@ -10147,6 +10149,8 @@
         now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일';
       renderCtSignSummary();
       _populateCtStaffSelect();
+      const staffFieldWrap = document.getElementById('ct-staff-field-wrap');
+      if (staffFieldWrap) staffFieldWrap.style.display = _ctNeedsSalesStaffField() ? '' : 'none';
       // 모바일에서 이미 서명을 받은 경우, 캔버스에 그대로 그려서 보여줌
       if (window._ctMobileSignUrl) {
         const img = new Image();
@@ -10170,6 +10174,16 @@
       sel.innerHTML = '<option value="">선택 안 함 (미정)</option>' +
         opts.map(t => `<option value="${t.id}" data-name="${t.name}">${t.name}</option>`).join('');
     }).catch(() => {});
+  }
+
+  // 지금 선택된 항목(단일 프로그램/패키지/부가서비스) 중, 담당강사 지정이 아닌 항목이 하나라도 있는지 —
+  // 있어야만 "담당자(매출귀속)" 필드가 의미가 있으므로, 없으면(전부 담당강사 지정 프로그램뿐이면) 필드 자체를 숨김
+  function _ctNeedsSalesStaffField() {
+    const hasExtra = document.getElementById('ct-cloth-check')?.checked || document.getElementById('ct-locker-check')?.checked;
+    if (hasExtra) return true;
+    if ((ctSelectedProgs || []).some(p => !ctProgramTrainerRequired(p))) return true;
+    if ((ctPackages || []).some(pkg => Object.keys(pkg.items || {}).some(k => !ctProgramTrainerRequired(k)))) return true;
+    return false;
   }
 
   function ctNext(step) {
@@ -11393,7 +11407,7 @@
             횟수제 (PT처럼 회당 결제)
           </label>
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-sub);cursor:pointer;">
-            <input type="checkbox" ${cfg.trainerRequired ? 'checked' : ''} onchange="toggleProgramField('${key}','trainerRequired',this.checked)">
+            <input type="checkbox" ${cfg.trainerRequired ? 'checked' : ''} onchange="toggleProgramField('${key}','trainerRequired',this.checked,this)">
             담당강사 지정 사용
           </label>
         </div>
@@ -11417,12 +11431,30 @@
   }
   window.toggleProgramEnabled = toggleProgramEnabled;
 
-  function toggleProgramField(key, field, value) {
-    db.ref('program_settings/' + key + '/' + field).set(value).then(() => {
-      ctProgramSettings[key] = ctProgramSettings[key] || {};
-      ctProgramSettings[key][field] = value;
-      showToast('저장됐어요.', 'success');
-    }).catch(() => showToast('저장에 실패했어요.', 'error'));
+  function toggleProgramField(key, field, value, el) {
+    const doSet = () => {
+      db.ref('program_settings/' + key + '/' + field).set(value).then(() => {
+        ctProgramSettings[key] = ctProgramSettings[key] || {};
+        ctProgramSettings[key][field] = value;
+        showToast('저장됐어요.', 'success');
+      }).catch(() => showToast('저장에 실패했어요.', 'error'));
+    };
+    // "담당강사 지정 사용"은 과거 계약 데이터의 매출 귀속 해석 기준 자체를 바꾸는 값이라,
+    // 이미 이 프로그램으로 등록된 계약이 있으면 저장 전에 경고
+    if (field === 'trainerRequired') {
+      _programKeyUsageCount(key).then(count => {
+        if (count > 0) {
+          const name = (ctProgramSettings[key] && ctProgramSettings[key].name) || key;
+          if (!confirm('⚠️ "' + name + '"은(는) 이미 ' + count + '건의 계약이 있어요.\n지금 바꾸면 과거 매출 집계 방식이 바뀔 수 있어요.\n계속할까요?')) {
+            if (el) el.checked = !value;
+            return;
+          }
+        }
+        doSet();
+      }).catch(() => doSet());
+      return;
+    }
+    doSet();
   }
   window.toggleProgramField = toggleProgramField;
 
@@ -11469,6 +11501,26 @@
         });
       });
       return found;
+    });
+  }
+
+  // 이 프로그램키를 쓰는 계약 항목이 몇 건인지 카운트 ("담당강사 지정 사용" 변경 경고용)
+  function _programKeyUsageCount(key) {
+    return db.ref('contracts').once('value').then(snap => {
+      let count = 0;
+      snap.forEach(phoneSnap => {
+        phoneSnap.forEach(cSnap => {
+          const c = cSnap.val();
+          if (!c) return;
+          if (c.programs && c.programs[key]) count++;
+          if (c.packages && c.packages.length) {
+            c.packages.forEach(pkg => {
+              if (pkg.items && pkg.items[key]) count++;
+            });
+          }
+        });
+      });
+      return count;
     });
   }
 
