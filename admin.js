@@ -2943,8 +2943,9 @@
   let _memberFilters = {
     program: 'all', status: 'all', payment: 'all', locker: 'all', sort: 'none',
     gender: 'all', dateBasis: 'none', dateStart: '', dateEnd: '',
-    remainMax: 'all', attendGap: 'all', unpaidMin: '', ageBands: new Set()
+    remainMax: 'all', attendGap: 'all', unpaidMin: '', ageBands: new Set(), staff: 'all'
   };
+  let _mfStaffOptions = []; // 담당자 필터 드롭다운용 전체 직원 목록 캐시
 
   function _calcAgeFromBirthAdmin(birth) {
     if (!birth) return null;
@@ -3108,7 +3109,7 @@
     _memberFilters = {
       program: 'all', status: 'all', payment: 'all', locker: 'all', sort: 'none',
       gender: 'all', dateBasis: 'none', dateStart: '', dateEnd: '',
-      remainMax: 'all', attendGap: 'all', unpaidMin: '', ageBands: new Set()
+      remainMax: 'all', attendGap: 'all', unpaidMin: '', ageBands: new Set(), staff: 'all'
     };
     if (type === 'expiring') _memberFilters.status = 'expiring';
     else if (type === 'unpaid') _memberFilters.payment = 'unpaid';
@@ -3148,6 +3149,9 @@
   }
 
   function loadMemberList(query = '') {
+    if (typeof _fetchTrainerOptionsForGoal === 'function') {
+      _fetchTrainerOptionsForGoal().then(opts => { _mfStaffOptions = opts; }).catch(() => {});
+    }
     return getMemberDB().then(members => {
       cachedMembers = members;
       const wrap = document.getElementById('member-list-wrap');
@@ -3206,6 +3210,7 @@
             let hasUnpaid = false;
             let unpaidAmount = 0;
             const signDates = [];
+            const staffMap = {}; // 담당자 필터용 — {id: name} (PT는 담당강사, 그 외는 담당자, 항목별 값 없으면 계약 전체값으로 대체)
             contractsSnap.forEach(cSnap => {
               const c = cSnap.val();
               if (c.signDate) signDates.push(c.signDate);
@@ -3215,9 +3220,24 @@
                 if (unpaid > 0) { hasUnpaid = true; unpaidAmount += unpaid; }
                 it.contractKey = cSnap.key; // 어느 계약서에서 온 항목인지 구분용 (패키지 그룹핑 정확도용)
                 activeItems.push(it);
+                if (ctProgramTrainerRequired(it.progKey)) {
+                  if (it.data.trainerId) {
+                    const tName = (typeof adminTrainerList !== 'undefined' ? adminTrainerList : []).find(t => t.id === it.data.trainerId)?.name || it.data.trainerId;
+                    staffMap[it.data.trainerId] = tName;
+                  }
+                } else {
+                  const sid = it.data.salesStaffId || c.salesStaffId;
+                  if (sid) staffMap[sid] = it.data.salesStaffName || c.salesStaffName || sid;
+                }
+              });
+              Object.values(c.extras || {}).forEach(e => {
+                if (!_isItemEligible(e)) return;
+                const sid = e.salesStaffId || c.salesStaffId;
+                if (sid) staffMap[sid] = e.salesStaffName || c.salesStaffName || sid;
               });
             });
             const joinDate = signDates.length ? signDates.sort()[0] : '-';
+            const staffIds = Object.keys(staffMap);
 
             // 필터/정렬용 계산값 미리 뽑아두기 (프로그램 목록/상태/락카배정여부/최소잔여일/만료일)
             const progNames = [];
@@ -3259,7 +3279,7 @@
             if (pg && pg.remain != null) countRemains.push(pg.remain);
             const minCountRemain = countRemains.length ? Math.min(...countRemains) : null;
 
-            return { phone, info, attendCount, pts: Number(pts) || 0, nick, activeItems, hasUnpaid, unpaidAmount, joinDate, maxEndDate, progNames, statusKey, statusLabel, statusColor, minRemainDays, lockerAssigned, gender, age, lastAttendDate, daysSinceLastAttend, minCountRemain };
+            return { phone, info, attendCount, pts: Number(pts) || 0, nick, activeItems, hasUnpaid, unpaidAmount, joinDate, maxEndDate, progNames, statusKey, statusLabel, statusColor, minRemainDays, lockerAssigned, gender, age, lastAttendDate, daysSinceLastAttend, minCountRemain, staffIds };
           }).catch(() => {
             const pts = localStorage.getItem('points_' + phone) || '0';
             let attendCount = 0;
@@ -3267,7 +3287,7 @@
             const nick = localStorage.getItem('nickname_' + phone) || '-';
             const gender = (info.body && info.body.gender) || info['body/gender'] || null;
             const age = _calcAgeFromBirthAdmin(info.birth);
-            return { phone, info, attendCount, pts: Number(pts) || 0, nick, activeItems: [], hasUnpaid: false, unpaidAmount: 0, joinDate: '-', maxEndDate: null, progNames: [], statusKey: 'none', statusLabel: '-', statusColor: 'var(--text-hint)', minRemainDays: null, lockerAssigned: false, gender, age, lastAttendDate: null, daysSinceLastAttend: null, minCountRemain: null };
+            return { phone, info, attendCount, pts: Number(pts) || 0, nick, activeItems: [], hasUnpaid: false, unpaidAmount: 0, joinDate: '-', maxEndDate: null, progNames: [], statusKey: 'none', statusLabel: '-', statusColor: 'var(--text-hint)', minRemainDays: null, lockerAssigned: false, gender, age, lastAttendDate: null, daysSinceLastAttend: null, minCountRemain: null, staffIds: [] };
           })
         )).then(memberData => {
           _lastMemberData = memberData;
@@ -3293,6 +3313,7 @@
     _memberFilters.remainMax = document.getElementById('mf-remain')?.value || 'all';
     _memberFilters.attendGap = document.getElementById('mf-attend-gap')?.value || 'all';
     _memberFilters.unpaidMin = document.getElementById('mf-unpaid-min')?.value || '';
+    _memberFilters.staff     = document.getElementById('mf-staff')?.value || 'all';
     _renderMemberListView();
   }
   window.applyMemberFilters = applyMemberFilters;
@@ -3308,6 +3329,7 @@
     if (f.status !== 'all') data = data.filter(m => m.statusKey === f.status);
     if (f.payment !== 'all') data = data.filter(m => (f.payment === 'unpaid') === m.hasUnpaid);
     if (f.locker !== 'all') data = data.filter(m => (f.locker === 'assigned') === m.lockerAssigned);
+    if (f.staff !== 'all') data = data.filter(m => (m.staffIds || []).includes(f.staff));
     if (f.gender !== 'all') data = data.filter(m => m.gender === f.gender);
     if (f.remainMax !== 'all') {
       const maxN = parseInt(f.remainMax, 10);
@@ -3381,6 +3403,7 @@
       ${sel('mf-status', opt('all','전체 상태',f.status)+opt('normal','정상',f.status)+opt('hold','휴회중',f.status)+opt('expiring','만료임박 (' + _expiringThresholdDays + '일 이내)',f.status)+opt('expired','만료됨',f.status))}
       ${sel('mf-payment', opt('all','전체 결제상태',f.payment)+opt('paid','완납',f.payment)+opt('unpaid','미수금',f.payment))}
       ${sel('mf-locker', opt('all','전체 락카',f.locker)+opt('assigned','배정됨',f.locker)+opt('unassigned','미배정',f.locker))}
+      ${sel('mf-staff', opt('all','전체 담당자',f.staff)+_mfStaffOptions.map(t => opt(t.id, t.name, f.staff)).join(''))}
       ${sel('mf-gender', opt('all','전체 성별',f.gender)+opt('male','남',f.gender)+opt('female','여',f.gender))}
       ${sel('mf-remain', opt('all','전체 잔여횟수',f.remainMax)+opt('3','3회 이하',f.remainMax)+opt('2','2회 이하',f.remainMax)+opt('1','1회 이하',f.remainMax)+opt('0','0회(소진)',f.remainMax))}
       ${sel('mf-attend-gap', opt('all','전체(미출석기간)',f.attendGap)+opt('7','7일 이상 미출석',f.attendGap)+opt('14','14일 이상 미출석',f.attendGap)+opt('30','30일 이상 미출석',f.attendGap)+opt('60','60일 이상 미출석',f.attendGap))}
@@ -3481,7 +3504,7 @@
     _memberFilters = {
       program: 'all', status: 'all', payment: 'all', locker: 'all', sort: 'none',
       gender: 'all', dateBasis: 'none', dateStart: '', dateEnd: '',
-      remainMax: 'all', attendGap: 'all', unpaidMin: '', ageBands: new Set()
+      remainMax: 'all', attendGap: 'all', unpaidMin: '', ageBands: new Set(), staff: 'all'
     };
     loadMemberList('');
   }
