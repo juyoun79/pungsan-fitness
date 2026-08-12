@@ -2139,7 +2139,7 @@
               price: (d.price || 0) - settleAmt, cash: signCash, card: signCard, transfer: signTransfer,
               date: c.signDate || '', contractType,
               trainerId: ctProgramTrainerRequired(it.progKey) ? (d.trainerId || '') : '',
-              salesStaffId: c.salesStaffId || '', salesStaffName: c.salesStaffName || ''
+              salesStaffId: d.salesStaffId || c.salesStaffId || '', salesStaffName: d.salesStaffName || c.salesStaffName || ''
             });
             if (settleAmt > 0 && d.unpaidSettledAt) {
               entries.push({
@@ -2150,14 +2150,14 @@
                 transfer: settleMethod === 'transfer' ? settleAmt : 0,
                 date: d.unpaidSettledAt, contractType,
                 trainerId: ctProgramTrainerRequired(it.progKey) ? (d.trainerId || '') : '', isSettlement: true,
-                salesStaffId: c.salesStaffId || '', salesStaffName: c.salesStaffName || ''
+                salesStaffId: d.salesStaffId || c.salesStaffId || '', salesStaffName: d.salesStaffName || c.salesStaffName || ''
               });
             }
             if (d.refund) {
               refunds.push({
                 phone, name, progKey: it.progKey, label, refundAmount: d.refund.refundAmount || 0, date: d.refund.date || '', method: d.refund.method || '',
                 trainerId: ctProgramTrainerRequired(it.progKey) ? (d.trainerId || '') : '',
-                salesStaffId: c.salesStaffId || ''
+                salesStaffId: d.salesStaffId || c.salesStaffId || ''
               });
             }
             // 양도비 — 패키지는 항목마다 같은 transferOut이 찍히므로 계약+처리시각 기준으로 한 번만 집계
@@ -2190,7 +2190,7 @@
               phone, name, progKey: 'extra:' + key, label,
               price: (e.price || 0) - settleAmt, cash: signCash, card: signCard, transfer: signTransfer,
               date: c.signDate || '', contractType, trainerId: '',
-              salesStaffId: c.salesStaffId || '', salesStaffName: c.salesStaffName || ''
+              salesStaffId: e.salesStaffId || c.salesStaffId || '', salesStaffName: e.salesStaffName || c.salesStaffName || ''
             });
             if (settleAmt > 0 && e.unpaidSettledAt) {
               entries.push({
@@ -2200,13 +2200,13 @@
                 card: settleMethod === 'card' ? settleAmt : 0,
                 transfer: settleMethod === 'transfer' ? settleAmt : 0,
                 date: e.unpaidSettledAt, contractType, trainerId: '', isSettlement: true,
-                salesStaffId: c.salesStaffId || '', salesStaffName: c.salesStaffName || ''
+                salesStaffId: e.salesStaffId || c.salesStaffId || '', salesStaffName: e.salesStaffName || c.salesStaffName || ''
               });
             }
             if (e.refund) {
               refunds.push({
                 phone, name, progKey: 'extra:' + key, label, refundAmount: e.refund.refundAmount || 0, date: e.refund.date || '', method: e.refund.method || '',
-                trainerId: '', salesStaffId: c.salesStaffId || ''
+                trainerId: '', salesStaffId: e.salesStaffId || c.salesStaffId || ''
               });
             }
           });
@@ -4537,16 +4537,18 @@
       const countLabel  = it.data.count  ? it.data.count  + '회'   : '-';
       const isTrainerProg = ctProgramTrainerRequired(it.progKey);
       const trainerName = it.data.trainerId ? ((typeof adminTrainerList !== 'undefined' ? adminTrainerList : []).find(t => t.id === it.data.trainerId)?.name || it.data.trainerId) : '';
+      const staffName = it.data.salesStaffName || '';
       const trainerLink = isTrainerProg
         ? `<span onclick="openAssignItemTrainer('${phone}','${c.key}','${it.progKey}',${it.pkgIndex == null ? 'null' : it.pkgIndex})" style="cursor:pointer;color:${trainerName ? 'var(--text)' : 'var(--text-hint)'};text-decoration:underline dotted;">${trainerName || '미정'} ✏️</span>`
-        : '<span style="color:var(--text-hint);">-</span>';
+        : `<span onclick="openAssignItemSalesStaff('${phone}','${c.key}','${it.progKey}',${it.pkgIndex == null ? 'null' : it.pkgIndex},'prog')" style="cursor:pointer;color:${staffName ? 'var(--text)' : 'var(--text-hint)'};text-decoration:underline dotted;">${staffName || '미정'} ✏️</span>`;
+      const assignLabel = isTrainerProg ? '담당강사' : '담당자';
       return `<div class="md-item-row" style="padding:8px 0;border-top:1px solid var(--border);">
         <!-- 모바일: flex | PC: grid 7컬럼 (md-col-* 직접 배치, display:contents 미사용) -->
         <div class="md-col-prog">
           <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${progLabels[it.progKey] || getProgLabel(it.progKey)}${hideBadge ? '' : ' ' + _renderPkgBadge(it.pkgName)}</div>
           <div class="md-col-prog-sub" style="font-size:11px;color:var(--text-hint);margin-top:2px;">${_formatPeriodLabel(it.data)}</div>
           ${(startLabel !== '-' || endLabel !== '-') ? `<div class="md-col-daterange" style="font-size:11px;color:var(--text-hint);margin-top:2px;">${startLabel} ~ ${endLabel}</div>` : ''}
-          ${isTrainerProg ? `<div class="md-col-trainer-mobile" style="font-size:11px;color:var(--text-hint);margin-top:2px;">담당강사: ${trainerLink}</div>` : ''}
+          <div class="md-col-trainer-mobile" style="font-size:11px;color:var(--text-hint);margin-top:2px;">${assignLabel}: ${trainerLink}</div>
         </div>
         <div class="md-col-months" style="display:none;font-size:12px;color:var(--text);">${monthsLabel}</div>
         <div class="md-col-count"  style="display:none;font-size:12px;color:var(--text);">${countLabel}</div>
@@ -4582,7 +4584,7 @@
       <div style="text-align:center;">횟수</div>
       <div style="text-align:center;">시작일</div>
       <div style="text-align:center;">종료일</div>
-      <div style="text-align:center;">담당강사</div>
+      <div style="text-align:center;">담당강사/담당자</div>
       <div style="text-align:right;">금액 · 결제상태</div>
     </div>` : '';
 
@@ -4689,6 +4691,79 @@
   }
   window._saveAssignItemTrainer = _saveAssignItemTrainer;
 
+  // 담당자(매출귀속) 지정 모달 — 프로그램 항목(kind='prog', 패키지면 pkgIndex 포함) 또는 부가서비스(kind='extra', progKey 자리에 extKey) 공용
+  function openAssignItemSalesStaff(phone, contractKey, progKey, pkgIndex, kind) {
+    const existing = document.getElementById('app-staff-assign-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-staff-assign-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.innerHTML = `
+      <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:320px;box-sizing:border-box;">
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:14px;">담당자 지정 (매출 귀속용)</div>
+        <select id="staff-assign-select" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;margin-bottom:14px;">
+          <option value="">미정</option>
+        </select>
+        <div style="display:flex;gap:8px;">
+          <button onclick="document.getElementById('app-staff-assign-modal').remove()" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+          <button onclick="_saveAssignItemSalesStaff('${phone}','${contractKey}','${progKey}',${pkgIndex == null ? 'null' : pkgIndex},'${kind || 'prog'}')" style="flex:1;padding:10px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    const sel = document.getElementById('staff-assign-select');
+    _fetchTrainerOptionsForGoal().then(opts => {
+      if (sel) sel.innerHTML = '<option value="">미정</option>' + opts.map(t => `<option value="${t.id}" data-name="${t.name}">${t.name}</option>`).join('');
+    }).catch(() => {});
+  }
+  window.openAssignItemSalesStaff = openAssignItemSalesStaff;
+
+  // 목표매출 카테고리 체크용 progKey → 사람이 읽는 라벨 (extras는 '락카'/'운동복'으로 매핑)
+  function _goalCategoryLabelFor(entryProgKey) {
+    if (entryProgKey === 'extra:locker') return '락카';
+    if (entryProgKey === 'extra:cloth') return '운동복';
+    return (typeof REFUND_PROG_NAMES !== 'undefined' && REFUND_PROG_NAMES[entryProgKey]) || getProgLabel(entryProgKey) || entryProgKey;
+  }
+
+  // 이 직원의 목표매출 설정(sales_goal_config)에 해당 카테고리가 체크돼 있는지 확인
+  function _staffHasGoalCategory(staffId, entryProgKey) {
+    return db.ref('sales_goal_config').once('value').then(snap => {
+      const rows = snap.val() || {};
+      return Object.values(rows).some(r => r.trainerId === staffId && Object.keys(r.programs || {}).some(p => _goalProgMatch(entryProgKey, p)));
+    });
+  }
+
+  function _saveAssignItemSalesStaff(phone, contractKey, progKey, pkgIndex, kind) {
+    const sel = document.getElementById('staff-assign-select');
+    const staffId = sel ? sel.value : '';
+    const staffName = staffId && sel.selectedOptions[0] ? (sel.selectedOptions[0].dataset.name || '') : '';
+    const isExtra = kind === 'extra';
+    const itemPath = isExtra
+      ? 'contracts/' + phone + '/' + contractKey + '/extras/' + progKey
+      : (pkgIndex == null
+        ? 'contracts/' + phone + '/' + contractKey + '/programs/' + progKey
+        : 'contracts/' + phone + '/' + contractKey + '/packages/' + pkgIndex + '/items/' + progKey);
+
+    const doSave = () => {
+      db.ref(itemPath).update({ salesStaffId: staffId || null, salesStaffName: staffId ? staffName : null }).then(() => {
+        document.getElementById('app-staff-assign-modal')?.remove();
+        showToast('✅ 담당자가 저장됐어요.', 'success');
+        if (typeof _invalidateRevenueCache === 'function') _invalidateRevenueCache();
+        _renderMdContracts(phone);
+      });
+    };
+
+    if (!staffId) { doSave(); return; }
+    const entryProgKey = isExtra ? ('extra:' + progKey) : progKey;
+    _staffHasGoalCategory(staffId, entryProgKey).then(has => {
+      if (has) { doSave(); return; }
+      const label = _goalCategoryLabelFor(entryProgKey);
+      if (confirm('⚠️ ' + staffName + '님은 목표매출 설정에 \'' + label + '\' 카테고리가 없어요.\n매출은 정상 기록되지만 목표매출 리포트엔 안 잡혀요.\n계속할까요?')) {
+        doSave();
+      }
+    }).catch(() => doSave());
+  }
+  window._saveAssignItemSalesStaff = _saveAssignItemSalesStaff;
+
   // 부가서비스(운동복/락카) 라벨
   function _extraLabel(key, e) {
     if (key === 'cloth') return '👕 운동복';
@@ -4723,15 +4798,18 @@
       : (unpaid > 0
         ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">미수금 ${unpaid.toLocaleString()}원</div>`
         : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">${methodLabel ? methodLabel + ' · ' : ''}완납 ✓</div>`);
+    const extStaffName = e.salesStaffName || '';
+    const extStaffLink = `<span onclick="openAssignItemSalesStaff('${phone}','${contractKey}','${extKey}',null,'extra')" style="cursor:pointer;color:${extStaffName ? 'var(--text)' : 'var(--text-hint)'};text-decoration:underline dotted;">${extStaffName || '미정'} ✏️</span>`;
     return `<div class="md-item-row" style="padding:8px 0;border-top:1px solid var(--border);">
       <div class="md-col-prog">
         <div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${_extraLabel(extKey, e)}</div>
+        <div class="md-col-trainer-mobile" style="font-size:11px;color:var(--text-hint);margin-top:2px;">담당자: ${extStaffLink}</div>
       </div>
       <div class="md-col-months" style="display:none;font-size:12px;color:var(--text);">${monthsLabel}</div>
       <div class="md-col-count"  style="display:none;font-size:12px;color:var(--text-hint);">-</div>
       <div class="md-col-start"  style="display:none;font-size:12px;color:var(--text);">${startLabel}</div>
       <div class="md-col-end"    style="display:none;font-size:12px;color:var(--text);">${endLabel}</div>
-      <div class="md-col-trainer" style="display:none;font-size:12px;color:var(--text-hint);">-</div>
+      <div class="md-col-trainer" style="display:none;font-size:12px;">${extStaffLink}</div>
       <div class="md-col-right" style="margin-left:auto;">
         <div class="md-col-amount" style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;text-align:right;">${amt.toLocaleString()}원</div>
         <div class="md-col-status" style="font-size:11px;text-align:right;">
