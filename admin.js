@@ -4537,7 +4537,7 @@
       const countLabel  = it.data.count  ? it.data.count  + '회'   : '-';
       const isTrainerProg = ctProgramTrainerRequired(it.progKey);
       const trainerName = it.data.trainerId ? ((typeof adminTrainerList !== 'undefined' ? adminTrainerList : []).find(t => t.id === it.data.trainerId)?.name || it.data.trainerId) : '';
-      const staffName = it.data.salesStaffName || '';
+      const staffName = it.data.salesStaffName || c.salesStaffName || '';
       const trainerLink = isTrainerProg
         ? `<span onclick="openAssignItemTrainer('${phone}','${c.key}','${it.progKey}',${it.pkgIndex == null ? 'null' : it.pkgIndex})" style="cursor:pointer;color:${trainerName ? 'var(--text)' : 'var(--text-hint)'};text-decoration:underline dotted;">${trainerName || '미정'} ✏️</span>`
         : `<span onclick="openAssignItemSalesStaff('${phone}','${c.key}','${it.progKey}',${it.pkgIndex == null ? 'null' : it.pkgIndex},'prog')" style="cursor:pointer;color:${staffName ? 'var(--text)' : 'var(--text-hint)'};text-decoration:underline dotted;">${staffName || '미정'} ✏️</span>`;
@@ -4576,7 +4576,7 @@
     }).join('');
 
     // 부가서비스(운동복/락카) 행 — 프로그램과 달리 환불/양도/휴회는 지원하지 않고 정보수정/삭제만 가능
-    const extraRows = extrasList.map(([extKey, e]) => _renderExtraRow(phone, c.key, extKey, e)).join('');
+    const extraRows = extrasList.map(([extKey, e]) => _renderExtraRow(phone, c.key, extKey, e, c.salesStaffName)).join('');
 
     const itemHeader = (items.length || extrasList.length) ? `<div class="md-item-colhead" style="display:none;">
       <div style="text-align:left;">프로그램</div>
@@ -4772,7 +4772,7 @@
   }
 
   // 부가서비스 항목 한 줄 렌더링 — 프로그램용 환불/양도/휴회 시스템과 완전히 분리된 단순 결제관리(수정/삭제)만 지원
-  function _renderExtraRow(phone, contractKey, extKey, e) {
+  function _renderExtraRow(phone, contractKey, extKey, e, contractSalesStaffName) {
     if (e.isMigrated) {
       return `<div class="md-item-row" style="padding:8px 0;border-top:1px solid var(--border);">
         <div class="md-col-prog"><div style="font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap;">${_extraLabel(extKey, e)}</div></div>
@@ -4798,7 +4798,7 @@
       : (unpaid > 0
         ? `<div style="font-size:10.5px;color:#ef4444;font-weight:700;">미수금 ${unpaid.toLocaleString()}원</div>`
         : `<div style="font-size:10.5px;color:#22c55e;font-weight:600;">${methodLabel ? methodLabel + ' · ' : ''}완납 ✓</div>`);
-    const extStaffName = e.salesStaffName || '';
+    const extStaffName = e.salesStaffName || contractSalesStaffName || '';
     const extStaffLink = `<span onclick="openAssignItemSalesStaff('${phone}','${contractKey}','${extKey}',null,'extra')" style="cursor:pointer;color:${extStaffName ? 'var(--text)' : 'var(--text-hint)'};text-decoration:underline dotted;">${extStaffName || '미정'} ✏️</span>`;
     return `<div class="md-item-row" style="padding:8px 0;border-top:1px solid var(--border);">
       <div class="md-col-prog">
