@@ -1953,7 +1953,6 @@
 
     _revRenderFilterOptions();
     _revUpdateDateLabel();
-    if (_revAllEntries) { loadRevenueStats(); return; }
     document.getElementById('rev-summary-cards').innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;grid-column:span 2;">불러오는 중...</div>';
     _revBuildData().then(() => loadRevenueStats());
   }
