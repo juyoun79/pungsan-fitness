@@ -6747,10 +6747,15 @@
         <div style="margin-top:6px;font-weight:700;color:#3b82f6;">${diffLine}</div>
       </div>
       <div id="pc4-staff-wrap" style="margin-bottom:14px;">
-        <div style="font-size:12px;color:#888;margin-bottom:4px;">담당자 (매출 귀속용 — 담당강사가 지정되는 프로그램에는 적용 안 돼요)</div>
-        <select id="pc4-staff" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13.5px;font-family:'Noto Sans KR',sans-serif;">
-          <option value="">선택 안 함 (미정)</option>
-        </select>
+        <div id="pc4-staff-select-block">
+          <div style="font-size:12px;color:#888;margin-bottom:4px;">담당자 (매출 귀속용 — 담당강사가 지정되는 프로그램에는 적용 안 돼요)</div>
+          <select id="pc4-staff" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13.5px;font-family:'Noto Sans KR',sans-serif;">
+            <option value="">선택 안 함 (미정)</option>
+          </select>
+        </div>
+        <div id="pc4-staff-info-block" style="display:none;font-size:12.5px;color:#666;background:#f7f7f7;border:1px solid #e0e0e0;border-radius:8px;padding:9px 10px;">
+          ℹ️ 이 계약은 담당강사 지정으로 관리돼요 (계약이력에서 지정)
+        </div>
       </div>
       <div style="display:flex;gap:10px;">
         <button onclick="_renderProgChangeStep3()" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
@@ -6759,8 +6764,11 @@
 
     modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">${body}</div>`;
     document.body.appendChild(modal);
-    const staffWrap = document.getElementById('pc4-staff-wrap');
-    if (staffWrap) staffWrap.style.display = ctProgramTrainerRequired(ctx.newProgKey) ? 'none' : '';
+    const needsStaff = !ctProgramTrainerRequired(ctx.newProgKey);
+    const pc4SelBlock = document.getElementById('pc4-staff-select-block');
+    const pc4InfoBlock = document.getElementById('pc4-staff-info-block');
+    if (pc4SelBlock) pc4SelBlock.style.display = needsStaff ? '' : 'none';
+    if (pc4InfoBlock) pc4InfoBlock.style.display = needsStaff ? 'none' : '';
     const staffSel = document.getElementById('pc4-staff');
     if (staffSel) {
       _fetchTrainerOptionsForGoal().then(opts => {
@@ -10149,8 +10157,11 @@
         now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일';
       renderCtSignSummary();
       _populateCtStaffSelect();
-      const staffFieldWrap = document.getElementById('ct-staff-field-wrap');
-      if (staffFieldWrap) staffFieldWrap.style.display = _ctNeedsSalesStaffField() ? '' : 'none';
+      const needsStaff = _ctNeedsSalesStaffField();
+      const selBlock = document.getElementById('ct-staff-select-block');
+      const infoBlock = document.getElementById('ct-staff-info-block');
+      if (selBlock) selBlock.style.display = needsStaff ? '' : 'none';
+      if (infoBlock) infoBlock.style.display = needsStaff ? 'none' : '';
       // 모바일에서 이미 서명을 받은 경우, 캔버스에 그대로 그려서 보여줌
       if (window._ctMobileSignUrl) {
         const img = new Image();
