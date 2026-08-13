@@ -3030,6 +3030,7 @@
   }
 
   function _selectGlobalSearchResult(phone, suffix) {
+    clearTimeout(_globalSearchDebounce);
     closeGlobalSearchResults();
     const input = document.getElementById('global-search-input' + suffix);
     if (input) input.value = '';
@@ -3039,6 +3040,7 @@
   window._selectGlobalSearchResult = _selectGlobalSearchResult;
 
   function closeGlobalSearchResults() {
+    clearTimeout(_globalSearchDebounce);
     ['', '-m'].forEach(suffix => {
       const el = document.getElementById('global-search-results' + suffix);
       if (el) { el.style.display = 'none'; el.innerHTML = ''; }
