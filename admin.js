@@ -19851,11 +19851,18 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     const date = _pgeSelectedDate;
     if (!date) { showToast('날짜를 선택해주세요.', 'error'); return; }
     const reason = (document.getElementById('pge-reason').value || '').trim() || '휴강';
-    showConfirm(date + ' 전체를 휴무로 설정할까요?', () => {
-      db.ref('pilates_exceptions/' + date + '/fullClosed').set({ reason }).then(() => {
-        showToast('✅ 휴무로 설정됐어요.', 'success');
-        loadPilatesExceptionList();
-        renderPgeTimeCheckboxes();
+    _pgCountBookingsOnDate(date, null).then(count => {
+      const msg = count > 0
+        ? date + ' 전체를 휴무로 설정할까요?\n⚠️ 이미 예약된 회원 ' + count + '명이 있어요. 휴무로 설정하면 그 예약들은 자동 취소되고, 잔여횟수가 복구되며, 회원에게 알림이 발송돼요.'
+        : date + ' 전체를 휴무로 설정할까요?';
+      showConfirm(msg, () => {
+        db.ref('pilates_exceptions/' + date + '/fullClosed').set({ reason }).then(() => {
+          _pgCancelBookingsForClosure(date, null, reason).then(() => {
+            showToast('✅ 휴무로 설정됐어요.' + (count > 0 ? ' 기존 예약도 정리했어요.' : ''), 'success');
+            loadPilatesExceptionList();
+            renderPgeTimeCheckboxes();
+          });
+        });
       });
     });
   }
@@ -19908,15 +19915,75 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     const checked = [...document.querySelectorAll('#pge-time-checkboxes input:checked')].map(el => el.value);
     if (!checked.length) { showToast('닫을 시간을 선택해주세요.', 'error'); return; }
     const reason = (document.getElementById('pge-reason').value || '').trim() || '휴강';
-    const updates = {};
-    checked.forEach(t => { updates['pilates_exceptions/' + date + '/closedTimes/' + t] = { reason }; });
-    db.ref().update(updates).then(() => {
-      showToast('✅ 선택한 시간이 닫혔어요.', 'success');
-      loadPilatesExceptionList();
-      renderPgeTimeCheckboxes();
+    _pgCountBookingsOnDate(date, checked).then(count => {
+      const msg = count > 0
+        ? '선택한 시간을 닫을까요?\n⚠️ 이미 예약된 회원 ' + count + '명이 있어요. 닫으면 그 예약들은 자동 취소되고, 잔여횟수가 복구되며, 회원에게 알림이 발송돼요.'
+        : '선택한 시간을 닫을까요?';
+      showConfirm(msg, () => {
+        const updates = {};
+        checked.forEach(t => { updates['pilates_exceptions/' + date + '/closedTimes/' + t] = { reason }; });
+        db.ref().update(updates).then(() => {
+          _pgCancelBookingsForClosure(date, checked, reason).then(() => {
+            showToast('✅ 선택한 시간이 닫혔어요.' + (count > 0 ? ' 기존 예약도 정리했어요.' : ''), 'success');
+            loadPilatesExceptionList();
+            renderPgeTimeCheckboxes();
+          });
+        });
+      });
     });
   }
   window.closeCheckedPilatesTimes = closeCheckedPilatesTimes;
+
+  // 해당 날짜(전체 또는 선택한 시간들)에 이미 예약된 인원 수를 셈 — 휴무/시간닫기 전 경고문구용
+  function _pgCountBookingsOnDate(dateStr, times) {
+    const dateKey = dateStr.replace(/-/g, '');
+    return db.ref('pilates_classes').orderByKey().startAt(dateKey + '_').endAt(dateKey + '_\uf8ff').once('value').then(snap => {
+      let count = 0;
+      snap.forEach(child => {
+        const cls = child.val();
+        if (!cls || !cls.bookings) return;
+        if (times && !times.includes(cls.time)) return;
+        count += Object.keys(cls.bookings).length;
+      });
+      return count;
+    });
+  }
+
+  // 휴무/시간닫기로 영향받는 기존 예약을 일괄 정리 — 예약취소 + 잔여횟수 복구(차감돼있던 건만) + 대기자 정리 + 회원 알림
+  function _pgCancelBookingsForClosure(dateStr, times, reason) {
+    const dateKey = dateStr.replace(/-/g, '');
+    return db.ref('pilates_classes').orderByKey().startAt(dateKey + '_').endAt(dateKey + '_\uf8ff').once('value').then(snap => {
+      const tasks = [];
+      snap.forEach(child => {
+        const classId = child.key;
+        const cls = child.val();
+        if (!cls) return;
+        if (times && !times.includes(cls.time)) return;
+
+        Object.entries(cls.bookings || {}).forEach(([uid, b]) => {
+          const removeBooking = db.ref('pilates_classes/' + classId + '/bookings/' + uid).remove();
+          if (b.isTrial) { tasks.push(removeBooking); return; } // 체험수업자는 횟수/알림 대상 아님
+          const shouldRestore = !!(b.deducted || b.attended);
+          const restore = shouldRestore
+            ? db.ref('pilates_group/' + uid).transaction(p => { if (!p) return p; p.remain = (p.remain || 0) + 1; return p; })
+            : Promise.resolve();
+          tasks.push(removeBooking.then(() => restore).then(() => {
+            if (typeof sendPushToUser === 'function') {
+              sendPushToUser(uid, '🧘 필라테스 수업 휴강 안내',
+                dateStr + ' ' + cls.time + ' 수업이 "' + reason + '"(으)로 휴강돼 예약이 취소됐어요. 잔여횟수는 복구됐어요.',
+                'pilates', { type: 'pilates_closed', classId });
+            }
+          }));
+        });
+
+        // 대기자도 함께 정리 (수업 자체가 열리지 않으므로)
+        Object.keys(cls.waitlist || {}).forEach(uid => {
+          tasks.push(db.ref('pilates_classes/' + classId + '/waitlist/' + uid).remove());
+        });
+      });
+      return Promise.all(tasks);
+    });
+  }
 
   function removePilatesFullClosed(date) {
     db.ref('pilates_exceptions/' + date + '/fullClosed').remove().then(() => {
