@@ -3051,6 +3051,10 @@
         !e.target.closest('#global-search-input-m') && !e.target.closest('#global-search-results-m')) {
       closeGlobalSearchResults();
     }
+    if (!e.target.closest('#tms-search-input') && !e.target.closest('#tms-results')) {
+      const tmsEl = document.getElementById('tms-results');
+      if (tmsEl) { tmsEl.style.display = 'none'; tmsEl.innerHTML = ''; }
+    }
   });
 
   // ══════════════════════════════════════════════
@@ -20265,6 +20269,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     if (tmsInput) tmsInput.value = '';
     const tmsResults = document.getElementById('tms-results');
     if (tmsResults) tmsResults.style.display = 'none';
+    window._lastTmsMatches = [];
     loadAllMembersForTrainerSearch();
   }
 
@@ -20287,11 +20292,13 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     const resultsEl = document.getElementById('tms-results');
     if (!resultsEl) return;
     const q = query.trim().toLowerCase();
+    window._lastTmsMatches = [];
     if (!q) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; return; }
     const cache = window._allMemberSearchCache || [];
     const filtered = cache.filter(({ name, phone }) =>
       name.toLowerCase().includes(q) || phone.includes(q)
     ).slice(0, 30);
+    window._lastTmsMatches = filtered;
 
     if (!filtered.length) {
       resultsEl.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-hint);font-size:13px;">검색 결과가 없어요</div>';
@@ -20299,7 +20306,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       return;
     }
     resultsEl.innerHTML = filtered.map(({ phone, name }) => `
-      <div onclick="openTrainerMemberDetail('${phone}')"
+      <div onclick="_selectTmsSearchResult('${phone}')"
         style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);"
         ontouchstart="this.style.background='var(--blue-light)'" ontouchend="this.style.background='transparent'">
         <div style="width:32px;height:32px;border-radius:50%;background:var(--blue);color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;">${name[0] || '?'}</div>
@@ -20312,6 +20319,25 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     resultsEl.style.display = 'block';
   }
   window.filterAllMemberSearch = filterAllMemberSearch;
+
+  // 검색결과에서 회원 선택(클릭) — 드롭다운 닫기 + 검색창 비우기 + 회원상세 열기
+  function _selectTmsSearchResult(phone) {
+    const resultsEl = document.getElementById('tms-results');
+    if (resultsEl) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; }
+    const input = document.getElementById('tms-search-input');
+    if (input) input.value = '';
+    window._lastTmsMatches = [];
+    openTrainerMemberDetail(phone);
+  }
+  window._selectTmsSearchResult = _selectTmsSearchResult;
+
+  // 검색창에서 엔터 — 첫번째 검색결과 선택
+  function onTmsSearchEnter() {
+    const matches = window._lastTmsMatches || [];
+    if (matches.length === 0) return;
+    _selectTmsSearchResult(matches[0].phone);
+  }
+  window.onTmsSearchEnter = onTmsSearchEnter;
 
   function closeTrainerMemberDetail() {
     document.getElementById('tmd-modal').classList.remove('active');

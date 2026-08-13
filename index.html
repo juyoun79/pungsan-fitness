@@ -549,6 +549,7 @@
         <div style="position:relative;margin-bottom:18px;">
           <input type="text" id="tms-search-input" placeholder="🔍 전체회원 이름 또는 전화번호 검색"
             oninput="filterAllMemberSearch(this.value)"
+            onkeydown="if(event.key==='Enter')onTmsSearchEnter()"
             style="width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--card);color:var(--text);box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;">
           <div id="tms-results" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);background:var(--card);border:1px solid var(--border);border-radius:var(--radius);max-height:340px;overflow-y:auto;z-index:50;box-shadow:0 4px 12px rgba(0,0,0,0.12);"></div>
         </div>
