@@ -1892,6 +1892,7 @@
   // 💰 매출통계 탭
   // ══════════════════════════════════════════════
   let _revAllEntries = null;   // 전체 매출 항목 원시데이터 (한번 fetch 후 캐시)
+  let _revLastUnassigned = { trainer: { entries: [], refunds: [] }, general: { entries: [], refunds: [] } }; // "미정" 팝업용 최근 계산 결과 캐시
 
   // 계약등록/수정/환불/미수금정산/양도/프로그램변경 등 매출에 영향 주는 저장이 일어날 때마다 호출 —
   // 캐시를 비워서 다음에 현황탭/매출통계탭을 볼 때 최신 데이터로 다시 계산되게 함
@@ -1957,6 +1958,66 @@
     _revBuildData().then(() => loadRevenueStats());
   }
   window.initRevenueTab = initRevenueTab;
+
+  // "담당강사/담당자 미정" 행 클릭 시 — 해당 항목들을 팝업으로 보여주고, 클릭하면 지정할 수 있는 화면으로 이동
+  function openUnassignedRevenueDetail(kind) {
+    const data = _revLastUnassigned[kind] || { entries: [], refunds: [] };
+    const title = kind === 'trainer' ? '담당강사 미정 내역' : '담당자 미정 내역';
+    const rows = [
+      ...data.entries.map(e => ({ ...e, _kind: 'entry', _amt: (e.cash || 0) + (e.card || 0) + (e.transfer || 0) })),
+      ...data.refunds.map(rf => ({ ...rf, _kind: 'refund', _amt: -(rf.refundAmount || 0) }))
+    ].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+    document.getElementById('unassigned-rev-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'unassigned-rev-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    const rowsHtml = rows.length ? rows.map((r, i) => {
+      const isRefund = r._kind === 'refund';
+      const amtColor = r._amt < 0 ? '#ef4444' : 'var(--text)';
+      const amtLabel = (r._amt < 0 ? '-' : '') + Math.abs(r._amt).toLocaleString() + '원';
+      const clickable = !isRefund;
+      return `<div ${clickable ? `onclick="_goToUnassignedRevenueItem(${i},'${kind}')"` : ''}
+          style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--border);${clickable ? 'cursor:pointer;' : 'opacity:0.65;'}">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);">${r.name || r.phone || '이름없음'} <span style="font-size:10.5px;color:var(--text-hint);font-weight:400;">· ${(r.label || '').replace(/\s*\(📦.*?\)/, '')}</span></div>
+          <div style="font-size:11.5px;color:var(--text-sub);margin-top:2px;">${r.date || '-'}${isRefund ? ' · 환불 (정보성 표시)' : ''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:12.5px;color:${amtColor};">${amtLabel}</span>
+          ${clickable ? '<span style="font-size:13px;color:var(--text-hint);">›</span>' : ''}
+        </div>
+      </div>`;
+    }).join('') : '<div style="text-align:center;padding:24px;color:var(--text-hint);font-size:13px;">내역이 없어요.</div>';
+
+    modal.innerHTML = `
+      <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:420px;max-height:80vh;overflow-y:auto;box-sizing:border-box;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <div style="font-size:15px;font-weight:700;color:var(--text);">${title}</div>
+          <span onclick="document.getElementById('unassigned-rev-modal').remove()" style="cursor:pointer;color:var(--text-hint);font-size:18px;padding:2px 6px;">✕</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-hint);margin-bottom:12px;">항목을 누르면 담당자를 지정할 수 있는 화면으로 이동해요.</div>
+        <div>${rowsHtml}</div>
+      </div>`;
+    document.body.appendChild(modal);
+    window._unassignedRevRowsCache = rows; // 클릭 이동용 임시 보관
+  }
+  window.openUnassignedRevenueDetail = openUnassignedRevenueDetail;
+
+  // 미정 팝업의 항목 클릭 — 일일권이면 일일권 수정팝업, 그 외(일반항목/양도비)면 회원상세 계약이력으로 이동
+  function _goToUnassignedRevenueItem(idx, kind) {
+    const r = (window._unassignedRevRowsCache || [])[idx];
+    if (!r) return;
+    document.getElementById('unassigned-rev-modal')?.remove();
+    if (typeof r.progKey === 'string' && r.progKey.indexOf('daypass') === 0 && r.daypassKey) {
+      openDaypassEditModal(r.daypassKey);
+      return;
+    }
+    if (!r.phone) { showToast('회원 정보를 찾을 수 없어요.', 'error'); return; }
+    switchAdminTab('tab-members');
+    openMemberModal(r.phone);
+  }
+  window._goToUnassignedRevenueItem = _goToUnassignedRevenueItem;
 
   // ── 세부탭 전환 (요약/차트/상세내역) ──
   function switchRevSubTab(tab) {
@@ -2172,7 +2233,7 @@
                   card: d.transferOut.method === 'card' ? fee : 0,
                   transfer: d.transferOut.method === 'transfer' ? fee : 0,
                   date: d.transferOut.date || '', contractType: '신규', trainerId: '',
-                  salesStaffId: c.salesStaffId || '', salesStaffName: c.salesStaffName || ''
+                  salesStaffId: d.salesStaffId || c.salesStaffId || '', salesStaffName: d.salesStaffName || c.salesStaffName || ''
                 });
               }
             }
@@ -13170,6 +13231,12 @@
       });
       const genUnassignedSum = genUnassignedWeekSums.reduce((a, b) => a + b, 0);
 
+      // "미정" 팝업에서 다시 꺼내쓸 수 있게 캐시
+      _revLastUnassigned = {
+        trainer: { entries: unassignedEntries, refunds: unassignedRefunds },
+        general: { entries: genUnassignedEntries, refunds: genUnassignedRefunds }
+      };
+
       const totalGoal = rowResults.reduce((s, r) => s + r.goalAmount, 0);
       const weekTotals = weekRanges.map((_, i) => rowResults.reduce((s, r) => s + r.weekSums[i], 0) + unassignedWeekSums[i] + genUnassignedWeekSums[i]);
       const totalActual = rowResults.reduce((s, r) => s + r.monthSum, 0) + unassignedSum + genUnassignedSum;
@@ -13204,14 +13271,14 @@
 
       if (unassignedSum > 0) {
         html += `<tr style="border-top:1px solid var(--border);color:var(--text-hint);">
-          <td style="padding:8px 6px;" colspan="2">담당강사 미정 (PT/기구필라테스개인)</td>`;
+          <td style="padding:8px 6px;cursor:pointer;text-decoration:underline;text-underline-offset:2px;" colspan="2" onclick="openUnassignedRevenueDetail('trainer')">담당강사 미정 (PT/기구필라테스개인) ›</td>`;
         unassignedWeekSums.forEach(w => { html += `<td style="padding:8px 6px;text-align:right;">${fmt(w)}</td>`; });
         html += `<td style="padding:8px 6px;text-align:right;font-weight:700;">${fmt(unassignedSum)}</td><td style="padding:8px 6px;text-align:right;">-</td><td style="padding:8px 6px;text-align:right;">-</td><td style="padding:8px 6px;text-align:right;">-</td>
         </tr>`;
       }
       if (genUnassignedSum > 0) {
         html += `<tr style="border-top:1px solid var(--border);color:var(--text-hint);">
-          <td style="padding:8px 6px;" colspan="2">담당자 미정 (헬스/GX/락카 등)</td>`;
+          <td style="padding:8px 6px;cursor:pointer;text-decoration:underline;text-underline-offset:2px;" colspan="2" onclick="openUnassignedRevenueDetail('general')">담당자 미정 (헬스/GX/락카 등) ›</td>`;
         genUnassignedWeekSums.forEach(w => { html += `<td style="padding:8px 6px;text-align:right;">${fmt(w)}</td>`; });
         html += `<td style="padding:8px 6px;text-align:right;font-weight:700;">${fmt(genUnassignedSum)}</td><td style="padding:8px 6px;text-align:right;">-</td><td style="padding:8px 6px;text-align:right;">-</td><td style="padding:8px 6px;text-align:right;">-</td>
         </tr>`;
