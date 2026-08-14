@@ -30,6 +30,9 @@
         return { fn: 'openMemberModal', args: [currentMemberPhone] };
       }
     }
+    if (tabId === 'tab-revenue' && _revUnit === 'goal') {
+      return { fn: 'revenueGoalView', args: [] };
+    }
     return { fn: 'switchAdminTab', args: [tabId] };
   }
 
@@ -53,6 +56,7 @@
     _isAdminNavigatingBack = true;
     try {
       if (prev.fn === 'openMemberModal') openMemberModal(prev.args[0]);
+      else if (prev.fn === 'revenueGoalView') { switchAdminTab('tab-revenue'); _revSetUnit('goal'); }
       else switchAdminTab(prev.args[0]);
     } finally {
       _isAdminNavigatingBack = false;
@@ -2014,7 +2018,6 @@
       return;
     }
     if (!r.phone) { showToast('회원 정보를 찾을 수 없어요.', 'error'); return; }
-    switchAdminTab('tab-members');
     openMemberModal(r.phone);
   }
   window._goToUnassignedRevenueItem = _goToUnassignedRevenueItem;
@@ -3095,7 +3098,6 @@
     closeGlobalSearchResults();
     const input = document.getElementById('global-search-input' + suffix);
     if (input) input.value = '';
-    switchAdminTab('tab-members');
     openMemberModal(phone);
   }
   window._selectGlobalSearchResult = _selectGlobalSearchResult;
@@ -10298,7 +10300,6 @@
     const returnPhone = window._ctReturnPhone;
     window._ctReturnPhone = null;
     if (!returnPhone) { resetContract(); return; }
-    try { switchAdminTab('tab-members'); } catch(e) { console.error('switchAdminTab 오류(무시):', e); }
     try { openMemberModal(returnPhone); } catch(e) { console.error('openMemberModal 오류(무시):', e); }
   }
   window._returnToMemberDetailFromContract = _returnToMemberDetailFromContract;
@@ -10307,7 +10308,6 @@
     if (step === 2 && window._ctReturnPhone) {
       const returnPhone = window._ctReturnPhone;
       window._ctReturnPhone = null;
-      try { switchAdminTab('tab-members'); } catch(e) { console.error('switchAdminTab 오류(무시):', e); }
       try { openMemberModal(returnPhone); } catch(e) { console.error('openMemberModal 오류(무시):', e); }
       return;
     }
