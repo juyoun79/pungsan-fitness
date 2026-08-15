@@ -20897,6 +20897,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
 let _kioskInput = '';
 
 function openKiosk() {
+  localStorage.setItem('kiosk_active', '1'); // 새로고침해도 키오스크 상태가 유지되도록 저장
   _kioskInput = '';
   _kioskUpdateDots();
   document.getElementById('kiosk-input-area').style.display = 'block';
@@ -20922,6 +20923,7 @@ function exitKiosk() {
       const snap = await db.ref('admin_config/pw').once('value');
       const adminPw = snap.val() || 'admin123';
       if (pw === adminPw) {
+        localStorage.removeItem('kiosk_active'); // 정상 탈출했으니 새로고침해도 다시 키오스크로 안 돌아가게
         // 탭바 복원
         const tabRow = document.querySelector('.admin-tab-row');
         const pcHeader = document.getElementById('admin-header-pc');

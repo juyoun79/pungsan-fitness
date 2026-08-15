@@ -6207,6 +6207,7 @@
           if (btn) { btn.textContent = '로그인'; btn.disabled = false; }
           localStorage.setItem('current_user', ADMIN_ID);
           sessionStorage.setItem('session_user', ADMIN_ID);
+          localStorage.removeItem('kiosk_active'); // 방금 비밀번호로 직접 로그인했으니, 이전에 남아있던 키오스크 상태 표시는 정리
           loadAdminDashboard();
           showScreen('screen-admin');
         } else {
@@ -9217,6 +9218,10 @@
       if (userId === ADMIN_ID) {
         loadAdminDashboard();
         showScreen('screen-admin');
+        // 새로고침 직전에 키오스크 상태였으면, 비밀번호 확인 없이 관리자 화면이 그대로 보이지 않도록 키오스크 화면으로 복귀
+        if (localStorage.getItem('kiosk_active') === '1' && typeof openKiosk === 'function') {
+          openKiosk();
+        }
         return;
       }
 
