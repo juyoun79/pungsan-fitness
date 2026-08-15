@@ -20942,8 +20942,26 @@ function exitKiosk() {
 }
 
 function showConfirmKiosk(msg, cb) {
-  const pw = prompt(msg);
-  if (pw !== null) cb(pw);
+  document.getElementById('kiosk-pw-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'kiosk-pw-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:16px;padding:24px;width:100%;max-width:300px;box-sizing:border-box;text-align:center;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:15px;font-weight:700;color:#222;margin-bottom:14px;">${msg}</div>
+      <input type="password" id="kiosk-pw-input" style="width:100%;box-sizing:border-box;padding:12px;font-size:18px;text-align:center;letter-spacing:4px;border:1.5px solid #ddd;border-radius:8px;font-family:'Noto Sans KR',sans-serif;" />
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button id="kiosk-pw-cancel" style="flex:1;padding:11px;border-radius:8px;border:1.5px solid #ddd;background:white;color:#333;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+        <button id="kiosk-pw-ok" style="flex:1;padding:11px;border-radius:8px;border:none;background:var(--blue,#2f6fed);color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">확인</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  const input = document.getElementById('kiosk-pw-input');
+  const finish = (val) => { modal.remove(); if (val !== null) cb(val); };
+  document.getElementById('kiosk-pw-cancel').onclick = () => finish(null);
+  document.getElementById('kiosk-pw-ok').onclick = () => finish(input.value);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') finish(input.value); });
+  setTimeout(() => input.focus(), 50);
 }
 
 function _kioskUpdateDots() {
