@@ -14611,19 +14611,90 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         showToast('등록된 계약서가 없어요.', 'error');
         return;
       }
-      // 가장 최근 계약서 선택
       const contracts = snap.val();
-      const keys      = Object.keys(contracts).sort();
-      const latest    = contracts[keys[keys.length - 1]];
-      const html      = buildContractHtml(latest);
-      const blob      = new Blob([html], { type: 'text/html;charset=utf-8' });
-      const url       = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      const keys = Object.keys(contracts).sort().reverse(); // 최신순
+      if (keys.length === 1) {
+        _showMyContractViewer(contracts[keys[0]]);
+        return;
+      }
+      _showMyContractListModal(keys.map(k => contracts[k]));
     } catch(e) {
       showToast('계약서 조회 실패: ' + e.message, 'error');
     }
   }
   window.openMyContract = openMyContract;
+
+  // 계약서가 여러 건일 때 — 날짜/프로그램 요약으로 목록을 보여주고, 고르면 그 계약서를 보여줌
+  function _myContractSummaryLabel(c) {
+    const items = _flattenContractItems(c);
+    const names = items.map(it => getProgLabel(it.progKey)).filter(Boolean);
+    const extraNames = Object.keys(c.extras || {}).map(k => (k === 'locker' ? '락카' : k === 'cloth' ? '운동복' : k));
+    const all = [...new Set([...names, ...extraNames])];
+    return all.length ? all.join(' · ') : '계약서';
+  }
+
+  function _showMyContractListModal(contractsList) {
+    document.getElementById('my-contract-list-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'my-contract-list-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;';
+    const rowsHtml = contractsList.map((c, i) => `
+      <div onclick="_openMyContractFromList(${i})" style="padding:16px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-bottom:1px solid var(--border);">
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--text);">${_myContractSummaryLabel(c)}</div>
+          <div style="font-size:12.5px;color:var(--text-hint);margin-top:3px;">${c.signDate || '-'} 서명</div>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-hint)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>`).join('');
+    modal.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--card);">
+        <span onclick="document.getElementById('my-contract-list-modal').remove()" style="cursor:pointer;font-size:20px;color:var(--text);padding:4px 8px;">‹</span>
+        <div style="font-size:16px;font-weight:700;color:var(--text);">📄 내 계약서</div>
+      </div>
+      <div style="flex:1;overflow-y:auto;background:var(--card);">${rowsHtml}</div>`;
+    document.body.appendChild(modal);
+    window._myContractListCache = contractsList;
+  }
+  window._showMyContractListModal = _showMyContractListModal;
+
+  function _openMyContractFromList(idx) {
+    const c = (window._myContractListCache || [])[idx];
+    if (!c) return;
+    _showMyContractViewer(c);
+  }
+  window._openMyContractFromList = _openMyContractFromList;
+
+  // 계약서 내용을 앱 안에서 그대로 보여줌 (새 탭 대신 인앱 화면)
+  function _showMyContractViewer(contractData) {
+    document.getElementById('my-contract-viewer-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'my-contract-viewer-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:var(--bg);z-index:10000;display:flex;flex-direction:column;';
+    modal.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);background:var(--card);">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span onclick="document.getElementById('my-contract-viewer-modal').remove()" style="cursor:pointer;font-size:20px;color:var(--text);padding:4px 8px;">‹</span>
+          <div style="font-size:16px;font-weight:700;color:var(--text);">계약서</div>
+        </div>
+        <span onclick="_shareMyContract()" style="cursor:pointer;font-size:13px;color:var(--blue);font-weight:700;padding:4px 8px;">🔗 공유/다운로드</span>
+      </div>
+      <iframe id="my-contract-iframe" style="flex:1;width:100%;border:none;background:white;"></iframe>`;
+    document.body.appendChild(modal);
+    const iframe = document.getElementById('my-contract-iframe');
+    iframe.srcdoc = buildContractHtml(contractData);
+    window._myContractCurrentData = contractData;
+  }
+  window._showMyContractViewer = _showMyContractViewer;
+
+  // 지금 보고있는 계약서를 새 탭으로 열기 (다운로드/인쇄/공유가 필요할 때만 사용)
+  function _shareMyContract() {
+    if (!window._myContractCurrentData) return;
+    const html = buildContractHtml(window._myContractCurrentData);
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  }
+  window._shareMyContract = _shareMyContract;
 
   // ── 5단계 완료 후 PDF 새탭 열기 ──
   // ── 계약서 회원앱으로 전송 (FCM) ──
