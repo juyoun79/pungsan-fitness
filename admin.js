@@ -14946,11 +14946,11 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   }
 
   function loadHomeNotices(containerId) {
-    db.ref('notices').once('value', snap => {
-      const container = containerId
-        ? document.getElementById(containerId)
-        : document.getElementById('member-notice-container');
-      if (!container) return;
+    const container = containerId
+      ? document.getElementById(containerId)
+      : document.getElementById('member-notice-container');
+    if (!container) return;
+    _retryOnce(() => db.ref('notices').once('value').then(snap => {
       const notices = [];
       snap.forEach(child => {
         const v = child.val();
@@ -14976,6 +14976,8 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
           </div>
         </div>`;
       }).join('');
+    }), '공지사항', () => {
+      container.innerHTML = '<div onclick="loadHomeNotices(' + (containerId ? `'${containerId}'` : '') + ')" style="text-align:center;padding:16px;color:#e24b4a;font-size:13px;cursor:pointer;text-decoration:underline;">불러오기 실패 · 다시 시도</div>';
     });
   }
 
@@ -20436,6 +20438,23 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   let thRemainChart = null;
   let thChartData = { attend: [], absent: [], remain0: [], remainLow: [], remainOk: [] };
 
+  // 실패시 1.2초 후 자동으로 한번 더 시도, 그래도 실패하면 조용히 포기하지 않고 최소한의 실패 안내를 보여줌.
+  // loaderPromiseFactory: 호출할 때마다 새 Promise를 반환하는 함수. label: 실패 메시지에 쓸 이름.
+  // onFinalFail(선택): 재시도까지 실패했을 때 호출 — 화면에 "실패 · 다시시도" 같은 걸 직접 그리고 싶을 때 사용.
+  function _retryOnce(loaderPromiseFactory, label, onFinalFail) {
+    return loaderPromiseFactory().catch(err => {
+      console.error('[' + label + '] 불러오기 실패, 1.2초 후 재시도:', err);
+      return new Promise(resolve => setTimeout(resolve, 1200))
+        .then(() => loaderPromiseFactory())
+        .catch(err2 => {
+          console.error('[' + label + '] 재시도도 실패:', err2);
+          if (typeof onFinalFail === 'function') onFinalFail();
+          else if (typeof showToast === 'function') showToast('⚠️ ' + label + ' 정보를 불러오지 못했어요.', 'error');
+        });
+    });
+  }
+  window._retryOnce = _retryOnce;
+
   function loadTrainerHome() {
     const trainerId = localStorage.getItem('current_user');
     if (!trainerId) return;
@@ -20675,7 +20694,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     const dateStr = _pgTodayISO();
     const d = new Date(dateStr + 'T00:00:00');
     const dayKey = PG_WEEKDAY_BY_INDEX[d.getDay()];
-    Promise.all([
+    _retryOnce(() => Promise.all([
       db.ref('pilates_settings').once('value'),
       db.ref('pilates_exceptions/' + dateStr).once('value')
     ]).then(([setSnap, excSnap]) => {
@@ -20691,7 +20710,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         chipsEl.innerHTML = '<div style="flex-shrink:0;color:var(--text-hint);font-size:13px;padding:6px 0;">오늘 열리는 그룹수업이 없어요</div>';
         return;
       }
-      Promise.all(slots.map(sl => db.ref('pilates_classes/' + _pgClassId(dateStr, sl.time)).once('value'))).then(snaps => {
+      return Promise.all(slots.map(sl => db.ref('pilates_classes/' + _pgClassId(dateStr, sl.time)).once('value'))).then(snaps => {
         _thPgtNames = {};
         chipsEl.innerHTML = slots.map((sl, i) => {
           const classId = _pgClassId(dateStr, sl.time);
@@ -20708,6 +20727,8 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
             </div>`;
         }).join('');
       });
+    }), '오늘 그룹수업', () => {
+      chipsEl.innerHTML = '<div onclick="loadTrainerPilatesToday()" style="flex-shrink:0;color:#e24b4a;font-size:13px;padding:6px 0;cursor:pointer;text-decoration:underline;">불러오기 실패 · 다시 시도</div>';
     });
   }
   window.loadTrainerPilatesToday = loadTrainerPilatesToday;
@@ -20732,7 +20753,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     if (!chips) return;
     const today = new Date();
     const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
-    db.ref('trainers/' + trainerId + '/schedule').once('value', snap => {
+    _retryOnce(() => db.ref('trainers/' + trainerId + '/schedule').once('value').then(snap => {
       const data = snap.val() || {};
       const todayItems = [];
       Object.entries(data).forEach(([key, val]) => {
@@ -20751,11 +20772,13 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
           <span style="font-size:11px;font-weight:700;color:#185FA5;">${item.label}</span>
           <span style="font-size:11px;color:#0C447C;">${escapeHtml(item.content)}</span>
         </div>`).join('');
+    }), '오늘 스케줄', () => {
+      chips.innerHTML = '<div onclick="loadTrainerHomeSchedule(\'' + trainerId + '\')" style="flex-shrink:0;color:#e24b4a;font-size:13px;padding:6px 0;cursor:pointer;text-decoration:underline;">불러오기 실패 · 다시 시도</div>';
     });
   }
 
   function loadTrainerHomeStats(trainerId) {
-    db.ref('trainers/' + trainerId + '/trainees').once('value', snap => {
+    _retryOnce(() => db.ref('trainers/' + trainerId + '/trainees').once('value').then(snap => {
       const data = snap.val() || {};
       const now = new Date();
       const thisMonthPad = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
@@ -20829,7 +20852,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         });
       });
 
-      Promise.all(promises).then(() => {
+      return Promise.all(promises).then(() => {
         const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
         set('th-total-members', totalMembers);
         set('th-month-lessons', monthLessons);
@@ -20856,7 +20879,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         thChartData = { attend, absent, remain0, remainLow, remainOk, reRegThisMonth, expiredThisMonth };
         renderTrainerHomeCharts(reRegDone, reRegNotDone >= 0 ? reRegNotDone : 0, remain0.length, remainLow.length, remainOk.length);
       });
-    });
+    }), '담당회원 현황');
   }
   function renderTrainerHomeCharts(reRegDone, reRegNotDone, r0, rLow, rOk) {
     if (typeof Chart === 'undefined') {

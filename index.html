@@ -6393,7 +6393,7 @@
     const userId = localStorage.getItem('current_user');
     if (!userId || userId === ADMIN_ID) return;
     // Firebase에서 신체정보 불러오기 (없으면 로컬스토리지 fallback)
-    db.ref('users/' + userId + '/body').once('value', snap => {
+    const attempt = () => db.ref('users/' + userId + '/body').once('value').then(snap => {
       if (snap.exists()) {
         const body = snap.val();
         localStorage.setItem('body_weight_'      + userId, body.weight || '');
@@ -6405,6 +6405,11 @@
       }
       _renderHomeWeightCard(userId);
     });
+    if (typeof window._retryOnce === 'function') {
+      window._retryOnce(attempt, '체중 정보', () => _renderHomeWeightCard(userId)); // 실패해도 로컬에 남아있는 예전 값으로라도 표시
+    } else {
+      attempt().catch(() => _renderHomeWeightCard(userId));
+    }
   }
 
   function _renderHomeWeightCard(userId) {
@@ -9071,11 +9076,11 @@
     loadHomePilatesCard(userId);
     loadHomeMembershipCard(userId);
     // trainerId 없는 회원 자동 보정 + 홈 수업현황 카드 로드
-    db.ref('members/' + userId + '/trainerId').once('value', tidSnap => {
+    const attempt = () => db.ref('members/' + userId + '/trainerId').once('value').then(tidSnap => {
       if (!tidSnap.exists()) {
         // trainers 전체 순회해서 이 회원이 있는 강사 찾기
-        let found = false;
-        db.ref('trainers').once('value', tSnap => {
+        return db.ref('trainers').once('value').then(tSnap => {
+          let found = false;
           tSnap.forEach(trainerChild => {
             const tid = trainerChild.key;
             const trainee = trainerChild.child('trainees/' + userId);
@@ -9091,6 +9096,11 @@
         loadHomePtCard(tidSnap.val(), userId);
       }
     });
+    if (typeof window._retryOnce === 'function') {
+      window._retryOnce(attempt, '수업현황');
+    } else {
+      attempt().catch(() => {});
+    }
   }
   window.refreshMemberHomeCards = refreshMemberHomeCards;
 

@@ -1739,18 +1739,24 @@
     if (!userId) return;
     const now = new Date();
     const monthPrefix = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-';
-    db.ref('users/' + userId + '/attendance').once('value', snap => {
+    const attemptDays = () => db.ref('users/' + userId + '/attendance').once('value').then(snap => {
       let count = 0; snap.forEach(child => { if (child.key.startsWith(monthPrefix)) count++; });
       const el = document.getElementById('stat-days'); if (el) el.textContent = count;
     });
-    // 항상 Firebase에서 읽어 모든 포인트 표시 동기화
-    db.ref('users/' + userId + '/points').once('value', snap => {
+    const attemptPoints = () => db.ref('users/' + userId + '/points').once('value').then(snap => {
       const pts = snap.val() || 0;
       const elHome = document.getElementById('stat-points'); if (elHome) elHome.textContent = pts;
       const elInfo = document.getElementById('myinfo-points'); if (elInfo) elInfo.textContent = pts;
       const elAtt  = document.getElementById('att-points');   if (elAtt)  elAtt.textContent = pts.toLocaleString();
       localStorage.setItem('points_' + userId, String(pts));
     });
+    if (typeof window._retryOnce === 'function') {
+      window._retryOnce(attemptDays, '이번달 출석');
+      window._retryOnce(attemptPoints, '포인트');
+    } else {
+      attemptDays().catch(() => {});
+      attemptPoints().catch(() => {});
+    }
   }
 
   function togglePw() {
