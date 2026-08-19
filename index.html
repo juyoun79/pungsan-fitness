@@ -9866,6 +9866,46 @@ function _setupFCMTokenRefresh(userId) {
   });
 }
 
+// ── 앱이 오래(1분 이상) 백그라운드에 있다가 다시 보일 때, 지금 보고 있는 "보기 전용" 화면만 데이터 새로고침 ──
+// (입력폼이 있는 화면은 입력 중이던 내용이 날아갈 수 있어 대상에서 제외. 강제 재연결이 아니라 단순 재조회만 —
+//  재조회 자체가 죽어있던 연결을 자연스럽게 되살리는 효과가 있어서 충분함)
+let _lastHiddenAt = null;
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    _lastHiddenAt = Date.now();
+  } else if (document.visibilityState === 'visible') {
+    const wasHiddenLong = _lastHiddenAt && (Date.now() - _lastHiddenAt) >= 60000;
+    _lastHiddenAt = null;
+    if (wasHiddenLong) _refreshCurrentViewScreen();
+  }
+});
+
+function _refreshCurrentViewScreen() {
+  try {
+    const activeScreen = document.querySelector('.screen.active');
+    if (!activeScreen) return;
+    const screenId = activeScreen.id;
+    const userId = localStorage.getItem('current_user');
+    if (!userId) return;
+    const role = localStorage.getItem('role_' + userId) || 'member';
+
+    if (screenId === 'screen-home') {
+      if (role === 'trainer' || role === 'manager') {
+        if (typeof loadTrainerHome === 'function') loadTrainerHome();
+      } else {
+        if (typeof updateStats === 'function') updateStats();
+        if (typeof loadHomeNotices === 'function') loadHomeNotices();
+        if (typeof loadHomeWeightCard === 'function') loadHomeWeightCard();
+        if (typeof refreshMemberHomeCards === 'function') refreshMemberHomeCards(userId);
+      }
+    } else if (screenId === 'screen-schedule') {
+      if (typeof loadScheduleData === 'function') loadScheduleData();
+    }
+  } catch (e) {
+    console.error('화면 복귀 재조회 오류(무시):', e);
+  }
+}
+
 // ── 알림 설정 로드 (기본값: 전부 ON) ──
 function getNotifSettings(userId) {
   const defaults = { notice: true, coupon: true, like: true, comment: true, challenge: true };

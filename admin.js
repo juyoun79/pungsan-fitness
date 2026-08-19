@@ -15055,6 +15055,8 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     const dates = getScheduleWeekDates(scheduleBaseDate);
     const startDate = fmtDate(dates[0]);
     const endDate = fmtDate(dates[6]);
+    const body = document.getElementById('schedule-body');
+    if (body) body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px 12px;color:var(--text-hint);font-size:13px;">불러오는 중...</td></tr>'; // 재시도 버튼 눌렀을 때도 즉시 반응이 보이도록
     let settled = false;
     const timeoutId = setTimeout(() => {
       if (settled) return;
