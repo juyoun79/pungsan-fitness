@@ -15057,21 +15057,10 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     const endDate = fmtDate(dates[6]);
     const body = document.getElementById('schedule-body');
     if (body) body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px 12px;color:var(--text-hint);font-size:13px;">불러오는 중...</td></tr>'; // 재시도 버튼 눌렀을 때도 즉시 반응이 보이도록
-    let settled = false;
-    const timeoutId = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      _renderScheduleLoadError();
-    }, 6000);
-    db.ref('trainers/' + trainerId + '/schedule').once('value').then(snap => {
-      if (settled) return; // 이미 타임아웃으로 에러화면이 떴으면 뒤늦게 도착한 응답은 무시
-      settled = true; clearTimeout(timeoutId);
+    _retryOnce(() => db.ref('trainers/' + trainerId + '/schedule').once('value').then(snap => {
       scheduleData = snap.val() || {};
       renderSchedule();
-    }).catch(() => {
-      settled = true; clearTimeout(timeoutId);
-      _renderScheduleLoadError();
-    });
+    }), '수업 스케줄', _renderScheduleLoadError);
   }
 
   function _renderScheduleLoadError() {
@@ -20440,19 +20429,97 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   let thRemainChart = null;
   let thChartData = { attend: [], absent: [], remain0: [], remainLow: [], remainOk: [] };
 
-  // 실패시 1.2초 후 자동으로 한번 더 시도, 그래도 실패하면 조용히 포기하지 않고 최소한의 실패 안내를 보여줌.
+  // ══════════════════════════════════════════════
+  // 공용 데이터 요청 관문 — 모든 .once() 조회가 거쳐가는 공통 안전장치
+  // 연결상태 실시간 감시 + 타임아웃(무한대기 방지) + 실패시 자동 재시도 1회 + 뒤늦게 도착한 응답 무시
+  // ══════════════════════════════════════════════
+
+  // 1) Firebase 연결상태 실시간 감시 (추측 대신 확실한 신호로 판단)
+  let _fbConnected = true;
+  let _fbWasDisconnected = false;
+  try {
+    db.ref('.info/connected').on('value', snap => {
+      const connected = snap.val() === true;
+      if (!connected) {
+        _fbWasDisconnected = true;
+        _fbConnected = false;
+        _showConnBadge(true);
+      } else {
+        _fbConnected = true;
+        _showConnBadge(false);
+        if (_fbWasDisconnected) {
+          _fbWasDisconnected = false;
+          // 방금 재연결됐으니, 지금 보고 있는 화면 데이터를 바로 새로고침
+          if (typeof _refreshCurrentViewScreen === 'function') {
+            try { _refreshCurrentViewScreen(); } catch(e) { console.error('재연결 후 새로고침 오류(무시):', e); }
+          }
+        }
+      }
+    });
+  } catch(e) { console.error('.info/connected 리스너 등록 오류(무시):', e); }
+
+  function _showConnBadge(show) {
+    let badge = document.getElementById('conn-lost-badge');
+    if (show) {
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.id = 'conn-lost-badge';
+        badge.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#e24b4a;color:white;text-align:center;font-size:12px;padding:6px;font-family:\'Noto Sans KR\',sans-serif;';
+        badge.textContent = '🔴 연결이 끊겼어요. 다시 연결 중...';
+        document.body.appendChild(badge);
+      }
+    } else if (badge) {
+      badge.remove();
+    }
+  }
+
+  // 2) 공용 데이터 요청 관문: 타임아웃 + 실패시 재시도 + 뒤늦은 응답 무시를 한 곳에서 처리
+  // requestFn: 호출할 때마다 새 Promise를 반환하는 함수 (예: () => db.ref(...).once('value'))
+  function _dbFetch(requestFn, opts) {
+    opts = opts || {};
+    const timeoutMs = opts.timeoutMs || 7000;
+    let retriesLeft = opts.retries != null ? opts.retries : 1;
+    const label = opts.label || '데이터';
+
+    function attempt() {
+      return new Promise((resolve, reject) => {
+        let settled = false;
+        const timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(new Error(label + ' 요청 시간초과'));
+        }, timeoutMs);
+
+        requestFn().then(result => {
+          if (settled) return; // 이미 타임아웃 처리된 요청의 뒤늦은 응답은 무시
+          settled = true; clearTimeout(timer);
+          resolve(result);
+        }).catch(err => {
+          if (settled) return;
+          settled = true; clearTimeout(timer);
+          reject(err);
+        });
+      }).catch(err => {
+        if (retriesLeft > 0) {
+          retriesLeft--;
+          console.warn('[' + label + '] 실패, 재시도 (' + retriesLeft + '회 더 남음):', err.message || err);
+          return new Promise(r => setTimeout(r, 1000)).then(attempt);
+        }
+        throw err;
+      });
+    }
+    return attempt();
+  }
+  window._dbFetch = _dbFetch;
+
+  // 실패(또는 무한대기)시 자동으로 한번 더 시도, 그래도 실패하면 조용히 포기하지 않고 최소한의 실패 안내를 보여줌.
   // loaderPromiseFactory: 호출할 때마다 새 Promise를 반환하는 함수. label: 실패 메시지에 쓸 이름.
   // onFinalFail(선택): 재시도까지 실패했을 때 호출 — 화면에 "실패 · 다시시도" 같은 걸 직접 그리고 싶을 때 사용.
   function _retryOnce(loaderPromiseFactory, label, onFinalFail) {
-    return loaderPromiseFactory().catch(err => {
-      console.error('[' + label + '] 불러오기 실패, 1.2초 후 재시도:', err);
-      return new Promise(resolve => setTimeout(resolve, 1200))
-        .then(() => loaderPromiseFactory())
-        .catch(err2 => {
-          console.error('[' + label + '] 재시도도 실패:', err2);
-          if (typeof onFinalFail === 'function') onFinalFail();
-          else if (typeof showToast === 'function') showToast('⚠️ ' + label + ' 정보를 불러오지 못했어요.', 'error');
-        });
+    return _dbFetch(loaderPromiseFactory, { timeoutMs: 7000, retries: 1, label: label }).catch(err => {
+      console.error('[' + label + '] 최종 실패:', err.message || err);
+      if (typeof onFinalFail === 'function') onFinalFail();
+      else if (typeof showToast === 'function') showToast('⚠️ ' + label + ' 정보를 불러오지 못했어요.', 'error');
     });
   }
   window._retryOnce = _retryOnce;
