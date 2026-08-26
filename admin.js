@@ -20454,6 +20454,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         _fbWasDisconnected = true;
         _fbConnected = false;
         _showConnBadge(true);
+        _fbStartReconnectRetryLoop(); // 끊긴 동안 계속 두드려보기 시작
       } else {
         _fbConnected = true;
         _showConnBadge(false);
@@ -20467,6 +20468,33 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       }
     });
   } catch(e) { console.error('.info/connected 리스너 등록 오류(무시):', e); }
+
+  // 2) 폰의 인터넷 자체가 새로 잡히는 순간(와이파이↔데이터 전환 포함)을 감지해서 즉시 재연결 시도
+  //    ("화면에 다시 보일 때"만 감지하던 기존 방식은, 인터넷이 늦게 잡히는 경우를 놓칠 수 있어 보완)
+  window.addEventListener('online', () => {
+    try {
+      db.goOffline();
+      setTimeout(() => { try { db.goOnline(); } catch(e) { console.error('online 이벤트 재연결(goOnline) 오류(무시):', e); } }, 400);
+    } catch(e) { console.error('online 이벤트 재연결(goOffline) 오류(무시):', e); }
+  });
+
+  // 3) 연결이 끊긴 상태가 계속되면, 연결될 때까지 몇 초 간격으로 계속 재시도
+  //    (한 번 시도하고 끝나던 기존 방식은, 하필 그 순간 인터넷이 아직 안 터지면 그대로 포기하는 문제가 있어 보완)
+  let _fbReconnectRetryTimer = null;
+  function _fbStartReconnectRetryLoop() {
+    if (_fbReconnectRetryTimer) return; // 이미 반복 중이면 중복 실행 방지
+    _fbReconnectRetryTimer = setInterval(() => {
+      if (_fbConnected) {
+        clearInterval(_fbReconnectRetryTimer);
+        _fbReconnectRetryTimer = null;
+        return;
+      }
+      try {
+        db.goOffline();
+        setTimeout(() => { try { db.goOnline(); } catch(e) { console.error('반복 재연결(goOnline) 오류(무시):', e); } }, 400);
+      } catch(e) { console.error('반복 재연결(goOffline) 오류(무시):', e); }
+    }, 2000);
+  }
 
   function _showConnBadge(show) {
     let badge = document.getElementById('conn-lost-badge');
