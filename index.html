@@ -9874,8 +9874,21 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') {
     _lastHiddenAt = Date.now();
   } else if (document.visibilityState === 'visible') {
-    const wasHiddenLong = _lastHiddenAt && (Date.now() - _lastHiddenAt) >= 60000;
+    const hiddenMs = _lastHiddenAt ? (Date.now() - _lastHiddenAt) : 0;
+    const wasHiddenLong = hiddenMs >= 60000;
     _lastHiddenAt = null;
+
+    // 앱이 10초 이상 백그라운드에 있었다면, 파이어베이스 연결을 강제로 끊었다 다시 붙임.
+    // (모바일 브라우저는 오래 백그라운드에 있으면 웹소켓을 끊어버리는데, 돌아와도 자동 재연결이
+    //  스스로 안 되고 멈춰있는 경우가 있어 "연결 끊김" 배지가 안 사라지는 문제로 이어짐 — 강제로
+    //  끊었다 붙여주면 이 문제가 해결됨)
+    if (hiddenMs >= 10000) {
+      try {
+        db.goOffline();
+        setTimeout(() => { try { db.goOnline(); } catch(e) { console.error('강제 재연결(goOnline) 오류(무시):', e); } }, 400);
+      } catch (e) { console.error('강제 재연결(goOffline) 오류(무시):', e); }
+    }
+
     if (wasHiddenLong) _refreshCurrentViewScreen();
   }
 });
