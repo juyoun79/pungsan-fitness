@@ -2596,6 +2596,16 @@
   }
   window.showRefundOnlyDetail = showRefundOnlyDetail;
 
+  // 요약탭 "미수금" 카드 클릭 → 상세내역 탭으로 이동 + "미수금만" 필터 자동 적용
+  function showUnpaidOnlyDetail() {
+    switchRevSubTab('detail');
+    const panel = document.getElementById('rev-filter-panel');
+    if (panel) panel.style.display = 'block';
+    const chip = document.querySelector('.rev-chip[data-group="paystatus"][data-value="unpaid"]');
+    if (chip) _revToggleChip(chip);
+  }
+  window.showUnpaidOnlyDetail = showUnpaidOnlyDetail;
+
   function toggleRevFilterPanel() {
     const panel = document.getElementById('rev-filter-panel');
     if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
@@ -2712,8 +2722,8 @@
         <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">평균 객단가</div>
         <div style="font-size:19px;font-weight:700;color:var(--text);">${avgPrice.toLocaleString()}원</div>
       </div>
-      <div style="background:var(--bg);border-radius:10px;padding:12px 14px;">
-        <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">미수금</div>
+      <div style="background:var(--bg);border-radius:10px;padding:12px 14px;cursor:pointer;" onclick="showUnpaidOnlyDetail()">
+        <div style="font-size:11px;color:var(--text-hint);margin-bottom:4px;">미수금 <span style="color:var(--blue);">🔍</span></div>
         <div style="font-size:16px;font-weight:700;color:#e24b4a;">${unpaidTotal.toLocaleString()}원</div>
       </div>
       <div style="background:var(--bg);border-radius:10px;padding:12px 14px;cursor:pointer;" onclick="showRefundOnlyDetail()">
