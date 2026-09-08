@@ -5857,7 +5857,13 @@
         openTransferModal(phone, contractKey, progKey);
         return;
       }
-      const items = _flattenContractItems(snap.val()).filter(it => _isItemEligible(it.data));
+      const c = snap.val();
+      const progItems = _flattenContractItems(c).filter(it => _isItemEligible(it.data));
+      // 락카/운동복(부가서비스)도 양도 대상에 포함 — 환불 때와 같은 방식(extra: 접두사)으로 취급
+      const extraItems = Object.entries(c.extras || {})
+        .filter(([, e]) => !e.deleted && _isItemEligible(e))
+        .map(([key, e]) => ({ progKey: 'extra:' + key, data: e, pkgName: null, pkgIndex: null }));
+      const items = progItems.concat(extraItems);
       if (items.length === 1) {
         openTransferModal(phone, contractKey, items[0].progKey);
       } else if (items.length > 1) {
@@ -5875,35 +5881,56 @@
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;';
     window._transferPickerItems = items;
     const itemRows = items.map((it, idx) => {
+      const isExtra = it.progKey.indexOf('extra:') === 0;
       const label = (REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey)) + (it.pkgName ? ' (📦 ' + it.pkgName + ')' : '');
       return `<label style="display:flex;align-items:center;gap:8px;width:100%;padding:12px;margin-bottom:8px;background:var(--bg,#f7f7f7);border:1px solid #e0e0e0;border-radius:10px;font-size:14px;color:var(--text,#1a1a1a);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
-        <input type="checkbox" class="ptf-pick-item" data-idx="${idx}" style="width:18px;height:18px;flex-shrink:0;">
+        <input type="checkbox" class="ptf-pick-item" data-idx="${idx}" data-extra="${isExtra ? '1' : '0'}" onchange="_updateTransferPickerBtn()" style="width:18px;height:18px;flex-shrink:0;">
         <span style="flex:1;">${label} · ${(it.data.price||0).toLocaleString()}원</span>
       </label>`;
     }).join('');
     modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:24px;width:100%;max-width:300px;font-family:'Noto Sans KR',sans-serif;">
       <div style="font-size:14px;font-weight:700;margin-bottom:6px;color:var(--text,#1a1a1a);">🔁 양도할 프로그램을 선택하세요</div>
-      <div style="font-size:11.5px;color:#888;margin-bottom:14px;">2개 이상 선택하면 한번에 같이 양도처리할 수 있어요</div>
+      <div style="font-size:11.5px;color:#888;margin-bottom:14px;">프로그램은 2개 이상 같이 선택해서 한번에 양도할 수 있어요</div>
       ${itemRows}
-      <button onclick="_transferPickerNext('${phone}','${contractKey}')"
-        style="width:100%;padding:11px;background:#3b82f6;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:6px;">선택한 프로그램 양도하기</button>
+      <div id="ptf-warn" style="display:none;font-size:11px;color:#ef4444;background:#fef2f2;border-radius:8px;padding:8px 10px;margin:2px 0 10px;">락카·운동복은 단독으로만 양도할 수 있어요</div>
+      <button id="ptf-next-btn" disabled onclick="_transferPickerNext('${phone}','${contractKey}')"
+        style="width:100%;padding:11px;background:#ccc;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:not-allowed;font-family:'Noto Sans KR',sans-serif;margin-top:6px;">선택한 항목 양도하기</button>
       <button onclick="document.getElementById('app-transfer-picker').remove()"
         style="width:100%;padding:10px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:13px;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-top:8px;">취소</button>
     </div>`;
     document.body.appendChild(modal);
   }
 
+  // 락카/운동복은 항상 단독으로만 선택 가능하도록 체크 상태에 따라 버튼 활성/비활성 갱신
+  function _updateTransferPickerBtn() {
+    const checked = Array.from(document.querySelectorAll('.ptf-pick-item:checked'));
+    const hasExtra = checked.some(el => el.dataset.extra === '1');
+    const invalid = hasExtra && checked.length > 1;
+    const warn = document.getElementById('ptf-warn');
+    const btn = document.getElementById('ptf-next-btn');
+    if (warn) warn.style.display = invalid ? 'block' : 'none';
+    const enabled = checked.length > 0 && !invalid;
+    if (btn) {
+      btn.disabled = !enabled;
+      btn.style.background = enabled ? '#3b82f6' : '#ccc';
+      btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+    }
+  }
+  window._updateTransferPickerBtn = _updateTransferPickerBtn;
+
   function _transferPickerNext(phone, contractKey) {
     const items = window._transferPickerItems || [];
     const checked = Array.from(document.querySelectorAll('.ptf-pick-item:checked')).map(el => items[parseInt(el.dataset.idx)]);
     if (!checked.length) { showToast('하나 이상 선택해주세요.', 'error'); return; }
+    const hasExtra = checked.some(it => it.progKey.indexOf('extra:') === 0);
+    if (hasExtra && checked.length > 1) { showToast('락카·운동복은 단독으로만 양도할 수 있어요.', 'error'); return; }
     document.getElementById('app-transfer-picker')?.remove();
     if (checked.length === 1) {
       // 단일 선택 — 기존 단독 양도 흐름
       window._transferCtx = { fromPhone: phone, contractKey, progKey: checked[0].progKey, item: checked[0], isPkgTransfer: false };
       _renderTransferStep1();
     } else {
-      // 복수 선택 — 패키지 양도 흐름 (pkgItems에 선택된 항목 저장)
+      // 복수 선택 — 패키지 양도 흐름 (pkgItems에 선택된 항목 저장) — 락카/운동복은 위에서 이미 걸러짐
       window._transferCtx = {
         fromPhone: phone, contractKey,
         progKey: checked[0].progKey, item: checked[0],
@@ -5918,11 +5945,20 @@
     document.getElementById('app-transfer-picker')?.remove();
     db.ref('contracts/' + phone + '/' + contractKey).once('value').then(snap => {
       if (!snap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
-      const items = _flattenContractItems(snap.val());
-      const item = items.find(it => it.progKey === progKey);
-      if (!item) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
-      if (item.data.refund) { showToast('이미 환불된 프로그램은 양도할 수 없어요.', 'error'); return; }
-      if (item.data.transferOut) { showToast('이미 양도된 프로그램이에요.', 'error'); return; }
+      const c = snap.val();
+      let item;
+      if (typeof progKey === 'string' && progKey.indexOf('extra:') === 0) {
+        const extKey = progKey.replace('extra:', '');
+        const e = (c.extras || {})[extKey];
+        if (!e) { showToast('해당 항목을 찾을 수 없어요.', 'error'); return; }
+        item = { progKey, data: e, pkgName: null, pkgIndex: null };
+      } else {
+        const items = _flattenContractItems(c);
+        item = items.find(it => it.progKey === progKey);
+        if (!item) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
+      }
+      if (item.data.refund) { showToast('이미 환불된 항목은 양도할 수 없어요.', 'error'); return; }
+      if (item.data.transferOut) { showToast('이미 양도된 항목이에요.', 'error'); return; }
       window._transferCtx = { fromPhone: phone, contractKey, progKey, item };
       _renderTransferStep1();
     });
@@ -6008,15 +6044,115 @@
       ctx.toBirth = document.getElementById('tf-new-birth')?.value || '';
       ctx.toAddress = document.getElementById('tf-new-address')?.value.trim() || '';
     }
+    // 락카를 양도하는 경우, 다음 단계로 가기 전에 양수인에게 배정할 사물함 번호를 먼저 선택하게 함
+    if (ctx.progKey === 'extra:locker') {
+      _renderTransferLockerStep();
+    } else {
+      _renderTransferStep2();
+    }
+  }
+
+  // 락카 양도 전용 중간단계 — 양수인에게 배정할 사물함 번호를 선택 (선택만 하고 실제 저장은 마지막 서명 완료 시점에 한번에)
+  function _renderTransferLockerStep() {
+    const ctx = window._transferCtx;
+    tfStopMobileSignListener();
+    document.getElementById('app-transfer-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'app-transfer-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px;padding:22px;width:100%;max-width:320px;max-height:90vh;overflow-y:auto;font-family:'Noto Sans KR',sans-serif;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">🔁 양도 — 락카 자리 선택</div>
+      <div style="font-size:12px;color:#888;margin-bottom:16px;">${ctx.toName}(${ctx.toPhone})님에게 배정할 사물함을 선택해주세요.</div>
+      <div id="tf-locker-body" style="font-size:12px;color:#888;">확인 중...</div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button onclick="_renderTransferStep1()" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+
+    Promise.all([
+      db.ref('members/' + ctx.toPhone + '/lockerKey').once('value'),
+      loadLockerData()
+    ]).then(([curLockerKeySnap]) => {
+      const bodyEl = document.getElementById('tf-locker-body');
+      if (!bodyEl) return;
+      const curLockerKey = curLockerKeySnap.val() || null;
+      const carryOver = (curLockerKey && lockerData[curLockerKey]) ? {
+        key: curLockerKey,
+        catId: lockerData[curLockerKey].categoryId,
+        no: lockerData[curLockerKey].lockerNo,
+        catName: (lockerCategories.find(cc => cc.id === lockerData[curLockerKey].categoryId) || {}).name || ''
+      } : null;
+      const catsWithEmpty = lockerCategories.filter(cat => _getEmptyLockerNos(cat.id, null).length > 0);
+
+      let html = '';
+      if (carryOver) {
+        html += `<div style="background:#EAF3DE;border:1px solid #C0DD97;border-radius:10px;padding:12px;margin-bottom:14px;">
+          <div style="font-size:12.5px;font-weight:700;color:#3B6D11;margin-bottom:8px;">🔄 이 회원이 지금 쓰고 있는 락카가 있어요</div>
+          <button type="button" onclick="_selectTransferLocker('carryOver','${carryOver.catId}','${carryOver.no}','${carryOver.key}')"
+            style="width:100%;padding:10px;background:#3B6D11;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+            ${carryOver.catName} ${carryOver.no}번 그대로 이어받기 (기간만 추가)</button>
+        </div>`;
+      }
+      if (catsWithEmpty.length === 0 && !carryOver) {
+        html += '<div style="font-size:12px;color:#888;text-align:center;padding:8px 0;">배정할 수 있는 빈 자리가 없어요. 락카탭에서 먼저 자리를 확인해주세요.</div>';
+      } else if (catsWithEmpty.length > 0) {
+        html += `<div style="font-size:12px;color:#888;margin-bottom:6px;">${carryOver ? '또는 새 번호로 배정' : '배정할 구역'}</div>
+          <div id="tf-locker-cat-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"></div>
+          <div style="font-size:12px;color:#888;margin-bottom:6px;">배정할 번호 (빈 번호만 표시)</div>
+          <div id="tf-locker-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;"></div>`;
+      }
+      bodyEl.innerHTML = html;
+      if (catsWithEmpty.length > 0) {
+        const catBtnsEl = document.getElementById('tf-locker-cat-btns');
+        catBtnsEl.innerHTML = catsWithEmpty.map((cat, idx) =>
+          `<button type="button" onclick="_selectTfLockerCat('${cat.id}')" data-cat-id="${cat.id}"
+            style="padding:7px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;
+            background:${idx===0?'#185FA5':'#fff'};color:${idx===0?'white':'#333'};border:${idx===0?'none':'1px solid #e0e0e0'};">
+            ${cat.name}</button>`
+        ).join('');
+        _selectTfLockerCat(catsWithEmpty[0].id);
+      }
+    });
+  }
+  window._renderTransferLockerStep = _renderTransferLockerStep;
+
+  function _selectTfLockerCat(catId) {
+    document.querySelectorAll('#tf-locker-cat-btns button').forEach(b => {
+      const sel = b.getAttribute('data-cat-id') === catId;
+      b.style.background = sel ? '#185FA5' : '#fff';
+      b.style.color = sel ? 'white' : '#333';
+      b.style.border = sel ? 'none' : '1px solid #e0e0e0';
+    });
+    const emptyNos = _getEmptyLockerNos(catId, null);
+    const gridEl = document.getElementById('tf-locker-grid');
+    if (!gridEl) return;
+    gridEl.innerHTML = emptyNos.length
+      ? emptyNos.map(no =>
+          `<button type="button" onclick="_selectTransferLocker('new','${catId}','${no}','${catId}_${no}')"
+            style="padding:9px 0;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;background:#fff;color:#333;border:1px solid #e0e0e0;">${no}</button>`
+        ).join('')
+      : '<div style="grid-column:1/-1;font-size:12px;color:#888;text-align:center;padding:8px 0;">이 구역엔 빈 번호가 없어요</div>';
+  }
+  window._selectTfLockerCat = _selectTfLockerCat;
+
+  // 사물함 선택 — 실제 저장은 하지 않고 ctx에만 기억해뒀다가, 마지막 서명 완료 시점에 한번에 저장
+  function _selectTransferLocker(mode, catId, no, key) {
+    const ctx = window._transferCtx;
+    if (!ctx) return;
+    const catName = (lockerCategories.find(c => c.id === catId) || {}).name || '';
+    ctx.lockerChoice = { mode, catId, no, key, catName };
     _renderTransferStep2();
   }
+  window._selectTransferLocker = _selectTransferLocker;
 
   // 2/4단계: 양도되는 프로그램 정보(잔여기간/횟수) + 양도비
   function _renderTransferStep2() {
     const ctx = window._transferCtx;
     const progKey = ctx.progKey;
     const data = ctx.item.data;
-    const isPeriod = ctProgramIsPeriodBased(progKey);
+    const isExtra = progKey.indexOf('extra:') === 0;
+    const isPeriod = isExtra ? true : ctProgramIsPeriodBased(progKey);
     const defaultFee = isPeriod ? 10000 : 30000;
 
     tfStopMobileSignListener();
@@ -6025,8 +6161,9 @@
     modal.id = 'app-transfer-modal';
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto;';
 
-    let body = `<div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">🔁 양도 — 2/4 양도 프로그램 정보</div>
+    let body = `<div style="font-size:15px;font-weight:700;margin-bottom:4px;color:var(--text,#1a1a1a);">🔁 양도 — 2/4 양도 정보</div>
       <div style="font-size:12px;color:#888;margin-bottom:16px;">${REFUND_PROG_NAMES[progKey] || getProgLabel(progKey)} · ${ctx.fromPhone} → ${ctx.toName}(${ctx.toPhone})</div>
+      ${ctx.lockerChoice ? `<div style="background:#EAF3DE;border:1px solid #C0DD97;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#3B6D11;">배정될 사물함: ${ctx.lockerChoice.catName} ${ctx.lockerChoice.no}번 ${ctx.lockerChoice.mode==='carryOver'?'(양수인이 쓰던 자리 이어받기)':'(신규 배정)'}</div>` : ''}
       <div style="background:var(--bg,#f7f7f7);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#888;">
         원래 등록 정보: ${data.startDate||'-'} ~ ${data.endDate||'-'} ${data.count ? '· ' + data.count + '회' : ''} (${(data.price||0).toLocaleString()}원)
       </div>
@@ -6058,7 +6195,7 @@
         <button id="tf-method-transfer" onclick="_selectTransferMethod('transfer')" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #e0e0e0;background:none;color:#888;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">계좌</button>
       </div>
       <div style="display:flex;gap:10px;">
-        <button onclick="_renderTransferStep1()" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
+        <button onclick="${progKey === 'extra:locker' ? '_renderTransferLockerStep()' : '_renderTransferStep1()'}" style="flex:1;padding:12px;background:none;border:1px solid #e0e0e0;border-radius:10px;font-size:14px;font-weight:700;color:#888;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
         <button onclick="_transferStep2Next()" style="flex:1;padding:12px;background:#3b82f6;border:none;border-radius:10px;font-size:14px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">다음</button>
       </div>
     `;
@@ -6102,7 +6239,8 @@
   function _transferStep2Next() {
     const ctx = window._transferCtx;
     if (!ctx) return;
-    const isPeriod = ctProgramIsPeriodBased(ctx.progKey);
+    const isExtra = ctx.progKey.indexOf('extra:') === 0;
+    const isPeriod = isExtra ? true : ctProgramIsPeriodBased(ctx.progKey);
     ctx.newStartDate = document.getElementById('tf-start-date')?.value || _todayISO();
     ctx.newEndDate = document.getElementById('tf-end-display')?.dataset.endDate || ctx.item.data.endDate || '';
     ctx.newCount = isPeriod ? (ctx.item.data.count || 0) : (parseInt(document.getElementById('tf-count')?.value) || 0);
@@ -6303,18 +6441,29 @@
     if (!ctx || !ctx.signUrl) return;
     // 패키지 전체 양도 분기
     if (ctx.isPkgTransfer) { await _confirmPkgTransfer(); return; }
+    const isExtra = ctx.progKey.indexOf('extra:') === 0;
+    const extKey = isExtra ? ctx.progKey.replace('extra:', '') : null;
     try {
       const fromSnap = await db.ref('contracts/' + ctx.fromPhone + '/' + ctx.contractKey).once('value');
       if (!fromSnap.exists()) { showToast('원본 계약 정보를 찾을 수 없어요.', 'error'); return; }
       const fromContract = fromSnap.val();
-      const items = _flattenContractItems(fromContract);
-      const fromItem = items.find(it => it.progKey === ctx.progKey);
-      if (!fromItem) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
-      if (!_isItemEligible(fromItem.data)) { showToast('이미 처리된 프로그램이에요.', 'error'); return; }
 
-      const fromBasePath = fromItem.pkgIndex === null
-        ? 'contracts/' + ctx.fromPhone + '/' + ctx.contractKey + '/programs/' + ctx.progKey
-        : 'contracts/' + ctx.fromPhone + '/' + ctx.contractKey + '/packages/' + fromItem.pkgIndex + '/items/' + ctx.progKey;
+      let fromItemData, fromBasePath;
+      if (isExtra) {
+        fromItemData = (fromContract.extras || {})[extKey];
+        if (!fromItemData) { showToast('해당 항목을 찾을 수 없어요.', 'error'); return; }
+        if (!_isItemEligible(fromItemData)) { showToast('이미 처리된 항목이에요.', 'error'); return; }
+        fromBasePath = 'contracts/' + ctx.fromPhone + '/' + ctx.contractKey + '/extras/' + extKey;
+      } else {
+        const items = _flattenContractItems(fromContract);
+        const fromItem = items.find(it => it.progKey === ctx.progKey);
+        if (!fromItem) { showToast('해당 프로그램을 찾을 수 없어요.', 'error'); return; }
+        if (!_isItemEligible(fromItem.data)) { showToast('이미 처리된 프로그램이에요.', 'error'); return; }
+        fromItemData = fromItem.data;
+        fromBasePath = fromItem.pkgIndex === null
+          ? 'contracts/' + ctx.fromPhone + '/' + ctx.contractKey + '/programs/' + ctx.progKey
+          : 'contracts/' + ctx.fromPhone + '/' + ctx.contractKey + '/packages/' + fromItem.pkgIndex + '/items/' + ctx.progKey;
+      }
 
       const updates = {};
       const todayDate = new Date();
@@ -6325,17 +6474,17 @@
         date: todayStr, processedAt: Date.now()
       };
 
-      // 양수인 계정 생성/업데이트
+      // 양수인 계정 생성/업데이트 — 락카/운동복(부가서비스)은 회원의 programs 목록에 절대 추가하지 않음
       const toSnap = await db.ref('members/' + ctx.toPhone).once('value');
       const toExisted = toSnap.exists();
       if (!toExisted) {
         const pw = hashPw(ctx.toPhone.slice(-4));
-        const newMember = { name: ctx.toName + '(' + ctx.toPhone.slice(-4) + ')', pw, programs: [ctx.progKey] };
+        const newMember = { name: ctx.toName + '(' + ctx.toPhone.slice(-4) + ')', pw, programs: isExtra ? [] : [ctx.progKey] };
         if (ctx.toBirth) newMember.birth = ctx.toBirth;
         if (ctx.toAddress) newMember.address = ctx.toAddress;
         newMember['body/gender'] = ctx.toGender === '여' ? 'female' : 'male';
         await db.ref('members/' + ctx.toPhone).update(newMember);
-      } else {
+      } else if (!isExtra) {
         const toMember = toSnap.val();
         const progs = toMember.programs || [];
         if (!progs.includes(ctx.progKey)) {
@@ -6344,18 +6493,10 @@
         }
       }
 
-      // 양수인 쪽 새 계약서(0원, 양도받음 표시)
-      const newProgramData = {
-        months: fromItem.data.months || 0,
-        count: ctx.newCount || 0,
-        price: 0, cash: 0, card: 0, transfer: 0,
-        startDate: ctx.newStartDate || todayStr,
-        endDate: ctx.newEndDate || fromItem.data.endDate || '',
-        transferIn: {
-          fromPhone: ctx.fromPhone, fromName: fromContract.name || '', fee: ctx.transferFee,
-          method: ctx.transferMethod, date: todayStr, processedAt: Date.now()
-        }
-      };
+      const newKey = todayStr + '_' + Date.now();
+      const newStart = ctx.newStartDate || todayStr;
+      const newEnd = ctx.newEndDate || fromItemData.endDate || '';
+
       const newContractData = {
         name: ctx.toName,
         phone: ctx.toPhone,
@@ -6366,14 +6507,56 @@
         type: 'new',
         signDate: todayStr,
         signUrl: ctx.signUrl,
-        programs: { [ctx.progKey]: newProgramData },
         createdAt: Date.now()
       };
-      const newKey = todayStr + '_' + Date.now();
+
+      if (isExtra) {
+        // 양수인 쪽 새 계약서(0원, 양도받음 표시) — extras에 기록 (programs 아님)
+        const newExtraData = {
+          months: fromItemData.months || 0,
+          price: 0, cash: 0, card: 0, transfer: 0,
+          startDate: newStart, endDate: newEnd,
+          transferIn: {
+            fromPhone: ctx.fromPhone, fromName: fromContract.name || '', fee: ctx.transferFee,
+            method: ctx.transferMethod, date: todayStr, processedAt: Date.now()
+          }
+        };
+        if (extKey === 'locker' && ctx.lockerChoice) {
+          newExtraData.lockerNo = ctx.lockerChoice.no;
+          newExtraData.lockerCatId = ctx.lockerChoice.catId;
+          newExtraData.lockerKey = ctx.lockerChoice.key;
+          if (ctx.lockerChoice.mode === 'new') {
+            updates['lockers/' + ctx.lockerChoice.key] = {
+              phone: ctx.toPhone, name: ctx.toName, startDate: newStart, endDate: newEnd,
+              lockPassword: '', status: 'active', categoryId: ctx.lockerChoice.catId, lockerNo: ctx.lockerChoice.no,
+              linkedContract: { phone: ctx.toPhone, contractKey: newKey }
+            };
+            updates['members/' + ctx.toPhone + '/lockerKey'] = ctx.lockerChoice.key;
+          } else if (ctx.lockerChoice.mode === 'carryOver') {
+            updates['lockers/' + ctx.lockerChoice.key + '/endDate'] = newEnd;
+            updates['lockers/' + ctx.lockerChoice.key + '/linkedContract'] = { phone: ctx.toPhone, contractKey: newKey };
+          }
+        }
+        newContractData.extras = { [extKey]: newExtraData };
+      } else {
+        const newProgramData = {
+          months: fromItemData.months || 0,
+          count: ctx.newCount || 0,
+          price: 0, cash: 0, card: 0, transfer: 0,
+          startDate: newStart, endDate: newEnd,
+          transferIn: {
+            fromPhone: ctx.fromPhone, fromName: fromContract.name || '', fee: ctx.transferFee,
+            method: ctx.transferMethod, date: todayStr, processedAt: Date.now()
+          }
+        };
+        newContractData.programs = { [ctx.progKey]: newProgramData };
+      }
+
       updates['contracts/' + ctx.toPhone + '/' + newKey] = newContractData;
 
       await db.ref().update(updates);
       _invalidateRevenueCache();
+      if (isExtra && extKey === 'locker' && ctx.lockerChoice) _syncCachedMemberLocker(ctx.toPhone, ctx.lockerChoice.key);
 
       window._lastContractData = newContractData;
       document.getElementById('app-transfer-modal')?.remove();
