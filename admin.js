@@ -14521,6 +14521,37 @@
     return true;
   }
 
+  // 약관 텍스트 한 덩어리를 HTML로 변환(이스케이프 + 줄바꿈 + 제N조 굵게) — 2단 분할된 양쪽에 동일하게 재사용
+  function _formatTermsHtml(rawBlock) {
+    return rawBlock
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/\n/g, '<br>')
+      .replace(/(제\s*\d+조[^<]*)/g, '<strong style="color:#185FA5;display:block;margin-top:6px;">$1</strong>');
+  }
+
+  // 약관을 조항(제N조) 단위로 끊어서, 글자수가 최대한 비슷하도록 왼쪽/오른쪽 칸으로 나눔.
+  // 조항 구분(빈 줄)을 못 찾으면 안전하게 null을 돌려주고, 이 경우 호출부에서 1단으로 처리함.
+  function _splitTermsForPrint(rawTerms) {
+    const blocks = rawTerms.split(/\n\s*\n/).filter(b => b.trim());
+    if (blocks.length < 3) return null; // 제목 + 조항 최소 2개는 있어야 나눌 의미가 있음
+    const title = blocks[0];
+    const articles = blocks.slice(1);
+    if (articles.length < 2) return null;
+
+    let bestIdx = 1, bestDiff = Infinity;
+    const lens = articles.map(a => a.length);
+    const total = lens.reduce((s, l) => s + l, 0);
+    let running = 0;
+    for (let i = 0; i < articles.length - 1; i++) {
+      running += lens[i];
+      const diff = Math.abs(running - (total - running));
+      if (diff < bestDiff) { bestDiff = diff; bestIdx = i + 1; }
+    }
+    const col1Raw = [title].concat(articles.slice(0, bestIdx)).join('\n\n');
+    const col2Raw = articles.slice(bestIdx).join('\n\n');
+    return { col1: _formatTermsHtml(col1Raw), col2: _formatTermsHtml(col2Raw) };
+  }
+
   // 계약서 초기화
   // ── 계약서 HTML 생성 (5단계 완료 + 회원 앱 조회 공통 사용) ──
   function buildContractHtml(d) {
@@ -14668,12 +14699,13 @@
       }
     }
 
-    // 약관 텍스트 처리 - HTML 이스케이프 후 줄바꿈 + 조항 제목 강조
-    const rawTerms = (d.terms || DEFAULT_TERMS)
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const termsText = rawTerms
-      .replace(/\n/g, '<br>')
-      .replace(/(제\d+조[^<]*)/g, '<strong style="color:#185FA5;display:block;margin-top:6px;">$1</strong>');
+    // 약관 텍스트 처리 — 조항 단위로 글자수 균등하게 좌/우 2단 분할 (PDF 저장 시 페이지 밖으로 밀려나는 문제 방지).
+    // 조항 구분을 못 찾는 특수한 약관 텍스트인 경우엔 안전하게 1단으로 표시.
+    const rawTerms = d.terms || DEFAULT_TERMS;
+    const termsSplit = _splitTermsForPrint(rawTerms);
+    const termsHtml = termsSplit
+      ? `<div class="terms-cols"><div>${termsSplit.col1}</div><div>${termsSplit.col2}</div></div>`
+      : _formatTermsHtml(rawTerms);
     const genderStr  = d.gender === 'female' ? '여' : '남';
     const typeStr    = d.type   === 're'     ? '재등록' : '신규 등록';
     const birthFmt   = d.birth ? d.birth.replace(/(\d{4})(\d{2})(\d{2})/,'$1년 $2월 $3일') : '-';
@@ -14700,7 +14732,9 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
 .lbl { background:#eef2f7; color:#333; font-weight:700; white-space:nowrap; width:52px; }
 .prog-head { background:#d6e4f0; font-weight:700; font-size:8.5pt; color:#185FA5; text-align:center; padding:3px 2px; white-space:nowrap; }
 .total-row { background:#e4eef8; font-weight:700; }
-.terms-box { border:0.5px solid #aaa; padding:5px 7px; font-size:7pt; line-height:1.5; color:#222; column-count:2; column-gap:9px; }
+.terms-box { border:0.5px solid #aaa; padding:5px 7px; font-size:7pt; line-height:1.5; color:#222; }
+.terms-cols { display:flex; gap:9px; }
+.terms-cols > div { flex:1; min-width:0; }
 .sign-row { display:flex; gap:6px; margin-top:4px; align-items:center; }
 .sign-box { flex:1; border:0.5px solid #aaa; padding:4px 8px; min-height:36px; }
 .stamp { width:44px; height:44px; border:1.5px solid #ef4444; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:7.5pt; color:#ef4444; font-weight:700; text-align:center; line-height:1.4; flex-shrink:0; }
@@ -14766,7 +14800,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   </div>
   <div class="section">
     <div class="sec-head">이용약관</div>
-    <div class="terms-box">${termsText}</div>
+    <div class="terms-box">${termsHtml}</div>
   </div>
   <div class="section">
     <div class="sec-head">동의 및 서명</div>
