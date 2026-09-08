@@ -14720,7 +14720,7 @@
 <style>
 * { box-sizing:border-box; margin:0; padding:0; }
 body { background:#f0f0f0; font-family:'Noto Sans KR','Malgun Gothic','맑은 고딕',sans-serif; }
-.a4 { width:210mm; min-height:297mm; background:white; margin:10mm auto; padding:7mm 10mm; font-size:9.5pt; color:#111; }
+.a4 { width:210mm; background:white; margin:10mm auto; padding:7mm 10mm; font-size:9.5pt; color:#111; }
 @media print { body{background:white;} .a4{margin:0; padding:7mm 10mm;} .btn-wrap{display:none;} }
 @page { size: A4; margin: 0; }
 .title-row { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #185FA5; padding-bottom:4px; margin-bottom:7px; }
@@ -14818,9 +14818,6 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       <div class="stamp">서명<br>완료</div>
     </div>
   </div>
-</div>
-<div class="btn-wrap">
-  <button class="btn-pdf" onclick="window.print()">📄 PDF로 저장</button>
 </div>
 </body></html>`;
   }
