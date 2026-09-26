@@ -16038,7 +16038,10 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
           ${(latest.muscle !== undefined && latest.fat !== undefined) ? (() => {
             const stdMuscle = idealSMM;
             const stdFat    = idealFatMass;
-            const sc = Math.min(100, Math.max(0, Math.round(85 + (latest.muscle - stdMuscle) * 1.0 - (latest.fat - stdFat) * 1.3)));
+            // index.html의 calcInbodyScore와 동일한 방식(기준치 대비 % 차이)으로 통일
+            const musclePct = ((latest.muscle - stdMuscle) / stdMuscle) * 100;
+            const fatPct     = ((latest.fat - stdFat) / stdFat) * 100;
+            const sc = Math.min(100, Math.max(0, Math.round(85 + musclePct * 0.6 - fatPct * 0.4)));
             const color = sc >= 90 ? '#16a34a' : sc >= 80 ? '#2563eb' : sc >= 70 ? '#ca8a04' : sc >= 60 ? '#ea580c' : '#dc2626';
             const label = sc >= 90 ? '💚 매우강함' : sc >= 80 ? '🔵 강함' : sc >= 70 ? '🟡 보통' : sc >= 60 ? '🟠 약함' : '🔴 매우약함';
             const filled = (sc / 100) * 226;
