@@ -4452,17 +4452,35 @@
     return !data.refund && !data.transferOut && !data.progChangeOut;
   }
 
-  // 지금 실제로 "휴회중"인지 — 날짜로만 판단 (오늘이 예정된 새종료일을 지났으면 이미 끝난 것)
+  // 휴회가 "실제로 끝나는 날"(마지막 휴회일) = 휴회 시작일 + 휴회일수
+  // 주의: activeHold.newEndDate 는 휴회로 늘어난 "회원권 종료일"이지 휴회 끝나는 날이 아님 (이걸로 비교하면 회원권 종료일까지 계속 휴회중으로 보임)
+  // 시작일/일수 정보가 없는 옛 데이터는 예전 방식(newEndDate)으로 대신 판단
+  function _holdLastDay(hold) {
+    if (!hold) return null;
+    const days = Number(hold.days);
+    if (hold.startDate && isFinite(days) && days >= 0) {
+      const p = String(hold.startDate).split('-').map(Number);
+      if (p.length === 3 && !p.some(isNaN)) {
+        const d = new Date(p[0], p[1] - 1, p[2]);
+        d.setDate(d.getDate() + days);
+        return _isoDate(d);
+      }
+    }
+    return hold.newEndDate || null;
+  }
+
+  // 지금 실제로 "휴회중"인지 — 날짜로만 판단 (오늘이 마지막 휴회일을 지났으면 이미 끝난 것)
   function _isActivelyOnHold(data) {
-    return !!(data.activeHold && _todayISO() <= data.activeHold.newEndDate);
+    if (!data.activeHold) return false;
+    const last = _holdLastDay(data.activeHold);
+    return !!last && _todayISO() <= last;
   }
 
   // 휴회 예정일이 지났는데 아직 activeHold가 안 정리된 경우, 마감처리용 업데이트 객체를 만들어줌 (없으면 null)
   // 출석 여부와 상관없이 날짜만 보고 마감 — 계획했던 휴회일수 그대로 기록하고 깨끗하게 정리
   function _buildExpiredHoldUpdate(basePath, data) {
     if (!data.activeHold) return null;
-    const todayISO = _todayISO();
-    if (todayISO <= data.activeHold.newEndDate) return null; // 아직 안 끝남
+    if (_isActivelyOnHold(data)) return null; // 아직 안 끝남
     const hold = data.activeHold;
     const upd = {};
     upd[basePath + '/activeHold'] = null;
