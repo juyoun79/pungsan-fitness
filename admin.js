@@ -1613,7 +1613,7 @@
       .tv-card{border:1px solid var(--border);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px;background:var(--card);cursor:pointer;min-width:0;}
       .tv-card:hover{border-color:var(--blue);}
       .tv-top{display:flex;gap:9px;align-items:center;min-width:0;}
-      .tv-av{width:44px;height:44px;border-radius:50%;flex:none;background:var(--blue-light);color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:700;overflow:hidden;}
+      .tv-av{width:56px;height:56px;border-radius:50%;flex:none;background:var(--blue-light);color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;overflow:hidden;}
       .tv-av img{width:100%;height:100%;object-fit:cover;}
       .tv-nm{font-weight:700;font-size:14px;line-height:1.2;word-break:keep-all;}
       .tv-meta{font-size:11.5px;color:var(--text-hint);margin-top:2px;white-space:nowrap;}
@@ -4416,7 +4416,7 @@
       if (mdDelBtn) mdDelBtn.style.display = 'block';
     } else {
       photoDiv.innerHTML = rawName ? rawName[0] : '👤';
-      photoDiv.style.fontSize = '32px';
+      photoDiv.style.fontSize = '42px';
       if (mdDelBtn) mdDelBtn.style.display = 'none';
     }
 
@@ -4989,7 +4989,7 @@
         const photoDiv = document.getElementById('md-photo');
         if (photoDiv) {
           photoDiv.innerHTML = rawName ? rawName[0] : '👤';
-          photoDiv.style.fontSize = '26px';
+          photoDiv.style.fontSize = '42px';
         }
         const delBtn = document.getElementById('md-photo-delete-btn');
         if (delBtn) delBtn.style.display = 'none';
