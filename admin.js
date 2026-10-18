@@ -4430,23 +4430,21 @@
     }
 
     // Firebase에서 출석/포인트 불러오기
+    _mdAttInjectStyle();
+    _mdAttReset();
     Promise.all([
       db.ref('users/' + phone + '/attendance').once('value'),
       db.ref('users/' + phone + '/points').once('value'),
     ]).then(([attSnap, ptsSnap]) => {
       const attendData = attSnap.val() || {};
-      const attendCount = Object.keys(attendData).filter(k => k.startsWith(monthPrefix)).length;
-      const todayAttend = !!attendData[today];
       const pts = ptsSnap.val() ?? localStorage.getItem('points_' + phone) ?? '0';
       localStorage.setItem('points_' + phone, String(pts));
       document.getElementById('md-points').textContent = Number(pts).toLocaleString() + 'P';
-      document.getElementById('md-attend').textContent = attendCount + '일' + (todayAttend ? ' ✅' : '');
-      const totalAttendEl = document.getElementById('md-attend-total');
-      if (totalAttendEl) totalAttendEl.textContent = Object.keys(attSnap.val() || {}).length + '일';
+      if (currentMemberPhone === phone) _mdAttInit(phone, attendData); // 출석현황(요약/달력/출석체크 버튼)
     }).catch(() => {
       const pts = localStorage.getItem('points_' + phone) || '0';
       document.getElementById('md-points').textContent = Number(pts).toLocaleString() + 'P';
-      document.getElementById('md-attend').textContent = '-';
+      _mdAttFail();
     });
 
     // 수업현황 렌더링
@@ -4611,32 +4609,184 @@
       const d = new Date();
       const hhmm = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
       const p = db.ref('users/' + phone + '/attendanceTime/' + dateStr).transaction(cur => cur || hhmm);
-      if (p && p.catch) p.catch(e => console.warn('방문시간 기록 실패(무시):', e));
+      return (p && p.catch) ? p.catch(e => { console.warn('방문시간 기록 실패(무시):', e); }) : Promise.resolve();
     } catch (e) { console.warn('방문시간 기록 실패(무시):', e); }
+    return Promise.resolve();
   }
   window._recordAttendTime = _recordAttendTime;
 
   function _checkTodayAttend(phone) {
     const today = (typeof getToday === 'function') ? getToday() : _todayISO();
     db.ref('users/' + phone + '/attendance/' + today).set(true).then(() => {
-      _recordAttendTime(phone, today);
+      const timeDone = _recordAttendTime(phone, today);
       showToast('✅ 오늘 출석 처리됐어요.', 'success');
-      openAttendCalendarModal(phone);
       if (currentMemberPhone === phone) {
-        db.ref('users/' + phone + '/attendance').once('value').then(snap => {
-          const data = snap.val() || {};
-          const now = new Date();
-          const monthPrefix = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2,'0') + '-';
-          const attendCount = Object.keys(data).filter(k => k.startsWith(monthPrefix)).length;
-          const attendEl = document.getElementById('md-attend');
-          if (attendEl) attendEl.textContent = attendCount + '일 ✅';
-          const totalEl = document.getElementById('md-attend-total');
-          if (totalEl) totalEl.textContent = Object.keys(data).length + '일';
-        });
+        // 방문시간 저장이 끝난 뒤 출석현황(요약/달력/버튼)을 다시 그림
+        Promise.resolve(timeDone)
+          .then(() => db.ref('users/' + phone + '/attendance').once('value'))
+          .then(snap => { if (currentMemberPhone === phone) _mdAttInit(phone, snap.val() || {}); })
+          .catch(e => console.error('출석현황 갱신 오류(무시):', e));
       }
+    }).catch(e => {
+      console.error('수동 출석 처리 오류:', e);
+      showToast('출석 처리에 실패했어요. 다시 시도해 주세요.', 'error');
     });
   }
   window._checkTodayAttend = _checkTodayAttend;
+
+  // ── 회원상세 "출석 현황" (총 방문일수 / 최근 방문일·시간 / 오늘 출석 체크 / 월 달력) ──
+  let _mdAtt = { phone: null, set: new Set(), y: 0, m: 0, lastTime: '' };
+
+  function _mdAttInjectStyle() {
+    if (document.getElementById('md-att-style')) return;
+    const st = document.createElement('style');
+    st.id = 'md-att-style';
+    st.textContent = `
+      .md-basic-wrap{display:block;}
+      .md-att{margin-top:14px;padding-top:14px;border-top:1px dashed var(--border);min-width:0;}
+      .md-att-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;}
+      .md-att-sm{min-width:0;}
+      .md-att-ttl{font-size:13px;font-weight:700;color:var(--text);}
+      .md-att-sum{display:none;font-size:11.5px;color:var(--text-sub);margin-top:2px;white-space:nowrap;}
+      .md-att-sum b{color:var(--blue);font-size:12.5px;}
+      .md-att-sum .t{color:var(--text-hint);}
+      .md-att-fold{display:flex;justify-content:space-between;align-items:center;background:var(--bg);border-radius:10px;padding:10px 12px;font-size:13px;cursor:pointer;}
+      .md-att-fold b{color:var(--blue);}
+      .md-att-chev{font-size:12px;color:var(--text-hint);}
+      .md-att-cal{display:none;margin-top:10px;}
+      .md-att.open .md-att-cal{display:block;}
+      .md-att-btn-pc{display:none;}
+      .md-att-btn{border:none;background:var(--blue);color:#fff;border-radius:8px;font-weight:700;font-size:12px;white-space:nowrap;cursor:pointer;font-family:'Noto Sans KR',sans-serif;height:30px;padding:0 12px;}
+      .md-att-btn-m .md-att-btn{width:100%;height:40px;font-size:13px;margin-top:10px;}
+      .md-att-done{font-size:12px;color:var(--text-hint);white-space:nowrap;}
+      .md-att-btn-m .md-att-done{display:block;text-align:center;margin-top:10px;font-size:12.5px;}
+      .md-att-btn-m{display:none;}
+      .md-att.open .md-att-btn-m{display:block;}
+      .md-cal{border:1px solid var(--border);border-radius:12px;padding:4px 6px;}
+      .md-cal-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;font-weight:700;font-size:12px;}
+      .md-cal-h em{font-style:normal;color:var(--blue);font-size:11.5px;}
+      .md-cal-nav{width:20px;height:20px;border-radius:6px;background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--text-sub);font-size:11px;cursor:pointer;user-select:none;}
+      .md-cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;}
+      .md-cal-w{text-align:center;font-size:10px;color:var(--text-hint);}
+      .md-cal-d{height:17px;display:flex;align-items:center;justify-content:center;border-radius:4px;font-size:10.5px;color:var(--text);box-sizing:border-box;}
+      .md-cal-w.s,.md-cal-d.s{color:#d64545;} .md-cal-w.t,.md-cal-d.t{color:#1a6fd4;}
+      .md-cal-d.on{background:#2e9e5b;color:#fff;font-weight:700;}
+      .md-cal-d.today{outline:2px solid var(--blue);outline-offset:-2px;}
+      body.pc-mode .md-main{min-width:0;}
+      body.pc-mode .md-basic-wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;min-width:0;}
+      body.pc-mode .md-basic-wrap > .md-main-card-body{padding-right:18px;min-width:0;}
+      body.pc-mode .md-att{margin-top:0;padding-top:0;border-top:none;padding-left:18px;border-left:1px dashed var(--border);}
+      body.pc-mode .md-att-sum{display:block;}
+      body.pc-mode .md-att-fold,body.pc-mode .md-att-btn-m{display:none !important;}
+      body.pc-mode .md-att-btn-pc{display:block;}
+      body.pc-mode .md-att-cal{display:block;margin-top:0;}
+      @media (max-width:1199px){
+        body.pc-mode .md-basic-wrap{grid-template-columns:minmax(0,1fr);}
+        body.pc-mode .md-basic-wrap > .md-main-card-body{padding-right:0;}
+        body.pc-mode .md-att{margin-top:14px;padding-top:14px;border-top:1px dashed var(--border);padding-left:0;border-left:none;}
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
+  function _mdAttEl(id) { return document.getElementById(id); }
+
+  // 다른 회원 화면으로 바뀔 때 이전 회원 내용이 잠깐 보이지 않도록 초기화
+  function _mdAttReset() {
+    _mdAtt = { phone: null, set: new Set(), y: 0, m: 0, lastTime: '' };
+    const box = _mdAttEl('md-att');
+    if (box) box.classList.remove('open');
+    ['md-att-sum', 'md-att-fold-txt'].forEach(id => { const e = _mdAttEl(id); if (e) e.textContent = '불러오는 중...'; });
+    ['md-att-cal', 'md-att-btn-pc', 'md-att-btn-m'].forEach(id => { const e = _mdAttEl(id); if (e) e.innerHTML = ''; });
+    const chev = _mdAttEl('md-att-chev'); if (chev) chev.textContent = '▼ 달력 보기';
+  }
+
+  function _mdAttFail() {
+    ['md-att-sum', 'md-att-fold-txt'].forEach(id => { const e = _mdAttEl(id); if (e) e.textContent = '출석 정보를 불러오지 못했어요'; });
+  }
+
+  function _mdAttInit(phone, data) {
+    const set = new Set();
+    Object.keys(data || {}).forEach(k => {
+      if (!data[k]) return;
+      const d = _parseAttendKey(k);        // "2026-9-5" 같은 옛 형식도 "2026-09-05"로 통일
+      if (d) set.add(_isoDate(d));
+    });
+    const now = new Date();
+    _mdAtt = { phone, set, y: now.getFullYear(), m: now.getMonth(), lastTime: '' };
+    _mdAttRender();
+    const last = Array.from(set).sort().pop();
+    if (last) {
+      db.ref('users/' + phone + '/attendanceTime/' + last).once('value').then(sn => {
+        if (_mdAtt.phone !== phone) return;
+        _mdAtt.lastTime = sn.val() || '';
+        _mdAttRender();
+      }).catch(() => {});
+    }
+  }
+
+  function _mdAttRender() {
+    const st = _mdAtt;
+    if (!st.phone) return;
+    const total = st.set.size;
+    const last = Array.from(st.set).sort().pop() || '';
+    const today = _todayISO();
+    const todayDone = st.set.has(today);
+
+    const sumEl = _mdAttEl('md-att-sum');
+    if (sumEl) {
+      sumEl.innerHTML = total
+        ? `총 <b style="cursor:pointer;text-decoration:underline dotted;" onclick="openAttendTotalModal(currentMemberPhone)" title="누르면 상세 보기">${total}일</b> · 최근 <b>${last}</b>${st.lastTime ? ' <span class="t">' + st.lastTime + '</span>' : ''}`
+        : '출석 기록이 없어요';
+    }
+    const foldEl = _mdAttEl('md-att-fold-txt');
+    if (foldEl) {
+      foldEl.innerHTML = total ? `총 방문 <b>${total}일</b> · 최근 <b>${last.slice(5).replace('-', '/')}</b>` : '출석 기록이 없어요';
+    }
+
+    const btnHtml = todayDone
+      ? '<span class="md-att-done">오늘 출석 완료 ✅</span>'
+      : '<button type="button" class="md-att-btn" onclick="_checkTodayAttend(currentMemberPhone)">오늘 출석 체크</button>';
+    const b1 = _mdAttEl('md-att-btn-pc'); if (b1) b1.innerHTML = btnHtml;
+    const b2 = _mdAttEl('md-att-btn-m');  if (b2) b2.innerHTML = btnHtml;
+
+    // 월 달력
+    const y = st.y, m = st.m;
+    const first = new Date(y, m, 1).getDay();
+    const days = new Date(y, m + 1, 0).getDate();
+    const mm = String(m + 1).padStart(2, '0');
+    let cells = '', cnt = 0;
+    ['일', '월', '화', '수', '목', '금', '토'].forEach((w, i) => { cells += `<div class="md-cal-w ${i === 0 ? 's' : i === 6 ? 't' : ''}">${w}</div>`; });
+    for (let i = 0; i < first; i++) cells += '<div></div>';
+    for (let d = 1; d <= days; d++) {
+      const iso = y + '-' + mm + '-' + String(d).padStart(2, '0');
+      const on = st.set.has(iso);
+      if (on) cnt++;
+      const dow = (first + d - 1) % 7;
+      cells += `<div class="md-cal-d ${dow === 0 ? 's' : dow === 6 ? 't' : ''} ${on ? 'on' : ''} ${iso === today ? 'today' : ''}">${d}</div>`;
+    }
+    const calEl = _mdAttEl('md-att-cal');
+    if (calEl) {
+      calEl.innerHTML = `<div class="md-cal"><div class="md-cal-h"><span class="md-cal-nav" onclick="_mdAttNav(-1)">◀</span><span>${y}년 ${m + 1}월 <em>(${cnt}일 출석)</em></span><span class="md-cal-nav" onclick="_mdAttNav(1)">▶</span></div><div class="md-cal-g">${cells}</div></div>`;
+    }
+  }
+
+  function _mdAttNav(delta) {
+    let y = _mdAtt.y, m = _mdAtt.m + delta;
+    if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
+    _mdAtt.y = y; _mdAtt.m = m;
+    _mdAttRender();
+  }
+
+  function _mdAttToggle() {
+    const box = _mdAttEl('md-att');
+    if (!box) return;
+    box.classList.toggle('open');
+    const chev = _mdAttEl('md-att-chev');
+    if (chev) chev.textContent = box.classList.contains('open') ? '▲ 접기' : '▼ 달력 보기';
+  }
+  window._mdAttNav = _mdAttNav;
+  window._mdAttToggle = _mdAttToggle;
 
   // 출석 기록 키("YYYY-M-D", 0패딩 없음)를 Date로 파싱
   function _parseAttendKey(k) {

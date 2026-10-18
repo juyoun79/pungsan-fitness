@@ -3017,7 +3017,7 @@
           <!-- 프로필 -->
           <div style="background:var(--card);padding:20px 16px 12px;border-bottom:1px solid var(--border);margin-bottom:8px;">
             <div style="display:flex;align-items:center;gap:16px;">
-              <div id="md-photo" style="width:96px;height:96px;border-radius:50%;border:2px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:42px;font-weight:700;overflow:hidden;flex-shrink:0;color:var(--text);">👤</div>
+              <div id="md-photo" style="width:72px;height:72px;border-radius:50%;border:2px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;overflow:hidden;flex-shrink:0;color:var(--text);">👤</div>
               <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:8px;">
                   <div id="md-name" style="font-size:17px;font-weight:700;color:var(--text);"></div>
@@ -3059,6 +3059,7 @@
               <button onclick="saveMemberBasicInfo()"
                 style="padding:5px 12px;background:var(--blue);color:white;border:none;border-radius:7px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">💾 저장</button>
             </div>
+            <div class="md-basic-wrap">
             <div style="display:flex;flex-direction:column;gap:10px;" class="md-main-card-body">
 
               <!-- 이름 + 생년월일 (2열 한 줄) -->
@@ -3098,8 +3099,8 @@
                   onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border)'"></textarea>
               </div>
 
-              <!-- 락카/포인트/이번달출석/누적출석 (4열 한 줄) -->
-              <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:6px;" class="md-row md-row-stats">
+              <!-- 락카/포인트 (2열 한 줄) — 출석 정보는 오른쪽 "출석 현황" 영역으로 이동 -->
+              <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:6px;" class="md-row md-row-stats">
                 <div id="md-card-locker" style="background:var(--bg);border-radius:10px;padding:8px 8px;cursor:pointer;">
                   <div style="font-size:10px;color:var(--text-hint);margin-bottom:2px;">🔑 락카</div>
                   <div id="md-locker-mini" style="font-size:12px;font-weight:600;color:var(--text);">-</div>
@@ -3108,16 +3109,22 @@
                   <div style="font-size:10px;color:var(--text-hint);margin-bottom:2px;">포인트</div>
                   <div id="md-points" style="font-size:12px;font-weight:600;color:var(--blue);"></div>
                 </div>
-                <div onclick="openAttendCalendarModal(currentMemberPhone)" style="background:var(--bg);border-radius:10px;padding:8px 8px;cursor:pointer;">
-                  <div style="font-size:10px;color:var(--text-hint);margin-bottom:2px;">이번달 출석</div>
-                  <div id="md-attend" style="font-size:12px;font-weight:600;color:var(--text);"></div>
-                </div>
-                <div onclick="openAttendTotalModal(currentMemberPhone)" style="background:var(--bg);border-radius:10px;padding:8px 8px;cursor:pointer;">
-                  <div style="font-size:10px;color:var(--text-hint);margin-bottom:2px;">누적 출석</div>
-                  <div id="md-attend-total" style="font-size:12px;font-weight:600;color:var(--text);">-</div>
-                </div>
               </div>
 
+            </div>
+            <!-- 출석 현황 (PC: 오른쪽 절반 / 폰: 아래쪽, 요약 줄을 누르면 달력이 펼쳐짐) -->
+            <div class="md-att" id="md-att">
+              <div class="md-att-top">
+                <div class="md-att-sm">
+                  <div class="md-att-ttl">📅 출석 현황</div>
+                  <div class="md-att-sum" id="md-att-sum">불러오는 중...</div>
+                </div>
+                <span class="md-att-btn-pc" id="md-att-btn-pc"></span>
+              </div>
+              <div class="md-att-fold" onclick="_mdAttToggle()"><span id="md-att-fold-txt">불러오는 중...</span><span class="md-att-chev" id="md-att-chev">▼ 달력 보기</span></div>
+              <div class="md-att-cal" id="md-att-cal"></div>
+              <div class="md-att-btn-m" id="md-att-btn-m"></div>
+            </div>
             </div>
           </div>
 
