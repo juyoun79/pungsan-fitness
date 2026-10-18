@@ -1381,6 +1381,13 @@
     }
 
     db.ref('users/' + userId + '/attendance/' + today).set(true);
+    // 방문시간 기록 (하루 중 첫 출석만, 실패해도 출석에는 영향 없음)
+    try {
+      const _vd = new Date();
+      const _vt = String(_vd.getHours()).padStart(2,'0') + ':' + String(_vd.getMinutes()).padStart(2,'0');
+      const _vp = db.ref('users/' + userId + '/attendanceTime/' + today).transaction(cur => cur || _vt);
+      if (_vp && _vp.catch) _vp.catch(e => console.warn('방문시간 기록 실패(무시):', e));
+    } catch (e) { console.warn('방문시간 기록 실패(무시):', e); }
     const todayKey = 'attend_' + userId + '_' + today;
     localStorage.setItem(todayKey, 'done');
     const nick = localStorage.getItem('nickname_' + userId) || localStorage.getItem('name_' + userId) || '회원';

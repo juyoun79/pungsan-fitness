@@ -1502,6 +1502,7 @@
       loadMemberList('').then(() => {
         if (mySeq !== _dashLoadSeq) return; // 그 사이 더 최신 요청이 시작됐으면 이 결과는 버림
         try { renderDashboardExtras(); } catch(e) { console.error('대시보드 확장통계 렌더 오류(무시):', e); }
+        try { if (_tvRows.length) _renderTodayVisit(); } catch(e) { console.error('오늘 방문 배지 갱신 오류(무시):', e); }
       }).catch(e => console.error('회원목록 사전로딩 오류(무시):', e));
     });
     getMemberDB().then(members => {
@@ -1525,7 +1526,7 @@
           });
           const todayAttend = !!attendData[today];
           const monthAtt = Object.keys(attendData).filter(k => k.startsWith(monthPrefix)).length;
-          return { phone, info, todayAttend, monthAtt };
+          return { phone, info, todayAttend, monthAtt, total: Object.keys(attendData).length };
         }).catch(() => {
           // Firebase 실패 시 localStorage fallback
           const todayAttend = localStorage.getItem('attend_' + phone + '_' + today) === 'done';
@@ -1533,16 +1534,15 @@
           for (let d = 1; d <= 31; d++) {
             if (localStorage.getItem('attend_' + phone + '_' + monthPrefix + d) === 'done') monthAtt++;
           }
-          return { phone, info, todayAttend, monthAtt };
+          return { phone, info, todayAttend, monthAtt, total: null };
         })
       );
 
       Promise.all(attendPromises).then(results => {
-        results.forEach(({ phone, info, todayAttend, monthAtt }) => {
+        results.forEach(({ phone, info, todayAttend, monthAtt, total }) => {
           if (todayAttend) {
             todayCount++;
-            const nick = localStorage.getItem('nickname_' + phone) || info.name;
-            todayRows.push({ phone, name: info.name, nick });
+            todayRows.push({ phone, name: String(info.name || phone).replace(/\(\d{4}\)$/, '').trim(), photoUrl: info.photoUrl || '', total });
           }
           monthCount += monthAtt;
         });
@@ -1550,24 +1550,245 @@
         document.getElementById('admin-today-attend').textContent = todayCount;
         document.getElementById('admin-month-attend').textContent = monthCount;
 
-        const listEl = document.getElementById('admin-today-list');
-        if (todayRows.length === 0) {
-          listEl.innerHTML = '<div class="empty-state">오늘 출석한 회원이 없어요</div>';
-        } else {
-          listEl.innerHTML = todayRows.map(m => `
-            <div class="member-row">
-              <div class="member-avatar">${m.name[0]}</div>
-              <div class="member-info">
-                <div class="member-name">${m.name}</div>
-                <div class="member-phone">${m.nick !== m.name ? '닉네임: ' + m.nick + ' · ' : ''}${m.phone}</div>
-              </div>
-              <span class="member-badge badge-active">출석완료</span>
-            </div>
-          `).join('');
-        }
+        // 오늘 출석한 회원만 방문시간 조회 (기록 없는 옛 출석은 null → 카드에 '-' 표시)
+        return Promise.all(todayRows.map(r =>
+          db.ref('users/' + r.phone + '/attendanceTime/' + today).once('value')
+            .then(sn => { r.time = sn.val() || ''; })
+            .catch(() => { r.time = ''; })
+        )).then(() => {
+          if (mySeq !== _dashLoadSeq) return;
+          _tvRows = todayRows;
+          _tvMonthDays = monthCount;
+          _tvLoading = false;
+          const nd = new Date();
+          _tvUpdatedAt = String(nd.getHours()).padStart(2,'0') + ':' + String(nd.getMinutes()).padStart(2,'0') + ':' + String(nd.getSeconds()).padStart(2,'0');
+          try { _renderTodayVisit(); } catch (e) { console.error('오늘 방문 카드 렌더 오류(무시):', e); }
+        });
+      }).catch(e => {
+        console.error('오늘 방문 로딩 오류:', e);
+        _tvLoading = false;
+        try { _renderTodayVisit(); } catch (e2) {}
       });
     });
   }
+
+  // ── 현황탭 '오늘 방문' 카드 (사진/방문시간/누적출석/프로그램기간/배지) ──
+  let _tvRows = [];            // 오늘 출석한 회원 [{phone, name, photoUrl, time, total}]
+  let _tvMonthDays = 0;        // 이번 달 총 방문일수
+  let _tvFilter = null;        // null | 'new' | 're' | 'soon' | 'end' | 'unpaid'
+  let _tvSort = 'recent';      // 'recent'(최근 방문순) | 'alert'(주의 회원 먼저)
+  let _tvShown = 20;           // 화면에 보여줄 카드 수 ("더 보기"로 늘어남)
+  let _tvUpdatedAt = '';       // 마지막 갱신 시각 표시용
+  let _tvLoading = false;
+
+  const _TV_BADGES = {
+    new:    { label: '신규등록', cls: 'tv-g' },
+    re:     { label: '재등록',   cls: 'tv-b' },
+    soon:   { label: '만기예정', cls: 'tv-o' },
+    end:    { label: '기간만료', cls: 'tv-r' },
+    unpaid: { label: '미수금',   cls: 'tv-p' }
+  };
+  const _TV_PRIORITY = { unpaid: 0, end: 1, soon: 2, new: 3, re: 3 }; // 주의 회원 먼저 정렬용 (작을수록 먼저)
+
+  function _tvEsc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function _tvInjectStyle() {
+    if (document.getElementById('tv-style')) return;
+    const st = document.createElement('style');
+    st.id = 'tv-style';
+    st.textContent = `
+      .tv-sum{font-size:13px;color:var(--text);margin-bottom:10px;}
+      .tv-sum b{color:var(--blue);}
+      .tv-legend{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+      .tv-chip{border:2px solid transparent;cursor:pointer;font-family:inherit;}
+      .tv-chip.on{border-color:var(--text);}
+      .tv-bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
+      .tv-bar button{border:1px solid var(--border);background:var(--card);color:var(--text);padding:6px 11px;border-radius:8px;font-size:12.5px;cursor:pointer;font-family:inherit;}
+      .tv-bar button.on{background:var(--blue-light);border-color:var(--blue);color:var(--blue);font-weight:700;}
+      .tv-bar .tv-sp{flex:1;}
+      .tv-bar .tv-upd{font-size:11.5px;color:var(--text-hint);}
+      .tv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+      .tv-card{border:1px solid var(--border);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px;background:var(--card);cursor:pointer;min-width:0;}
+      .tv-card:hover{border-color:var(--blue);}
+      .tv-top{display:flex;gap:9px;align-items:center;min-width:0;}
+      .tv-av{width:44px;height:44px;border-radius:50%;flex:none;background:var(--blue-light);color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:700;overflow:hidden;}
+      .tv-av img{width:100%;height:100%;object-fit:cover;}
+      .tv-nm{font-weight:700;font-size:14px;line-height:1.2;word-break:keep-all;}
+      .tv-meta{font-size:11.5px;color:var(--text-hint);margin-top:2px;white-space:nowrap;}
+      .tv-meta b{color:var(--text);font-weight:600;}
+      .tv-plan{font-size:11.5px;background:var(--bg);border-radius:8px;padding:6px 7px;line-height:1.4;}
+      .tv-plan .tv-pn{font-weight:600;}
+      .tv-plan .tv-rest{color:var(--blue);font-weight:700;}
+      .tv-plan .tv-more{color:var(--text-hint);white-space:nowrap;}
+      .tv-plan.tv-warn .tv-rest{color:#e07b00;}
+      .tv-plan.tv-dead{color:#c0392b;}
+      .tv-bds{display:flex;flex-wrap:wrap;gap:4px;min-height:18px;}
+      .tv-bd{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:10px;color:#fff;white-space:nowrap;}
+      .tv-g{background:#2e9e5b;} .tv-b{background:#1a6fd4;} .tv-o{background:#f08c00;} .tv-r{background:#d64545;} .tv-p{background:#8e44ad;}
+      .tv-morebtn{display:block;margin:12px auto 0;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:8px;padding:8px 18px;font-size:13px;cursor:pointer;font-family:inherit;}
+    `;
+    document.head.appendChild(st);
+  }
+
+  function _tvStripEmoji(label) {
+    return String(label || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
+  }
+
+  // 회원 1명의 "대표 프로그램" 정보 (가장 만료가 임박한 것 하나 + 나머지 개수)
+  // 반환: null(등록정보 없음) 또는 { label, start, end, days, hold, expired, more }
+  function _tvPlanInfo(m) {
+    const items = (m && m.activeItems) || [];
+    if (!items.length) return null;
+    const itemEnd = it => (_isActivelyOnHold(it.data) ? (it.data.activeHold && it.data.activeHold.newEndDate) : it.data.endDate) || null;
+    const groups = {};
+    items.forEach(it => {
+      const key = it.pkgName ? (it.contractKey + '::' + it.pkgIndex + '::' + it.pkgName) : (it.contractKey + '::' + it.progKey);
+      if (!groups[key]) groups[key] = { items: [], pkgName: it.pkgName || null, progKey: it.progKey };
+      groups[key].items.push(it);
+    });
+    const list = Object.values(groups).map(g => {
+      const validItems = g.items.filter(it => _dashItemIsValid(it.data));
+      const valid = validItems.length > 0;
+      const base = valid ? validItems : g.items;
+      const ends = base.map(itemEnd).filter(Boolean).sort();
+      const starts = g.items.map(it => it.data.startDate).filter(Boolean).sort();
+      const end = ends.length ? (valid ? ends[0] : ends[ends.length - 1]) : null;
+      const label = g.pkgName || _tvStripEmoji(REFUND_PROG_NAMES[g.progKey] || getProgLabel(g.progKey));
+      const days = end ? _daysUntil(end) : null;
+      return { label, start: starts[0] || null, end, days, valid, hold: validItems.some(it => _isActivelyOnHold(it.data)) };
+    });
+    const validGroups = list.filter(g => g.valid);
+    if (validGroups.length) {
+      const withDays = validGroups.filter(g => g.days !== null).sort((a, b) => a.days - b.days);
+      const rep = withDays.length ? withDays[0] : validGroups[0];
+      return { label: rep.label, start: rep.start, end: rep.end, days: rep.days, hold: rep.hold, expired: false, more: validGroups.length - 1 };
+    }
+    const rep = list.slice().sort((a, b) => (b.end || '').localeCompare(a.end || ''))[0];
+    return { label: rep.label, start: rep.start, end: rep.end, days: rep.days, hold: false, expired: true, more: 0 };
+  }
+
+  // 회원 1명의 배지 키 목록 (표시 순서: 신규/재등록 → 만기예정 → 기간만료 → 미수금)
+  function _tvBadgeKeys(m, plan) {
+    const keys = [];
+    if (!m) return keys;
+    if (m.regKind === 'new') keys.push('new');
+    else if (m.regKind === 're') keys.push('re');
+    if (plan && !plan.expired && !plan.hold && plan.days !== null && plan.days >= 0 && plan.days <= _expiringThresholdDays) keys.push('soon');
+    if (plan && plan.expired) keys.push('end');
+    if (m.hasUnpaid) keys.push('unpaid');
+    return keys;
+  }
+
+  function _tvShortDate(iso) { return iso ? String(iso).slice(2) : ''; }
+
+  function _renderTodayVisit() {
+    const listEl = document.getElementById('admin-today-list');
+    if (!listEl) return;
+    _tvInjectStyle();
+    const titleEl = listEl.closest('.admin-card') && listEl.closest('.admin-card').querySelector('.admin-card-title');
+    if (titleEl) titleEl.textContent = '📅 오늘 방문';
+
+    const memberReady = Array.isArray(_lastMemberData) && _lastMemberData.length > 0;
+    const byPhone = {};
+    if (memberReady) _lastMemberData.forEach(m => { byPhone[m.phone] = m; });
+
+    // 카드 데이터 만들기
+    const cards = _tvRows.map(r => {
+      const m = byPhone[r.phone] || null;
+      const plan = m ? _tvPlanInfo(m) : null;
+      const badges = memberReady ? _tvBadgeKeys(m, plan) : [];
+      return { r, m, plan, badges };
+    });
+
+    // 배지별 인원수 (범례에 표시)
+    const counts = { new: 0, re: 0, soon: 0, end: 0, unpaid: 0 };
+    cards.forEach(c => c.badges.forEach(k => { counts[k]++; }));
+
+    // 필터 + 정렬
+    let view = cards.filter(c => !_tvFilter || c.badges.includes(_tvFilter));
+    const timeKey = c => c.r.time || '';
+    view.sort((a, b) => {
+      if (_tvSort === 'alert') {
+        const pa = a.badges.length ? Math.min(...a.badges.map(k => _TV_PRIORITY[k])) : 4;
+        const pb = b.badges.length ? Math.min(...b.badges.map(k => _TV_PRIORITY[k])) : 4;
+        if (pa !== pb) return pa - pb;
+      }
+      const ta = timeKey(a), tb = timeKey(b);
+      if (ta !== tb) return tb.localeCompare(ta); // 최근 방문이 앞 (시간 없는 기록은 맨 뒤)
+      return (a.r.name || '').localeCompare(b.r.name || '', 'ko');
+    });
+
+    const total = _tvRows.length;
+    const shown = view.slice(0, _tvShown);
+
+    let html = `<div class="tv-sum">총 방문회원 : <b>${total}</b>명 / 이번 달 총 방문일수 : <b>${_tvMonthDays}</b></div>`;
+    if (memberReady) {
+      html += `<div class="tv-legend">` + Object.keys(_TV_BADGES).map(k =>
+        `<button type="button" class="tv-bd tv-chip ${_TV_BADGES[k].cls} ${_tvFilter === k ? 'on' : ''}" onclick="_tvSetFilter('${k}')">${_TV_BADGES[k].label} ${counts[k]}</button>`
+      ).join('') + `</div>`;
+    }
+    html += `<div class="tv-bar">
+      <button type="button" class="${_tvSort === 'recent' ? 'on' : ''}" onclick="_tvSetSort('recent')">최근 방문순</button>
+      <button type="button" class="${_tvSort === 'alert' ? 'on' : ''}" onclick="_tvSetSort('alert')">주의 회원 먼저</button>
+      <span class="tv-sp"></span>
+      <span class="tv-upd">${_tvUpdatedAt ? '마지막 갱신 ' + _tvUpdatedAt : ''}</span>
+      <button type="button" onclick="_tvRefresh()" ${_tvLoading ? 'disabled' : ''}>${_tvLoading ? '⏳ 불러오는 중…' : '🔄 새로고침'}</button>
+    </div>`;
+
+    if (total === 0) {
+      html += '<div class="empty-state">오늘 출석한 회원이 없어요</div>';
+    } else if (!view.length) {
+      html += '<div class="empty-state">해당하는 회원이 없어요</div>';
+    } else {
+      html += `<div class="tv-grid">` + shown.map(c => {
+        const r = c.r, p = c.plan;
+        const initial = (r.name || '?')[0];
+        const av = r.photoUrl
+          ? `<img src="${_tvEsc(r.photoUrl)}" alt="${_tvEsc(initial)}" loading="lazy" onerror="this.parentNode.textContent=this.alt">`
+          : _tvEsc(initial);
+        let planHtml;
+        if (!memberReady) {
+          planHtml = `<div class="tv-plan"><span class="tv-more">정보 불러오는 중…</span></div>`;
+        } else if (!p) {
+          planHtml = `<div class="tv-plan"><span class="tv-more">등록된 프로그램 없음</span></div>`;
+        } else if (p.expired) {
+          planHtml = `<div class="tv-plan tv-dead"><span class="tv-pn">${_tvEsc(p.label)}</span><br>${_tvShortDate(p.start)}${p.start ? ' ~ ' : ''}${_tvShortDate(p.end)} (만료)</div>`;
+        } else {
+          const restTxt = p.hold ? '⏸ 휴회중' : (p.days === null ? '' : (p.days === 0 ? '오늘 만료' : '남은 ' + p.days + '일'));
+          const warn = c.badges.includes('soon') ? ' tv-warn' : '';
+          planHtml = `<div class="tv-plan${warn}"><span class="tv-pn">${_tvEsc(p.label)}</span>${restTxt ? ' <span class="tv-rest">' + restTxt + '</span>' : ''}<br>${_tvShortDate(p.start)}${p.start && p.end ? ' ~ ' : ''}${_tvShortDate(p.end)}${p.more > 0 ? ' <span class="tv-more">외 ' + p.more + '개</span>' : ''}</div>`;
+        }
+        const bds = c.badges.map(k => `<span class="tv-bd ${_TV_BADGES[k].cls}">${_TV_BADGES[k].label}</span>`).join('');
+        const totalTxt = r.total == null ? '-' : r.total;
+        return `<div class="tv-card" onclick="openMemberModal('${_tvEsc(r.phone)}')">
+          <div class="tv-top"><div class="tv-av">${av}</div><div style="min-width:0;"><div class="tv-nm">${_tvEsc(r.name)}</div><div class="tv-meta">⏰ <b>${_tvEsc(r.time || '-')}</b></div><div class="tv-meta">누적 <b>${totalTxt}</b>일</div></div></div>
+          ${planHtml}
+          <div class="tv-bds">${bds}</div>
+        </div>`;
+      }).join('') + `</div>`;
+      if (view.length > shown.length) {
+        html += `<button type="button" class="tv-morebtn" onclick="_tvMore()">더 보기 (${view.length - shown.length}명 더)</button>`;
+      }
+    }
+    listEl.innerHTML = html;
+  }
+  window._renderTodayVisit = _renderTodayVisit;
+
+  function _tvSetFilter(k) { _tvFilter = (_tvFilter === k) ? null : k; _tvShown = 20; _renderTodayVisit(); }
+  function _tvSetSort(k) { _tvSort = k; _tvShown = 20; _renderTodayVisit(); }
+  function _tvMore() { _tvShown += 20; _renderTodayVisit(); }
+  function _tvRefresh() {
+    if (_tvLoading) return;
+    _tvLoading = true;
+    _renderTodayVisit();
+    loadAdminDashboard();
+  }
+  window._tvSetFilter = _tvSetFilter;
+  window._tvSetSort = _tvSetSort;
+  window._tvMore = _tvMore;
+  window._tvRefresh = _tvRefresh;
 
   // ── 현황탭 확장통계: 유효회원 수 / 프로그램 구성비율 / 연령별 현황표 / 매출·만료·신규 통계 ──
   // loadMemberList가 이미 계산해둔 _lastMemberData(gender/age/activeItems/statusKey)를 재사용해서
@@ -3777,10 +3998,15 @@
             let hasUnpaid = false;
             let unpaidAmount = 0;
             const signDates = [];
+            const progContracts = []; // 신규/재등록 배지 판정용 (프로그램 계약만, 변경·이관·부가서비스 전용 계약 제외)
             const staffMap = {}; // 담당자 필터용 — {id: name} (PT는 담당강사, 그 외는 담당자, 항목별 값 없으면 계약 전체값으로 대체)
             contractsSnap.forEach(cSnap => {
               const c = cSnap.val();
               if (c.signDate) signDates.push(c.signDate);
+              if (c.signDate && c.type !== 'progChange' && c.type !== 'import' && !c.isProgChange &&
+                  _flattenContractItems(c).some(it => _isItemEligible(it.data))) {
+                progContracts.push({ date: c.signDate, isRe: c.type === 're' });
+              }
               _flattenContractItems(c).forEach(it => {
                 if (!_isItemEligible(it.data)) return;
                 const unpaid = (it.data.price || 0) - ((it.data.cash||0) + (it.data.card||0) + (it.data.transfer||0));
@@ -3804,6 +4030,16 @@
               });
             });
             const joinDate = signDates.length ? signDates.sort()[0] : '-';
+            // 최근 7일 이내 프로그램 등록이 있으면 배지: 첫 프로그램 계약이면 신규, 이미 이력이 있거나 재등록 계약이면 재등록
+            let regKind = null;
+            if (progContracts.length) {
+              progContracts.sort((a, b) => a.date.localeCompare(b.date));
+              const latest = progContracts[progContracts.length - 1];
+              const ago = _daysUntil(latest.date);
+              if (ago !== null && ago <= 0 && ago >= -7) {
+                regKind = (progContracts.length === 1 && !latest.isRe) ? 'new' : 're';
+              }
+            }
             const staffIds = Object.keys(staffMap);
 
             // 필터/정렬용 계산값 미리 뽑아두기 (프로그램 목록/상태/락카배정여부/최소잔여일/만료일)
@@ -3846,7 +4082,7 @@
             if (pg && pg.remain != null) countRemains.push(pg.remain);
             const minCountRemain = countRemains.length ? Math.min(...countRemains) : null;
 
-            return { phone, info, attendCount, pts: Number(pts) || 0, nick, activeItems, hasUnpaid, unpaidAmount, joinDate, maxEndDate, progNames, statusKey, statusLabel, statusColor, minRemainDays, lockerAssigned, gender, age, lastAttendDate, daysSinceLastAttend, minCountRemain, staffIds };
+            return { phone, info, attendCount, pts: Number(pts) || 0, nick, activeItems, hasUnpaid, unpaidAmount, joinDate, maxEndDate, progNames, statusKey, statusLabel, statusColor, minRemainDays, lockerAssigned, gender, age, lastAttendDate, daysSinceLastAttend, minCountRemain, staffIds, regKind };
           }).catch(() => {
             const pts = localStorage.getItem('points_' + phone) || '0';
             let attendCount = 0;
@@ -3854,7 +4090,7 @@
             const nick = localStorage.getItem('nickname_' + phone) || '-';
             const gender = (info.body && info.body.gender) || info['body/gender'] || null;
             const age = _calcAgeFromBirthAdmin(info.birth);
-            return { phone, info, attendCount, pts: Number(pts) || 0, nick, activeItems: [], hasUnpaid: false, unpaidAmount: 0, joinDate: '-', maxEndDate: null, progNames: [], statusKey: 'none', statusLabel: '-', statusColor: 'var(--text-hint)', minRemainDays: null, lockerAssigned: false, gender, age, lastAttendDate: null, daysSinceLastAttend: null, minCountRemain: null, staffIds: [] };
+            return { phone, info, attendCount, pts: Number(pts) || 0, nick, activeItems: [], hasUnpaid: false, unpaidAmount: 0, joinDate: '-', maxEndDate: null, progNames: [], statusKey: 'none', statusLabel: '-', statusColor: 'var(--text-hint)', minRemainDays: null, lockerAssigned: false, gender, age, lastAttendDate: null, daysSinceLastAttend: null, minCountRemain: null, staffIds: [], regKind: null };
           })
         )).then(memberData => {
           _lastMemberData = memberData;
@@ -4369,9 +4605,21 @@
   }
   window.openAttendCalendarModal = openAttendCalendarModal;
 
+  // 방문시간 기록: 하루 중 첫 출석 시각만 저장 (실패해도 출석 처리에는 영향 없음)
+  function _recordAttendTime(phone, dateStr) {
+    try {
+      const d = new Date();
+      const hhmm = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+      const p = db.ref('users/' + phone + '/attendanceTime/' + dateStr).transaction(cur => cur || hhmm);
+      if (p && p.catch) p.catch(e => console.warn('방문시간 기록 실패(무시):', e));
+    } catch (e) { console.warn('방문시간 기록 실패(무시):', e); }
+  }
+  window._recordAttendTime = _recordAttendTime;
+
   function _checkTodayAttend(phone) {
     const today = (typeof getToday === 'function') ? getToday() : _todayISO();
     db.ref('users/' + phone + '/attendance/' + today).set(true).then(() => {
+      _recordAttendTime(phone, today);
       showToast('✅ 오늘 출석 처리됐어요.', 'success');
       openAttendCalendarModal(phone);
       if (currentMemberPhone === phone) {
@@ -22073,6 +22321,7 @@ async function _kioskCheckIn(phone) {
     }
     // 출석 저장
     await db.ref('users/' + phone + '/attendance/' + today).set(true);
+    _recordAttendTime(phone, today);
     // 포인트 적립 (앱 QR 출석과 동일하게 전역 설정값 사용)
     const ptSettingSnap = await db.ref('point_settings/attend').once('value');
     const pts = ptSettingSnap.val() ?? (member.attendPoint || 2);
