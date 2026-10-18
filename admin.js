@@ -3001,6 +3001,495 @@
   }
   window.exportRevCsv = exportRevCsv;
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // 회원 엑셀 내려받기 (관리자 모드 > 회원 탭)
+  //  - 항목을 골라서 "한 시트짜리 .xlsx"로 저장 (회원 1명=1줄 / 프로그램(계약) 1개=1줄)
+  //  - 비밀번호(앱·락카 자물쇠)·프로필사진·PT 수업일지/서명은 항상 제외
+  //  - 이름은 "이름" + "앱 표시 이름(뒷4자리 포함)"으로 분리, 전화번호는 텍스트로 저장(맨 앞 0 보존)
+  //  - 이미 있는 엑셀 가져오기와 같은 SheetJS(_loadSheetJS)를 재사용 — 추가 비용/라이브러리 없음
+  //  ※ 이름 충돌 방지: 이 블록의 모든 함수/변수는 _mx / _MX 로 시작
+  // ══════════════════════════════════════════════════════════════════════════
+  const _MX_GROUPS = [
+    { id: 'basic', label: '기본정보', items: [
+      ['name', '이름'], ['appname', '앱 표시 이름 (이름+뒷4자리)'], ['phone', '전화번호'], ['gender', '성별'],
+      ['birth', '생년월일', 1], ['age', '나이'], ['addr', '주소', 1], ['nick', '닉네임'],
+      ['memo', '회원메모', 1], ['joined', '가입일'], ['staff', '담당자']] },
+    { id: 'state', label: '회원권 상태', items: [
+      ['status', '상태 (정상/만료임박/휴회중/만료됨)'], ['minEnd', '만료일'], ['remainDays', '잔여일'],
+      ['remainCnt', '잔여횟수 (개인수업·그룹수업)']] },
+    { id: 'prog', label: '프로그램·계약', items: [['progDetail', '프로그램별 기간·횟수·담당자·계약일']] },
+    { id: 'pay', label: '결제', items: [['pay', '결제금액 (현금·카드·계좌) · 미수금']] },
+    { id: 'lk', label: '락카·운동복', items: [['locker', '락카 종류·번호·기간'], ['cloth', '운동복 기간']] },
+    { id: 'act', label: '활동', items: [
+      ['points', '포인트'], ['monthAttend', '이번 달 출석'], ['totalAttend', '누적 출석'], ['lastAttend', '최근 출석일'],
+      ['attendDates', '출석 날짜 전체 (한 칸에 모아서)']] }
+  ];
+  const _MX_ALL_IDS = _MX_GROUPS.flatMap(g => g.items.map(i => i[0]));
+  const _MX_PII = new Set(['birth', 'addr', 'memo']);
+  const _MX_PII_LABEL = { birth: '생년월일', addr: '주소', memo: '회원메모' };
+  const _MX_PRESETS = {
+    msg: ['name', 'phone', 'status', 'minEnd'],
+    manage: ['name', 'phone', 'gender', 'age', 'joined', 'staff', 'status', 'minEnd', 'remainDays', 'remainCnt', 'progDetail', 'pay', 'locker', 'cloth', 'points', 'monthAttend', 'lastAttend'],
+    all: _MX_ALL_IDS
+  };
+  const _MX_PROG_ORDER = ['헬스', 'GX', 'PT', '기구필라테스개인', '기구필라테스그룹'];
+  const _MX_STATUS_LABEL = { normal: '정상', expiring: '만료임박', hold: '휴회중', expired: '만료됨', none: '계약없음' };
+  let _mxState = { range: 'view', mode: 'member', sel: new Set(_MX_PRESETS.manage), busy: false };
+
+  function _mxLoadPrefs() {
+    try {
+      const p = JSON.parse(localStorage.getItem('mx_export_prefs_v1') || 'null');
+      if (!p) return;
+      if (p.mode === 'member' || p.mode === 'contract') _mxState.mode = p.mode;
+      if (Array.isArray(p.sel)) {
+        const ok = p.sel.filter(i => _MX_ALL_IDS.includes(i));
+        if (ok.length) _mxState.sel = new Set(ok);
+      }
+    } catch (e) { /* 저장값이 없거나 깨져도 기본값으로 진행 */ }
+  }
+  function _mxSavePrefs() {
+    try { localStorage.setItem('mx_export_prefs_v1', JSON.stringify({ mode: _mxState.mode, sel: [..._mxState.sel] })); } catch (e) {}
+  }
+
+  function _mxInjectStyle() {
+    if (document.getElementById('mx-style')) return;
+    const st = document.createElement('style');
+    st.id = 'mx-style';
+    st.textContent = `
+      #mx-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:20px 12px;overflow-y:auto;font-family:'Noto Sans KR',sans-serif}
+      #mx-modal .mx-card{background:var(--card,#fff);color:var(--text,#1a1a2e);border-radius:16px;padding:22px;width:100%;max-width:640px;margin:auto}
+      #mx-modal h3{margin:0 0 2px;font-size:16px}
+      #mx-modal .mx-hint{font-size:12px;color:var(--text-hint,#9aa3b2)}
+      #mx-modal .mx-lbl{font-size:12px;font-weight:700;color:#6b7280;margin:14px 0 6px}
+      #mx-modal .mx-opt{display:flex;align-items:flex-start;gap:8px;padding:9px 11px;border:1.5px solid var(--border,#dce4f0);border-radius:10px;margin-bottom:6px;cursor:pointer}
+      #mx-modal .mx-opt input{margin-top:3px;accent-color:var(--blue,#1a6fd4)}
+      #mx-modal .mx-opt.sel{border-color:var(--blue,#1a6fd4);background:var(--blue-light,#e8f1fc)}
+      #mx-modal .mx-opt b{font-size:13px}
+      #mx-modal .mx-d{font-size:11.5px;color:#6b7280}
+      #mx-modal .mx-presets{display:flex;flex-wrap:wrap;gap:8px}
+      #mx-modal .mx-preset{padding:8px 12px;border-radius:10px;border:1.5px solid var(--blue,#1a6fd4);background:var(--card,#fff);color:var(--blue,#1a6fd4);font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit}
+      #mx-modal .mx-grp{border:1px solid var(--border,#dce4f0);border-radius:10px;padding:9px 11px;margin-bottom:8px}
+      #mx-modal .mx-grp-h{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;font-weight:700;margin-bottom:4px}
+      #mx-modal .mx-grp-h button{background:none;border:none;color:var(--blue,#1a6fd4);font-size:11.5px;cursor:pointer;font-family:inherit}
+      #mx-modal .mx-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 12px}
+      #mx-modal .mx-items label{display:flex;gap:6px;align-items:flex-start;font-size:12.5px;padding:2px 0;cursor:pointer}
+      #mx-modal .mx-items input{margin-top:3px;accent-color:var(--blue,#1a6fd4)}
+      #mx-modal .mx-pii{color:#a15c07;font-size:11px;font-weight:700}
+      #mx-modal .mx-warn{background:#fff6e0;border:1px solid #f2c25b;color:#a15c07;border-radius:10px;padding:9px 11px;font-size:12.5px;margin-top:10px;display:none}
+      #mx-modal .mx-excl{background:#f4f6fa;border-radius:10px;padding:9px 11px;font-size:12px;color:#6b7280;margin-top:8px}
+      #mx-modal .mx-count{font-size:12px;color:#6b7280;margin-top:12px;text-align:center}
+      #mx-modal .mx-foot{display:flex;gap:10px;margin-top:14px}
+      #mx-modal .mx-foot button{flex:1;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+      #mx-modal .mx-cancel{background:none;border:1px solid #e0e0e0;color:#888}
+      #mx-modal .mx-go{background:var(--blue,#1a6fd4);border:none;color:#fff;flex:2!important}
+      #mx-modal .mx-go:disabled{opacity:.6;cursor:default}
+      @media (max-width:480px){#mx-modal .mx-items{grid-template-columns:1fr}}`;
+    document.head.appendChild(st);
+  }
+
+  function openMemberExcelExport() {
+    if (localStorage.getItem('current_user') !== ADMIN_ID) { showToast('관리자만 사용할 수 있어요.', 'error'); return; }
+    if (!_lastMemberData.length) { showToast('내려받을 회원이 없어요. 회원 목록이 불러와진 뒤에 눌러주세요.', 'error'); return; }
+    _mxLoadPrefs();
+    _mxState.range = 'view';
+    _mxState.busy = false;
+    _mxInjectStyle();
+    document.getElementById('mx-modal')?.remove();
+    const viewCount = _getFilteredMemberData().length;
+    const allCount = Object.keys(cachedMembers || {}).length || _lastMemberData.length;
+    const grpHtml = _MX_GROUPS.map(g => `
+      <div class="mx-grp">
+        <div class="mx-grp-h"><span>${g.label}</span><button type="button" onclick="_mxToggleGroup('${g.id}')">모두 선택/해제</button></div>
+        <div class="mx-items">${g.items.map(i => `<label><input type="checkbox" data-mx="${i[0]}" onchange="_mxToggleItem('${i[0]}', this.checked)"><span>${i[1]}${i[2] ? ' <span class="mx-pii">⚠개인정보</span>' : ''}</span></label>`).join('')}</div>
+      </div>`).join('');
+    const modal = document.createElement('div');
+    modal.id = 'mx-modal';
+    modal.innerHTML = `<div class="mx-card">
+      <h3>⬇ 회원 엑셀 내려받기</h3>
+      <div class="mx-hint">용도에 맞게 고르면 항목이 자동으로 체크돼요. 직접 더하거나 뺄 수도 있어요.</div>
+
+      <div class="mx-lbl">① 누구를 내려받을까요?</div>
+      <label class="mx-opt" data-mxg="range" data-v="view"><input type="radio" name="mx-range" value="view" onchange="_mxSetRange('view')"><span><b>지금 화면의 회원만</b> <span class="mx-d">(필터 적용 · ${viewCount}명)</span><br><span class="mx-d">예: 만료임박만, 미수금 있는 회원만</span></span></label>
+      <label class="mx-opt" data-mxg="range" data-v="all"><input type="radio" name="mx-range" value="all" onchange="_mxSetRange('all')"><span><b>전체 회원</b> <span class="mx-d">(${allCount}명)</span><br><span class="mx-d">필터와 상관없이 모두</span></span></label>
+
+      <div class="mx-lbl">② 한 줄에 무엇을 담을까요?</div>
+      <label class="mx-opt" data-mxg="mode" data-v="member"><input type="radio" name="mx-mode" value="member" onchange="_mxSetMode('member')"><span><b>회원 1명 = 1줄</b><br><span class="mx-d">연락처·관리용에 좋아요. 같은 프로그램을 재등록했으면 가장 최근 계약만 보여요.</span></span></label>
+      <label class="mx-opt" data-mxg="mode" data-v="contract"><input type="radio" name="mx-mode" value="contract" onchange="_mxSetMode('contract')"><span><b>프로그램(계약) 1개 = 1줄</b><br><span class="mx-d">옛 계약·환불·양도·락카/운동복까지 전부 남겨요. 다른 프로그램으로 옮길 때 좋아요. 회원 정보는 줄마다 반복돼요.</span></span></label>
+
+      <div class="mx-lbl">③ 용도별 빠른 선택</div>
+      <div class="mx-presets">
+        <button class="mx-preset" type="button" onclick="_mxPreset('msg')">📞 문자발송용</button>
+        <button class="mx-preset" type="button" onclick="_mxPreset('manage')">🗂 회원관리용</button>
+        <button class="mx-preset" type="button" onclick="_mxPreset('all')">📦 전체 (이전·백업용)</button>
+      </div>
+
+      <div class="mx-lbl">④ 담을 항목 <span class="mx-hint" style="font-weight:400">(체크해서 직접 고르기)</span></div>
+      ${grpHtml}
+      <div class="mx-excl">🚫 <b>항상 제외</b>: 비밀번호(앱·락카 자물쇠) · 프로필 사진 · PT 수업일지/서명 (엑셀 한 장에 담기 어렵고 비밀번호는 위험해요)</div>
+      <div class="mx-warn" id="mx-warn"></div>
+      <div class="mx-count" id="mx-count"></div>
+      <div class="mx-foot">
+        <button class="mx-cancel" type="button" onclick="_mxClose()">취소</button>
+        <button class="mx-go" id="mx-go" type="button" onclick="_mxRunExport()">⬇ 엑셀 내려받기</button>
+      </div>
+    </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal && !_mxState.busy) _mxClose(); });
+    document.body.appendChild(modal);
+    modal.dataset.view = String(viewCount);
+    modal.dataset.all = String(allCount);
+    _mxSync();
+  }
+  window.openMemberExcelExport = openMemberExcelExport;
+
+  function _mxClose() { document.getElementById('mx-modal')?.remove(); }
+  window._mxClose = _mxClose;
+
+  function _mxSync() {
+    const modal = document.getElementById('mx-modal');
+    if (!modal) return;
+    modal.querySelectorAll('input[data-mx]').forEach(c => { c.checked = _mxState.sel.has(c.dataset.mx); });
+    modal.querySelectorAll('.mx-opt').forEach(o => {
+      const g = o.dataset.mxg;
+      const on = (g === 'range' ? _mxState.range : _mxState.mode) === o.dataset.v;
+      o.classList.toggle('sel', on);
+      const r = o.querySelector('input'); if (r) r.checked = on;
+    });
+    const pii = [..._mxState.sel].filter(i => _MX_PII.has(i)).map(i => _MX_PII_LABEL[i]);
+    const w = document.getElementById('mx-warn');
+    if (w) {
+      if (pii.length) { w.style.display = 'block'; w.innerHTML = '⚠ <b>' + pii.join(' · ') + '</b>이(가) 들어가요. 내려받은 파일은 안전하게 보관하고, 쓰고 나면 삭제해 주세요.'; }
+      else { w.style.display = 'none'; }
+    }
+    const n = _mxState.range === 'all' ? modal.dataset.all : modal.dataset.view;
+    const c = document.getElementById('mx-count');
+    if (c) c.textContent = '대상 ' + n + '명 · 선택한 항목 ' + _mxState.sel.size + '개';
+  }
+  function _mxSetRange(v) { _mxState.range = v; _mxSync(); }
+  function _mxSetMode(v) { _mxState.mode = v; _mxSync(); }
+  function _mxToggleItem(id, on) { if (on) _mxState.sel.add(id); else _mxState.sel.delete(id); _mxSync(); }
+  function _mxToggleGroup(gid) {
+    const ids = _MX_GROUPS.find(g => g.id === gid).items.map(i => i[0]);
+    const allOn = ids.every(i => _mxState.sel.has(i));
+    ids.forEach(i => { if (allOn) _mxState.sel.delete(i); else _mxState.sel.add(i); });
+    _mxSync();
+  }
+  function _mxPreset(p) { _mxState.sel = new Set(_MX_PRESETS[p]); _mxSync(); }
+  window._mxSetRange = _mxSetRange; window._mxSetMode = _mxSetMode; window._mxToggleItem = _mxToggleItem;
+  window._mxToggleGroup = _mxToggleGroup; window._mxPreset = _mxPreset;
+
+  // 프로그램 표시이름에서 앞쪽 이모지/기호 제거 ("🎫 일일권" → "일일권") — 엑셀 머리글/값을 깔끔하게
+  function _mxProgLabel(k) {
+    const raw = REFUND_PROG_NAMES[k] || getProgLabel(k) || k;
+    return String(raw).replace(/^[^\p{L}\p{N}]+/u, '').trim() || String(k);
+  }
+
+  // 표(머리글+줄)를 만드는 순수 함수 — Firebase를 직접 부르지 않고, 미리 읽어온 데이터(ctx)만 사용
+  //  members : _lastMemberData 형태의 배열, ctx : { contractsByPhone, trainees, pg, lockers, lockerCats, attendance, staffName }
+  function _mxBuildTable(members, ctx, sel, mode) {
+    const isM = mode !== 'contract';
+    const num = v => { if (v === '' || v == null) return ''; const n = Number(v); return isFinite(n) ? n : ''; };
+    const normBirth = b => {
+      if (!b) return '';
+      const s = String(b).trim();
+      let m = s.match(/^(\d{4})(\d{2})(\d{2})$/);
+      if (m) return m[1] + '-' + m[2] + '-' + m[3];
+      m = s.match(/^(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})$/);
+      if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
+      return s;
+    };
+    // "윤한나(1210)" → "윤한나" (괄호 안 숫자가 전화번호 뒷4자리와 같을 때만 분리)
+    const splitName = (info, phone) => {
+      const full = String(info.name || '');
+      const m = full.match(/^(.*?)\((\d{4})\)\s*$/);
+      return (m && m[2] === String(phone).slice(-4)) ? m[1].trim() : full;
+    };
+    const genderOf = info => {
+      const g = (info.body && info.body.gender) || info['body/gender'] || '';
+      return g === 'male' ? '남' : g === 'female' ? '여' : '';
+    };
+    const effEnd = d => ((_isActivelyOnHold(d) && d.activeHold && d.activeHold.newEndDate) ? d.activeHold.newEndDate : (d.endDate || ''));
+    const daysLeft = end => { if (!end) return ''; const d = _daysUntil(end); return d === null ? '' : d; };
+    const itemStatus = d => {
+      if (d.refund) return '환불';
+      if (d.transferOut) return '양도(보냄)';
+      if (d.progChangeOut) return '프로그램변경(보냄)';
+      if (_isActivelyOnHold(d)) return '휴회중';
+      const end = d.endDate;
+      if (!end) return '정상';
+      const dd = _daysUntil(end);
+      if (dd === null) return '정상';
+      if (dd < 0) return '만료됨';
+      if (dd <= _expiringThresholdDays) return '만료임박';
+      return '정상';
+    };
+    const contractsOf = phone => Object.entries(ctx.contractsByPhone[phone] || {})
+      .filter(([, c]) => c && typeof c === 'object')
+      .map(([key, c]) => ({ key, c }))
+      .sort((a, b) => String(a.c.signDate || a.key).localeCompare(String(b.c.signDate || b.key)) || ((a.c.createdAt || 0) - (b.c.createdAt || 0)));
+
+    // 회원별 계약 항목(프로그램 + 패키지 + 부가서비스), 오래된 계약부터
+    const factsCache = {};
+    const facts = m => {
+      if (factsCache[m.phone]) return factsCache[m.phone];
+      const items = [];
+      contractsOf(m.phone).forEach(({ key, c }) => {
+        _flattenContractItems(c).forEach(it => items.push({ key, c, progKey: it.progKey, data: it.data, pkgName: it.pkgName, extra: false }));
+        Object.entries(c.extras || {}).forEach(([ek, ed]) => {
+          if (ed && typeof ed === 'object') items.push({ key, c, progKey: 'extra:' + ek, data: ed, pkgName: null, extra: true });
+        });
+      });
+      const elig = items.filter(x => _isItemEligible(x.data));
+      const pay = { price: 0, cash: 0, card: 0, transfer: 0, unpaid: 0 };
+      elig.forEach(x => {
+        const d = x.data, p = d.price || 0, ca = d.cash || 0, cd = d.card || 0, tr = d.transfer || 0;
+        pay.price += p; pay.cash += ca; pay.card += cd; pay.transfer += tr; pay.unpaid += Math.max(0, p - ca - cd - tr);
+      });
+      return (factsCache[m.phone] = { items, elig, pay });
+    };
+    // 같은 프로그램을 재등록한 경우 — 환불/양도되지 않은 것 중 시작일이 가장 늦은(=최근) 계약
+    const latestOf = (f, pk) => {
+      let best = null;
+      f.elig.forEach(x => {
+        if (x.progKey !== pk) return;
+        const k = (x.data.startDate || '') + '|' + (x.c.signDate || x.key);
+        if (!best || k >= best.k) best = { k, x };
+      });
+      return best ? best.x : null;
+    };
+    const itemStaff = x => {
+      const d = x.data;
+      if (!x.extra && ctProgramTrainerRequired(x.progKey) && d.trainerId) return ctx.staffName(d.trainerId);
+      return d.salesStaffName || x.c.salesStaffName || (d.trainerId ? ctx.staffName(d.trainerId) : '');
+    };
+    const minEndOf = m => (m.activeItems || []).map(it => effEnd(it.data)).filter(Boolean).sort()[0] || '';
+
+    // 열 정의
+    const C = [];
+    const add = (id, h, v) => { if (sel.has(id)) C.push({ h, v, pii: _MX_PII.has(id) }); };
+    add('name', '이름', r => splitName(r.m.info, r.m.phone));
+    add('appname', '앱 표시 이름', r => r.m.info.name || '');
+    add('phone', '전화번호', r => String(r.m.phone));
+    add('gender', '성별', r => genderOf(r.m.info));
+    add('birth', '생년월일', r => normBirth(r.m.info.birth));
+    add('age', '나이', r => (r.m.age == null ? '' : r.m.age));
+    add('addr', '주소', r => r.m.info.address || '');
+    add('nick', '닉네임', r => r.m.info.nickname || '');
+    add('memo', '회원메모', r => r.m.info.memo || '');
+    add('joined', '가입일', r => ((r.m.joinDate && r.m.joinDate !== '-') ? r.m.joinDate : ''));
+    add('staff', '담당자', r => (r.m.staffIds || []).map(id => ctx.staffName(id)).join(', '));
+
+    const dupEnd = !isM && sel.has('progDetail'); // 계약별 줄에는 "종료일" 열이 이미 있으므로 겹치는 만료일 열은 생략
+    add('status', '상태', r => (isM ? (_MX_STATUS_LABEL[r.m.statusKey] || '') : (r.x ? itemStatus(r.x.data) : '')));
+    if (!dupEnd) add('minEnd', isM ? '만료일(가장 빠른)' : '만료일', r => (isM ? minEndOf(r.m) : (r.x ? effEnd(r.x.data) : '')));
+    add('remainDays', '잔여일', r => (isM ? (r.m.minRemainDays == null ? '' : r.m.minRemainDays) : (r.x ? daysLeft(effEnd(r.x.data)) : '')));
+    if (sel.has('remainCnt')) {
+      const tr = r => ctx.trainees[r.m.phone], pg = r => ctx.pg[r.m.phone];
+      C.push({ h: '개인수업 잔여횟수', v: r => (tr(r) ? (Number(tr(r).remain) || 0) : '') });
+      C.push({ h: '개인수업 전체횟수', v: r => (tr(r) ? (Number(tr(r).total) || 0) : '') });
+      C.push({ h: '그룹수업 잔여횟수', v: r => (pg(r) ? (Number(pg(r).remain) || 0) : '') });
+      C.push({ h: '그룹수업 전체횟수', v: r => (pg(r) ? (Number(pg(r).total) || 0) : '') });
+    }
+
+    if (sel.has('progDetail')) {
+      if (isM) {
+        // 회원 1명=1줄: 계약에 실제로 등장한 프로그램만 열로 만듦 (기본 5종 순서 → 그 외 커스텀 프로그램)
+        const seen = new Set();
+        members.forEach(m => facts(m).elig.forEach(x => { if (!x.extra) seen.add(x.progKey); }));
+        const keys = [..._MX_PROG_ORDER.filter(k => seen.has(k)), ...[...seen].filter(k => !_MX_PROG_ORDER.includes(k))];
+        keys.forEach(pk => {
+          const L = _mxProgLabel(pk);
+          const lt = r => latestOf(facts(r.m), pk);
+          C.push({ h: L + ' 시작일', v: r => { const x = lt(r); return x ? (x.data.startDate || '') : ''; } });
+          C.push({ h: L + ' 종료일', v: r => { const x = lt(r); return x ? effEnd(x.data) : ''; } });
+          C.push({ h: L + ' 횟수', v: r => { const x = lt(r); return x ? num(x.data.count) : ''; } });
+          C.push({ h: L + ' 담당자', v: r => { const x = lt(r); return x ? itemStaff(x) : ''; } });
+        });
+      } else {
+        C.push({ h: '계약일', v: r => (r.x ? (r.x.c.signDate || String(r.x.key).slice(0, 10)) : '') });
+        C.push({ h: '프로그램', v: r => (r.x ? _mxProgLabel(r.x.progKey) : '') });
+        C.push({ h: '패키지', v: r => (r.x ? (r.x.pkgName || '') : '') });
+        C.push({ h: '시작일', v: r => (r.x ? (r.x.data.startDate || '') : '') });
+        C.push({ h: '종료일', v: r => (r.x ? effEnd(r.x.data) : '') });
+        C.push({ h: '개월', v: r => (r.x ? num(r.x.data.months) : '') });
+        C.push({ h: '횟수', v: r => (r.x ? num(r.x.data.count) : '') });
+        C.push({ h: '계약 담당자', v: r => (r.x ? itemStaff(r.x) : '') });
+      }
+    }
+    if (sel.has('pay')) {
+      const pv = k => r => (isM ? facts(r.m).pay[k] : (r.x ? (k === 'unpaid'
+        ? Math.max(0, (r.x.data.price || 0) - (r.x.data.cash || 0) - (r.x.data.card || 0) - (r.x.data.transfer || 0))
+        : (r.x.data[k] || 0)) : ''));
+      C.push({ h: isM ? '결제금액 합계' : '결제금액', v: pv('price') });
+      C.push({ h: '현금', v: pv('cash') });
+      C.push({ h: '카드', v: pv('card') });
+      C.push({ h: '계좌이체', v: pv('transfer') });
+      C.push({ h: '미수금', v: pv('unpaid') });
+    }
+    if (sel.has('locker')) {
+      const lk = r => ctx.lockers[r.m.info.lockerKey || ''] || null;
+      C.push({ h: '락카 종류', v: r => { const l = lk(r); return l ? (ctx.lockerCats[l.categoryId] || '') : ''; } });
+      C.push({ h: '락카 번호', v: r => { const l = lk(r); return l ? String(l.lockerNo || String(r.m.info.lockerKey).split('_').pop()) : ''; } });
+      C.push({ h: '락카 시작일', v: r => { const l = lk(r); return l ? (l.startDate || '') : ''; } });
+      C.push({ h: '락카 종료일', v: r => { const l = lk(r); return l ? (l.endDate || '') : ''; } });
+    }
+    if (sel.has('cloth')) {
+      const cl = r => latestOf(facts(r.m), 'extra:cloth');
+      C.push({ h: '운동복 시작일', v: r => { const x = cl(r); return x ? (x.data.startDate || '') : ''; } });
+      C.push({ h: '운동복 종료일', v: r => { const x = cl(r); return x ? (x.data.endDate || '') : ''; } });
+    }
+    add('points', '포인트', r => num(r.m.pts));
+    add('monthAttend', '이번 달 출석', r => num(r.m.attendCount));
+    add('totalAttend', '누적 출석', r => (ctx.attendance[r.m.phone] ? ctx.attendance[r.m.phone].length : ''));
+    add('lastAttend', '최근 출석일', r => r.m.lastAttendDate || '');
+    add('attendDates', '출석 날짜 전체', r => {
+      const a = ctx.attendance[r.m.phone];
+      if (!a || !a.length) return '';
+      let s = a.join(', ');
+      if (s.length > 32000) { s = s.slice(0, 32000); s = s.slice(0, s.lastIndexOf(',')) + ' …(이후 생략)'; } // 엑셀 한 칸 글자수 한도(32,767자)
+      return s;
+    });
+
+    // 줄 만들기
+    const rows = [];
+    members.forEach(m => {
+      if (isM) { rows.push({ m }); return; }
+      const f = facts(m);
+      if (!f.items.length) rows.push({ m }); // 계약이 없는 회원도 빠지지 않게 한 줄은 남김
+      else f.items.forEach(x => rows.push({ m, x }));
+    });
+    return {
+      headers: C.map(c => c.h),
+      pii: C.map(c => !!c.pii),
+      rows: rows.map(r => C.map(c => { const v = c.v(r); return (v === undefined || v === null) ? '' : v; }))
+    };
+  }
+
+  // 출석 날짜 읽기 — 회원별 조회를 12개씩 동시에 (한꺼번에 수백 건을 쏘지 않게)
+  async function _mxFetchAttendance(phones, onProgress) {
+    const out = {};
+    let next = 0, done = 0;
+    const padRe = /^\d{4}-\d{1,2}-\d{1,2}$/;
+    const worker = async () => {
+      while (next < phones.length) {
+        const p = phones[next++];
+        try {
+          const s = await db.ref('users/' + p + '/attendance').once('value');
+          const set = new Set();
+          Object.keys(s.val() || {}).forEach(k => {
+            if (!padRe.test(k)) return;
+            const [y, mo, d] = k.split('-');
+            set.add(y + '-' + mo.padStart(2, '0') + '-' + d.padStart(2, '0'));
+          });
+          out[p] = [...set].sort();
+        } catch (e) { out[p] = []; }
+        done++;
+        if (onProgress && done % 25 === 0) onProgress(done, phones.length);
+      }
+    };
+    await Promise.all(Array.from({ length: 12 }, worker));
+    return out;
+  }
+
+  // 그룹수업 잔여횟수 — 전체를 한 번에 읽고, 안 되면(접근 제한 등) 회원별 조회로 대신함 (회원 목록 화면이 쓰는 방식과 동일)
+  async function _mxReadPilatesGroup(phones) {
+    try {
+      const s = await db.ref('pilates_group').once('value');
+      return s.val() || {};
+    } catch (e) {
+      const out = {};
+      await Promise.all(phones.map(async p => {
+        try { const s = await db.ref('pilates_group/' + p).once('value'); if (s.val()) out[p] = s.val(); } catch (e2) { /* 한 명 실패해도 계속 */ }
+      }));
+      return out;
+    }
+  }
+
+  async function _mxRunExport() {
+    if (_mxState.busy) return;
+    const sel = _mxState.sel;
+    if (!sel.size) { showToast('내려받을 항목을 하나 이상 선택해주세요.', 'error'); return; }
+    const goBtn = document.getElementById('mx-go');
+    const setBusy = (on, label) => { _mxState.busy = on; if (goBtn) { goBtn.disabled = on; goBtn.textContent = label || '⬇ 엑셀 내려받기'; } };
+    setBusy(true, '만드는 중...');
+    try {
+      _mxSavePrefs();
+      // 1) 대상 회원
+      let members;
+      if (_mxState.range === 'all') {
+        // 이름 검색 등으로 목록이 일부만 불러와져 있으면 전체를 다시 불러옴
+        if (_lastMemberData.length !== Object.keys(cachedMembers || {}).length) { await loadMemberList(''); }
+        members = _lastMemberData.slice().sort((a, b) => (a.info.name || '').localeCompare(b.info.name || '', 'ko'));
+      } else {
+        members = _getFilteredMemberData();
+      }
+      if (!members.length) { showToast('내려받을 회원이 없어요.', 'error'); setBusy(false); return; }
+
+      // 2) 필요한 데이터만 읽기 (계약은 항상, 나머지는 선택한 항목에 필요할 때만)
+      const needCnt = sel.has('remainCnt');
+      const needLk = sel.has('locker');
+      const needAtt = sel.has('totalAttend') || sel.has('attendDates');
+      const [ctSnap, trSnap, pgObj, lkSnap, catSnap] = await Promise.all([
+        db.ref('contracts').once('value'),
+        needCnt ? db.ref('trainers').once('value') : null,
+        needCnt ? _mxReadPilatesGroup(members.map(m => m.phone)) : null,
+        needLk ? db.ref('lockers').once('value') : null,
+        needLk ? db.ref('locker_settings/categories').once('value') : null
+      ]);
+      const trainees = {};
+      if (trSnap) trSnap.forEach(t => { t.child('trainees').forEach(tr => { trainees[tr.key] = tr.val(); }); }); // 회원상세 화면과 같은 방식(마지막으로 찾은 담당강사 기록)
+      const lockerCats = {};
+      if (catSnap) catSnap.forEach(c => { lockerCats[c.key] = (c.val() || {}).name || ''; });
+      let attendance = {};
+      if (needAtt) {
+        attendance = await _mxFetchAttendance(members.map(m => m.phone), (d, n) => { if (goBtn) goBtn.textContent = '출석 읽는 중... ' + d + '/' + n; });
+      }
+      const staffList = [].concat(typeof adminTrainerList !== 'undefined' ? adminTrainerList : [], _mfStaffOptions || []);
+      const ctx = {
+        contractsByPhone: ctSnap.val() || {},
+        trainees,
+        pg: pgObj || {},
+        lockers: lkSnap ? (lkSnap.val() || {}) : {},
+        lockerCats,
+        attendance,
+        staffName: id => ((staffList.find(t => t.id === id) || {}).name || id)
+      };
+
+      // 3) 표 → 엑셀 한 시트
+      const t = _mxBuildTable(members, ctx, sel, _mxState.mode);
+      if (!t.headers.length) { showToast('내려받을 항목을 하나 이상 선택해주세요.', 'error'); setBusy(false); return; }
+      await _loadSheetJS();
+      const aoa = [t.headers, ...t.rows];
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      const wid = s => { s = String(s == null ? '' : s); let w = 0; for (const ch of s) w += ch.charCodeAt(0) > 255 ? 2 : 1; return w; };
+      ws['!cols'] = t.headers.map((h, i) => {
+        let w = wid(h);
+        t.rows.forEach(r => { const l = wid(r[i]); if (l > w) w = l; });
+        return { wch: Math.min(Math.max(w + 2, 8), 40) };
+      });
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '회원목록');
+      const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '풍산휘트니스_회원목록_' + _todayISO() + '.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+      _mxClose();
+      _mxState.busy = false;
+      showToast('✅ 엑셀 완성! 회원 ' + members.length + '명 · ' + t.rows.length + '줄 · 열 ' + t.headers.length + '개', 'success');
+    } catch (e) {
+      console.error('회원 엑셀 내려받기 오류:', e);
+      showToast('엑셀 만들기에 실패했어요. 잠시 후 다시 시도해주세요.', 'error');
+      setBusy(false);
+    }
+  }
+  window._mxRunExport = _mxRunExport;
+
 
   let currentMemberPhone = null;
   let cachedMembers = {};
@@ -3396,10 +3885,8 @@
   }
   window.applyMemberFilters = applyMemberFilters;
 
-  function _renderMemberListView() {
-    const wrap = document.getElementById('member-list-wrap');
-    if (!wrap) return;
-
+  // 지금 필터/정렬이 적용된 회원 목록 — 화면 표시와 엑셀 내려받기가 똑같은 결과를 쓰도록 따로 분리
+  function _getFilteredMemberData() {
     let data = _lastMemberData.slice();
 
     const f = _memberFilters;
@@ -3453,7 +3940,13 @@
     } else if (f.sort === 'name') {
       data.sort((a, b) => (a.info.name || '').localeCompare(b.info.name || '', 'ko'));
     }
+    return data;
+  }
 
+  function _renderMemberListView() {
+    const wrap = document.getElementById('member-list-wrap');
+    if (!wrap) return;
+    const data = _getFilteredMemberData();
     wrap.innerHTML = _renderMemberFilterBar() + _renderMemberTable(data);
   }
 
@@ -3509,6 +4002,7 @@
       <span style="font-size:12px;color:var(--text-hint);">~</span>
       <input id="mf-date-end" type="date" value="${f.dateEnd}" onchange="applyMemberFilters()"
         style="padding:6px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;background:var(--card);color:var(--text);font-family:'Noto Sans KR',sans-serif;">
+      <button type="button" onclick="openMemberExcelExport()" style="margin-left:auto;padding:7px 14px;border-radius:8px;border:1.5px solid #1d7a46;background:#eaf6ef;color:#1d7a46;font-size:12.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">⬇ 엑셀 내려받기</button>
     </div>`;
   }
 
