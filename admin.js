@@ -1657,9 +1657,35 @@
       const end = ends.length ? (valid ? ends[0] : ends[ends.length - 1]) : null;
       const label = g.pkgName || _tvStripEmoji(REFUND_PROG_NAMES[g.progKey] || getProgLabel(g.progKey));
       const days = end ? _daysUntil(end) : null;
-      return { label, start: starts[0] || null, end, days, valid, hold: validItems.some(it => _isActivelyOnHold(it.data)) };
+      return { label, start: starts[0] || null, end, days, valid, hold: validItems.some(it => _isActivelyOnHold(it.data)), mergeKey: g.pkgName ? null : g.progKey };
     });
-    const validGroups = list.filter(g => g.valid);
+
+    // 같은 프로그램(패키지 제외)의 "이어지는" 유효 계약은 하나로 합침 (재등록해서 이미 다음 계약이 있는 회원이 곧 끝나는 것처럼 보이지 않게)
+    // 이어짐 기준: 다음 계약 시작일이 앞 계약 종료일의 다음 날 이전. 시작일/종료일이 없거나 기간이 떨어져 있으면 합치지 않음
+    const _nextDay = s => { const p = String(s).split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2] + 1)).toISOString().slice(0, 10); };
+    const _pad = s => { const p = String(s).split('-'); return p.length === 3 ? p[0] + '-' + p[1].padStart(2, '0') + '-' + p[2].padStart(2, '0') : String(s); };
+    const mergedList = [];
+    const byProg = {};
+    list.forEach(g => {
+      if (g.valid && g.mergeKey) (byProg[g.mergeKey] = byProg[g.mergeKey] || []).push(g);
+      else mergedList.push(g);
+    });
+    Object.values(byProg).forEach(arr => {
+      arr.sort((a, b) => (a.start ? _pad(a.start) : '9999').localeCompare(b.start ? _pad(b.start) : '9999'));
+      let cur = null;
+      arr.forEach(g => {
+        const canJoin = cur && cur.start && cur.end && g.start && g.end && _nextDay(_pad(cur.end)) >= _pad(g.start);
+        if (canJoin) {
+          const end = _pad(g.end) > _pad(cur.end) ? g.end : cur.end;
+          cur = { ...cur, end, days: _daysUntil(end), hold: cur.hold || g.hold };
+        } else {
+          if (cur) mergedList.push(cur);
+          cur = g;
+        }
+      });
+      if (cur) mergedList.push(cur);
+    });
+    const validGroups = mergedList.filter(g => g.valid);
     if (validGroups.length) {
       const withDays = validGroups.filter(g => g.days !== null).sort((a, b) => a.days - b.days);
       const rep = withDays.length ? withDays[0] : validGroups[0];
