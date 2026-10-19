@@ -4183,7 +4183,17 @@
     const wrap = document.getElementById('member-list-wrap');
     if (!wrap) return;
     const data = _getFilteredMemberData();
-    wrap.innerHTML = _renderMemberFilterBar() + _renderMemberTable(data);
+    wrap.innerHTML = _renderMemberFilterBar() + _renderMemberCountLine(data.length, _lastMemberData.length) + _renderMemberTable(data);
+  }
+
+  // 필터 바와 표 사이의 인원수 한 줄 — 필터가 걸려 숫자가 줄었으면 "조회 결과 N명 / 전체 M명", 아니면 "전체 M명"
+  function _renderMemberCountLine(shown, total) {
+    const icon = '<span style="font-size:15px;">👥</span>';
+    const base = 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 0 10px;font-size:13px;font-family:\'Noto Sans KR\',sans-serif;';
+    if (shown === total) {
+      return `<div id="member-count-line" style="${base}color:var(--text);">${icon}<b style="font-size:14px;color:var(--text);">전체 ${total}명</b></div>`;
+    }
+    return `<div id="member-count-line" style="${base}color:var(--text-sub);">${icon}<span>조회 결과</span><b style="font-size:14px;color:var(--blue);">${shown}명</b><span>/ 전체 ${total}명</span></div>`;
   }
 
   // 필터/정렬 바 (PC/모바일 공통)
