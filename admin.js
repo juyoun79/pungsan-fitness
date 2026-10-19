@@ -4218,7 +4218,7 @@
     const opt = (val, label, current) => `<option value="${val}" ${val===current?'selected':''}>${label}</option>`;
     return `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
       ${sel('mf-program', opt('all','전체 프로그램',f.program)+opt('헬스','헬스',f.program)+opt('GX','GX',f.program)+opt('PT','PT',f.program)+opt('기구필라테스 개인','기구필라테스 개인',f.program)+opt('기구필라테스 그룹','기구필라테스 그룹',f.program))}
-      ${sel('mf-status', opt('valid','유효회원',f.status)+opt('all','전체 상태',f.status)+opt('normal','정상',f.status)+opt('hold','휴회중',f.status)+opt('expiring','만료임박 (' + _expiringThresholdDays + '일 이내)',f.status)+opt('expired','만료됨',f.status))}
+      ${sel('mf-status', opt('all','전체 상태',f.status)+opt('valid','유효회원',f.status)+opt('normal','정상',f.status)+opt('hold','휴회중',f.status)+opt('expiring','만료임박 (' + _expiringThresholdDays + '일 이내)',f.status)+opt('expired','만료됨',f.status))}
       ${sel('mf-payment', opt('all','전체 결제상태',f.payment)+opt('paid','완납',f.payment)+opt('unpaid','미수금',f.payment))}
       ${sel('mf-locker', opt('all','전체 락카',f.locker)+opt('assigned','배정됨',f.locker)+opt('unassigned','미배정',f.locker))}
       ${sel('mf-staff', opt('all','전체 담당자',f.staff)+_mfStaffOptions.map(t => opt(t.id, t.name, f.staff)).join(''))}
