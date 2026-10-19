@@ -1636,14 +1636,18 @@
     return String(label || '').replace(/^[^\p{L}\p{N}]+/u, '').trim();
   }
 
-  // 회원 1명의 "대표 프로그램" 정보 (가장 만료가 임박한 것 하나 + 나머지 개수)
-  // 반환: null(등록정보 없음) 또는 { label, start, end, days, hold, expired, more }
-  function _tvPlanInfo(m) {
-    const items = (m && m.activeItems) || [];
-    if (!items.length) return null;
+  // ── 같은 프로그램의 "재등록(이어지는 계약)" 묶기 — 오늘 방문 카드와 회원 목록의 상태/잔여 판정이 같은 기준을 쓰도록 한 곳에 모음 ──
+  // 이어짐 기준: 다음 계약 시작일이 앞 계약 종료일의 다음 날 이전. 시작일/종료일이 없거나 기간이 떨어져 있으면 묶지 않음. 패키지 상품은 묶지 않음
+  function _pcNextDay(s) { const p = String(s).split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2] + 1)).toISOString().slice(0, 10); }
+  function _pcPad(s) { const p = String(s).split('-'); return p.length === 3 ? p[0] + '-' + p[1].padStart(2, '0') + '-' + p[2].padStart(2, '0') : String(s); }
+
+  // 반환: { lines, superseded }
+  //  lines: 계약 묶음 목록 [{ label, start, end, days, valid, hold, mergeKey }] (이어지는 계약은 하나로 합쳐짐)
+  //  superseded: 더 이상 만료/임박 판정에 쓰지 않을 앞 계약 항목들(Set) — 재등록으로 이어진 앞 계약, 또는 같은 프로그램에 지금 유효한 계약이 있을 때의 지난(만료된) 계약
+  function _planChains(items) {
     const itemEnd = it => (_isActivelyOnHold(it.data) ? (it.data.activeHold && it.data.activeHold.newEndDate) : it.data.endDate) || null;
     const groups = {};
-    items.forEach(it => {
+    (items || []).forEach(it => {
       const key = it.pkgName ? (it.contractKey + '::' + it.pkgIndex + '::' + it.pkgName) : (it.contractKey + '::' + it.progKey);
       if (!groups[key]) groups[key] = { items: [], pkgName: it.pkgName || null, progKey: it.progKey };
       groups[key].items.push(it);
@@ -1657,35 +1661,52 @@
       const end = ends.length ? (valid ? ends[0] : ends[ends.length - 1]) : null;
       const label = g.pkgName || _tvStripEmoji(REFUND_PROG_NAMES[g.progKey] || getProgLabel(g.progKey));
       const days = end ? _daysUntil(end) : null;
-      return { label, start: starts[0] || null, end, days, valid, hold: validItems.some(it => _isActivelyOnHold(it.data)), mergeKey: g.pkgName ? null : g.progKey };
+      const line = { label, start: starts[0] || null, end, days, valid, hold: validItems.some(it => _isActivelyOnHold(it.data)), mergeKey: g.pkgName ? null : g.progKey };
+      line.members = [{ items: g.items, end: line.end }];
+      line.tail = line.members[0];
+      return line;
     });
 
-    // 같은 프로그램(패키지 제외)의 "이어지는" 유효 계약은 하나로 합침 (재등록해서 이미 다음 계약이 있는 회원이 곧 끝나는 것처럼 보이지 않게)
-    // 이어짐 기준: 다음 계약 시작일이 앞 계약 종료일의 다음 날 이전. 시작일/종료일이 없거나 기간이 떨어져 있으면 합치지 않음
-    const _nextDay = s => { const p = String(s).split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2] + 1)).toISOString().slice(0, 10); };
-    const _pad = s => { const p = String(s).split('-'); return p.length === 3 ? p[0] + '-' + p[1].padStart(2, '0') + '-' + p[2].padStart(2, '0') : String(s); };
-    const mergedList = [];
+    const lines = [];
     const byProg = {};
     list.forEach(g => {
-      if (g.valid && g.mergeKey) (byProg[g.mergeKey] = byProg[g.mergeKey] || []).push(g);
-      else mergedList.push(g);
+      if (g.mergeKey) (byProg[g.mergeKey] = byProg[g.mergeKey] || []).push(g);
+      else lines.push(g);
     });
     Object.values(byProg).forEach(arr => {
-      arr.sort((a, b) => (a.start ? _pad(a.start) : '9999').localeCompare(b.start ? _pad(b.start) : '9999'));
+      arr.sort((a, b) => (a.start ? _pcPad(a.start) : '9999').localeCompare(b.start ? _pcPad(b.start) : '9999'));
       let cur = null;
       arr.forEach(g => {
-        const canJoin = cur && cur.start && cur.end && g.start && g.end && _nextDay(_pad(cur.end)) >= _pad(g.start);
+        const canJoin = cur && cur.start && cur.end && g.start && g.end && _pcNextDay(_pcPad(cur.end)) >= _pcPad(g.start);
         if (canJoin) {
-          const end = _pad(g.end) > _pad(cur.end) ? g.end : cur.end;
-          cur = { ...cur, end, days: _daysUntil(end), hold: cur.hold || g.hold };
+          const tail = _pcPad(g.end) > _pcPad(cur.end) ? g.members[0] : cur.tail;
+          cur = { ...cur, end: tail.end, days: _daysUntil(tail.end), valid: cur.valid || g.valid, hold: cur.hold || g.hold, members: cur.members.concat(g.members), tail };
         } else {
-          if (cur) mergedList.push(cur);
+          if (cur) lines.push(cur);
           cur = g;
         }
       });
-      if (cur) mergedList.push(cur);
+      if (cur) lines.push(cur);
     });
-    const validGroups = mergedList.filter(g => g.valid);
+
+    const superseded = new Set();
+    // 1) 이어진 묶음 안에서 가장 늦게 끝나는 계약만 남기고 앞 계약은 제외
+    lines.forEach(l => l.members.forEach(mem => { if (mem !== l.tail) mem.items.forEach(it => superseded.add(it)); }));
+    // 2) 같은 프로그램에 지금 유효한 계약이 있으면, 이미 끝난 지난 계약은 제외 (끊겼다가 다시 등록한 회원이 만료됨으로 남지 않게)
+    const hasValid = {};
+    lines.forEach(l => { if (l.mergeKey && l.valid) hasValid[l.mergeKey] = true; });
+    lines.forEach(l => { if (l.mergeKey && !l.valid && hasValid[l.mergeKey]) l.members.forEach(mem => mem.items.forEach(it => superseded.add(it))); });
+
+    return { lines, superseded };
+  }
+
+  // 회원 1명의 "대표 프로그램" 정보 (가장 만료가 임박한 것 하나 + 나머지 개수)
+  // 반환: null(등록정보 없음) 또는 { label, start, end, days, hold, expired, more }
+  function _tvPlanInfo(m) {
+    const items = (m && m.activeItems) || [];
+    if (!items.length) return null;
+    const list = _planChains(items).lines;
+    const validGroups = list.filter(g => g.valid);
     if (validGroups.length) {
       const withDays = validGroups.filter(g => g.days !== null).sort((a, b) => a.days - b.days);
       const rep = withDays.length ? withDays[0] : validGroups[0];
@@ -3969,12 +3990,9 @@
     return getMemberDB().then(members => {
       cachedMembers = members;
       const wrap = document.getElementById('member-list-wrap');
+      // 검색어는 여기서 걸러내지 않고 화면에 그릴 때(_getFilteredMemberData) 적용 — 그래야 _lastMemberData가 항상 전체 회원이라
+      // 검색을 해도 종 모양 알림 숫자와 현황탭 통계가 줄어들지 않음
       let entries = Object.entries(members);
-      if (query) {
-        entries = entries.filter(([phone, info]) =>
-          (info.name || '').includes(query) || phone.includes(query)
-        );
-      }
       if (entries.length === 0) {
         wrap.innerHTML = '<div class="empty-state">등록된 회원이 없어요<br/>회원등록 탭에서 추가해주세요</div>';
         return;
@@ -4073,9 +4091,11 @@
             let minRemainDays = null;
             let maxEndDate = null; // 날짜범위 필터(만료일 기준)용 - 가장 늦은 만료일 기준
             let anyOnHold = false;
+            const chain = _planChains(activeItems); // 재등록으로 이어진 앞 계약은 만료/임박/휴회 판정에서 제외
             activeItems.forEach(it => {
               const label = REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey);
               if (!progNames.includes(label)) progNames.push(label);
+              if (chain.superseded.has(it)) return;
               const onHold = _isActivelyOnHold(it.data);
               if (onHold) anyOnHold = true;
               const endDate = onHold ? (it.data.activeHold && it.data.activeHold.newEndDate) : it.data.endDate;
@@ -4108,7 +4128,7 @@
             if (pg && pg.remain != null) countRemains.push(pg.remain);
             const minCountRemain = countRemains.length ? Math.min(...countRemains) : null;
 
-            return { phone, info, attendCount, pts: Number(pts) || 0, nick, activeItems, hasUnpaid, unpaidAmount, joinDate, maxEndDate, progNames, statusKey, statusLabel, statusColor, minRemainDays, lockerAssigned, gender, age, lastAttendDate, daysSinceLastAttend, minCountRemain, staffIds, regKind };
+            return { phone, info, attendCount, pts: Number(pts) || 0, nick, activeItems, hasUnpaid, unpaidAmount, joinDate, maxEndDate, progNames, statusKey, statusLabel, statusColor, minRemainDays, lockerAssigned, gender, age, lastAttendDate, daysSinceLastAttend, minCountRemain, staffIds, regKind, superseded: chain.superseded };
           }).catch(() => {
             const pts = localStorage.getItem('points_' + phone) || '0';
             let attendCount = 0;
@@ -4150,6 +4170,10 @@
   // 지금 필터/정렬이 적용된 회원 목록 — 화면 표시와 엑셀 내려받기가 똑같은 결과를 쓰도록 따로 분리
   function _getFilteredMemberData() {
     let data = _lastMemberData.slice();
+
+    // 위쪽 검색창(이름 또는 전화번호)
+    const q = (document.getElementById('member-search')?.value || '').trim();
+    if (q) data = data.filter(m => ((m.info && m.info.name) || '').includes(q) || String(m.phone).includes(q));
 
     const f = _memberFilters;
     if (f.program !== 'all') data = data.filter(m => m.progNames.includes(f.program));
@@ -4292,6 +4316,7 @@
 
       const remainParts = [];
       activeItems.forEach(it => {
+        if (m.superseded && m.superseded.has(it)) return; // 재등록으로 이어진 앞 계약 줄은 숨김 (상태 판정과 같은 기준)
         const label = REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey);
         const onHold = _isActivelyOnHold(it.data);
         const endDate = onHold ? (it.data.activeHold && it.data.activeHold.newEndDate) : it.data.endDate;
@@ -4340,7 +4365,11 @@
     </div>`;
   }
 
-  function searchMembers(query) { loadMemberList(query); }
+  // 검색: 이미 불러온 전체 회원 목록에서 걸러서 다시 그림 (아직 한 번도 못 불러왔을 때만 새로 불러옴)
+  function searchMembers() {
+    if (Array.isArray(_lastMemberData) && _lastMemberData.length) _renderMemberListView();
+    else loadMemberList();
+  }
 
   // 검색창 + 모든 드롭다운 필터(프로그램/상태/결제/락카/성별/연령대/잔여횟수/미출석기간/미수금/날짜범위) 한번에 초기화
   function resetMemberSearch() {
