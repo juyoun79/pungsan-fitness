@@ -1490,8 +1490,9 @@
   // ── 관리자 대시보드 ──
   let _dashLoadSeq = 0; // 현황탭 재진입 시 오래된 요청이 나중에 도착해 최신 데이터를 덮어쓰는 것을 방지하기 위한 순번
 
-  function loadAdminDashboard() {
+  function loadAdminDashboard(keepDate) {
     const mySeq = ++_dashLoadSeq;
+    if (!keepDate) _tvDate = null; // 현황탭에 다시 들어오면 오늘 방문자로 (카드의 새로고침 버튼은 보던 날짜를 유지)
     // 저장된 레이아웃 복원
     const savedLayout = localStorage.getItem('admin_layout') || 'mobile';
     if (savedLayout === 'pc') applyAdminLayout('pc');
@@ -1526,7 +1527,7 @@
           });
           const todayAttend = !!attendData[today];
           const monthAtt = Object.keys(attendData).filter(k => k.startsWith(monthPrefix)).length;
-          return { phone, info, todayAttend, monthAtt, total: Object.keys(attendData).length };
+          return { phone, info, todayAttend, monthAtt, total: Object.keys(attendData).length, dates: Object.keys(attendData).filter(k => attendData[k]) };
         }).catch(() => {
           // Firebase 실패 시 localStorage fallback
           const todayAttend = localStorage.getItem('attend_' + phone + '_' + today) === 'done';
@@ -1534,11 +1535,12 @@
           for (let d = 1; d <= 31; d++) {
             if (localStorage.getItem('attend_' + phone + '_' + monthPrefix + d) === 'done') monthAtt++;
           }
-          return { phone, info, todayAttend, monthAtt, total: null };
+          return { phone, info, todayAttend, monthAtt, total: null, dates: [] };
         })
       );
 
       Promise.all(attendPromises).then(results => {
+        const tvBuilt = _tvBuildIndex(results); // 지난 날짜 방문자 보기용 (날짜별 출석 회원 색인)
         results.forEach(({ phone, info, todayAttend, monthAtt, total }) => {
           if (todayAttend) {
             todayCount++;
@@ -1559,14 +1561,19 @@
           if (mySeq !== _dashLoadSeq) return;
           _tvRows = todayRows;
           _tvMonthDays = monthCount;
+          _tvIndex = tvBuilt.index; _tvInfo = tvBuilt.info; _tvTimeCache = {}; _tvIndexReady = true;
           _tvLoading = false;
           const nd = new Date();
           _tvUpdatedAt = String(nd.getHours()).padStart(2,'0') + ':' + String(nd.getMinutes()).padStart(2,'0') + ':' + String(nd.getSeconds()).padStart(2,'0');
-          try { _renderTodayVisit(); } catch (e) { console.error('오늘 방문 카드 렌더 오류(무시):', e); }
+          try {
+            if (_tvDate && _tvDate < _todayISO()) _tvLoadPast(_tvDate); // 지난 날짜를 보던 중 새로고침한 경우 그 날짜로 다시 그림
+            else _renderTodayVisit();
+          } catch (e) { console.error('오늘 방문 카드 렌더 오류(무시):', e); }
         });
       }).catch(e => {
         console.error('오늘 방문 로딩 오류:', e);
         _tvLoading = false;
+        _tvPastLoading = false;
         try { _renderTodayVisit(); } catch (e2) {}
       });
     });
@@ -1580,6 +1587,80 @@
   let _tvShown = 20;           // 화면에 보여줄 카드 수 ("더 보기"로 늘어남)
   let _tvUpdatedAt = '';       // 마지막 갱신 시각 표시용
   let _tvLoading = false;
+  let _tvDate = null;          // null = 오늘 방문자 / 'YYYY-MM-DD' = 그 날짜(오늘 이전)의 방문자
+  let _tvIndex = {};           // 날짜별 출석 색인 {정규화한 날짜: {phone: [저장된 출석 키...]}}
+  let _tvInfo = {};            // {phone: {name, photoUrl}}
+  let _tvIndexReady = false;   // 색인이 한 번이라도 만들어졌는지
+  let _tvPastRows = [];        // 지난 날짜 방문자 [{phone, name, photoUrl, time}]
+  let _tvPastLoading = false;
+  let _tvDateSeq = 0;          // 날짜를 빠르게 여러 번 바꿀 때 늦게 도착한 결과가 덮어쓰지 않게 하는 순번
+  let _tvTimeCache = {};       // {날짜: 방문자 목록} — 같은 날짜를 다시 볼 때 방문시간을 다시 조회하지 않음
+
+  // 출석 기록 키("2026-9-5" 같은 옛 형식 포함)를 "2026-09-05"로 통일. 날짜 형식이 아니면 null
+  function _tvNormKey(k) {
+    const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(String(k));
+    return m ? m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0') : null;
+  }
+
+  // 회원별 출석 기록 → 날짜별 색인. results: [{phone, info, dates:[출석 키...]}]
+  function _tvBuildIndex(results) {
+    const index = {}, info = {};
+    (results || []).forEach(r => {
+      const inf = r.info || {};
+      info[r.phone] = { name: String(inf.name || r.phone).replace(/\(\d{4}\)$/, '').trim(), photoUrl: inf.photoUrl || '' };
+      (r.dates || []).forEach(k => {
+        const n = _tvNormKey(k);
+        if (!n) return;
+        const byPhone = index[n] || (index[n] = {});
+        (byPhone[r.phone] || (byPhone[r.phone] = [])).push(k);
+      });
+    });
+    return { index, info };
+  }
+
+  function _tvWeekday(iso) {
+    return ['일', '월', '화', '수', '목', '금', '토'][new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10))).getDay()];
+  }
+  function _tvShiftDate(iso, delta) {
+    return _isoDate(new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)) + delta));
+  }
+
+  // 지난 날짜 방문자 목록 + 방문시간 불러오기
+  function _tvLoadPast(date) {
+    const seq = ++_tvDateSeq;
+    if (_tvTimeCache[date]) { _tvPastRows = _tvTimeCache[date]; _tvPastLoading = false; _renderTodayVisit(); return; }
+    _tvPastRows = [];
+    if (!_tvIndexReady) { _tvPastLoading = true; _renderTodayVisit(); return; } // 아직 출석 기록을 불러오는 중이면 불러온 뒤 loadAdminDashboard가 다시 호출함
+    _tvPastLoading = true;
+    _renderTodayVisit();
+    const byPhone = _tvIndex[date] || {};
+    const rows = Object.keys(byPhone).map(phone => {
+      const inf = _tvInfo[phone] || { name: phone, photoUrl: '' };
+      // 방문시간은 출석 기록과 같은 키로 저장되므로 실제 저장된 키로 조회 (날짜 형식이 섞여 있어도 찾을 수 있게 통일된 키도 함께 시도)
+      return { phone, name: inf.name, photoUrl: inf.photoUrl, time: '', keys: Array.from(new Set(byPhone[phone].concat([date]))) };
+    });
+    const finish = () => {
+      if (seq !== _tvDateSeq) return; // 그 사이 다른 날짜를 골랐으면 이 결과는 버림
+      _tvTimeCache[date] = rows; _tvPastRows = rows; _tvPastLoading = false;
+      try { _renderTodayVisit(); } catch (e) { console.error('지난 방문자 렌더 오류(무시):', e); }
+    };
+    Promise.all(rows.map(r =>
+      Promise.all(r.keys.map(k => db.ref('users/' + r.phone + '/attendanceTime/' + k).once('value').then(sn => sn.val() || '').catch(() => '')))
+        .then(ts => { r.time = String(ts.find(t => t) || ''); })
+    )).then(finish).catch(finish);
+  }
+
+  function _tvSetDate(iso) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || '')) { _renderTodayVisit(); return; } // 날짜를 지웠으면 원래 화면 그대로
+    _tvShown = 20;
+    if (iso >= _todayISO()) { _tvDate = null; _tvDateSeq++; _renderTodayVisit(); return; }
+    _tvDate = iso;
+    if (_tvFilter === 'new' || _tvFilter === 're') _tvFilter = null; // 지난 날짜에서는 신규/재등록 배지를 쓰지 않음
+    _tvLoadPast(iso);
+  }
+  function _tvStepDate(delta) { _tvSetDate(_tvShiftDate(_tvDate || _todayISO(), delta)); }
+  function _tvGoToday() { _tvSetDate(_todayISO()); }
+  function _tvPickDate(v) { _tvSetDate(v); }
 
   const _TV_BADGES = {
     new:    { label: '신규등록', cls: 'tv-g' },
@@ -1599,6 +1680,13 @@
     const st = document.createElement('style');
     st.id = 'tv-style';
     st.textContent = `
+      .tv-nav{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
+      .tv-nav button{border:1px solid var(--border);background:var(--card);color:var(--text);padding:6px 11px;border-radius:8px;font-size:12.5px;cursor:pointer;font-family:inherit;}
+      .tv-nav button.on{background:var(--blue-light);border-color:var(--blue);color:var(--blue);font-weight:700;}
+      .tv-nav button:disabled{opacity:.4;cursor:default;}
+      .tv-nav .tv-date{border:1px solid var(--border);background:var(--card);color:var(--text);padding:5px 8px;border-radius:8px;font-size:12.5px;font-family:inherit;}
+      .tv-nav .tv-wd{font-size:12.5px;color:var(--text-sub);}
+      .tv-note{font-size:12px;color:#e07b00;border:1px dashed #f08c00;border-radius:8px;padding:6px 10px;margin-bottom:10px;}
       .tv-sum{font-size:13px;color:var(--text);margin-bottom:10px;}
       .tv-sum b{color:var(--blue);}
       .tv-legend{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
@@ -1734,18 +1822,40 @@
     const listEl = document.getElementById('admin-today-list');
     if (!listEl) return;
     _tvInjectStyle();
+    const todayISO = _todayISO();
+    const isPast = !!_tvDate && _tvDate < todayISO; // 지난 날짜 방문자를 보는 중인지
+    const viewDate = isPast ? _tvDate : todayISO;
     const titleEl = listEl.closest('.admin-card') && listEl.closest('.admin-card').querySelector('.admin-card-title');
-    if (titleEl) titleEl.textContent = '📅 오늘 방문';
+    if (titleEl) titleEl.textContent = isPast ? '📅 ' + Number(_tvDate.slice(5, 7)) + '월 ' + Number(_tvDate.slice(8, 10)) + '일(' + _tvWeekday(_tvDate) + ') 방문' : '📅 오늘 방문';
+
+    // 날짜 이동 줄 (◀ 어제 / 날짜 선택 / ▶ / 오늘)
+    const navHtml = `<div class="tv-nav">
+      <button type="button" onclick="_tvStepDate(-1)">${isPast ? '◀' : '◀ 어제'}</button>
+      <input type="date" class="tv-date" value="${viewDate}" max="${todayISO}" onchange="_tvPickDate(this.value)">
+      <span class="tv-wd">(${_tvWeekday(viewDate)})</span>
+      <button type="button" onclick="_tvStepDate(1)" ${isPast ? '' : 'disabled'}>▶</button>
+      <button type="button" class="${isPast ? '' : 'on'}" onclick="_tvGoToday()">${isPast ? '오늘로' : '오늘'}</button>
+    </div>`;
+
+    if (isPast && _tvPastLoading) {
+      listEl.innerHTML = navHtml + '<div class="empty-state">불러오는 중…</div>';
+      return;
+    }
 
     const memberReady = Array.isArray(_lastMemberData) && _lastMemberData.length > 0;
     const byPhone = {};
     if (memberReady) _lastMemberData.forEach(m => { byPhone[m.phone] = m; });
 
+    // 지난 날짜에서는 "신규등록/재등록" 배지를 쓰지 않음 (오늘 기준으로 계산되는 값이라 그날의 상태가 아님)
+    const hiddenBadges = isPast ? ['new', 're'] : [];
+    const activeFilter = hiddenBadges.includes(_tvFilter) ? null : _tvFilter;
+    const sourceRows = isPast ? _tvPastRows : _tvRows;
+
     // 카드 데이터 만들기
-    const cards = _tvRows.map(r => {
+    const cards = sourceRows.map(r => {
       const m = byPhone[r.phone] || null;
       const plan = m ? _tvPlanInfo(m) : null;
-      const badges = memberReady ? _tvBadgeKeys(m, plan) : [];
+      const badges = memberReady ? _tvBadgeKeys(m, plan).filter(k => !hiddenBadges.includes(k)) : [];
       return { r, m, plan, badges };
     });
 
@@ -1754,7 +1864,7 @@
     cards.forEach(c => c.badges.forEach(k => { counts[k]++; }));
 
     // 필터 + 정렬
-    let view = cards.filter(c => !_tvFilter || c.badges.includes(_tvFilter));
+    let view = cards.filter(c => !activeFilter || c.badges.includes(activeFilter));
     const timeKey = c => c.r.time || '';
     view.sort((a, b) => {
       if (_tvSort === 'alert') {
@@ -1767,13 +1877,16 @@
       return (a.r.name || '').localeCompare(b.r.name || '', 'ko');
     });
 
-    const total = _tvRows.length;
+    const total = sourceRows.length;
     const shown = view.slice(0, _tvShown);
 
-    let html = `<div class="tv-sum">총 방문회원 : <b>${total}</b>명 / 이번 달 총 방문일수 : <b>${_tvMonthDays}</b></div>`;
+    let html = navHtml;
+    html += isPast
+      ? `<div class="tv-sum">총 방문회원 : <b>${total}</b>명</div><div class="tv-note">회원권 기간과 배지는 오늘 기준이에요.</div>`
+      : `<div class="tv-sum">총 방문회원 : <b>${total}</b>명 / 이번 달 총 방문일수 : <b>${_tvMonthDays}</b></div>`;
     if (memberReady) {
-      html += `<div class="tv-legend">` + Object.keys(_TV_BADGES).map(k =>
-        `<button type="button" class="tv-bd tv-chip ${_TV_BADGES[k].cls} ${_tvFilter === k ? 'on' : ''}" onclick="_tvSetFilter('${k}')">${_TV_BADGES[k].label} ${counts[k]}</button>`
+      html += `<div class="tv-legend">` + Object.keys(_TV_BADGES).filter(k => !hiddenBadges.includes(k)).map(k =>
+        `<button type="button" class="tv-bd tv-chip ${_TV_BADGES[k].cls} ${activeFilter === k ? 'on' : ''}" onclick="_tvSetFilter('${k}')">${_TV_BADGES[k].label} ${counts[k]}</button>`
       ).join('') + `</div>`;
     }
     html += `<div class="tv-bar">
@@ -1785,7 +1898,7 @@
     </div>`;
 
     if (total === 0) {
-      html += '<div class="empty-state">오늘 출석한 회원이 없어요</div>';
+      html += isPast ? '<div class="empty-state">이 날은 방문 기록이 없어요</div>' : '<div class="empty-state">오늘 출석한 회원이 없어요</div>';
     } else if (!view.length) {
       html += '<div class="empty-state">해당하는 회원이 없어요</div>';
     } else {
@@ -1809,8 +1922,9 @@
         }
         const bds = c.badges.map(k => `<span class="tv-bd ${_TV_BADGES[k].cls}">${_TV_BADGES[k].label}</span>`).join('');
         const totalTxt = r.total == null ? '-' : r.total;
+        const totalMeta = isPast ? '' : `<div class="tv-meta">누적 <b>${totalTxt}</b>일</div>`; // 지난 날짜에서는 누적일을 보여주지 않음
         return `<div class="tv-card" onclick="openMemberModal('${_tvEsc(r.phone)}')">
-          <div class="tv-top"><div class="tv-av">${av}</div><div style="min-width:0;"><div class="tv-nm">${_tvEsc(r.name)}</div><div class="tv-meta">⏰ <b>${_tvEsc(r.time || '-')}</b></div><div class="tv-meta">누적 <b>${totalTxt}</b>일</div></div></div>
+          <div class="tv-top"><div class="tv-av">${av}</div><div style="min-width:0;"><div class="tv-nm">${_tvEsc(r.name)}</div><div class="tv-meta">⏰ <b>${_tvEsc(r.time || '-')}</b></div>${totalMeta}</div></div>
           ${planHtml}
           <div class="tv-bds">${bds}</div>
         </div>`;
@@ -1830,8 +1944,11 @@
     if (_tvLoading) return;
     _tvLoading = true;
     _renderTodayVisit();
-    loadAdminDashboard();
+    loadAdminDashboard(true); // 보던 날짜는 그대로 유지
   }
+  window._tvStepDate = _tvStepDate;
+  window._tvPickDate = _tvPickDate;
+  window._tvGoToday = _tvGoToday;
   window._tvSetFilter = _tvSetFilter;
   window._tvSetSort = _tvSetSort;
   window._tvMore = _tvMore;
