@@ -4039,6 +4039,7 @@
 
             // 계약이력에서 활성 항목 + 미수금 + 가입일(최초 계약일) 뽑기
             const activeItems = [];
+            const outItems = []; // 환불/양도로 나간 항목 (활성 항목이 하나도 없을 때 "만료됨 (환불/양도)" 표시용)
             let hasUnpaid = false;
             let unpaidAmount = 0;
             const signDates = [];
@@ -4052,8 +4053,8 @@
                 progContracts.push({ date: c.signDate, isRe: c.type === 're' });
               }
               _flattenContractItems(c).forEach(it => {
-                if (!_isItemEligible(it.data)) return;
-                const unpaid = (it.data.price || 0) - ((it.data.cash||0) + (it.data.card||0) + (it.data.transfer||0));
+                if (!_isItemEligible(it.data)) { const oi = _outItemInfo(it.data); if (oi) outItems.push(oi); return; }
+                const unpaid =(it.data.price || 0) - ((it.data.cash||0) + (it.data.card||0) + (it.data.transfer||0));
                 if (unpaid > 0) { hasUnpaid = true; unpaidAmount += unpaid; }
                 it.contractKey = cSnap.key; // 어느 계약서에서 온 항목인지 구분용 (패키지 그룹핑 정확도용)
                 activeItems.push(it);
@@ -4111,6 +4112,12 @@
               else if (minRemainDays !== null && minRemainDays < 0) { statusKey = 'expired'; statusLabel = '만료됨'; statusColor = '#ef4444'; }
               else if (minRemainDays !== null && minRemainDays <= _expiringThresholdDays) { statusKey = 'expiring'; statusLabel = '⚠️ 만료임박'; statusColor = '#f59e0b'; }
               else { statusKey = 'normal'; statusLabel = '정상'; statusColor = '#22c55e'; }
+            } else if (outItems.length > 0) {
+              // 활성 항목이 전부 환불/양도로 나간 회원 → 만료됨 (사유 표시). 처리일을 만료일처럼 써서 날짜범위(만료일 기준)에도 걸리게 함
+              // 가장 늦은 처리일(같으면 나중에 처리한 것) 기준으로 사유를 정함. 잔여일은 비워둬서 "만료임박순" 정렬에서 뒤로 감
+              const last = outItems.slice().sort((a, b) => (a.date || '').localeCompare(b.date || '') || a.ts - b.ts).pop();
+              statusKey = 'expired'; statusLabel = '만료됨 (' + (last.kind === 'refund' ? '환불' : '양도') + ')'; statusColor = '#ef4444';
+              maxEndDate = last.date || null;
             }
             const lockerAssigned = !!info.lockerKey;
 
@@ -5408,6 +5415,23 @@
   // 이미 환불됐거나 양도되어 나간 항목은 환불/양도 대상에서 제외
   function _isItemEligible(data) {
     return !data.refund && !data.transferOut && !data.progChangeOut;
+  }
+
+  // 환불/양도로 나간 항목의 정보 — 회원 목록에서 "만료됨 (환불/양도)" 표시와 만료일(=처리일) 필터용. 환불·양도가 아니면 null
+  // 처리일은 저장된 refund.date / transferOut.date를 쓰고, 없으면 처리시각(processedAt)으로 대신함 (둘 다 없으면 날짜 없음)
+  function _outItemInfo(data) {
+    if (!data) return null;
+    const kind = data.refund ? 'refund' : (data.transferOut ? 'transfer' : null);
+    if (!kind) return null;
+    const rec = kind === 'refund' ? data.refund : data.transferOut;
+    const ts = Number(rec.processedAt) || 0;
+    let date = '';
+    if (rec.date) {
+      const p = String(rec.date).split('-');
+      date = p.length === 3 ? p[0] + '-' + p[1].padStart(2, '0') + '-' + p[2].padStart(2, '0') : '';
+    }
+    if (!date && ts) { const d = new Date(ts); if (!isNaN(d.getTime())) date = _isoDate(d); }
+    return { kind, date, ts };
   }
 
   // 휴회가 "실제로 끝나는 날"(마지막 휴회일) = 휴회 시작일 + 휴회일수
