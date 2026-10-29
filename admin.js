@@ -4101,9 +4101,6 @@
   }
 
   function loadMemberList(query = '') {
-    // users 전체를 최신으로 한 번만 내려받고, 아래 강사목록 조회와 회원별 출석/포인트 계산이 같은 데이터를 함께 사용
-    const usersAllPromise = _usersSnapOnce(true);
-    usersAllPromise.catch(() => {}); // 실패해도 아래에서 기존 방식(회원별 조회)으로 대체되므로 여기서는 무시
     if (typeof _fetchTrainerOptionsForGoal === 'function') {
       _fetchTrainerOptionsForGoal().then(opts => { _mfStaffOptions = opts; }).catch(() => {});
     }
@@ -4123,39 +4120,20 @@
       const monthPrefix = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-';
 
       // 개인수업(PT/개인필라테스) 잔여횟수는 trainers/*/trainees/{phone}에 있어서, 회원별로 따로 조회하지 않고 한 번만 불러와 맵으로 만들어둠
-      // 회원마다 4번씩 따로 조회하던 것을 전체 한 번씩(users·contracts·pilates_group)만 조회해서 회원별로 나눠 씀
-      // 하나라도 실패하면 bulkOk=false → 예전 방식(회원별 조회)으로 자동 대체
-      return Promise.all([
-        db.ref('trainers').once('value'),
-        usersAllPromise.catch(() => null),
-        db.ref('contracts').once('value').catch(() => null),
-        db.ref('pilates_group').once('value').catch(() => null)
-      ]).then(([trainersSnap, usersAll, contractsAll, pgAll]) => {
+      return db.ref('trainers').once('value').then(trainersSnap => {
         const personalRemainMap = {};
         trainersSnap.forEach(t => {
           const trainees = t.child('trainees');
           trainees.forEach(tr => { personalRemainMap[tr.key] = tr.val(); });
         });
 
-        const bulkOk = !!(usersAll && contractsAll && pgAll);
-        const _emptySnap = { val: () => null, forEach: () => false, exists: () => false };
-        const _childOf = (snap, path) => { try { return snap.child(path); } catch (e) { return _emptySnap; } };
-        const fetchParts = (phone) => bulkOk
-          ? Promise.resolve([
-              _childOf(usersAll, phone + '/attendance'),
-              _childOf(usersAll, phone + '/points'),
-              _childOf(contractsAll, phone),
-              _childOf(pgAll, phone)
-            ])
-          : Promise.all([
-              db.ref('users/' + phone + '/attendance').once('value'),
-              db.ref('users/' + phone + '/points').once('value'),
-              db.ref('contracts/' + phone).once('value'),
-              db.ref('pilates_group/' + phone).once('value')
-            ]);
-
         return Promise.all(entries.map(([phone, info]) =>
-          fetchParts(phone).then(([attSnap, ptsSnap, contractsSnap, pgSnap]) => {
+          Promise.all([
+            db.ref('users/' + phone + '/attendance').once('value'),
+            db.ref('users/' + phone + '/points').once('value'),
+            db.ref('contracts/' + phone).once('value'),
+            db.ref('pilates_group/' + phone).once('value')
+          ]).then(([attSnap, ptsSnap, contractsSnap, pgSnap]) => {
             const attendData = attSnap.val() || {};
             const attendCount = Object.keys(attendData).filter(k => k.startsWith(monthPrefix)).length ||
               (() => { let c=0; for(let d=1;d<=31;d++) { if(localStorage.getItem('attend_'+phone+'_'+monthPrefix+d)==='done') c++; } return c; })();
@@ -12988,24 +12966,9 @@
   let _salesGoalRows = {};       // { rowId: { role, trainerId, trainerName, programs:{prog:true}, goalAmount } }
   let _salesGoalTrainerOpts = []; // [{id, name}]
 
-  // users 전체 조회를 짧은 시간(5초) 동안 공유 — 회원탭을 열 때 같은 users 데이터를 두 번 내려받지 않도록 함
-  // force=true: 항상 새로 조회(회원목록처럼 최신 출석/포인트가 필요한 곳), false: 5초 이내 조회가 있으면 재사용
-  let _usersSnapCache = null; // { ts, promise }
-  function _usersSnapOnce(force) {
-    const now = Date.now();
-    if (!force && _usersSnapCache && (now - _usersSnapCache.ts) < 5000) return _usersSnapCache.promise;
-    const entry = { ts: now, promise: null };
-    entry.promise = db.ref('users').once('value').catch(err => {
-      if (_usersSnapCache === entry) _usersSnapCache = null; // 실패한 조회는 재사용하지 않음
-      throw err;
-    });
-    _usersSnapCache = entry;
-    return entry.promise;
-  }
-
   function _fetchTrainerOptionsForGoal() {
     return Promise.all([
-      _usersSnapOnce(false),
+      db.ref('users').once('value'),
       db.ref('trainers').once('value')
     ]).then(([usersSnap, trainersSnap]) => {
       const seen = new Set();
