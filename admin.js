@@ -22182,7 +22182,8 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         try {
           const lockerSnap = await db.ref('lockers/' + info.lockerKey).once('value');
           const lockerData = lockerSnap.val();
-          if (lockerData) lockerText = (lockerData.catName || '') + ' ' + (lockerData.number || '') + '번';
+          // 관리자 화면과 같은 기준: lockerNo, 없으면 락커 키 끝부분(예: xxx_220 → 220). 비밀번호는 강사 화면에 표시하지 않음
+          if (lockerData) lockerText = (lockerData.lockerNo || String(info.lockerKey).split('_').pop()) + '번';
         } catch (e) { /* 무시 */ }
       }
 
