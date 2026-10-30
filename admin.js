@@ -22049,12 +22049,120 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       </div>`;
   }
 
+  // ── 강사 회원상세: 개인수업/그룹수업 잔여횟수 (읽기전용, 전체 회원 조회 가능) ──
+  function _tmdEsc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  }
+
+  // 개인수업: 이 회원의 계약서에 적힌 담당강사 + 지금 로그인한 강사의 담당회원 칸만 가볍게 읽음
+  // (옛 회원처럼 계약서에 담당강사가 없고 아무도 못 찾았을 때만 전체 강사목록을 한 번 훑어봄)
+  async function _tmdFetchClassCounts(phone, contracts) {
+    const out = { personal: [], personalErr: false, group: null, groupErr: false };
+
+    const groupP = db.ref('pilates_group/' + phone).once('value')
+      .then(s => { out.group = s.val(); })
+      .catch(() => { out.groupErr = true; });
+
+    const ids = new Set();
+    const me = localStorage.getItem('current_user');
+    if (me) ids.add(me);
+    let needsTrainer = false;
+    contracts.forEach(c => {
+      _flattenContractItems(c).forEach(it => {
+        if (!it.data || it.data.refund || it.data.transferOut || it.data.progChangeOut) return;
+        if (ctProgramTrainerRequired(it.progKey)) needsTrainer = true;
+        if (it.data.trainerId) ids.add(it.data.trainerId);
+      });
+    });
+
+    const readOne = async (tid) => {
+      try {
+        const snap = await db.ref('trainers/' + tid + '/trainees/' + phone).once('value');
+        if (!snap.exists()) return null;
+        const v = snap.val() || {};
+        let tname = localStorage.getItem('name_' + tid) || '';
+        try {
+          const nSnap = await db.ref('trainers/' + tid + '/name').once('value');
+          if (nSnap.val()) tname = nSnap.val();
+        } catch (e) { /* 이름은 못 읽어도 괜찮음 */ }
+        return { tid, tname, remain: v.remain, total: v.total, type: v.type || '', ended: v.ended === true };
+      } catch (e) {
+        out.personalErr = true;
+        return null;
+      }
+    };
+
+    const found = (await Promise.all([...ids].map(readOne))).filter(Boolean);
+
+    if (!found.length && !out.personalErr && needsTrainer) {
+      try {
+        const all = await db.ref('trainers').once('value');
+        all.forEach(t => {
+          const tr = t.child('trainees/' + phone);
+          if (tr.exists()) {
+            const v = tr.val() || {};
+            const info = t.val() || {};
+            found.push({ tid: t.key, tname: info.name || localStorage.getItem('name_' + t.key) || '', remain: v.remain, total: v.total, type: v.type || '', ended: v.ended === true });
+          }
+        });
+      } catch (e) { out.personalErr = true; }
+    }
+
+    out.personal = found;
+    await groupP;
+    return out;
+  }
+
+  function _tmdClassCountsHtml(r) {
+    const unknown = '<div style="font-size:12.5px;font-weight:700;color:var(--text-hint);padding:6px 0;">확인 불가</div>';
+    const num = (remain, total, gray) => `
+      <div style="display:flex;justify-content:space-around;align-items:baseline;${gray ? 'opacity:.5;' : ''}">
+        <div style="text-align:center;"><div style="font-size:19px;font-weight:700;color:${gray ? 'var(--text-sub)' : 'var(--blue)'};">${Number(remain) || 0}</div><div style="font-size:10px;color:var(--text-hint);margin-top:2px;">잔여</div></div>
+        <div style="width:1px;height:22px;background:var(--border);"></div>
+        <div style="text-align:center;"><div style="font-size:19px;font-weight:700;color:var(--text);">${Number(total) || 0}</div><div style="font-size:10px;color:var(--text-hint);margin-top:2px;">전체</div></div>
+      </div>`;
+
+    let personalInner;
+    if (r.personalErr && !r.personal.length) {
+      personalInner = unknown;
+    } else if (!r.personal.length) {
+      personalInner = num(0, 0) + '<div style="margin-top:8px;font-size:11px;color:var(--text-hint);text-align:center;">-</div>';
+    } else {
+      personalInner = r.personal.map((p, i) => `
+        <div style="${i ? 'margin-top:10px;padding-top:10px;border-top:1px solid var(--border);' : ''}">
+          ${num(p.remain, p.total, p.ended)}
+          <div style="margin-top:8px;font-size:11px;color:var(--text-hint);text-align:center;">${_tmdEsc(p.type || '-')}${p.tname ? ' · ' + _tmdEsc(p.tname) : ''}${p.ended ? ' · 종료' : ''}</div>
+        </div>`).join('') + (r.personalErr ? '<div style="margin-top:8px;font-size:10.5px;color:#f59e0b;text-align:center;">일부 확인 불가</div>' : '');
+    }
+
+    let groupInner;
+    if (r.groupErr) {
+      groupInner = unknown;
+    } else {
+      const g = r.group;
+      groupInner = num(g ? g.remain : 0, g ? g.total : 0) + `<div style="margin-top:8px;font-size:11px;color:var(--text-hint);text-align:center;">${g ? '기구필라테스' : '-'}</div>`;
+    }
+
+    return `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+        <div style="background:var(--bg);border-radius:10px;padding:12px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:8px;text-align:center;">개인수업</div>
+          ${personalInner}
+        </div>
+        <div style="background:var(--bg);border-radius:10px;padding:12px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-sub);margin-bottom:8px;text-align:center;">그룹수업</div>
+          ${groupInner}
+        </div>
+      </div>`;
+  }
+
   function openTrainerMemberDetail(phone) {
     const modal = document.getElementById('tmd-modal');
     const body = document.getElementById('tmd-body');
     if (!modal || !body) return;
     body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);">불러오는 중...</div>';
     modal.classList.add('active');
+    const _tmdSeq = window._tmdSeq = (window._tmdSeq || 0) + 1;
 
     Promise.all([
       db.ref('members/' + phone).once('value'),
@@ -22105,6 +22213,8 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
           </div>
         </div>
 
+        <div id="tmd-class-counts"><div style="background:var(--bg);border-radius:10px;padding:14px;margin-bottom:14px;text-align:center;font-size:12px;color:var(--text-hint);">수업 잔여횟수 불러오는 중...</div></div>
+
         <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;">계약 및 결제내역</div>
         ${recentContracts.length ? recentContracts.map(c => _tmdRenderContractCard(c)).join('') : '<div style="color:var(--text-hint);font-size:13px;padding:8px 0;">계약 이력이 없어요</div>'}
         ${moreContracts.length ? `
@@ -22118,6 +22228,16 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         <button id="tmd-memo-btn" onclick="toggleTmdMemo()" style="width:100%;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;padding:9px;background:var(--card);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">메모 보기</button>
         <div id="tmd-memo-content" style="display:none;margin-top:8px;background:var(--bg);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text);white-space:pre-wrap;">${info.memo ? info.memo.replace(/</g,'&lt;') : '메모 없음'}</div>
       `;
+      // 수업 잔여횟수는 본문을 먼저 보여준 뒤 따로 채움 (느려도 상세창이 막히지 않게). 그 사이 다른 회원을 열었으면 버림
+      _tmdFetchClassCounts(phone, contracts).then(r => {
+        if (window._tmdSeq !== _tmdSeq) return;
+        const slot = document.getElementById('tmd-class-counts');
+        if (slot) slot.innerHTML = _tmdClassCountsHtml(r);
+      }).catch(() => {
+        if (window._tmdSeq !== _tmdSeq) return;
+        const slot = document.getElementById('tmd-class-counts');
+        if (slot) slot.innerHTML = _tmdClassCountsHtml({ personal: [], personalErr: true, group: null, groupErr: true });
+      });
     }).catch(e => {
       body.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);">불러오기에 실패했어요: ' + e.message + '</div>';
     });
