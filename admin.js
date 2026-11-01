@@ -7669,9 +7669,15 @@
         newContractData.programs = { [ctx.progKey]: newProgramData };
       }
 
-      updates['contracts/' + ctx.toPhone + '/' + newKey] = newContractData;
+      const tfSignSeparated = await _ctSaveSignSeparately(ctx.toPhone, newKey, ctx.signUrl);
+      updates['contracts/' + ctx.toPhone + '/' + newKey] = tfSignSeparated ? _ctStripSign(newContractData) : newContractData;
 
-      await db.ref().update(updates);
+      try {
+        await db.ref().update(updates);
+      } catch (saveErr) {
+        if (tfSignSeparated) _ctRemoveSignQuietly(ctx.toPhone, newKey);
+        throw saveErr;
+      }
       _invalidateRevenueCache();
       if (isExtra && extKey === 'locker' && ctx.lockerChoice) _syncCachedMemberLocker(ctx.toPhone, ctx.lockerChoice.key);
 
@@ -7736,7 +7742,7 @@
       });
       const newKey = todayStr + '_' + Date.now();
       const pkgLabel = ctx.pkgItems.map(it => REFUND_PROG_NAMES[it.progKey] || getProgLabel(it.progKey)).join('+');
-      updates['contracts/' + ctx.toPhone + '/' + newKey] = {
+      const pkgContractData = {
         name: ctx.toName, phone: ctx.toPhone,
         birth: ctx.toBirth || (toExisted ? (toSnap.val().birth||'') : ''),
         gender: ctx.toGender === '여' ? 'female' : 'male',
@@ -7745,12 +7751,19 @@
         type: 'new', signDate: todayStr, signUrl: ctx.signUrl,
         programs: newPrograms, createdAt: Date.now(),
       };
+      const pkgSignSeparated = await _ctSaveSignSeparately(ctx.toPhone, newKey, ctx.signUrl);
+      updates['contracts/' + ctx.toPhone + '/' + newKey] = pkgSignSeparated ? _ctStripSign(pkgContractData) : pkgContractData;
 
-      await db.ref().update(updates);
+      try {
+        await db.ref().update(updates);
+      } catch (saveErr) {
+        if (pkgSignSeparated) _ctRemoveSignQuietly(ctx.toPhone, newKey);
+        throw saveErr;
+      }
       _invalidateRevenueCache();
 
       // 완료 처리 — 완료 모달의 텍스트만 패키지 전체임을 표시
-      window._lastContractData = updates['contracts/' + ctx.toPhone + '/' + newKey];
+      window._lastContractData = pkgContractData; // 서명 포함 원본 (바로 PDF 열기용)
       document.getElementById('app-transfer-modal')?.remove();
       _renderPkgTransferDone(ctx);
       _renderMdContracts(ctx.fromPhone);
@@ -8880,6 +8893,17 @@
     const contractsData = contractsSnap.val();
     if (contractsData) await db.ref('contracts/' + newPhone).set(contractsData);
 
+    // 1-b. 계약과 따로 저장된 서명 이미지(contract_signs)도 같이 이동 — 읽거나 복사에 실패하면 옛 경로를 지우지 않고 그대로 둠
+    let signsData = null;
+    try {
+      const signsSnap = await db.ref('contract_signs/' + oldPhone).once('value');
+      signsData = signsSnap.val();
+      if (signsData) await db.ref('contract_signs/' + newPhone).set(signsData);
+    } catch (e) {
+      console.warn('서명 이미지 이관 실패(옛 경로에 그대로 보존):', e);
+      signsData = null;
+    }
+
     // 2. 활동기록(출석/운동/포인트/필라테스예약 등)
     const usersSnap = await db.ref('users/' + oldPhone).once('value');
     const usersData = usersSnap.val();
@@ -8924,6 +8948,7 @@
 
     // 6. 위 복사가 전부 끝난 뒤 옛 경로 정리
     if (contractsData) await db.ref('contracts/' + oldPhone).remove();
+    if (signsData) { try { await db.ref('contract_signs/' + oldPhone).remove(); } catch (e) { /* 무시 */ } }
     if (usersData) await db.ref('users/' + oldPhone).remove();
     for (const trainerId of Object.keys(traineeDataByTrainer)) {
       await db.ref('trainers/' + trainerId + '/trainees/' + oldPhone).remove();
@@ -9118,6 +9143,8 @@
         db.ref('notifications/' + phone),     // 알림
         db.ref('point_tier_issued/' + phone), // 포인트 구간 쿠폰 발행 기록
         db.ref('contracts/' + phone),         // 계약서 이력
+        // 계약과 따로 저장된 서명 이미지도 같이 삭제 (개인정보) — 권한 문제 등으로 실패해도 회원 삭제는 계속 진행
+        { remove: () => db.ref('contract_signs/' + phone).remove().catch(e => { console.warn('서명 이미지 삭제 실패(무시):', e); }) },
       ];
 
       // 2. 강사 담당 연결 삭제 (모든 강사에서 해당 회원 제거)
@@ -15423,9 +15450,16 @@
         salesStaffId: staffId, salesStaffName: staffName,
       };
       const contractKey = signDate + '_' + Date.now();
-      await db.ref('contracts/' + phone + '/' + contractKey).set(contractData);
+      // 서명은 계약과 따로 저장(가볍게 유지). 별도 저장이 실패하면 예전처럼 계약 안에 함께 저장
+      const signSeparated = await _ctSaveSignSeparately(phone, contractKey, signUrl);
+      try {
+        await db.ref('contracts/' + phone + '/' + contractKey).set(signSeparated ? _ctStripSign(contractData) : contractData);
+      } catch (saveErr) {
+        if (signSeparated) _ctRemoveSignQuietly(phone, contractKey);
+        throw saveErr;
+      }
       _invalidateRevenueCache();
-      window._lastContractData = contractData;
+      window._lastContractData = contractData; // 서명 포함 원본 (바로 PDF 열기용)
 
       // 3-0. 그룹필라테스 자동연동 — 계약서에 '기구필라테스그룹' 항목(단독/패키지 무관)이 있으면
       // pilates_group/{phone} 잔여횟수에 자동으로 누적 반영 (기존 계약이력 환불/양도/변경 로직은 건드리지 않음)
@@ -15939,6 +15973,29 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
 </body></html>`;
   }
   window.buildContractHtml = buildContractHtml;
+
+  // 서명 이미지를 계약과 분리해서 contract_signs/{전화번호}/{계약키}에 저장. 성공하면 true.
+  // 실패하면(권한 등) false를 돌려주고, 호출한 쪽이 예전 방식(계약 안에 함께 저장)으로 대신 저장함 → 계약 등록이 막히지 않음
+  async function _ctSaveSignSeparately(phone, contractKey, signUrl) {
+    if (!signUrl || !phone || !contractKey) return false;
+    try {
+      await db.ref('contract_signs/' + phone + '/' + contractKey).set(signUrl);
+      return true;
+    } catch (e) {
+      console.warn('서명 별도 저장 실패 — 계약 안에 함께 저장합니다:', e);
+      return false;
+    }
+  }
+  // 계약 저장이 실패했을 때, 먼저 저장해둔 서명이 남지 않도록 정리 (실패해도 무시)
+  function _ctRemoveSignQuietly(phone, contractKey) {
+    try { db.ref('contract_signs/' + phone + '/' + contractKey).remove().catch(() => {}); } catch (e) { /* 무시 */ }
+  }
+  // 저장용 복사본에서만 signUrl을 뺌 (화면/PDF에 쓰는 원본 객체는 서명을 그대로 유지)
+  function _ctStripSign(c) {
+    const o = Object.assign({}, c);
+    delete o.signUrl;
+    return o;
+  }
 
   // 서명 이미지 위치: 예전 계약은 계약 안(signUrl)에 있고, 분리된 계약은 contract_signs/{전화번호}/{계약키}에 있음.
   // 계약 안에 있으면 그대로 쓰고, 없을 때만 별도 위치를 한 번 읽음. 못 읽어도(권한/없음) 서명 없이 계약서는 보여줌
