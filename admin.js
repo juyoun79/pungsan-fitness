@@ -15940,6 +15940,22 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   }
   window.buildContractHtml = buildContractHtml;
 
+  // 서명 이미지 위치: 예전 계약은 계약 안(signUrl)에 있고, 분리된 계약은 contract_signs/{전화번호}/{계약키}에 있음.
+  // 계약 안에 있으면 그대로 쓰고, 없을 때만 별도 위치를 한 번 읽음. 못 읽어도(권한/없음) 서명 없이 계약서는 보여줌
+  async function _ctLoadSignUrl(phone, contractKey, c) {
+    if (c && c.signUrl) return c.signUrl;
+    if (!phone || !contractKey) return '';
+    try {
+      const snap = await db.ref('contract_signs/' + phone + '/' + contractKey).once('value');
+      const v = snap.val();
+      if (typeof v === 'string') return v;
+      return (v && typeof v.url === 'string') ? v.url : '';
+    } catch (e) {
+      return '';
+    }
+  }
+  window._ctLoadSignUrl = _ctLoadSignUrl;
+
   // ── 회원 앱: 내 계약서 조회 ──
   async function openMyContract() {
     const phone = localStorage.getItem('current_user');
@@ -15955,8 +15971,10 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       }
       const contracts = snap.val();
       const keys = Object.keys(contracts).sort().reverse(); // 최신순
+      window._myContractPhone = phone;
+      window._myContractKeyCache = keys;
       if (keys.length === 1) {
-        _showMyContractViewer(contracts[keys[0]]);
+        _showMyContractViewer(contracts[keys[0]], keys[0]);
         return;
       }
       _showMyContractListModal(keys.map(k => contracts[k]));
@@ -16002,12 +16020,12 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   function _openMyContractFromList(idx) {
     const c = (window._myContractListCache || [])[idx];
     if (!c) return;
-    _showMyContractViewer(c);
+    _showMyContractViewer(c, (window._myContractKeyCache || [])[idx]);
   }
   window._openMyContractFromList = _openMyContractFromList;
 
   // 계약서 내용을 앱 안에서 그대로 보여줌 (새 탭 대신 인앱 화면)
-  function _showMyContractViewer(contractData) {
+  function _showMyContractViewer(contractData, contractKey) {
     document.getElementById('my-contract-viewer-modal')?.remove();
     const modal = document.createElement('div');
     modal.id = 'my-contract-viewer-modal';
@@ -16023,8 +16041,19 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       <iframe id="my-contract-iframe" style="flex:1;width:100%;border:none;background:white;"></iframe>`;
     document.body.appendChild(modal);
     const iframe = document.getElementById('my-contract-iframe');
-    iframe.srcdoc = buildContractHtml(contractData);
     window._myContractCurrentData = contractData;
+    if (contractData.signUrl || !contractKey) {
+      iframe.srcdoc = buildContractHtml(contractData);
+      return;
+    }
+    // 서명이 계약 밖에 따로 저장된 계약 — 서명을 읽어온 뒤에 계약서를 그림 (그 사이 다른 계약서로 바뀌었으면 버림)
+    iframe.srcdoc = '<body style="font-family:sans-serif;color:#888;padding:24px;text-align:center;">계약서 불러오는 중...</body>';
+    _ctLoadSignUrl(contractData.phone || window._myContractPhone, contractKey, contractData).then(url => {
+      if (document.getElementById('my-contract-iframe') !== iframe) return;
+      const full = url ? Object.assign({}, contractData, { signUrl: url }) : contractData;
+      window._myContractCurrentData = full;
+      iframe.srcdoc = buildContractHtml(full);
+    });
   }
   window._showMyContractViewer = _showMyContractViewer;
 
