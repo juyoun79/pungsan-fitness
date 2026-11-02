@@ -8151,7 +8151,7 @@
         : '';
       return `
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
-          <div style="flex:0 0 auto;">
+          <div style="${equipName ? 'flex:0 0 96px;width:96px;' : 'flex:0 0 auto;'}">
             <div style="font-size:14px;font-weight:700;color:var(--text);">${_pgbFormatTime(s.time)}</div>
             <div style="font-size:12px;color:var(--text-hint);margin-top:2px;">${statusLabel}</div>
           </div>
