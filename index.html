@@ -8101,6 +8101,11 @@
     });
   }
 
+  // 기구명을 화면에 안전하게 넣기 위한 글자 처리 (&, 따옴표, 꺾쇠가 있어도 화면이 깨지지 않게)
+  function _pgbEquipEsc(v) {
+    return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
   function _renderPgbSlotRows() {
     const el = document.getElementById('pgb-slot-list');
     if (!el || !_pgbSlotCtx) return;
@@ -8140,12 +8145,17 @@
       else if (pastCutoff) { statusLabel = isFull ? '마감' : statusLabel; btnLabel = '마감'; disabled = true; }
       else if (noRemain) { btnLabel = '횟수없음'; disabled = true; }
       else if (isFull) { statusLabel = capacity + ' / ' + capacity + '명 · 대기 ' + waitCount + '명'; btnLabel = '대기 신청'; action = "joinPilatesWaitlist('" + dateStr + "','" + s.time + "'," + capacity + ")"; }
+      const equipName = String(s.equipment == null ? '' : s.equipment).trim();
+      const equipHtml = equipName
+        ? `<div style="flex:1;min-width:0;font-size:12px;font-weight:700;color:var(--blue);line-height:1.35;padding:0 2px;word-break:keep-all;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${_pgbEquipEsc(equipName)}</div>`
+        : '';
       return `
-        <div style="display:flex;justify-content:space-between;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
-          <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
+          <div style="flex:0 0 auto;">
             <div style="font-size:14px;font-weight:700;color:var(--text);">${_pgbFormatTime(s.time)}</div>
             <div style="font-size:12px;color:var(--text-hint);margin-top:2px;">${statusLabel}</div>
           </div>
+          ${equipHtml}
           <button ${disabled ? 'disabled' : ''} onclick="${action}"
             style="padding:8px 16px;border-radius:8px;border:none;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;
             cursor:${disabled ? 'default' : 'pointer'};background:${disabled ? 'var(--border)' : 'var(--blue)'};color:${disabled ? 'var(--text-hint)' : 'white'};">${btnLabel}</button>

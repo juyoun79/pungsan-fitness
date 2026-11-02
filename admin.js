@@ -21223,19 +21223,28 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       return;
     }
     el.innerHTML = rows.map((r, i) => `
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;">
         <input type="time" value="${r.time || ''}" oninput="updatePilatesScheduleField(${i},'time',this.value)"
-          style="flex:1.2;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+          style="flex:0 0 140px;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+        <input type="text" maxlength="20" value="${_pgEquipEsc(r.equipment)}" placeholder="기구명 (예: 리포머, 캐딜락)" oninput="updatePilatesScheduleField(${i},'equipment',this.value)"
+          style="flex:1 1 150px;min-width:130px;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
         <input type="number" min="1" value="${r.capacity != null ? r.capacity : 5}" oninput="updatePilatesScheduleField(${i},'capacity',this.value)"
-          style="width:70px;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+          style="width:64px;box-sizing:border-box;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
         <span style="font-size:12px;color:var(--text-hint);">명</span>
         <button onclick="removePilatesScheduleRow(${i})" style="padding:6px 10px;border-radius:8px;border:1px solid #e24b4a;background:none;color:#e24b4a;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">삭제</button>
       </div>`).join('');
   }
 
+  // 기구명을 화면(입력칸 value)에 안전하게 넣기 위한 글자 처리 (따옴표/꺾쇠/& 때문에 화면이 깨지지 않게)
+  function _pgEquipEsc(v) {
+    return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
   function updatePilatesScheduleField(idx, field, value) {
     if (!_pgSchedule[_pgActiveDay][idx]) return;
-    _pgSchedule[_pgActiveDay][idx][field] = field === 'capacity' ? (parseInt(value) || 0) : value;
+    if (field === 'capacity') _pgSchedule[_pgActiveDay][idx][field] = parseInt(value) || 0;
+    else if (field === 'equipment') _pgSchedule[_pgActiveDay][idx][field] = String(value || '').slice(0, 20);
+    else _pgSchedule[_pgActiveDay][idx][field] = value;
   }
   window.updatePilatesScheduleField = updatePilatesScheduleField;
 
@@ -21255,7 +21264,12 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   window.removePilatesScheduleRow = removePilatesScheduleRow;
 
   function savePilatesScheduleDay() {
-    const rows = (_pgSchedule[_pgActiveDay] || []).filter(r => r.time);
+    const rows = (_pgSchedule[_pgActiveDay] || []).filter(r => r.time).map(r => {
+      const o = Object.assign({}, r);
+      const eq = String(o.equipment == null ? '' : o.equipment).trim().slice(0, 20);
+      if (eq) o.equipment = eq; else delete o.equipment;
+      return o;
+    });
     if (rows.some(r => !r.capacity || r.capacity < 1)) {
       showToast('정원은 1명 이상으로 입력해주세요.', 'error'); return;
     }
