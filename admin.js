@@ -18243,7 +18243,19 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       if (!info) return;
       const remain = info.remain || 0;
       const total = info.total || 0;
-      const newRemain = Math.min(remain + 1, total);
+      // 복구 후 잔여 상한: "현재 전체 횟수"와 "등록 합계 − 삭제 후 남는 서명 수" 중 더 큰 값
+      // (재등록으로 이전 잔여가 이월된 회원은 잔여가 현재 전체 횟수보다 클 수 있어서,
+      //  현재 전체 횟수로만 자르면 이월된 횟수가 사라짐)
+      let regSum = total;
+      if (info.registrations && typeof info.registrations === 'object') {
+        Object.values(info.registrations).forEach(r => { if (r && typeof r === 'object') regSum += (parseInt(r.total, 10) || 0); });
+      }
+      let signCountAfter = 0;
+      if (info.signs && typeof info.signs === 'object') {
+        Object.entries(info.signs).forEach(([k, s]) => { if (k !== editSignKey && s && typeof s === 'object') signCountAfter++; });
+      }
+      const maxRemain = Math.max(total, regSum - signCountAfter);
+      const newRemain = Math.min(remain + 1, maxRemain);
       const remainUpdate = { remain: newRemain };
       // 잔여 복구 시 expiredAt도 제거
       if (remain === 0) remainUpdate.expiredAt = null;
