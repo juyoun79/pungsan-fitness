@@ -5259,18 +5259,20 @@
     <div style="background:var(--card);border-radius:16px;padding:20px 16px;width:100%;max-width:480px;box-sizing:border-box;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <div style="font-size:16px;font-weight:700;color:var(--text);">✍️ 수업 확인 서명</div>
-        <button onclick="closeSignModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-hint);">×</button>
+        <button id="sign-close-btn" onclick="closeSignModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-hint);">×</button>
       </div>
       <div id="sign-modal-info" style="font-size:13px;color:var(--text-sub);margin-bottom:12px;text-align:center;"></div>
       <div style="background:#f8f9fa;border:1.5px solid var(--border);border-radius:10px;margin-bottom:12px;position:relative;">
         <canvas id="sign-canvas" style="width:100%;height:200px;border-radius:10px;touch-action:none;display:block;"></canvas>
         <div id="sign-placeholder" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#bbb;font-size:14px;pointer-events:none;">여기에 서명해주세요</div>
       </div>
+      <style>@keyframes signSpin{to{transform:rotate(360deg);}}</style>
+      <div id="sign-save-msg" style="min-height:34px;font-size:12px;line-height:1.45;text-align:center;margin-bottom:6px;color:var(--text-sub);display:flex;align-items:center;justify-content:center;border-radius:8px;"></div>
       <div style="display:grid;grid-template-columns:1fr;gap:8px;">
-        <button onclick="saveSign()" style="padding:12px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✅ 확인 완료</button>
+        <button id="sign-save-btn" onclick="saveSign()" style="padding:12px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">✅ 확인 완료</button>
         <div style="display:flex;align-items:center;gap:8px;">
-          <button onclick="clearSign()" style="flex:1;padding:10px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔄 다시 서명</button>
-          <button onclick="saveNoShow()" style="padding:8px 12px;background:none;color:#dc2626;border:1px solid #fca5a5;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">당일취소</button>
+          <button id="sign-clear-btn" onclick="clearSign()" style="flex:1;padding:10px;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🔄 다시 서명</button>
+          <button id="sign-noshow-btn" onclick="saveNoShow()" style="padding:8px 12px;background:none;color:#dc2626;border:1px solid #fca5a5;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;white-space:nowrap;">당일취소</button>
         </div>
       </div>
     </div>

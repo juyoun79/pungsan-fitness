@@ -18031,6 +18031,96 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   let signTargetMemberId = null;
   let signTargetMemberName = null;
 
+  // ── 서명 저장 중복 방지 (확인 완료 / 당일취소 공용) ──
+  // 버튼을 누르면 잠그고, 저장이 끝나거나 10초가 지나면 풀어줌. 5초가 지나면 안내 문구 표시.
+  let _signSaving = false;      // 지금 저장 중인지
+  let _signSaveToken = 0;       // 저장 1회마다 붙는 번호표 (낡은 저장이 새 화면을 건드리지 못하게)
+  let _signTimer5 = null, _signTimer10 = null;
+  const SIGN_NOTICE_MS = 5000;   // 이 시간이 지나도 안 끝나면 "조금만 기다려주세요"
+  const SIGN_RELEASE_MS = 10000; // 이 시간이 지나도 안 끝나면 버튼을 풀어줌
+
+  function _signClearTimers() {
+    if (_signTimer5) { clearTimeout(_signTimer5); _signTimer5 = null; }
+    if (_signTimer10) { clearTimeout(_signTimer10); _signTimer10 = null; }
+  }
+
+  // 서명 창의 버튼/안내 문구 표시 (busy=true면 잠금)
+  function _signSetUi(busy, msg, warn) {
+    const sb = document.getElementById('sign-save-btn');
+    if (sb) {
+      sb.disabled = !!busy;
+      sb.style.background = busy ? '#b8bfcc' : 'var(--blue)';
+      sb.style.cursor = busy ? 'not-allowed' : 'pointer';
+      sb.innerHTML = busy
+        ? '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,0.6);border-top-color:#fff;border-radius:50%;animation:signSpin 0.8s linear infinite;vertical-align:-2px;margin-right:8px;"></span>저장 중...'
+        : '✅ 확인 완료';
+    }
+    ['sign-clear-btn', 'sign-noshow-btn', 'sign-close-btn'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.disabled = !!busy;
+        el.style.opacity = busy ? '0.4' : '';
+        el.style.cursor = busy ? 'not-allowed' : 'pointer';
+      }
+    });
+    const m = document.getElementById('sign-save-msg');
+    if (m) {
+      m.textContent = msg || '';
+      m.style.background = warn ? '#fef3c7' : 'none';
+      m.style.color = warn ? '#b45309' : 'var(--text-sub)';
+      m.style.padding = warn ? '6px 8px' : '0';
+    }
+  }
+
+  // 저장 시작: 버튼 잠그고 5초/10초 타이머 시작. 이번 저장의 번호표를 돌려줌
+  function _signBegin() {
+    _signSaving = true;
+    const token = ++_signSaveToken;
+    _signClearTimers();
+    _signSetUi(true, '', false);
+    _signTimer5 = setTimeout(() => {
+      if (_signSaving && token === _signSaveToken) _signSetUi(true, '⏳ 조금만 기다려주세요. 저장하고 있어요.', false);
+    }, SIGN_NOTICE_MS);
+    _signTimer10 = setTimeout(() => {
+      if (_signSaving && token === _signSaveToken) {
+        _signSaving = false;
+        _signSetUi(false, '⚠️ 인터넷이 느려요. 저장됐는지 확인 후 다시 눌러주세요.', true);
+      }
+    }, SIGN_RELEASE_MS);
+    return token;
+  }
+
+  // 저장 끝: 이번 저장이 아직 "현재 저장"일 때만 화면을 원래대로 되돌림 (true 반환)
+  function _signEnd(token) {
+    if (token !== _signSaveToken) return false;
+    _signClearTimers();
+    _signSaving = false;
+    _signSetUi(false, '', false);
+    return true;
+  }
+
+  // 서명 창을 새로 열 때: 잠금/타이머/문구를 모두 처음 상태로
+  function _signReset() {
+    _signSaveToken++;
+    _signClearTimers();
+    _signSaving = false;
+    _signSetUi(false, '', false);
+  }
+
+  // 잔여 횟수 1 차감 — 읽고·빼고·쓰기를 한 묶음(transaction)으로 안전하게 처리
+  function _signDecrementRemain(trainerId, memberId, dateStr) {
+    const traineeRef = db.ref('trainers/' + trainerId + '/trainees/' + memberId);
+    return traineeRef.child('remain').transaction(cur => {
+      // 처음엔 현재 값을 못 읽고 null로 시작할 수 있음 → 0으로 계산해 보내면 서버가 틀렸다고 알려주고 실제 값으로 다시 계산함
+      const n = (typeof cur === 'number') ? cur : (parseInt(cur, 10) || 0);
+      return n > 0 ? n - 1 : 0;
+    }).then(result => {
+      const newRemain = (result && result.snapshot) ? result.snapshot.val() : null;
+      if (newRemain === 0) return traineeRef.update({ expiredAt: dateStr }).then(() => newRemain);
+      return newRemain;
+    });
+  }
+
   // 상세 화면에서 사인 모달 열기
   function openSignModalFromDetail() {
     if (!currentTraineeId) return;
@@ -18073,6 +18163,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     signCtx.lineCap = 'round';
     signCtx.lineJoin = 'round';
     signHasData = false;
+    _signReset(); // 저장 잠금/문구 초기화
 
     // 터치 이벤트
     signCanvas.addEventListener('touchstart', onSignTouchStart, { passive: false });
@@ -18109,6 +18200,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
 
   // 사인 모달 닫기
   function closeSignModal() {
+    if (_signSaving) return; // 저장 중에는 닫지 않음
     document.getElementById('sign-modal').style.display = 'none';
     if (signCanvas) {
       signCanvas.removeEventListener('touchstart', onSignTouchStart);
@@ -18192,58 +18284,73 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   }
   // 당일취소 저장
   function saveNoShow() {
+    if (_signSaving) return; // 저장 중이면 무시
     if (!signTargetMemberId || !signTargetMemberName) return;
-    showConfirm(signTargetMemberName + ' 회원님을 당일취소 처리할까요?', () => {
+    // 저장을 시작하는 시점의 회원 정보를 따로 기억 (도중에 다른 회원 창이 열려도 섞이지 않게)
+    const memberId = signTargetMemberId;
+    const memberName = signTargetMemberName;
+    showConfirm(memberName + ' 회원님을 당일취소 처리할까요?', async () => {
+      if (_signSaving) return;
       const trainerId = localStorage.getItem('current_user');
       const today = new Date();
       const dateStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
       const savedAt = String(today.getHours()).padStart(2,'0')+':'+String(today.getMinutes()).padStart(2,'0');
-      const signData = { date: dateStr, savedAt, noShow: true, memberName: signTargetMemberName };
-
-      db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId + '/signs/' + dateStr + '_' + Date.now()).set(signData)
-      .then(() => {
-        // 회원 달력에 수업일 저장 (당일취소도 수업 진행된 것으로 처리)
-        db.ref('users/' + signTargetMemberId + '/lessons/' + dateStr).set({
-          date: dateStr,
-          trainerId,
-          trainerName: localStorage.getItem('name_' + trainerId) || '강사',
-          savedAt,
-          noShow: true
-        });
-        // remain 차감 후 카드 즉시 업데이트
-        const ref2 = db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId);
-        ref2.once('value', snap => {
-          const info = snap.val();
-          const newRemain = (info && (info.remain || 0) > 0) ? (info.remain || 0) - 1 : 0;
-          const updateData2 = { remain: newRemain };
-          if (newRemain === 0) {
-            const now2 = new Date();
-            updateData2.expiredAt = now2.getFullYear() + '-' + String(now2.getMonth()+1).padStart(2,'0') + '-' + String(now2.getDate()).padStart(2,'0');
-          }
-          ref2.update(updateData2).then(() => {
-            refreshTraineeView(signTargetMemberId);
+      const signData = { date: dateStr, savedAt, noShow: true, memberName: memberName };
+      const token = _signBegin();
+      try {
+        await db.ref('trainers/' + trainerId + '/trainees/' + memberId + '/signs/' + dateStr + '_' + Date.now()).set(signData);
+        // 여기부터는 당일취소 기록이 이미 저장된 상태 — 아래에서 오류가 나도 "저장 실패"로 보이지 않게 따로 처리
+        try {
+          // 회원 달력에 수업일 저장 (당일취소도 수업 진행된 것으로 처리)
+          db.ref('users/' + memberId + '/lessons/' + dateStr).set({
+            date: dateStr,
+            trainerId,
+            trainerName: localStorage.getItem('name_' + trainerId) || '강사',
+            savedAt,
+            noShow: true
+          }).catch(e => console.warn('수업일 저장 오류(무시):', e));
+          // remain 차감 후 카드 즉시 업데이트
+          _signDecrementRemain(trainerId, memberId, dateStr).then(() => {
+            refreshTraineeView(memberId);
             if (currentTraineeTab === 'record') renderTrainerCal();
+          }).catch(e => {
+            console.error('횟수 차감 오류:', e);
+            showToast('당일취소는 저장됐지만 횟수 차감 중 오류가 났어요. 잔여 횟수를 확인해주세요.', 'error');
           });
-        });
-        closeSignModal();
+        } catch (e2) { console.error('당일취소 후처리 오류:', e2); }
+        const isCurrent = _signEnd(token);
+        if (isCurrent) closeSignModal();
         showToast('당일취소 처리됐어요!', 'success');
-      });
+      } catch (e) {
+        console.error('당일취소 저장 오류:', e);
+        if (_signEnd(token)) _signSetUi(false, '❌ 저장 중 오류가 발생했어요. 다시 눌러주세요.', true);
+        showToast('저장 중 오류가 발생했어요.', 'error');
+      }
     });
   }
   // 사인 저장
   function saveSign() {
+    if (_signSaving) return; // 저장 중이면 무시 (연타 방지)
     if (!signHasData) { showToast('서명을 해주세요!', 'error'); return; }
     if (!signCanvas || !signTargetMemberId) return;
+
+    // 저장을 시작하는 시점의 회원 정보를 따로 기억 (도중에 다른 회원 창이 열려도 섞이지 않게)
+    const memberId = signTargetMemberId;
+    const memberName = signTargetMemberName;
+    const canvas = signCanvas;
 
     const trainerId = localStorage.getItem('current_user');
     const today = new Date();
     const dateStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
     const savedAt = String(today.getHours()).padStart(2,'0')+':'+String(today.getMinutes()).padStart(2,'0');
 
+    const token = _signBegin(); // 버튼 잠금 + 5초/10초 타이머 시작
+
     // 캔버스를 이미지로 변환
-    signCanvas.toBlob(async blob => {
+    canvas.toBlob(async blob => {
       try {
-        const fileName = 'signs/' + trainerId + '/' + signTargetMemberId + '/' + dateStr + '_' + Date.now() + '.png';
+        if (!blob) throw new Error('서명 이미지 변환 실패');
+        const fileName = 'signs/' + trainerId + '/' + memberId + '/' + dateStr + '_' + Date.now() + '.png';
         const ref = storage.ref(fileName);
         await ref.put(blob);
         const signURL = await ref.getDownloadURL();
@@ -18253,44 +18360,41 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
           date: dateStr,
           savedAt,
           signURL,
-          memberName: signTargetMemberName
+          memberName: memberName
         };
-        await db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId + '/signs/' + dateStr + '_' + Date.now()).set(signData);
+        await db.ref('trainers/' + trainerId + '/trainees/' + memberId + '/signs/' + dateStr + '_' + Date.now()).set(signData);
 
-        // 회원 달력에 수업일 저장
-        db.ref('users/' + signTargetMemberId + '/lessons/' + dateStr).set({
-          date: dateStr,
-          trainerId,
-          trainerName: localStorage.getItem('name_' + trainerId) || '강사',
-          savedAt
-        });
+        // 여기부터는 서명 기록이 이미 저장된 상태 — 아래에서 오류가 나도 "저장 실패"로 보이지 않게 따로 처리
+        try {
+          // 회원 달력에 수업일 저장
+          db.ref('users/' + memberId + '/lessons/' + dateStr).set({
+            date: dateStr,
+            trainerId,
+            trainerName: localStorage.getItem('name_' + trainerId) || '강사',
+            savedAt
+          }).catch(e => console.warn('수업일 저장 오류(무시):', e));
 
-        // remain 차감 후 카드 즉시 업데이트
-        const ref2 = db.ref('trainers/' + trainerId + '/trainees/' + signTargetMemberId);
-        ref2.once('value', snap => {
-          const info = snap.val();
-          const newRemain = (info && (info.remain || 0) > 0) ? (info.remain || 0) - 1 : 0;
-          const updateData = { remain: newRemain };
-          if (newRemain === 0) {
-            const now = new Date();
-            updateData.expiredAt = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-          }
-          ref2.update(updateData).then(() => {
-            refreshTraineeView(signTargetMemberId);
+          // remain 차감 후 카드 즉시 업데이트
+          _signDecrementRemain(trainerId, memberId, dateStr).then(() => {
+            refreshTraineeView(memberId);
             if (currentTraineeTab === 'record') renderTrainerCal();
+          }).catch(e => {
+            console.error('횟수 차감 오류:', e);
+            showToast('서명은 저장됐지만 횟수 차감 중 오류가 났어요. 잔여 횟수를 확인해주세요.', 'error');
           });
-        });
 
-        // PT 서명 포인트 적립
-        db.ref('point_settings/ptSign').once('value', ptSnap => {
-          const ptSignPts = ptSnap.val() || 0;
-          if (ptSignPts > 0 && typeof addUserPoints === 'function') {
-            addUserPoints(signTargetMemberId, ptSignPts, 'PT 수업');
-          }
-        });
+          // PT 서명 포인트 적립
+          db.ref('point_settings/ptSign').once('value', ptSnap => {
+            const ptSignPts = ptSnap.val() || 0;
+            if (ptSignPts > 0 && typeof addUserPoints === 'function') {
+              addUserPoints(memberId, ptSignPts, 'PT 수업');
+            }
+          });
+        } catch (e2) { console.error('서명 후처리 오류:', e2); }
 
-        closeSignModal();
-        showToast('✅ 서명 완료! 출석 체크됐어요.', 'success');
+        const isCurrent = _signEnd(token);
+        if (isCurrent) closeSignModal();
+        showToast(isCurrent ? '✅ 서명 완료! 출석 체크됐어요.' : '✅ ' + (memberName || '') + '님 서명 저장 완료!', 'success');
         // 관리자 모드 열려있으면 월별 리포트도 갱신
         const adminRptSection = document.getElementById('tab-trainer-admin');
         if (adminRptSection && adminRptSection.classList.contains('active')) {
@@ -18298,6 +18402,7 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         }
       } catch(e) {
         console.error('사인 저장 오류:', e);
+        if (_signEnd(token)) _signSetUi(false, '❌ 저장 중 오류가 발생했어요. 다시 눌러주세요.', true);
         showToast('저장 중 오류가 발생했어요.', 'error');
       }
     }, 'image/png');
