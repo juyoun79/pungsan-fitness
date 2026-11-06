@@ -2285,9 +2285,21 @@
 
   // 계약등록/수정/환불/미수금정산/양도/프로그램변경 등 매출에 영향 주는 저장이 일어날 때마다 호출 —
   // 캐시를 비워서 다음에 현황탭/매출통계탭을 볼 때 최신 데이터로 다시 계산되게 함
+  let _revGoalRefreshTimer = null;
   function _invalidateRevenueCache() {
     _revAllEntries = null;
     _revAllRefunds = null;
+    // 목표매출 표가 지금 화면에 보이고 있으면 새 데이터로 다시 그림
+    // (담당자 지정 등 저장 직후 새로고침 없이 바로 반영). 짧은 시간에 여러 번 불려도 한 번만 실행.
+    if (_revGoalRefreshTimer) clearTimeout(_revGoalRefreshTimer);
+    _revGoalRefreshTimer = setTimeout(() => {
+      _revGoalRefreshTimer = null;
+      const gv = document.getElementById('rev-goal-view');
+      // 실제로 보이는 경우에만 (다른 탭에 있거나 숨겨져 있으면 아무것도 안 함)
+      if (gv && gv.getClientRects().length > 0 && typeof renderSalesGoalReport === 'function') {
+        renderSalesGoalReport();
+      }
+    }, 300);
   }
   let _revAllRefunds = null;   // 전체 환불 원시데이터
   let _revSubTab = 'summary';  // 세부탭: summary/chart/detail
