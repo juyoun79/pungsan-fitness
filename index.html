@@ -766,6 +766,7 @@
         <span style="font-size:13px;color:#185FA5;">잔여 횟수</span>
         <span style="font-size:16px;font-weight:700;color:#185FA5;" id="pgb-remain-badge">- · 전체 -회</span>
       </div>
+      <div id="pgb-limit-note" style="display:none;font-size:12px;color:var(--text-hint);line-height:1.6;margin:-8px 2px 14px;"></div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <button onclick="pgbChangeMonth(-1)" style="background:none;border:none;font-size:18px;color:var(--text-hint);cursor:pointer;padding:4px 12px;">‹</button>
@@ -7913,6 +7914,74 @@
   let _pgbUserId = null, _pgbSelectedDate = null, _pgbRemain = 0;
   let _pgbCalMonth = null; // { year, month(0-11) } — 현재 보고 있는 달력 월
   let _pgbBookedDates = new Set(); // 내가 예약한 날짜(YYYY-MM-DD) 집합 — 달력에 점 표시용
+  let _pgbValidity = { mode: 'none', end: '' }; // 그룹수업 유효기간 {mode:'none'|'unlimited'|'until', end:'YYYY-MM-DD'}
+  let _pgbPending = 0, _pgbPendingReady = false; // 내 미래 예약(미출석·미차감) + 대기 건수 — 수동 차감 방식 예약 한도 계산용
+  const _pgbBusy = {}; // 수업별 처리중 잠금 — 연타/동시 처리 방지
+
+  function _pgPad(d) {
+    const m = String(d || '').match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    return m ? m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0') : '';
+  }
+  // 계약에서 그룹수업(기구필라테스그룹) 유효기간 계산. 그룹 항목이 없으면(이관 회원) 제한 없음, 종료일이 비어있으면 제한 없음
+  function _pgGroupValidity(contractsVal) {
+    let hasItem = false, unlimited = false, maxEnd = '';
+    Object.values(contractsVal || {}).forEach(c => {
+      if (!c || typeof c !== 'object') return;
+      const items = [];
+      Object.entries(c.programs || {}).forEach(([k, d]) => items.push([k, d]));
+      (Array.isArray(c.packages) ? c.packages : Object.values(c.packages || {})).forEach(pkg => {
+        Object.entries((pkg && pkg.items) || {}).forEach(([k, d]) => items.push([k, d]));
+      });
+      items.forEach(([k, d]) => {
+        if (k !== '기구필라테스그룹' || !d || typeof d !== 'object') return;
+        if (d.deleted || d.refund || d.transferOut || d.progChangeOut) return;
+        hasItem = true;
+        let raw = d.endDate;
+        if (d.activeHold && d.activeHold.newEndDate && _pgPad(d.activeHold.newEndDate) > _pgPad(raw)) raw = d.activeHold.newEndDate;
+        const e = _pgPad(raw);
+        if (!e) unlimited = true; else if (e > maxEnd) maxEnd = e;
+      });
+    });
+    if (!hasItem) return { mode: 'none', end: '' };
+    if (unlimited) return { mode: 'unlimited', end: '' };
+    return { mode: 'until', end: maxEnd };
+  }
+  function _pgbBeyondValidity(dateStr) {
+    return _pgbValidity.mode === 'until' && _pgPad(dateStr) > _pgbValidity.end;
+  }
+  // 예약 1건을 원자적으로 삭제하고 삭제 직전 값을 돌려줌 (연타/동시 취소 시 한 번만 성공)
+  function _pgRemoveBookingAtomic(classId, uid) {
+    let prev = null;
+    return db.ref('pilates_classes/' + classId + '/bookings/' + uid)
+      .transaction(cur => { prev = cur; return null; })
+      .then(res => ({ removed: !!(res.committed && prev !== null && prev !== undefined), prev }));
+  }
+  // 서버에서 최신 내 예약·대기 건수를 직접 계산 (예약/대기 신청 직전 한도 확인용)
+  function _pgbFreshPending() {
+    const startKey = _pgbFormatDate(new Date()).replace(/-/g, '');
+    return db.ref('pilates_classes').orderByKey().startAt(startKey + '_').once('value').then(snap => {
+      let n = 0;
+      const now = new Date();
+      snap.forEach(ch => {
+        const c = ch.val() || {};
+        const b = (c.bookings || {})[_pgbUserId];
+        if (b && !b.attended && !b.deducted && !b.isTrial && new Date(c.date + 'T' + c.time + ':00') >= now) n++;
+        if ((c.waitlist || {})[_pgbUserId]) n++;
+      });
+      return n;
+    });
+  }
+  function _pgbUpdateNote() {
+    const el = document.getElementById('pgb-limit-note');
+    if (!el) return;
+    const lines = [];
+    if (_pgbValidity.mode === 'until') lines.push('📅 유효기간 ~' + _pgbValidity.end + '까지 (이후 날짜는 예약 불가)');
+    if (_pgbSettings && _pgbSettings.deductMode !== 'auto' && _pgbPendingReady) {
+      lines.push('예약 가능 ' + Math.max(0, _pgbRemain - _pgbPending) + '회 (잔여 ' + _pgbRemain + ' − 예약·대기 ' + _pgbPending + ')');
+    }
+    el.style.display = lines.length ? 'block' : 'none';
+    el.innerHTML = lines.join('<br>');
+  }
 
   function _pgbFormatDate(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -7938,6 +8007,7 @@
     showScreen('screen-pilates-booking');
     _pgbUserId = localStorage.getItem('current_user');
     _pgbSelectedDate = null;
+    _pgbPendingReady = false; _pgbPending = 0;
     const t = new Date();
     _pgbCalMonth = { year: t.getFullYear(), month: t.getMonth() };
     refreshPilatesBookingView();
@@ -7970,8 +8040,10 @@
   function refreshPilatesBookingView() {
     Promise.all([
       db.ref('pilates_settings').once('value'),
-      db.ref('pilates_exceptions').once('value')
-    ]).then(([setSnap, excSnap]) => {
+      db.ref('pilates_exceptions').once('value'),
+      db.ref('contracts/' + _pgbUserId).once('value').catch(() => null) // 읽기 실패 시 제한 없이 동작(fail-open)
+    ]).then(([setSnap, excSnap, ctSnap]) => {
+      try { _pgbValidity = ctSnap ? _pgGroupValidity(ctSnap.val()) : { mode: 'none', end: '' }; } catch (e) { _pgbValidity = { mode: 'none', end: '' }; }
       const s = setSnap.val() || {};
       _pgbSettings = {
         windowMonths: s.bookingWindowMonths != null ? s.bookingWindowMonths : 1,
@@ -7992,6 +8064,7 @@
         _pgbRemain = pg.remain || 0;
         const badge = document.getElementById('pgb-remain-badge');
         if (badge) badge.textContent = '잔여 ' + (pg.remain || 0) + ' · 전체 ' + (pg.total || 0) + '회';
+        _pgbUpdateNote();
         _renderPgbSlotRows(); // 잔여횟수가 바뀌면 "횟수없음" 같은 버튼 상태도 다시 계산되게
       };
       remainRef.on('value', remainCb);
@@ -8145,7 +8218,9 @@
       else if (alreadyBooked) { btnLabel = '예약완료'; disabled = true; }
       else if (alreadyWaiting) { statusLabel = '대기 ' + (myWaitIdx + 1) + '번째'; btnLabel = '대기취소'; action = "cancelPilatesWaitlist('" + dateStr + "','" + s.time + "')"; }
       else if (pastCutoff) { statusLabel = isFull ? '마감' : statusLabel; btnLabel = '마감'; disabled = true; }
+      else if (_pgbBeyondValidity(dateStr)) { btnLabel = '기간종료'; disabled = true; }
       else if (noRemain) { btnLabel = '횟수없음'; disabled = true; }
+      else if (_pgbSettings.deductMode !== 'auto' && _pgbPendingReady && _pgbPending >= _pgbRemain) { btnLabel = '예약 한도'; disabled = true; }
       else if (isFull) { statusLabel = capacity + ' / ' + capacity + '명 · 대기 ' + waitCount + '명'; btnLabel = '대기 신청'; action = "joinPilatesWaitlist('" + dateStr + "','" + s.time + "'," + capacity + ")"; }
       const equipName = String(s.equipment == null ? '' : s.equipment).trim();
       const equipHtml = equipName
@@ -8168,13 +8243,29 @@
 
   function bookPilatesClass(dateStr, time, capacity) {
     const classId = _pgbClassId(dateStr, time);
+    if (_pgbBusy[classId]) return; // 연타 방지
+    _pgbBusy[classId] = true;
+    _pgbBookInner(dateStr, time, capacity, classId)
+      .catch(e => { console.warn('예약 실패:', e); showToast('예약에 실패했어요. 다시 시도해주세요.', 'error'); })
+      .then(() => { delete _pgbBusy[classId]; });
+  }
+  function _pgbBookInner(dateStr, time, capacity, classId) {
     // 예약 직전, 화면을 열어둔 사이 관리자가 바꿨을 수 있는 휴무여부/정원을 다시 한번 최신값으로 확인
-    Promise.all([
+    return Promise.all([
       db.ref('members/' + _pgbUserId + '/name').once('value'),
       db.ref('pilates_exceptions/' + dateStr).once('value'),
-      db.ref('pilates_settings').once('value')
-    ]).then(([nameSnap, excSnap, setSnap]) => {
+      db.ref('pilates_settings').once('value'),
+      db.ref('contracts/' + _pgbUserId).once('value').catch(() => null)
+    ]).then(([nameSnap, excSnap, setSnap, ctSnap]) => {
       const realName = nameSnap.val() || _pgbUserId;
+      let validity = { mode: 'none', end: '' };
+      try { if (ctSnap) validity = _pgGroupValidity(ctSnap.val()); } catch (e) {}
+      _pgbValidity = validity;
+      if (validity.mode === 'until' && _pgPad(dateStr) > validity.end) {
+        showToast('그룹수업 유효기간(' + validity.end + ')이 지난 날짜는 예약할 수 없어요.', 'error');
+        _pgbUpdateNote(); _renderPgbSlotRows();
+        return;
+      }
       const exc = excSnap.val() || {};
       if (exc.fullClosed || (exc.closedTimes && exc.closedTimes[time])) {
         showToast('방금 이 시간이 휴무로 변경됐어요.', 'error');
@@ -8192,19 +8283,20 @@
 
       if (_pgbSettings.deductMode === 'auto') {
         // 잔여횟수 확인+차감을 하나의 트랜잭션으로 묶어서, 여러 기기에서 거의 동시에 예약해도 잔여횟수보다 많이 차감되지 않게 함
-        db.ref('pilates_group/' + _pgbUserId).transaction(p => {
+        return db.ref('pilates_group/' + _pgbUserId).transaction(p => {
           if (!p || (p.remain || 0) <= 0) return; // undefined 반환 → 트랜잭션 중단(committed:false)
           p.remain = p.remain - 1;
           return p;
         }).then(deductResult => {
           if (!deductResult.committed) { showToast('잔여횟수가 없어요.', 'error'); return; }
-          _pgbTryBook(classId, dateStr, time, freshCapacity, realName, true);
+          return _pgbTryBook(classId, dateStr, time, freshCapacity, realName, true);
         });
       } else {
-        db.ref('pilates_group/' + _pgbUserId).once('value').then(pgSnap => {
+        return Promise.all([db.ref('pilates_group/' + _pgbUserId).once('value'), _pgbFreshPending()]).then(([pgSnap, pending]) => {
           const pg = pgSnap.val() || { total: 0, remain: 0 };
           if ((pg.remain || 0) <= 0) { showToast('잔여횟수가 없어요.', 'error'); return; }
-          _pgbTryBook(classId, dateStr, time, freshCapacity, realName, false);
+          if (pending >= (pg.remain || 0)) { showToast('잔여 ' + pg.remain + '회만큼 이미 예약·대기 중이에요. 더 예약할 수 없어요.', 'error'); return; }
+          return _pgbTryBook(classId, dateStr, time, freshCapacity, realName, false);
         });
       }
     });
@@ -8212,10 +8304,12 @@
   window.bookPilatesClass = bookPilatesClass;
 
   function _pgbTryBook(classId, dateStr, time, capacity, nickname, wasDeducted) {
-    db.ref('pilates_classes/' + classId).transaction(curr => {
+    let existed = false; // 이미 예약돼 있던 경우(중복 처리) → 차감분은 되돌려야 함
+    return db.ref('pilates_classes/' + classId).transaction(curr => {
+      existed = false;
       if (curr === null) curr = { date: dateStr, time: time, capacity: capacity, bookings: {} };
       const bookings = curr.bookings || {};
-      if (bookings[_pgbUserId]) return curr;
+      if (bookings[_pgbUserId]) { existed = true; return curr; }
       if (Object.keys(bookings).length >= capacity) return curr;
       bookings[_pgbUserId] = { name: nickname, bookedAt: Date.now() };
       if (wasDeducted) bookings[_pgbUserId].deducted = true;
@@ -8224,12 +8318,12 @@
       return curr;
     }).then(result => {
       const data = result.snapshot.val();
-      const bookedOk = data && data.bookings && data.bookings[_pgbUserId];
+      const bookedOk = data && data.bookings && data.bookings[_pgbUserId] && !existed;
       if (!bookedOk) {
-        showToast('예약에 실패했어요. 정원이 다 찼을 수 있어요.', 'error');
+        showToast(existed ? '이미 예약된 수업이에요.' : '예약에 실패했어요. 정원이 다 찼을 수 있어요.', 'error');
         if (wasDeducted) {
           // 이미 차감된 잔여횟수를 되돌려놓음 (예약 자체는 실패했으므로)
-          db.ref('pilates_group/' + _pgbUserId).transaction(p => {
+          return db.ref('pilates_group/' + _pgbUserId).transaction(p => {
             if (!p) return p;
             p.remain = (p.remain || 0) + 1;
             return p;
@@ -8247,24 +8341,26 @@
   function cancelPilatesClass(dateStr, time) {
     showConfirm('예약을 취소할까요?', () => {
       const classId = _pgbClassId(dateStr, time);
-      db.ref('pilates_classes/' + classId + '/bookings/' + _pgbUserId).once('value').then(bSnap => {
-        const b = bSnap.val();
-        const shouldRestore = !!(b && (b.deducted || b.attended));
-        db.ref('pilates_classes/' + classId + '/bookings/' + _pgbUserId).remove().then(() => {
-          const restorePromise = shouldRestore
-            ? db.ref('pilates_group/' + _pgbUserId).transaction(p => {
-                if (!p) return p;
-                p.remain = (p.remain || 0) + 1;
-                return p;
-              })
-            : Promise.resolve();
-          restorePromise.then(() => {
-            showToast('취소됐어요.', 'success');
-            _pgSharedPromoteWaitlist(classId, dateStr, time);
-            refreshPilatesBookingView();
-          });
+      if (_pgbBusy[classId]) return;
+      _pgbBusy[classId] = true;
+      _pgRemoveBookingAtomic(classId, _pgbUserId).then(r => {
+        if (!r.removed) { showToast('이미 취소된 예약이에요.', 'info'); refreshPilatesBookingView(); return; }
+        const b = r.prev;
+        const shouldRestore = !!(b.deducted || (b.attended && !b.noDeduct));
+        const restorePromise = shouldRestore
+          ? db.ref('pilates_group/' + _pgbUserId).transaction(p => {
+              if (!p) return p;
+              p.remain = (p.remain || 0) + 1;
+              return p;
+            })
+          : Promise.resolve();
+        return restorePromise.then(() => {
+          showToast('취소됐어요.', 'success');
+          _pgSharedPromoteWaitlist(classId, dateStr, time);
+          refreshPilatesBookingView();
         });
-      });
+      }).catch(e => { console.warn('취소 실패:', e); showToast('취소에 실패했어요. 다시 시도해주세요.', 'error'); })
+        .then(() => { delete _pgbBusy[classId]; });
     });
   }
   window.cancelPilatesClass = cancelPilatesClass;
@@ -8272,13 +8368,33 @@
   // ── 대기 신청 / 대기 취소 ──
   function joinPilatesWaitlist(dateStr, time, capacity) {
     const classId = _pgbClassId(dateStr, time);
-    db.ref('members/' + _pgbUserId + '/name').once('value').then(nameSnap => {
+    if (_pgbBusy[classId]) return;
+    _pgbBusy[classId] = true;
+    Promise.all([
+      db.ref('members/' + _pgbUserId + '/name').once('value'),
+      db.ref('contracts/' + _pgbUserId).once('value').catch(() => null),
+      db.ref('pilates_group/' + _pgbUserId).once('value'),
+      _pgbFreshPending()
+    ]).then(([nameSnap, ctSnap, pgSnap, pending]) => {
       const realName = nameSnap.val() || _pgbUserId;
-      db.ref('pilates_classes/' + classId + '/waitlist/' + _pgbUserId).set({ name: realName, waitAt: Date.now() }).then(() => {
+      let validity = { mode: 'none', end: '' };
+      try { if (ctSnap) validity = _pgGroupValidity(ctSnap.val()); } catch (e) {}
+      if (validity.mode === 'until' && _pgPad(dateStr) > validity.end) {
+        showToast('그룹수업 유효기간(' + validity.end + ')이 지난 날짜는 신청할 수 없어요.', 'error');
+        return;
+      }
+      const remain = (pgSnap.val() && pgSnap.val().remain) || 0;
+      if (remain <= 0) { showToast('잔여횟수가 없어요.', 'error'); return; }
+      if (_pgbSettings.deductMode !== 'auto' && pending >= remain) {
+        showToast('잔여 ' + remain + '회만큼 이미 예약·대기 중이에요. 더 신청할 수 없어요.', 'error');
+        return;
+      }
+      return db.ref('pilates_classes/' + classId + '/waitlist/' + _pgbUserId).set({ name: realName, waitAt: Date.now() }).then(() => {
         showToast('✅ 대기 신청됐어요. 자리가 나면 알려드릴게요!', 'success');
         refreshPilatesBookingView();
       });
-    });
+    }).catch(e => { console.warn('대기 신청 실패:', e); showToast('대기 신청에 실패했어요. 다시 시도해주세요.', 'error'); })
+      .then(() => { delete _pgbBusy[classId]; });
   }
   window.joinPilatesWaitlist = joinPilatesWaitlist;
 
@@ -8382,13 +8498,20 @@
       const now = new Date();
       const mine = [];
       _pgbBookedDates = new Set();
+      let pending = 0;
       snap.forEach(child => {
         const cls = child.val();
         if (cls && cls.bookings && cls.bookings[_pgbUserId]) {
           mine.push({ dateStr: cls.date, time: cls.time });
           _pgbBookedDates.add(cls.date);
+          const mb = cls.bookings[_pgbUserId];
+          if (!mb.attended && !mb.deducted && !mb.isTrial && new Date(cls.date + 'T' + cls.time + ':00') >= now) pending++;
         }
+        if (cls && cls.waitlist && cls.waitlist[_pgbUserId]) pending++;
       });
+      _pgbPending = pending; _pgbPendingReady = true;
+      _pgbUpdateNote();
+      _renderPgbSlotRows();
       mine.sort((a, b) => (a.dateStr + a.time).localeCompare(b.dateStr + b.time));
       renderPilatesCalendar();
       if (!mine.length) {

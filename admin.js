@@ -15479,12 +15479,13 @@
         const pgItems = _flattenContractItems(contractData).filter(it => it.progKey === '기구필라테스그룹');
         const pgAddCount = pgItems.reduce((s, it) => s + (parseInt(it.data.count) || 0), 0);
         if (pgAddCount > 0) {
-          const pgSnap = await db.ref('pilates_group/' + phone).once('value');
-          const pgPrev = pgSnap.val() || { total: 0, remain: 0 };
-          await db.ref('pilates_group/' + phone).set({
-            total : (pgPrev.total  || 0) + pgAddCount,
-            remain: (pgPrev.remain || 0) + pgAddCount,
-            updatedAt: Date.now()
+          // PT 재등록과 동일: 전체 = 이번 계약 횟수, 잔여 = 기존 잔여 + 이번 횟수 (트랜잭션으로 안전하게)
+          await db.ref('pilates_group/' + phone).transaction(function (p) {
+            return Object.assign({}, p || {}, {
+              total : pgAddCount,
+              remain: ((p && p.remain) || 0) + pgAddCount,
+              updatedAt: Date.now()
+            });
           });
         }
       } catch (e) { console.warn('그룹필라테스 자동연동 실패:', e); }
@@ -21041,6 +21042,45 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   }
   window.onSlotAddSearchInput = onSlotAddSearchInput;
 
+  // ── 그룹수업 유효기간/예약한도 확인 (관리자 대신예약 시 안내용 — 막지 않고 확인창만 띄움) ──
+  function _admPad(d) {
+    const m = String(d || '').match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    return m ? m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0') : '';
+  }
+  // 반환: {mode:'none'|'unlimited'|'until', end}
+  function _admGroupValidity(contractsVal) {
+    let hasItem = false, unlimited = false, maxEnd = '';
+    Object.values(contractsVal || {}).forEach(c => {
+      if (!c || typeof c !== 'object') return;
+      _flattenContractItems(c).forEach(it => {
+        if (it.progKey !== '기구필라테스그룹' || !_isItemEligible(it.data)) return;
+        hasItem = true;
+        const onHold = typeof _isActivelyOnHold === 'function' && _isActivelyOnHold(it.data);
+        const raw = (onHold && it.data.activeHold && it.data.activeHold.newEndDate) ? it.data.activeHold.newEndDate : it.data.endDate;
+        const e = _admPad(raw);
+        if (!e) unlimited = true; else if (e > maxEnd) maxEnd = e;
+      });
+    });
+    if (!hasItem) return { mode: 'none', end: '' };
+    if (unlimited) return { mode: 'unlimited', end: '' };
+    return { mode: 'until', end: maxEnd };
+  }
+  // 이 회원의 오늘 이후 미출석·미차감 예약 + 대기 건수 (수동 차감 방식 한도 계산용)
+  function _admPendingCount(memberId, excludeClassId) {
+    const today = _pgTodayISO().replace(/-/g, '');
+    return db.ref('pilates_classes').orderByKey().startAt(today + '_').once('value').then(snap => {
+      let n = 0;
+      snap.forEach(ch => {
+        if (ch.key === excludeClassId) return;
+        const c = ch.val() || {};
+        const b = (c.bookings || {})[memberId];
+        if (b && !b.attended && !b.deducted && !b.isTrial) n++;
+        if ((c.waitlist || {})[memberId]) n++;
+      });
+      return n;
+    });
+  }
+
   function adminAddPilatesBooking(classId, memberId, memberName) {
     const dateStr = classId.slice(0, 4) + '-' + classId.slice(4, 6) + '-' + classId.slice(6, 8);
     const time = classId.slice(9, 11) + ':' + classId.slice(11, 13);
@@ -21080,7 +21120,21 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
           _adminTryAddPilatesBooking(classId, dateStr, time, capacity, memberId, memberName, true);
         });
       } else {
-        _adminTryAddPilatesBooking(classId, dateStr, time, capacity, memberId, memberName, false);
+        // 수동 차감: 한도/유효기간을 넘어도 막지 않고, 관리자에게 확인만 받음
+        Promise.all([
+          db.ref('pilates_group/' + memberId).once('value'),
+          db.ref('contracts/' + memberId).once('value'),
+          _admPendingCount(memberId, classId)
+        ]).then(([pgSnap, ctSnap, pending]) => {
+          const remain = (pgSnap.val() && pgSnap.val().remain) || 0;
+          const v = _admGroupValidity(ctSnap.val());
+          const msgs = [];
+          if (pending + 1 > remain) msgs.push('예약 가능 횟수(잔여 ' + remain + '회, 이미 예약·대기 ' + pending + '건)를 넘어요.');
+          if (v.mode === 'until' && dateStr > v.end) msgs.push('그룹수업 유효기간(' + v.end + ')이 지난 날짜예요.');
+          const go = () => _adminTryAddPilatesBooking(classId, dateStr, time, capacity, memberId, memberName, false);
+          if (msgs.length) showConfirm(msgs.join('\n') + '\n그래도 예약을 추가할까요?', go);
+          else go();
+        }).catch(() => _adminTryAddPilatesBooking(classId, dateStr, time, capacity, memberId, memberName, false));
       }
     });
   }
@@ -21103,10 +21157,12 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   window.adminAddPilatesWaitlist = adminAddPilatesWaitlist;
 
   function _adminTryAddPilatesBooking(classId, dateStr, time, capacity, memberId, memberName, wasDeducted) {
+    let existed = false; // 이미 예약돼 있던 경우(중복 클릭) → 차감분 되돌림 필요
     db.ref('pilates_classes/' + classId).transaction(curr => {
       if (curr === null) curr = { date: dateStr, time: time, capacity: capacity, bookings: {} };
       const bookings = curr.bookings || {};
-      if (bookings[memberId]) return curr;
+      if (bookings[memberId]) { existed = true; return curr; }
+      existed = false;
       if (Object.keys(bookings).length >= capacity) return curr;
       bookings[memberId] = { name: memberName, bookedAt: Date.now(), addedByAdmin: true };
       if (wasDeducted) bookings[memberId].deducted = true;
@@ -21115,9 +21171,9 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
       return curr;
     }).then(result => {
       const data = result.snapshot.val();
-      const ok = data && data.bookings && data.bookings[memberId];
+      const ok = data && data.bookings && data.bookings[memberId] && !existed;
       if (!ok) {
-        showToast('추가하지 못했어요. 정원이 다 찼을 수 있어요.', 'error');
+        showToast(existed ? '이미 예약돼 있는 회원이에요.' : '추가하지 못했어요. 정원이 다 찼을 수 있어요.', 'error');
         if (wasDeducted) {
           // 이미 차감된 잔여횟수를 되돌려놓음 (예약 자체는 실패했으므로)
           db.ref('pilates_group/' + memberId).transaction(p => {
@@ -21163,22 +21219,29 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   }
   window.addTrialPilatesBooking = addTrialPilatesBooking;
 
+  // 예약 1건을 원자적으로 삭제하고 삭제 직전 값을 돌려줌 (더블클릭/동시 취소 시 한 번만 성공)
+  function _admRemoveBookingAtomic(classId, uid) {
+    let prev = null;
+    return db.ref('pilates_classes/' + classId + '/bookings/' + uid)
+      .transaction(cur => { prev = cur; return null; })
+      .then(res => ({ removed: !!(res.committed && prev !== null && prev !== undefined), prev }));
+  }
+
   function adminCancelPilatesBooking(classId, memberId) {
     showConfirm('이 예약을 취소할까요?', () => {
-      db.ref('pilates_classes/' + classId + '/bookings/' + memberId).once('value').then(bSnap => {
-        const b = bSnap.val();
-        const shouldRestore = !(b && b.isTrial) && !!(b && (b.deducted || b.attended));
-        db.ref('pilates_classes/' + classId + '/bookings/' + memberId).remove().then(() => {
-          const restore = shouldRestore
-            ? db.ref('pilates_group/' + memberId).transaction(p => { if (!p) return p; p.remain = (p.remain || 0) + 1; return p; })
-            : Promise.resolve();
-          restore.then(() => {
-            showToast('취소됐어요.', 'success');
-            const dateStr = classId.slice(0, 4) + '-' + classId.slice(4, 6) + '-' + classId.slice(6, 8);
-            const time = classId.slice(9, 11) + ':' + classId.slice(11, 13);
-            if (typeof _pgSharedPromoteWaitlist === 'function') _pgSharedPromoteWaitlist(classId, dateStr, time);
-            _pgRefreshActiveView();
-          });
+      _admRemoveBookingAtomic(classId, memberId).then(r => {
+        if (!r.removed) { showToast('이미 취소된 예약이에요.', 'info'); _pgRefreshActiveView(); return; }
+        const b = r.prev;
+        const shouldRestore = !b.isTrial && !!(b.deducted || (b.attended && !b.noDeduct));
+        const restore = shouldRestore
+          ? db.ref('pilates_group/' + memberId).transaction(p => { if (!p) return p; p.remain = (p.remain || 0) + 1; return p; })
+          : Promise.resolve();
+        restore.then(() => {
+          showToast('취소됐어요.', 'success');
+          const dateStr = classId.slice(0, 4) + '-' + classId.slice(4, 6) + '-' + classId.slice(6, 8);
+          const time = classId.slice(9, 11) + ':' + classId.slice(11, 13);
+          if (typeof _pgSharedPromoteWaitlist === 'function') _pgSharedPromoteWaitlist(classId, dateStr, time);
+          _pgRefreshActiveView();
         });
       });
     });
@@ -21196,20 +21259,34 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   window.adminCancelPilatesWaitlist = adminCancelPilatesWaitlist;
 
   function adminMarkPilatesAttended(classId, memberId) {
-    db.ref('pilates_classes/' + classId + '/bookings/' + memberId).once('value').then(bSnap => {
-      const b = bSnap.val();
-      if (!b || b.isTrial || b.attended) return; // 체험수업자는 잔여횟수 개념이 없어 출석처리 대상에서 제외
-      db.ref('pilates_group/' + memberId).transaction(p => {
+    // 1) 예약 문서에서 attended 를 원자적으로 true 로 (더블클릭해도 한 번만 성공)
+    let wasMarked = false, isTrial = false, noBooking = false;
+    db.ref('pilates_classes/' + classId + '/bookings/' + memberId).transaction(b => {
+      wasMarked = false; isTrial = false; noBooking = false;
+      if (b === null || b === undefined) { noBooking = true; return b; }
+      if (b.isTrial) { isTrial = true; return b; }
+      if (b.attended) { wasMarked = true; return b; }
+      b.attended = true;
+      return b;
+    }).then(res => {
+      if (!res.committed || noBooking || isTrial || wasMarked) return; // 체험수업자/이미 처리/예약 없음
+      // 2) 잔여가 있을 때만 1회 차감, 없으면 차감 없이 출석만 기록
+      let deductedNow = false;
+      return db.ref('pilates_group/' + memberId).transaction(p => {
+        deductedNow = false;
         if (!p) return p;
-        p.remain = Math.max(0, (p.remain || 0) - 1);
+        if ((p.remain || 0) > 0) { p.remain = p.remain - 1; deductedNow = true; }
         return p;
       }).then(() => {
-        db.ref('pilates_classes/' + classId + '/bookings/' + memberId + '/attended').set(true).then(() => {
+        if (deductedNow) {
           showToast('✅ 출석 처리됐어요! 잔여횟수 차감됐어요.', 'success');
-          _pgRefreshActiveView();
+          return;
+        }
+        return db.ref('pilates_classes/' + classId + '/bookings/' + memberId + '/noDeduct').set(true).then(() => {
+          showToast('✅ 잔여 0회라 차감 없이 출석만 기록돼요.', 'info');
         });
-      });
-    });
+      }).then(() => _pgRefreshActiveView());
+    }).catch(e => { console.warn('출석 처리 실패:', e); showToast('출석 처리에 실패했어요. 다시 시도해주세요.', 'error'); });
   }
   window.adminMarkPilatesAttended = adminMarkPilatesAttended;
 
@@ -21666,13 +21743,15 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
         if (times && !times.includes(cls.time)) return;
 
         Object.entries(cls.bookings || {}).forEach(([uid, b]) => {
-          const removeBooking = db.ref('pilates_classes/' + classId + '/bookings/' + uid).remove();
-          if (b.isTrial) { tasks.push(removeBooking); return; } // 체험수업자는 횟수/알림 대상 아님
-          const shouldRestore = !!(b.deducted || b.attended);
-          const restore = shouldRestore
-            ? db.ref('pilates_group/' + uid).transaction(p => { if (!p) return p; p.remain = (p.remain || 0) + 1; return p; })
-            : Promise.resolve();
-          tasks.push(removeBooking.then(() => restore).then(() => {
+          if (b.isTrial) { tasks.push(db.ref('pilates_classes/' + classId + '/bookings/' + uid).remove()); return; } // 체험수업자는 횟수/알림 대상 아님
+          tasks.push(_admRemoveBookingAtomic(classId, uid).then(r => {
+            if (!r.removed) return; // 이미 다른 곳에서 취소됨 → 중복 복구/알림 방지
+            const pb = r.prev;
+            const shouldRestore = !!(pb.deducted || (pb.attended && !pb.noDeduct));
+            return (shouldRestore
+              ? db.ref('pilates_group/' + uid).transaction(p => { if (!p) return p; p.remain = (p.remain || 0) + 1; return p; })
+              : Promise.resolve());
+          }).then(() => {
             if (typeof sendPushToUser === 'function') {
               sendPushToUser(uid, '🧘 필라테스 수업 휴강 안내',
                 dateStr + ' ' + cls.time + ' 수업이 "' + reason + '"(으)로 휴강돼 예약이 취소됐어요. 잔여횟수는 복구됐어요.',
