@@ -13058,8 +13058,10 @@
       const d = snap.val() || {};
       const nameEl = document.getElementById('kiosk-set-name');
       const noteEl = document.getElementById('kiosk-set-notice');
+      const secEl = document.getElementById('kiosk-set-seconds');
       if (nameEl) nameEl.value = d.centerName || '';
       if (noteEl) noteEl.value = d.notice || '';
+      if (secEl) secEl.value = d.resultSeconds || '';
       kioskSettingsInput();
     }).catch(() => showToast('키오스크 설정을 불러오지 못했어요.', 'error'));
   }
@@ -13068,8 +13070,19 @@
   function saveKioskSettings() {
     const centerName = (document.getElementById('kiosk-set-name')?.value || '').trim().slice(0, 30);
     const notice = (document.getElementById('kiosk-set-notice')?.value || '').replace(/\r/g, '').split('\n').slice(0, 3).join('\n').trim().slice(0, 120);
+    // 결과 화면 유지 시간: 비워두면 기본값(5초), 3~20초 밖의 숫자는 저장하지 않고 안내
+    const secRaw = (document.getElementById('kiosk-set-seconds')?.value || '').trim();
+    let resultSeconds = null;
+    if (secRaw !== '') {
+      const n = Math.round(Number(secRaw));
+      if (!isFinite(n) || n < _KIOSK_MIN_SECONDS || n > _KIOSK_MAX_SECONDS) {
+        showToast('결과 화면 유지 시간은 ' + _KIOSK_MIN_SECONDS + '~' + _KIOSK_MAX_SECONDS + '초 사이로 입력해주세요.', 'error');
+        return;
+      }
+      resultSeconds = n;
+    }
     // refreshAt 값이 바뀌면 켜져 있는 키오스크가 알아채고 한 번 새로고침함
-    db.ref('kiosk_config').set({ centerName, notice, refreshAt: Date.now() }).then(() => {
+    db.ref('kiosk_config').set({ centerName, notice, resultSeconds, refreshAt: Date.now() }).then(() => {
       showToast('✅ 키오스크 설정이 저장됐어요. 켜져 있는 키오스크는 곧 새로고침돼요.', 'success');
     }).catch(err => {
       console.error('키오스크 설정 저장 오류:', err);
@@ -22941,10 +22954,19 @@ let _kioskInput = '';
 
 // ── 키오스크 센터 이름 / 상단 공지 / 설정 저장 시 자동 새로고침 ──
 const _KIOSK_DEFAULT_NAME = '풍산휘트니스@기구필라테스';
+const _KIOSK_DEFAULT_SECONDS = 5;   // 결과 화면 기본 유지 시간(초)
+const _KIOSK_MIN_SECONDS = 3, _KIOSK_MAX_SECONDS = 20;
+let _kioskResultMs = _KIOSK_DEFAULT_SECONDS * 1000;
+let _kioskShownAt = 0;
 let _kioskCfgRef = null;
 let _kioskRefStamp;
+function _kioskSecondsOf(v) { // 설정값이 비었거나 범위 밖이면 기본값
+  const n = Math.round(Number(v));
+  return (v !== null && v !== undefined && v !== '' && isFinite(n) && n >= _KIOSK_MIN_SECONDS && n <= _KIOSK_MAX_SECONDS) ? n : _KIOSK_DEFAULT_SECONDS;
+}
 function _kioskApplyConfig(cfg) {
   cfg = cfg || {};
+  _kioskResultMs = _kioskSecondsOf(cfg.resultSeconds) * 1000;
   const nameEl = document.getElementById('kiosk-center-name');
   if (nameEl) nameEl.textContent = String(cfg.centerName || '').trim() || _KIOSK_DEFAULT_NAME;
   const box = document.getElementById('kiosk-notice');
@@ -22969,13 +22991,15 @@ function _kioskWatchConfig() {
     _kioskRefStamp = stamp;
     const res = document.getElementById('kiosk-result-area');
     const showing = res && res.style.display !== 'none';
-    setTimeout(() => location.reload(), showing ? 6500 : 800); // 출석 결과를 보여주는 중이면 끝난 뒤에 새로고침
+    setTimeout(() => location.reload(), showing ? _kioskResultMs + 800 : 800); // 출석 결과를 보여주는 중이면 끝난 뒤에 새로고침
   }, err => console.warn('키오스크 설정 감시 실패(무시):', err));
 }
 
 function openKiosk() {
   localStorage.setItem('kiosk_active', '1'); // 새로고침해도 키오스크 상태가 유지되도록 저장
   try { _kioskWatchConfig(); } catch (e) { console.warn('키오스크 설정 감시 시작 실패(무시):', e); }
+  const _kScreen = document.getElementById('screen-kiosk');
+  if (_kScreen && !_kScreen._tapCloseBound) { _kScreen._tapCloseBound = true; _kScreen.addEventListener('click', _kioskTapClose, true); }
   _kioskInput = '';
   _kioskUpdateDots();
   document.getElementById('kiosk-input-area').style.display = 'block';
@@ -23200,6 +23224,11 @@ function _exHgEndedLabels(st) {
   return _EX_HG_KEYS.filter(k => st.hgByKey[k] && st.hgByKey[k].has && !st.hgByKey[k].valid);
 }
 
+// 안내문을 마침표 뒤에서 두 줄로 나눔 (단어 중간에서 끊기지 않게) — "…끝났어요.\n직원에게 문의해주세요"
+function _expiredNoteBreak(note) {
+  return String(note || '').replace(/\.\s+/, '.\n');
+}
+
 // 키오스크/앱 안내문 — 이용기간이 끝난 경우에만 문구를 돌려줌 (없으면 '')
 function _expiredNoteText(st) {
   if (!st) return '';
@@ -23375,40 +23404,60 @@ async function _kioskCheckIn(phone) {
   }
 }
 
+function _kioskCloseResult() {
+  clearTimeout(window._kioskResetTimer);
+  const el = document.getElementById('kiosk-result-area');
+  _kioskInput = '';
+  _kioskUpdateDots();
+  document.getElementById('kiosk-input-area').style.display = 'block';
+  if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+}
+
+// 결과 화면이 떠 있을 때 화면 어디를 눌러도 닫힘 (뒷사람이 기다릴 때 빨리 넘기기용)
+// - 결과가 뜬 직후 1초는 무시 (방금 누른 '확인' 터치가 한 번 더 전달돼 바로 닫히는 것 방지)
+// - "관리자 모드로 돌아가기"를 눌러도 닫히기만 하고 비밀번호 창은 열리지 않음
+function _kioskTapClose(e) {
+  const el = document.getElementById('kiosk-result-area');
+  if (!el || el.style.display === 'none' || !el.innerHTML) return;
+  if (Date.now() - _kioskShownAt < 1000) return;
+  e.stopPropagation();
+  e.preventDefault();
+  _kioskCloseResult();
+}
+
+const _KIOSK_TAP_HINT = '<div style="margin-top:14px;font-size:17px;font-weight:500;color:#4b5563;">화면을 누르면 닫혀요</div>';
+
 function _kioskShowResult(type, msg1, msg2, initial, extra) {
   document.getElementById('kiosk-input-area').style.display = 'none';
   const el = document.getElementById('kiosk-result-area');
   el.style.display = 'block';
   if (type === 'success') {
-    el.innerHTML = `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:14px;padding:28px 20px;text-align:center;">
+    el.innerHTML = `<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:14px;padding:28px 20px 16px;text-align:center;">
       <div style="width:64px;height:64px;background:#1a6fd4;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:white;margin:0 auto 14px;">${escapeHtml(initial||'?')}</div>
       <div style="font-size:22px;font-weight:700;color:#15803d;margin-bottom:6px;">${escapeHtml(msg1)}</div>
       <div style="font-size:15px;color:#16a34a;margin-bottom:10px;">${escapeHtml(msg2)}</div>
       ${_kioskExtraHtml(extra)}
+      ${_KIOSK_TAP_HINT}
     </div>`;
   } else if (type === 'already') {
-    el.innerHTML = `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:14px;padding:28px 20px;text-align:center;">
+    el.innerHTML = `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:14px;padding:28px 20px 16px;text-align:center;">
       <div style="font-size:36px;margin-bottom:10px;">✅</div>
       <div style="font-size:18px;font-weight:700;color:#854d0e;margin-bottom:6px;">${escapeHtml(msg1)}</div>
       <div style="font-size:13px;color:#92400e;">${escapeHtml(msg2)}</div>
+      ${_KIOSK_TAP_HINT}
     </div>`;
   } else {
-    el.innerHTML = `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:14px;padding:28px 20px;text-align:center;">
+    el.innerHTML = `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:14px;padding:28px 20px 16px;text-align:center;">
       <div style="font-size:36px;margin-bottom:10px;">❌</div>
       <div style="font-size:18px;font-weight:700;color:#A32D2D;margin-bottom:6px;">${escapeHtml(msg1)}</div>
       <div style="font-size:13px;color:#ef4444;">${escapeHtml(msg2)}</div>
+      ${_KIOSK_TAP_HINT}
     </div>`;
   }
-  // 이용권 정보가 함께 보이면 읽을 시간을 더 줌 (3초 → 6초)
-  const _hold = (type === 'success' && extra && ((extra.lines && extra.lines.length) || extra.note)) ? 6000 : 3000;
+  // 결과 화면 유지 시간은 설정 탭 > 키오스크 설정 값(기본 5초)을 모든 결과에 똑같이 적용
+  _kioskShownAt = Date.now();
   clearTimeout(window._kioskResetTimer);
-  window._kioskResetTimer = setTimeout(() => {
-    _kioskInput = '';
-    _kioskUpdateDots();
-    document.getElementById('kiosk-input-area').style.display = 'block';
-    el.style.display = 'none';
-    el.innerHTML = '';
-  }, _hold);
+  window._kioskResetTimer = setTimeout(_kioskCloseResult, _kioskResultMs);
 }
 
 // 키오스크 결과 카드 안의 이용권 줄 + 이용기간 안내문(노란 박스)
@@ -23425,7 +23474,7 @@ function _kioskExtraHtml(extra) {
       + '</div>';
   }
   if (extra.note) {
-    html += '<div style="margin-top:10px;background:#fef9c3;border:1px solid #fde047;color:#854d0e;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;">' + escapeHtml(extra.note) + '</div>';
+    html += '<div style="margin-top:10px;background:#fef9c3;border:1px solid #fde047;color:#854d0e;border-radius:8px;padding:9px 10px;font-size:14px;font-weight:700;line-height:1.5;word-break:keep-all;">' + escapeHtml(_expiredNoteBreak(extra.note)).replace(/\n/g, '<br>') + '</div>';
   }
   return html;
 }

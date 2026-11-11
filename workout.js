@@ -1400,7 +1400,7 @@
       const pointBox = document.getElementById('attend-point-box');
       if (pointBox) pointBox.style.display = attendPts > 0 ? '' : 'none';
       const noteEl = document.getElementById('attend-expired-note');
-      if (noteEl) { noteEl.textContent = expiredNote; noteEl.style.display = expiredNote ? '' : 'none'; }
+      if (noteEl) { noteEl.textContent = (typeof _expiredNoteBreak === 'function') ? _expiredNoteBreak(expiredNote) : expiredNote; noteEl.style.display = expiredNote ? '' : 'none'; }
       document.getElementById('attend-complete-overlay').classList.add('active');
       if (attendPts > 0) {
         if (typeof addPointWithHistory === 'function') addPointWithHistory(userId, attendPts, '출석');
