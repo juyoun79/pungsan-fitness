@@ -1667,9 +1667,10 @@
     re:     { label: '재등록',   cls: 'tv-b' },
     soon:   { label: '만기예정', cls: 'tv-o' },
     end:    { label: '기간만료', cls: 'tv-r' },
+    grpend: { label: '그룹 종료', cls: 'tv-o2' },
     unpaid: { label: '미수금',   cls: 'tv-p' }
   };
-  const _TV_PRIORITY = { unpaid: 0, end: 1, soon: 2, new: 3, re: 3 }; // 주의 회원 먼저 정렬용 (작을수록 먼저)
+  const _TV_PRIORITY = { unpaid: 0, end: 1, grpend: 2, soon: 2, new: 3, re: 3 }; // 주의 회원 먼저 정렬용 (작을수록 먼저)
 
   function _tvEsc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1714,7 +1715,8 @@
       .tv-plan.tv-dead{color:#c0392b;}
       .tv-bds{display:flex;flex-wrap:wrap;gap:4px;min-height:18px;}
       .tv-bd{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:10px;color:#fff;white-space:nowrap;}
-      .tv-g{background:#2e9e5b;} .tv-b{background:#1a6fd4;} .tv-o{background:#f08c00;} .tv-r{background:#d64545;} .tv-p{background:#8e44ad;}
+      .tv-g{background:#2e9e5b;} .tv-b{background:#1a6fd4;} .tv-o{background:#f08c00;} .tv-o2{background:#e8590c;} .tv-r{background:#d64545;} .tv-p{background:#8e44ad;}
+      .tv-why{font-size:11px;color:var(--text-sub);line-height:1.4;word-break:keep-all;}
       .tv-morebtn{display:block;margin:12px auto 0;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:8px;padding:8px 18px;font-size:13px;cursor:pointer;font-family:inherit;}
     `;
     document.head.appendChild(st);
@@ -1804,16 +1806,42 @@
     return { label: rep.label, start: rep.start, end: rep.end, days: rep.days, hold: false, expired: true, more: 0 };
   }
 
-  // 회원 1명의 배지 키 목록 (표시 순서: 신규/재등록 → 만기예정 → 기간만료 → 미수금)
-  function _tvBadgeKeys(m, plan) {
+  // 회원 1명의 이용권 상태 (출석 규칙과 같은 기준 — _expiryState)
+  function _tvExpState(m) {
+    return _expiryState((m && m.activeItems) || [], { pgRemain: m && m.pgRemain });
+  }
+
+  // 회원 1명의 배지 키 목록 (표시 순서: 신규/재등록 → 만기예정 → 기간만료/그룹 종료 → 미수금)
+  //  기간만료: 헬스/GX가 모두 끝났거나(PT가 남아 있어도), 이용권 전체가 끝남 / 그룹 종료: 그룹 필라테스만 끝나고 다른 이용권은 남음
+  function _tvBadgeKeys(m, plan, st) {
     const keys = [];
     if (!m) return keys;
+    if (!st) st = _tvExpState(m);
     if (m.regKind === 'new') keys.push('new');
     else if (m.regKind === 're') keys.push('re');
     if (plan && !plan.expired && !plan.hold && plan.days !== null && plan.days >= 0 && plan.days <= _expiringThresholdDays) keys.push('soon');
-    if (plan && plan.expired) keys.push('end');
+    if (st.end) keys.push('end');
+    else if (st.grpEnd) keys.push('grpend');
     if (m.hasUnpaid) keys.push('unpaid');
     return keys;
+  }
+
+  // 기간만료 / 그룹 종료 배지의 이유 한 줄. 예: "헬스 종료 · PT 8회 남음"
+  function _tvWhyText(m, st) {
+    if (!m || !st || !(st.end || st.grpEnd)) return '';
+    if (!st.anyValid) return '전체 이용권 종료';
+    const parts = [];
+    if (st.hgEnded) parts.push(_exHgEndedLabels(st).join('·') + ' 종료');
+    if (st.grpEnded) parts.push('그룹 필라테스 ' + _exMD(st.grp.end) + ' 종료');
+    const pr = (m.personalRemain != null && m.personalRemain !== '') ? Number(m.personalRemain) : null;
+    const both = st.pt.valid && st.pil.valid;
+    if (st.pt.has) parts.push(st.pt.valid ? ('PT ' + ((pr !== null && !both) ? pr + '회 남음' : '이용 중')) : 'PT 종료');
+    if (st.pil.has) parts.push(st.pil.valid ? ('개인 필라테스 ' + ((pr !== null && !both) ? pr + '회 남음' : '이용 중')) : '개인 필라테스 종료');
+    if (st.grpEnd && st.hg.valid) {
+      const lbl = _EX_HG_KEYS.filter(k => st.hgByKey[k].valid).join('·');
+      parts.push(lbl + (st.hg.unlimited || !st.hg.end ? ' 이용 중' : ' ' + _exMD(st.hg.end) + '까지'));
+    }
+    return parts.join(' · ');
   }
 
   function _tvShortDate(iso) { return iso ? String(iso).slice(2) : ''; }
@@ -1855,12 +1883,14 @@
     const cards = sourceRows.map(r => {
       const m = byPhone[r.phone] || null;
       const plan = m ? _tvPlanInfo(m) : null;
-      const badges = memberReady ? _tvBadgeKeys(m, plan).filter(k => !hiddenBadges.includes(k)) : [];
-      return { r, m, plan, badges };
+      const st = (m && memberReady) ? _tvExpState(m) : null;
+      const badges = memberReady ? _tvBadgeKeys(m, plan, st).filter(k => !hiddenBadges.includes(k)) : [];
+      const why = (st && (badges.includes('end') || badges.includes('grpend'))) ? _tvWhyText(m, st) : '';
+      return { r, m, plan, badges, why };
     });
 
     // 배지별 인원수 (범례에 표시)
-    const counts = { new: 0, re: 0, soon: 0, end: 0, unpaid: 0 };
+    const counts = { new: 0, re: 0, soon: 0, end: 0, grpend: 0, unpaid: 0 };
     cards.forEach(c => c.badges.forEach(k => { counts[k]++; }));
 
     // 필터 + 정렬
@@ -1926,6 +1956,7 @@
         return `<div class="tv-card" onclick="openMemberModal('${_tvEsc(r.phone)}')">
           <div class="tv-top"><div class="tv-av">${av}</div><div style="min-width:0;"><div class="tv-nm">${_tvEsc(r.name)}</div><div class="tv-meta">⏰ <b>${_tvEsc(r.time || '-')}</b></div>${totalMeta}</div></div>
           ${planHtml}
+          ${c.why ? `<div class="tv-why">${_tvEsc(c.why)}</div>` : ''}
           <div class="tv-bds">${bds}</div>
         </div>`;
       }).join('') + `</div>`;
@@ -4264,7 +4295,7 @@
             if (pg && pg.remain != null) countRemains.push(pg.remain);
             const minCountRemain = countRemains.length ? Math.min(...countRemains) : null;
 
-            return { phone, info, attendCount, pts: Number(pts) || 0, nick, activeItems, hasUnpaid, unpaidAmount, joinDate, maxEndDate, progNames, statusKey, statusLabel, statusColor, minRemainDays, lockerAssigned, gender, age, lastAttendDate, daysSinceLastAttend, minCountRemain, staffIds, regKind, superseded: chain.superseded };
+            return { phone, info, attendCount, pts: Number(pts) || 0, nick, activeItems, hasUnpaid, unpaidAmount, joinDate, maxEndDate, progNames, statusKey, statusLabel, statusColor, minRemainDays, lockerAssigned, gender, age, lastAttendDate, daysSinceLastAttend, minCountRemain, staffIds, regKind, superseded: chain.superseded, pgRemain: (pg && pg.remain != null) ? pg.remain : null, personalRemain: (personal && personal.remain != null) ? personal.remain : null };
           }).catch(() => {
             const pts = localStorage.getItem('points_' + phone) || '0';
             let attendCount = 0;
@@ -12778,7 +12809,7 @@
 
   // ── 설정탭 서브탭 전환 ──
   function switchSettingsSubtab(tab) {
-    const tabs = ['pw', 'equipment', 'programs', 'terms', 'business', 'bulk', 'goal', 'import'];
+    const tabs = ['pw', 'equipment', 'programs', 'terms', 'business', 'bulk', 'goal', 'import', 'kiosk'];
     tabs.forEach(t => {
       const btn  = document.getElementById('settings-subtab-' + t);
       const view = document.getElementById('settings-view-' + t);
@@ -12795,6 +12826,7 @@
     if (tab === 'terms')     loadTerms();
     if (tab === 'business')  loadBusinessInfo();
     if (tab === 'goal')      loadSalesGoalConfig();
+    if (tab === 'kiosk')     loadKioskSettings();
     if (tab === 'import') {
       if (!_mImport || !_mImport.headers || !_mImport.headers.length) renderMemberImportStep();
       loadMemberImportHistory();
@@ -12999,6 +13031,52 @@
     });
   }
   window.saveBusinessInfo = saveBusinessInfo;
+
+  // ── 키오스크 설정 (설정 탭) — Firebase: kiosk_config { centerName, notice, refreshAt } ──
+  function kioskSettingsInput() {
+    const ta = document.getElementById('kiosk-set-notice');
+    if (!ta) return;
+    let v = ta.value.replace(/\r/g, '');
+    const lines = v.split('\n');
+    if (lines.length > 3) {
+      v = lines.slice(0, 3).join('\n');
+      ta.value = v;
+      showToast('공지는 최대 3줄까지만 입력할 수 있어요.', 'info');
+    }
+    const cnt = document.getElementById('kiosk-set-count');
+    if (cnt) cnt.textContent = '(' + v.length + '/120)';
+    const prev = document.getElementById('kiosk-set-preview');
+    const empty = document.getElementById('kiosk-set-preview-empty');
+    const t = v.trim();
+    if (prev) { prev.textContent = t; prev.style.display = t ? '' : 'none'; }
+    if (empty) empty.style.display = t ? 'none' : '';
+  }
+  window.kioskSettingsInput = kioskSettingsInput;
+
+  function loadKioskSettings() {
+    db.ref('kiosk_config').once('value').then(snap => {
+      const d = snap.val() || {};
+      const nameEl = document.getElementById('kiosk-set-name');
+      const noteEl = document.getElementById('kiosk-set-notice');
+      if (nameEl) nameEl.value = d.centerName || '';
+      if (noteEl) noteEl.value = d.notice || '';
+      kioskSettingsInput();
+    }).catch(() => showToast('키오스크 설정을 불러오지 못했어요.', 'error'));
+  }
+  window.loadKioskSettings = loadKioskSettings;
+
+  function saveKioskSettings() {
+    const centerName = (document.getElementById('kiosk-set-name')?.value || '').trim().slice(0, 30);
+    const notice = (document.getElementById('kiosk-set-notice')?.value || '').replace(/\r/g, '').split('\n').slice(0, 3).join('\n').trim().slice(0, 120);
+    // refreshAt 값이 바뀌면 켜져 있는 키오스크가 알아채고 한 번 새로고침함
+    db.ref('kiosk_config').set({ centerName, notice, refreshAt: Date.now() }).then(() => {
+      showToast('✅ 키오스크 설정이 저장됐어요. 켜져 있는 키오스크는 곧 새로고침돼요.', 'success');
+    }).catch(err => {
+      console.error('키오스크 설정 저장 오류:', err);
+      showToast('저장 중 오류가 발생했어요.', 'error');
+    });
+  }
+  window.saveKioskSettings = saveKioskSettings;
 
   // ── 목표매출 설정 (설정 탭) ──
   const SALES_GOAL_PROG_LIST = ['헬스', 'GX', 'PT', '기구필라테스개인', '기구필라테스그룹', '락카', '운동복', '일일권', '양도비'];
@@ -22861,8 +22939,43 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
 // ── 키오스크 출석 ──────────────────────────────────────
 let _kioskInput = '';
 
+// ── 키오스크 센터 이름 / 상단 공지 / 설정 저장 시 자동 새로고침 ──
+const _KIOSK_DEFAULT_NAME = '풍산휘트니스@기구필라테스';
+let _kioskCfgRef = null;
+let _kioskRefStamp;
+function _kioskApplyConfig(cfg) {
+  cfg = cfg || {};
+  const nameEl = document.getElementById('kiosk-center-name');
+  if (nameEl) nameEl.textContent = String(cfg.centerName || '').trim() || _KIOSK_DEFAULT_NAME;
+  const box = document.getElementById('kiosk-notice');
+  const txt = document.getElementById('kiosk-notice-text');
+  const notice = String(cfg.notice || '').trim();
+  if (txt) txt.textContent = notice;
+  if (box) box.style.display = notice ? 'flex' : 'none';
+}
+function _kioskStopWatch() {
+  if (_kioskCfgRef) { try { _kioskCfgRef.off('value'); } catch (e) {} _kioskCfgRef = null; }
+}
+function _kioskWatchConfig() {
+  _kioskStopWatch();
+  _kioskRefStamp = undefined; // 첫 수신값은 기준으로만 삼고, 이후 값이 바뀔 때만 새로고침
+  _kioskCfgRef = db.ref('kiosk_config');
+  _kioskCfgRef.on('value', snap => {
+    const cfg = snap.val() || {};
+    _kioskApplyConfig(cfg);
+    const stamp = cfg.refreshAt || 0;
+    if (_kioskRefStamp === undefined) { _kioskRefStamp = stamp; return; }
+    if (stamp === _kioskRefStamp) return;
+    _kioskRefStamp = stamp;
+    const res = document.getElementById('kiosk-result-area');
+    const showing = res && res.style.display !== 'none';
+    setTimeout(() => location.reload(), showing ? 6500 : 800); // 출석 결과를 보여주는 중이면 끝난 뒤에 새로고침
+  }, err => console.warn('키오스크 설정 감시 실패(무시):', err));
+}
+
 function openKiosk() {
   localStorage.setItem('kiosk_active', '1'); // 새로고침해도 키오스크 상태가 유지되도록 저장
+  try { _kioskWatchConfig(); } catch (e) { console.warn('키오스크 설정 감시 시작 실패(무시):', e); }
   _kioskInput = '';
   _kioskUpdateDots();
   document.getElementById('kiosk-input-area').style.display = 'block';
@@ -22889,6 +23002,7 @@ function exitKiosk() {
       const adminPw = snap.val() || 'admin123';
       if (pw === adminPw) {
         localStorage.removeItem('kiosk_active'); // 정상 탈출했으니 새로고침해도 다시 키오스크로 안 돌아가게
+        _kioskStopWatch();
         // 탭바 복원
         const tabRow = document.querySelector('.admin-tab-row');
         const pcHeader = document.getElementById('admin-header-pc');
@@ -22964,6 +23078,7 @@ async function _resolveHoldsAndCheckEligibility(phone) {
   const updates = {};
   let resolvedMsg = '';
   let hasEligible = false;
+  const allItems = []; // 출석 규칙 판정용 — 환불/양도 제외한 항목 (휴회 해제 반영된 값)
 
   Object.entries(contracts).forEach(([contractKey, c]) => {
     const items = _flattenContractItems(c);
@@ -23000,6 +23115,7 @@ async function _resolveHoldsAndCheckEligibility(phone) {
       }
 
       if (!_isItemEligible(data)) return; // 환불/양도/변경 등으로 이미 끝난 항목은 제외
+      allItems.push({ progKey: it.progKey, data, contractKey });
       if (!data.endDate || data.endDate >= todayISO) hasEligible = true; // 사용기한 안 지났으면 유효
     });
   });
@@ -23007,7 +23123,121 @@ async function _resolveHoldsAndCheckEligibility(phone) {
   if (Object.keys(updates).length) {
     await db.ref().update(updates);
   }
-  return { hasEligible, resolvedMsg };
+  return { hasEligible, resolvedMsg, items: allItems };
+}
+
+// ══════════════════════════════
+// 출석·포인트 규칙 (키오스크 / 회원앱 QR / 오늘 방문 배지 공통)
+//  - 이용권이 끝났어도 출석은 기록한다
+//  - 포인트는 헬스/GX가 남아 있거나, 그룹 필라테스 유효기간 안일 때만 (일일권·체험권·PT·개인필라테스만 있으면 없음)
+//  - "기간만료": 헬스/GX 이력이 있는데 모두 끝났거나, 이용권 전체가 끝남 (PT가 남아 있어도 기간만료)
+//  - "그룹 종료": 그룹 필라테스만 끝나고 다른 이용권은 남아 있음
+// ══════════════════════════════
+const _EX_HG_KEYS = ['헬스', 'GX'];
+const _EX_GRP_KEY = '기구필라테스그룹';
+const _EX_KNOWN_KEYS = ['헬스', 'GX', 'PT', '기구필라테스개인', '기구필라테스그룹', 'daypass', 'daypass_pt', 'daypass_pilates'];
+
+// 항목의 실효 종료일 (휴회중이면 휴회 후 종료일), 없으면 ''
+function _exEnd(data) {
+  const raw = _isActivelyOnHold(data) ? (data.activeHold && data.activeHold.newEndDate) : data.endDate;
+  return raw ? _pcPad(_normDate(raw)) : ''; // 옛 한글 날짜("2026년 7월 31일")도 ISO로 맞춰서 비교
+}
+
+// 조건(pred)에 맞는 항목들의 상태: { has, valid, unlimited, end, days }
+//  valid: 하나라도 유효 / unlimited: 유효한 항목 중 종료일이 비어 있는 것이 있음 / end: 유효하면 가장 늦은 종료일, 아니면 마지막 종료일
+function _exGroup(items, pred) {
+  const arr = items.filter(it => it && it.data && pred(it.progKey));
+  const r = { has: arr.length > 0, valid: false, unlimited: false, end: '', days: null };
+  let vEnd = '', aEnd = '';
+  arr.forEach(it => {
+    const e = _exEnd(it.data);
+    if (e && e > aEnd) aEnd = e;
+    if (_dashItemIsValid(it.data)) {
+      r.valid = true;
+      if (!e) r.unlimited = true; else if (e > vEnd) vEnd = e;
+    }
+  });
+  r.end = r.valid ? (r.unlimited ? '' : vEnd) : aEnd;
+  r.days = r.end ? _daysUntil(r.end) : null;
+  return r;
+}
+
+// items: [{ progKey, data }] (환불/양도 제외된 활성 항목), opts.pgRemain: pilates_group 잔여횟수(그룹 계약 항목이 없는 이관 회원용)
+function _expiryState(items, opts) {
+  opts = opts || {};
+  items = (items || []).filter(it => it && it.data);
+  const st = { count: items.length };
+  st.hg = _exGroup(items, k => _EX_HG_KEYS.indexOf(k) >= 0);
+  st.hgByKey = {};
+  _EX_HG_KEYS.forEach(hk => { st.hgByKey[hk] = _exGroup(items, k => k === hk); });
+  st.grp = _exGroup(items, k => k === _EX_GRP_KEY);
+  if (!st.grp.has && Number(opts.pgRemain) > 0) st.grp = { has: true, valid: true, unlimited: true, end: '', days: null, fromRecord: true }; // 이관 회원: 제한 없음
+  st.pt = _exGroup(items, k => k === 'PT');
+  st.pil = _exGroup(items, k => k === '기구필라테스개인');
+  st.other = _exGroup(items, k => _EX_KNOWN_KEYS.indexOf(k) < 0); // 직접 만든 프로그램
+  st.anyValid = items.some(it => _dashItemIsValid(it.data)) || st.grp.fromRecord === true;
+  st.hgEnded = st.hg.has && !st.hg.valid;
+  st.grpEnded = st.grp.has && !st.grp.valid;
+  st.end = st.count > 0 && (st.hgEnded || !st.anyValid);   // 오늘 방문 "기간만료"
+  st.grpEnd = st.count > 0 && !st.end && st.grpEnded;      // 오늘 방문 "그룹 종료"
+  st.pointOk = st.hg.valid || (st.grp.has && st.grp.valid) || st.other.valid;
+  return st;
+}
+
+function _exMD(iso) { // 'YYYY-MM-DD' → 'M/D'
+  const p = String(iso || '').split('-');
+  return p.length === 3 ? (Number(p[1]) + '/' + Number(p[2])) : '';
+}
+
+function _exDaysText(g) {
+  if (g.unlimited || !g.end) return '이용 중';
+  const d = g.days;
+  if (d === null) return '이용 중';
+  return (d <= 0 ? '오늘까지' : d + '일 남음') + ' (~' + _exMD(g.end) + ')';
+}
+
+function _exHgEndedLabels(st) {
+  return _EX_HG_KEYS.filter(k => st.hgByKey[k] && st.hgByKey[k].has && !st.hgByKey[k].valid);
+}
+
+// 키오스크/앱 안내문 — 이용기간이 끝난 경우에만 문구를 돌려줌 (없으면 '')
+function _expiredNoteText(st) {
+  if (!st) return '';
+  if (!st.anyValid) return '이용기간이 끝났어요. 직원에게 문의해주세요';
+  if (st.hgEnded) return _exHgEndedLabels(st).join('·') + ' 이용기간이 끝났어요. 직원에게 문의해주세요';
+  return '';
+}
+
+// 키오스크 결과 화면의 이용권 줄: [{ label, text, cls }]  (cls: ok | bad | '')
+// trainee: trainers/{id}/trainees/{phone} (PT/개인필라테스 잔여횟수), 없으면 null
+function _kioskPlanLines(st, trainee) {
+  const lines = [];
+  _EX_HG_KEYS.forEach(k => {
+    const g = st.hgByKey[k];
+    if (!g || !g.has) return;
+    lines.push(g.valid ? { label: k, text: _exDaysText(g), cls: 'ok' } : { label: k, text: '종료 (' + _exMD(g.end) + ')', cls: 'bad' });
+  });
+  if (st.grp.has) {
+    lines.push(st.grp.valid
+      ? { label: '그룹 필라테스', text: _exDaysText(st.grp), cls: 'ok' }
+      : { label: '그룹 필라테스', text: '유효기간 종료 (' + _exMD(st.grp.end) + ')', cls: 'bad' });
+  }
+  const remain = trainee && trainee.remain != null && trainee.remain !== '' ? Number(trainee.remain) : null;
+  const tType = String((trainee && trainee.type) || '');
+  let ptGetsRemain = st.pt.valid;
+  if (st.pt.valid && st.pil.valid) ptGetsRemain = tType.indexOf('PT') >= 0;
+  if (st.pt.valid) lines.push({ label: 'PT 이용 중', text: (ptGetsRemain && remain !== null && !isNaN(remain)) ? remain + '회 남음' : '', cls: '' });
+  if (st.pil.valid) lines.push({ label: '개인 필라테스 이용 중', text: (!ptGetsRemain && remain !== null && !isNaN(remain)) ? remain + '회 남음' : '', cls: '' });
+  return lines;
+}
+
+// 휴회 자동해제 + 이용권 상태 판정 (+ 그룹 계약이 없는 이관 회원을 위해 pilates_group 잔여 확인)
+async function _attendEvaluate(phone) {
+  const r = await _resolveHoldsAndCheckEligibility(phone);
+  let pgRemain = null;
+  try { pgRemain = (await db.ref('pilates_group/' + phone + '/remain').once('value')).val(); } catch (e) { /* 읽기 실패 시 제한 없이 진행 */ }
+  const st = _expiryState(r.items, { pgRemain });
+  return { st, resolvedMsg: r.resolvedMsg, hasEligible: r.hasEligible };
 }
 
 // ── 일회성 정리 도구: 0 안 채운 날짜(예: 2026-8-3)로 잘못 저장된 기록을 정상 형식(2026-08-03)으로 고쳐줌 ──
@@ -23093,12 +23323,10 @@ async function _kioskCheckIn(phone) {
       _kioskShowResult('fail', '등록되지 않은 번호예요', '직원에게 문의해주세요');
       return;
     }
-    // 휴회 자동해제 + 이용가능한 프로그램이 하나라도 있는지 확인 (만료회원 출석 차단)
-    const { hasEligible, resolvedMsg } = await _resolveHoldsAndCheckEligibility(phone);
-    if (!hasEligible) {
-      _kioskShowResult('fail', '이용기간이 끝났어요', '등록 후 다시 이용해주세요');
-      return;
-    }
+    // 휴회 자동해제 + 이용권 상태 판정 (만료 회원도 출석은 기록하므로 여기서 막지 않음)
+    const ev = await _attendEvaluate(phone);
+    const st = ev.st;
+    const resolvedMsg = ev.resolvedMsg;
     // 오늘 출석 여부 확인
     const attSnap = await db.ref('users/' + phone + '/attendance/' + today).once('value');
     if (attSnap.exists()) {
@@ -23108,33 +23336,46 @@ async function _kioskCheckIn(phone) {
     // 출석 저장
     await db.ref('users/' + phone + '/attendance/' + today).set(true);
     _recordAttendTime(phone, today);
-    // 포인트 적립 (앱 QR 출석과 동일하게 전역 설정값 사용)
-    const ptSettingSnap = await db.ref('point_settings/attend').once('value');
-    const pts = ptSettingSnap.val() ?? (member.attendPoint || 2);
-    if (typeof addUserPoints === 'function') {
-      addUserPoints(phone, pts, '출석');
-    } else {
-      const ptsSnap = await db.ref('users/' + phone + '/points').once('value');
-      const cur = ptsSnap.val() || 0;
-      await db.ref('users/' + phone + '/points').set(cur + pts);
-      const histKey = db.ref('users/' + phone + '/pointHistory').push().key;
-      await db.ref('users/' + phone + '/pointHistory/' + histKey).set({
-        amount: pts, date: todayPadded, reason: '출석', balance: cur + pts, createdAt: Date.now()
-      });
+    // 포인트 적립 — 헬스/GX가 남아 있거나 그룹 필라테스 유효기간 안일 때만 (앱 QR 출석과 동일하게 전역 설정값 사용)
+    let pts = 0;
+    if (st.pointOk) {
+      const ptSettingSnap = await db.ref('point_settings/attend').once('value');
+      pts = Number(ptSettingSnap.val() ?? (member.attendPoint || 2)) || 0;
+    }
+    if (pts > 0) {
+      if (typeof addUserPoints === 'function') {
+        addUserPoints(phone, pts, '출석');
+      } else {
+        const ptsSnap = await db.ref('users/' + phone + '/points').once('value');
+        const cur = ptsSnap.val() || 0;
+        await db.ref('users/' + phone + '/points').set(cur + pts);
+        const histKey = db.ref('users/' + phone + '/pointHistory').push().key;
+        await db.ref('users/' + phone + '/pointHistory/' + histKey).set({
+          amount: pts, date: todayPadded, reason: '출석', balance: cur + pts, createdAt: Date.now()
+        });
+      }
     }
     const nick = localStorage.getItem('nickname_' + phone) || member.name;
     // 푸시알림 발송
     if (typeof sendPushToUser === 'function') {
-      sendPushToUser(phone, '✅ 출석 완료!', nick + '님 출석이 확인됐어요! +' + pts + 'P 적립', 'attend', { type: 'attend' });
+      sendPushToUser(phone, '✅ 출석 완료!', nick + '님 출석이 확인됐어요!' + (pts > 0 ? ' +' + pts + 'P 적립' : ''), 'attend', { type: 'attend' });
     }
-    const msg2 = resolvedMsg ? (resolvedMsg + ' · 출석 완료! +' + pts + 'P 적립') : ('출석 완료! +' + pts + 'P 적립');
-    _kioskShowResult('success', nick + '님', msg2, member.name.slice(0, 1));
+    // PT/개인필라테스 잔여횟수 (담당강사 → trainees). 실패해도 출석에는 영향 없음
+    let trainee = null;
+    if ((st.pt.valid || st.pil.valid) && member.trainerId) {
+      try { trainee = (await db.ref('trainers/' + member.trainerId + '/trainees/' + phone).once('value')).val(); } catch (e) { trainee = null; }
+    }
+    const lines = _kioskPlanLines(st, trainee);
+    const note = _expiredNoteText(st);
+    const doneMsg = pts > 0 ? ('출석 완료! +' + pts + 'P 적립') : '출석 완료!';
+    const msg2 = resolvedMsg ? (resolvedMsg + ' · ' + doneMsg) : doneMsg;
+    _kioskShowResult('success', nick + '님', msg2, member.name.slice(0, 1), { lines, note });
   } catch(e) {
     _kioskShowResult('fail', '오류가 발생했어요', '다시 시도해주세요');
   }
 }
 
-function _kioskShowResult(type, msg1, msg2, initial) {
+function _kioskShowResult(type, msg1, msg2, initial, extra) {
   document.getElementById('kiosk-input-area').style.display = 'none';
   const el = document.getElementById('kiosk-result-area');
   el.style.display = 'block';
@@ -23143,6 +23384,7 @@ function _kioskShowResult(type, msg1, msg2, initial) {
       <div style="width:64px;height:64px;background:#1a6fd4;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:white;margin:0 auto 14px;">${escapeHtml(initial||'?')}</div>
       <div style="font-size:22px;font-weight:700;color:#15803d;margin-bottom:6px;">${escapeHtml(msg1)}</div>
       <div style="font-size:15px;color:#16a34a;margin-bottom:10px;">${escapeHtml(msg2)}</div>
+      ${_kioskExtraHtml(extra)}
     </div>`;
   } else if (type === 'already') {
     el.innerHTML = `<div style="background:#fef9c3;border:1px solid #fde047;border-radius:14px;padding:28px 20px;text-align:center;">
@@ -23157,12 +23399,33 @@ function _kioskShowResult(type, msg1, msg2, initial) {
       <div style="font-size:13px;color:#ef4444;">${escapeHtml(msg2)}</div>
     </div>`;
   }
-  // 3초 후 초기화
-  setTimeout(() => {
+  // 이용권 정보가 함께 보이면 읽을 시간을 더 줌 (3초 → 6초)
+  const _hold = (type === 'success' && extra && ((extra.lines && extra.lines.length) || extra.note)) ? 6000 : 3000;
+  clearTimeout(window._kioskResetTimer);
+  window._kioskResetTimer = setTimeout(() => {
     _kioskInput = '';
     _kioskUpdateDots();
     document.getElementById('kiosk-input-area').style.display = 'block';
     el.style.display = 'none';
     el.innerHTML = '';
-  }, 3000);
+  }, _hold);
+}
+
+// 키오스크 결과 카드 안의 이용권 줄 + 이용기간 안내문(노란 박스)
+function _kioskExtraHtml(extra) {
+  if (!extra) return '';
+  let html = '';
+  const lines = extra.lines || [];
+  if (lines.length) {
+    html += '<div style="margin-top:6px;text-align:left;background:white;border-radius:10px;padding:8px 12px;font-size:14px;line-height:1.9;">'
+      + lines.map(l => {
+        const col = l.cls === 'bad' ? '#d64545' : (l.cls === 'ok' ? '#15803d' : '#374151');
+        return '<div style="display:flex;justify-content:space-between;gap:8px;"><span style="color:#374151;">' + escapeHtml(l.label) + '</span><span style="color:' + col + ';font-weight:700;">' + escapeHtml(l.text || '') + '</span></div>';
+      }).join('')
+      + '</div>';
+  }
+  if (extra.note) {
+    html += '<div style="margin-top:10px;background:#fef9c3;border:1px solid #fde047;color:#854d0e;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;">' + escapeHtml(extra.note) + '</div>';
+  }
+  return html;
 }

@@ -1367,14 +1367,13 @@
     const userId = localStorage.getItem('current_user');
     const today = getToday();
 
-    // 회원권 만료/휴회 여부 확인 (키오스크 출석과 동일 기준)
-    if (typeof _resolveHoldsAndCheckEligibility === 'function') {
+    // 휴회 자동해제 + 이용권 상태 판정 (키오스크 출석과 같은 기준). 만료 회원도 출석은 기록하고, 포인트만 조건부로 지급
+    let pointOk = true, expiredNote = '';
+    if (typeof _attendEvaluate === 'function') {
       try {
-        const { hasEligible } = await _resolveHoldsAndCheckEligibility(userId);
-        if (!hasEligible) {
-          showToast('이용 가능한 회원권이 없어요. 등록 후 다시 이용해주세요.', 'error');
-          return;
-        }
+        const ev = await _attendEvaluate(userId);
+        pointOk = !!ev.st.pointOk;
+        expiredNote = _expiredNoteText(ev.st);
       } catch (e) {
         console.error('출석 자격 확인 오류(무시하고 진행):', e);
       }
@@ -1395,12 +1394,18 @@
     document.getElementById('attend-complete-msg').textContent = nick + '님, 오늘도 운동 완료! 💪';
     document.getElementById('attend-date-msg').textContent = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 출석 완료';
     db.ref('point_settings/attend').once('value', snap => {
-      const attendPts = snap.val() ?? 2;
+      const attendPts = pointOk ? (Number(snap.val() ?? 2) || 0) : 0;
       const pointEl = document.getElementById('attend-point-display');
       if (pointEl) pointEl.textContent = '+' + attendPts + 'P';
+      const pointBox = document.getElementById('attend-point-box');
+      if (pointBox) pointBox.style.display = attendPts > 0 ? '' : 'none';
+      const noteEl = document.getElementById('attend-expired-note');
+      if (noteEl) { noteEl.textContent = expiredNote; noteEl.style.display = expiredNote ? '' : 'none'; }
       document.getElementById('attend-complete-overlay').classList.add('active');
-      if (typeof addPointWithHistory === 'function') addPointWithHistory(userId, attendPts, '출석');
-      else db.ref('users/' + userId + '/points').transaction(cur => (cur || 0) + attendPts).then(() => updateStats());
+      if (attendPts > 0) {
+        if (typeof addPointWithHistory === 'function') addPointWithHistory(userId, attendPts, '출석');
+        else db.ref('users/' + userId + '/points').transaction(cur => (cur || 0) + attendPts).then(() => updateStats());
+      }
     });
   }
 
