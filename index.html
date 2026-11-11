@@ -3022,7 +3022,7 @@
           <!-- 프로필 -->
           <div style="background:var(--card);padding:20px 16px 12px;border-bottom:1px solid var(--border);margin-bottom:8px;">
             <div style="display:flex;align-items:center;gap:16px;">
-              <div id="md-photo" style="width:72px;height:72px;border-radius:50%;border:2px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;overflow:hidden;flex-shrink:0;color:var(--text);">👤</div>
+              <div id="md-photo" style="width:105px;height:105px;border-radius:50%;border:2px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:42px;font-weight:700;overflow:hidden;flex-shrink:0;color:var(--text);">👤</div>
               <div style="flex:1;min-width:0;">
                 <div style="display:flex;align-items:center;gap:8px;">
                   <div id="md-name" style="font-size:17px;font-weight:700;color:var(--text);"></div>
@@ -3031,16 +3031,16 @@
                 </div>
                 <div id="md-phone" style="font-size:14px;font-weight:600;color:var(--text-sub);margin-top:3px;"></div>
                 <div id="md-nick" style="font-size:12px;color:var(--text-sub);margin:3px 0 8px;"></div>
+                <!-- 프로필 사진 변경/삭제 (회원상세 전용, 계약서탭 사진기능과는 완전히 분리된 코드) -->
+                <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                  <button type="button" onclick="openMdWebcam()"
+                    style="flex:1;padding:6px 2px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:'Noto Sans KR',sans-serif;">📷 웹캠</button>
+                  <button type="button" onclick="document.getElementById('md-photo-file').click()"
+                    style="flex:1;padding:6px 2px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:'Noto Sans KR',sans-serif;">📁 파일선택</button>
+                  <button type="button" id="md-photo-delete-btn" onclick="deleteMdPhoto()"
+                    style="display:none;flex:1;padding:6px 2px;background:#fff0f0;color:#c0392b;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:'Noto Sans KR',sans-serif;">🗑️ 삭제</button>
+                </div>
               </div>
-            </div>
-            <!-- 프로필 사진 변경/삭제 (회원상세 전용, 계약서탭 사진기능과는 완전히 분리된 코드) -->
-            <div style="display:flex;gap:6px;margin-top:12px;">
-              <button type="button" onclick="openMdWebcam()"
-                style="flex:1;padding:7px 6px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:8px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📷 웹캠</button>
-              <button type="button" onclick="document.getElementById('md-photo-file').click()"
-                style="flex:1;padding:7px 6px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:8px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📁 파일선택</button>
-              <button type="button" id="md-photo-delete-btn" onclick="deleteMdPhoto()"
-                style="display:none;flex:1;padding:7px 6px;background:#fff0f0;color:#c0392b;border:none;border-radius:8px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">🗑️ 삭제</button>
             </div>
             <input type="file" id="md-photo-file" accept="image/*" style="display:none;" onchange="onMdPhotoFile(this)" />
             <canvas id="md-webcam-canvas" style="display:none;"></canvas>
