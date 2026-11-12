@@ -8862,11 +8862,124 @@
   }
 
   // 서명기록 (관리자용 - trainerId 기반)
+  // 강사 앱 서명기록 탭과 같은 규칙: 서명을 날짜순으로 쌓아 등록 차수별로 묶고, 차수 안에서 N회차로 번호를 매김 (당일취소도 1회로 셈)
+  // 처음엔 최근 10건만 보여주고 "더보기"를 누를 때마다 10건씩 더 보여줌
+  var _mdSignView = null;
+  var _mdSignToken = 0;
+  const _MD_SIGN_PAGE = 10;
+
+  function _mdSignEsc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function(c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  // 날짜 문자열 → 비교용 숫자 ("2026-11-09", "2026. 11. 9" 등 형식이 달라도 숫자만 뽑아 계산)
+  function _mdSignDateNum(d) {
+    const m = String(d || '').match(/\d+/g);
+    if (!m || m.length < 3) return 0;
+    return parseInt(m[0], 10) * 10000 + parseInt(m[1], 10) * 100 + parseInt(m[2], 10);
+  }
+
+  // 서명 목록 + 등록 목록 → 차수별 묶음 (순수 계산 함수: 테스트하기 쉽게 화면과 분리)
+  function _mdSignBuildGroups(signsObj, regsObj, info) {
+    const signs = [];
+    if (signsObj && typeof signsObj === 'object') {
+      Object.keys(signsObj).forEach(function(k) {
+        const v = signsObj[k];
+        if (v && typeof v === 'object') signs.push(Object.assign({ key: k }, v));
+      });
+    }
+    signs.sort(function(a, b) {
+      const da = _mdSignDateNum(a.date), db2 = _mdSignDateNum(b.date);
+      if (da !== db2) return da - db2;
+      const sa = a.savedAt || '', sb = b.savedAt || '';
+      if (sa !== sb) return sa < sb ? -1 : 1;
+      return a.key < b.key ? -1 : (a.key > b.key ? 1 : 0);
+    });
+
+    const regs = [];
+    if (regsObj && typeof regsObj === 'object') {
+      Object.keys(regsObj).sort().forEach(function(k) {
+        const v = regsObj[k];
+        if (v && typeof v === 'object') regs.push({ type: v.type || '', total: Number(v.total) || 0 });
+      });
+    }
+    info = info || {};
+    regs.push({ type: info.type || 'PT', total: Number(info.total) || 0 });
+
+    const groups = regs.map(function(r, i) { return { idx: i + 1, type: r.type, total: r.total, signs: [], isCurrent: i === regs.length - 1 }; });
+    let si = 0;
+    for (let gi = 0; gi < groups.length; gi++) {
+      let taken = 0;
+      while (si < signs.length && taken < groups[gi].total) { groups[gi].signs.push(signs[si++]); taken++; }
+    }
+    // 등록 횟수를 넘는 서명은 현재(마지막) 차수에 이어 붙임 (강사 앱과 동일)
+    while (si < signs.length) groups[groups.length - 1].signs.push(signs[si++]);
+    return { signs: signs, groups: groups };
+  }
+
+  // 화면에 보여줄 순서(최신 → 과거)의 한 줄 목록 만들기
+  function _mdSignFlatten(groups) {
+    const flat = [];
+    for (let gi = groups.length - 1; gi >= 0; gi--) {
+      const g = groups[gi];
+      for (let i = g.signs.length - 1; i >= 0; i--) flat.push({ gi: gi, no: i + 1, s: g.signs[i] });
+    }
+    return flat;
+  }
+
+  function _mdSignDraw() {
+    const el = document.getElementById('md-signs');
+    const v = _mdSignView;
+    if (!el || !v) return;
+    const total = v.flat.length;
+    const noShowCnt = v.flat.filter(function(x) { return x.s.noShow; }).length;
+    const shownN = Math.min(v.shown, total);
+    let html = '<div style="font-size:12px;color:var(--text-sub);margin-bottom:10px;">총 ' + total + '회' +
+      (noShowCnt > 0 ? ' (당일취소 ' + noShowCnt + '회 포함)' : '') + '</div>';
+    let lastGi = -1;
+    for (let i = 0; i < shownN; i++) {
+      const x = v.flat[i];
+      if (x.gi !== lastGi) {
+        const g = v.groups[x.gi];
+        const done = g.signs.length;
+        const label = g.idx + '차 등록' + (g.type ? ' · ' + _mdSignEsc(g.type) : '') + (g.total ? ' · ' + g.total + '회' : '');
+        const badge = g.isCurrent
+          ? '<span style="background:#378ADD;color:#fff;font-size:10px;padding:2px 7px;border-radius:20px;margin-left:6px;">진행중</span>'
+          : '';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;margin:' + (lastGi === -1 ? '0' : '14px') + ' 0 6px;">' +
+          '<span style="font-size:12px;font-weight:700;color:var(--text);">' + label + badge + '</span>' +
+          '<span style="font-size:11px;color:var(--text-hint);">서명 ' + done + '회</span></div>';
+        lastGi = x.gi;
+      }
+      const s = x.s;
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:' + (s.noShow ? '#fff8f8' : 'var(--bg)') + ';border-radius:6px;margin-bottom:6px;">' +
+        '<span style="font-size:12px;font-weight:600;color:' + (s.noShow ? '#dc2626' : 'var(--text)') + ';">' + (s.noShow ? '🔴 당일취소' : '✅ ' + x.no + '회차') + '</span>' +
+        '<span style="font-size:12px;color:var(--text-sub);">' + _mdSignEsc(s.date || '-') + (s.savedAt ? ' ' + _mdSignEsc(s.savedAt) : '') + '</span></div>';
+    }
+    if (total > shownN) {
+      const rest = total - shownN;
+      html += '<button type="button" onclick="_mdSignMore()" style="width:100%;margin-top:4px;padding:10px;background:var(--card);color:var(--text);border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">더보기 (남은 ' + rest + '건)</button>';
+    }
+    el.innerHTML = html;
+  }
+
+  function _mdSignMore() {
+    if (!_mdSignView) return;
+    _mdSignView.shown += _MD_SIGN_PAGE;
+    _mdSignDraw();
+  }
+  window._mdSignMore = _mdSignMore;
+
   function _renderMdSigns(phone) {
     const el = document.getElementById('md-signs');
     if (!el) return;
+    const token = ++_mdSignToken; // 다른 회원을 연 뒤 늦게 도착한 응답은 무시
+    _mdSignView = null;
     // 해당 회원을 담당하는 강사 찾기
     db.ref('trainers').once('value').then(trainersSnap => {
+      if (token !== _mdSignToken) return;
       let trainerId = null;
       trainersSnap.forEach(t => {
         if (t.child('trainees/' + phone).exists()) trainerId = t.key;
@@ -8875,28 +8988,23 @@
         el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">배정된 강사가 없거나 서명기록이 없어요</div>';
         return;
       }
-      db.ref('trainers/' + trainerId + '/trainees/' + phone + '/signs').once('value').then(signsSnap => {
-        if (!signsSnap.exists()) {
+      db.ref('trainers/' + trainerId + '/trainees/' + phone).once('value').then(snap => {
+        if (token !== _mdSignToken) return;
+        const info = snap.val() || {};
+        const built = _mdSignBuildGroups(info.signs, info.registrations, info);
+        if (built.signs.length === 0) {
           el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">서명 기록이 없어요</div>';
           return;
         }
-        const signs = [];
-        signsSnap.forEach(child => { signs.push({ key: child.key, ...child.val() }); });
-        signs.sort((a, b) => {
-          const toNum = d => { if (!d) return 0; const p = d.split('-'); return parseInt(p[0])*10000+parseInt(p[1]||0)*100+parseInt(p[2]||0); };
-          return toNum(b.date) - toNum(a.date);
-        });
-        el.innerHTML = `
-          <div style="font-size:12px;color:var(--text-sub);margin-bottom:10px;">총 ${signs.length}회</div>
-          <div style="display:flex;flex-direction:column;gap:6px;">
-            ${signs.slice(0, 10).map((s, i) => `
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg);border-radius:6px;">
-                <span style="font-size:12px;font-weight:600;color:var(--text);">${signs.length - i}회차</span>
-                <span style="font-size:12px;color:var(--text-sub);">${s.date || '-'}</span>
-              </div>`).join('')}
-            ${signs.length > 10 ? `<div style="text-align:center;font-size:12px;color:var(--text-hint);padding:6px;">외 ${signs.length - 10}건</div>` : ''}
-          </div>`;
+        _mdSignView = { groups: built.groups, flat: _mdSignFlatten(built.groups), shown: _MD_SIGN_PAGE };
+        _mdSignDraw();
+      }).catch(e => {
+        console.error('서명기록 불러오기 실패:', e);
+        if (token === _mdSignToken) el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">서명기록을 불러오지 못했어요</div>';
       });
+    }).catch(e => {
+      console.error('서명기록(강사 조회) 실패:', e);
+      if (token === _mdSignToken) el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-hint);font-size:13px;">서명기록을 불러오지 못했어요</div>';
     });
   }
 
