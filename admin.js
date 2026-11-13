@@ -8972,11 +8972,101 @@
   }
   window._mdSignMore = _mdSignMore;
 
+  // ── 이전 담당 기록 (담당해제 때 sign_archive/{전화번호}/{해제시각}에 보관해 둔 서명기록) ──
+  // 현재 담당 기록과 섞지 않고 따로 접어서 보여줌 (눌러서 펼침)
+  var _mdArchiveList = [];
+
+  // 보관 1건 → 화면 HTML (차수별 묶음·당일취소 표시는 현재 기록과 같은 규칙)
+  function _mdArchiveBodyHtml(arch) {
+    const built = _mdSignBuildGroups(arch.signs, arch.registrations, { type: arch.type, total: arch.total });
+    if (built.signs.length === 0) return '<div style="text-align:center;padding:10px;color:var(--text-hint);font-size:12px;">서명 기록이 없어요</div>';
+    const flat = _mdSignFlatten(built.groups);
+    let html = '';
+    let lastGi = -1;
+    flat.forEach(function(x) {
+      if (x.gi !== lastGi) {
+        const g = built.groups[x.gi];
+        const label = g.idx + '차 등록' + (g.type ? ' · ' + _mdSignEsc(g.type) : '') + (g.total ? ' · ' + g.total + '회' : '');
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;margin:' + (lastGi === -1 ? '0' : '12px') + ' 0 6px;">' +
+          '<span style="font-size:12px;font-weight:700;color:var(--text);">' + label + '</span>' +
+          '<span style="font-size:11px;color:var(--text-hint);">서명 ' + g.signs.length + '회</span></div>';
+        lastGi = x.gi;
+      }
+      const s = x.s;
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:' + (s.noShow ? '#fff8f8' : 'var(--bg)') + ';border-radius:6px;margin-bottom:6px;">' +
+        '<span style="font-size:12px;font-weight:600;color:' + (s.noShow ? '#dc2626' : 'var(--text)') + ';">' + (s.noShow ? '🔴 당일취소' : '✅ ' + x.no + '회차') + '</span>' +
+        '<span style="font-size:12px;color:var(--text-sub);">' + _mdSignEsc(s.date || '-') + (s.savedAt ? ' ' + _mdSignEsc(s.savedAt) : '') + '</span></div>';
+    });
+    return html;
+  }
+
+  // 보관 목록(최근 해제가 위) → 접이식 카드들
+  function _mdArchiveHtml(list) {
+    let html = '';
+    list.forEach(function(a, i) {
+      const built = _mdSignBuildGroups(a.signs, a.registrations, { type: a.type, total: a.total });
+      const noShow = built.signs.filter(function(x) { return x.noShow; }).length;
+      const when = a.archivedAt ? _isoDate(new Date(a.archivedAt)) : '-';
+      const who = a.trainerName ? _mdSignEsc(a.trainerName) + ' 강사' : '이전 강사';
+      html += '<div style="border:1px solid var(--border);border-radius:8px;margin-top:10px;overflow:hidden;">' +
+        '<button type="button" onclick="_mdArchiveToggle(' + i + ')" style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;background:var(--bg);border:none;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;text-align:left;">' +
+        '<span style="font-size:12.5px;font-weight:700;color:var(--text);">📁 이전 담당 기록 · ' + who +
+        '<span style="display:block;font-size:11px;font-weight:400;color:var(--text-hint);margin-top:2px;">' + when + ' 담당해제 · 서명 ' + built.signs.length + '회' + (noShow > 0 ? ' (당일취소 ' + noShow + '회 포함)' : '') + '</span></span>' +
+        '<span id="md-arch-arrow-' + i + '" style="font-size:12px;color:var(--text-hint);">▼</span></button>' +
+        '<div id="md-arch-body-' + i + '" style="display:none;padding:10px 12px;"></div></div>';
+    });
+    return html;
+  }
+
+  function _mdArchiveToggle(i) {
+    const body = document.getElementById('md-arch-body-' + i);
+    const arrow = document.getElementById('md-arch-arrow-' + i);
+    const a = _mdArchiveList[i];
+    if (!body || !a) return;
+    if (body.style.display === 'none') {
+      if (!body.getAttribute('data-ready')) { body.innerHTML = _mdArchiveBodyHtml(a); body.setAttribute('data-ready', '1'); }
+      body.style.display = 'block';
+      if (arrow) arrow.textContent = '▲';
+    } else {
+      body.style.display = 'none';
+      if (arrow) arrow.textContent = '▼';
+    }
+  }
+  window._mdArchiveToggle = _mdArchiveToggle;
+
+  function _mdArchiveLoad(phone, token) {
+    const el = document.getElementById('md-signs');
+    if (!el || !el.parentNode) return;
+    let box = document.getElementById('md-signs-archive');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'md-signs-archive';
+      el.parentNode.insertBefore(box, el.nextSibling);
+    }
+    box.innerHTML = '';
+    _mdArchiveList = [];
+    db.ref('sign_archive/' + phone).once('value').then(function(snap) {
+      if (token !== _mdSignToken) return;
+      const list = [];
+      snap.forEach(function(c) {
+        const v = c.val();
+        if (v && typeof v === 'object') list.push(Object.assign({ key: c.key }, v));
+      });
+      if (list.length === 0) return;
+      list.sort(function(a, b) { return (Number(b.archivedAt) || 0) - (Number(a.archivedAt) || 0); });
+      _mdArchiveList = list;
+      box.innerHTML = _mdArchiveHtml(list);
+    }).catch(function(e) {
+      console.warn('이전 담당 기록 불러오기 실패(무시):', e);
+    });
+  }
+
   function _renderMdSigns(phone) {
     const el = document.getElementById('md-signs');
     if (!el) return;
     const token = ++_mdSignToken; // 다른 회원을 연 뒤 늦게 도착한 응답은 무시
     _mdSignView = null;
+    _mdArchiveLoad(phone, token);
     // 해당 회원을 담당하는 강사 찾기
     db.ref('trainers').once('value').then(trainersSnap => {
       if (token !== _mdSignToken) return;
@@ -9055,6 +9145,17 @@
       signsData = null;
     }
 
+    // 1-c. 담당해제 때 보관해 둔 이전 담당 서명기록(sign_archive)도 같이 이동 — 실패하면 옛 경로에 그대로 보존
+    let archiveData = null;
+    try {
+      const archSnap = await db.ref('sign_archive/' + oldPhone).once('value');
+      archiveData = archSnap.val();
+      if (archiveData) await db.ref('sign_archive/' + newPhone).set(archiveData);
+    } catch (e) {
+      console.warn('이전 담당 기록 이관 실패(옛 경로에 그대로 보존):', e);
+      archiveData = null;
+    }
+
     // 2. 활동기록(출석/운동/포인트/필라테스예약 등)
     const usersSnap = await db.ref('users/' + oldPhone).once('value');
     const usersData = usersSnap.val();
@@ -9100,6 +9201,7 @@
     // 6. 위 복사가 전부 끝난 뒤 옛 경로 정리
     if (contractsData) await db.ref('contracts/' + oldPhone).remove();
     if (signsData) { try { await db.ref('contract_signs/' + oldPhone).remove(); } catch (e) { /* 무시 */ } }
+    if (archiveData) { try { await db.ref('sign_archive/' + oldPhone).remove(); } catch (e) { /* 무시 */ } }
     if (usersData) await db.ref('users/' + oldPhone).remove();
     for (const trainerId of Object.keys(traineeDataByTrainer)) {
       await db.ref('trainers/' + trainerId + '/trainees/' + oldPhone).remove();
@@ -9296,6 +9398,8 @@
         db.ref('contracts/' + phone),         // 계약서 이력
         // 계약과 따로 저장된 서명 이미지도 같이 삭제 (개인정보) — 권한 문제 등으로 실패해도 회원 삭제는 계속 진행
         { remove: () => db.ref('contract_signs/' + phone).remove().catch(e => { console.warn('서명 이미지 삭제 실패(무시):', e); }) },
+        // 담당해제 때 보관해 둔 이전 담당 서명기록도 같이 삭제 — 실패해도 회원 삭제는 계속 진행
+        { remove: () => db.ref('sign_archive/' + phone).remove().catch(e => { console.warn('이전 담당 기록 삭제 실패(무시):', e); }) },
       ];
 
       // 2. 강사 담당 연결 삭제 (모든 강사에서 해당 회원 제거)
@@ -22252,28 +22356,88 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
   window.saveAdminReregister = saveAdminReregister;
 
   // 담당해제 (관리자)
+  // 서명기록(+등록 정보)을 sign_archive/{회원번호}/{해제시각}에 먼저 복사하고, 복사가 확인된 뒤에만 기존 담당 노드를 삭제함
+  // 보관에 실패하면 담당해제를 중단 (기록이 사라지는 일 방지)
+  var _adminDelBusy = {};
+  async function _archiveTraineeSigns(trainerId, traineeId, traineeName, node) {
+    const signsObj = node && node.signs && typeof node.signs === 'object' ? node.signs : null;
+    const signKeys = signsObj ? Object.keys(signsObj) : [];
+    if (signKeys.length === 0) return false; // 보관할 서명이 없으면 건너뜀
+    let trainerName = '';
+    try {
+      const nSnap = await db.ref('trainers/' + trainerId + '/name').once('value');
+      trainerName = nSnap.val() || '';
+    } catch (e) { /* 이름을 못 읽어도 보관은 계속 */ }
+    if (!trainerName) {
+      const t = (typeof adminTrainerList !== 'undefined' ? adminTrainerList : []).find(function(x) { return x.id === trainerId; });
+      trainerName = (t && t.name) || localStorage.getItem('name_' + trainerId) || '';
+    }
+    const archiveKey = String(Date.now());
+    const payload = {
+      archivedAt: Date.now(),
+      trainerId: trainerId,
+      trainerName: trainerName,
+      traineeName: traineeName || '',
+      type: node.type || '',
+      total: Number(node.total) || 0,
+      signs: signsObj
+    };
+    if (node.registrations && typeof node.registrations === 'object') payload.registrations = node.registrations;
+    const ref = db.ref('sign_archive/' + traineeId + '/' + archiveKey);
+    await ref.set(payload);
+    // 실제로 저장됐는지 다시 읽어서 확인 (서명 개수가 같아야 통과)
+    const chk = await ref.child('signs').once('value');
+    const saved = chk.val() && typeof chk.val() === 'object' ? Object.keys(chk.val()).length : 0;
+    if (saved !== signKeys.length) {
+      try { await ref.remove(); } catch (e) { /* 무시 */ }
+      throw new Error('보관 확인 실패 (' + saved + '/' + signKeys.length + ')');
+    }
+    return true;
+  }
+
   function adminDeleteTrainee(trainerId, traineeId, traineeName) {
-    showConfirm(traineeName + '님을 담당 해제할까요?', () => {
-      Promise.all([
-        db.ref('trainers/' + trainerId + '/trainees/' + traineeId).remove(),
-        db.ref('members/' + traineeId + '/trainerId').remove(),
-        db.ref('users/' + traineeId + '/lessons').remove(),
-        db.ref('users/' + traineeId + '/routines').once('value').then(snap => {
-          if (!snap.exists()) return;
-          const updates = {};
-          Object.keys(snap.val()).forEach(key => {
-            if (snap.val()[key] && snap.val()[key].assignedBy === trainerId) {
-              updates[key] = null;
+    showConfirm(traineeName + '님을 담당 해제할까요?\n\n서명기록은 회원 상세의 "이전 담당 기록"에 보관돼요.', async () => {
+      const busyKey = trainerId + '/' + traineeId;
+      if (_adminDelBusy[busyKey]) return; // 처리 중 중복 클릭 방지
+      _adminDelBusy[busyKey] = true;
+      try {
+        // 1. 서명기록 보관 (실패하면 여기서 중단 — 아직 아무것도 지우지 않음)
+        let nodeVal = null;
+        try {
+          const nodeSnap = await db.ref('trainers/' + trainerId + '/trainees/' + traineeId).once('value');
+          nodeVal = nodeSnap.val();
+          await _archiveTraineeSigns(trainerId, traineeId, traineeName, nodeVal);
+        } catch (e) {
+          console.error('서명기록 보관 실패 — 담당해제 중단:', e);
+          showToast('서명기록 보관에 실패해서 담당해제를 중단했어요. 아무것도 지워지지 않았어요.', 'error');
+          return;
+        }
+        // 2. 기존 담당 해제 처리 (이전과 동일)
+        await Promise.all([
+          db.ref('trainers/' + trainerId + '/trainees/' + traineeId).remove(),
+          db.ref('members/' + traineeId + '/trainerId').remove(),
+          db.ref('users/' + traineeId + '/lessons').remove(),
+          db.ref('users/' + traineeId + '/routines').once('value').then(snap => {
+            if (!snap.exists()) return;
+            const updates = {};
+            Object.keys(snap.val()).forEach(key => {
+              if (snap.val()[key] && snap.val()[key].assignedBy === trainerId) {
+                updates[key] = null;
+              }
+            });
+            if (Object.keys(updates).length > 0) {
+              return db.ref('users/' + traineeId + '/routines').update(updates);
             }
-          });
-          if (Object.keys(updates).length > 0) {
-            return db.ref('users/' + traineeId + '/routines').update(updates);
-          }
-        })
-      ]).then(() => {
+          })
+        ]);
         showToast(traineeName + '님이 담당 해제됐어요.', 'success');
         loadMonthlyReport();
-      });
+      } catch (e) {
+        console.error('담당해제 오류:', e);
+        showToast('담당해제 중 오류가 났어요. 화면을 새로고침해서 확인해주세요.', 'error');
+      } finally {
+        delete _adminDelBusy[busyKey];
+      }
     });
   }
   // ── 강사 홈화면 데이터 로드 ──────────────────────────────
