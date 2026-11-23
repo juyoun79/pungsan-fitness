@@ -7480,8 +7480,8 @@
             // 표준범위 음영 (체지방률만)
             if (key === 'fatRate') {
               ctx.fillStyle = 'rgba(220,252,231,0.5)';
-              const yStdTop = pad.t + cH - (fatMax - min) / range * cH;
-              const yStdBot = pad.t + cH - (fatMin - min) / range * cH;
+              const yStdTop = pad.t + cH - (fatRateMax - min) / range * cH;
+              const yStdBot = pad.t + cH - (fatRateMin - min) / range * cH;
               if (yStdTop < pad.t + cH && yStdBot > pad.t) {
                 ctx.fillRect(pad.l, Math.max(yStdTop, pad.t), cW, Math.min(yStdBot, pad.t + cH) - Math.max(yStdTop, pad.t));
               }
