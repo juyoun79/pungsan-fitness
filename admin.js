@@ -4868,7 +4868,7 @@
   window._checkTodayAttend = _checkTodayAttend;
 
   // ── 회원상세 "출석 현황" (총 방문일수 / 최근 방문일·시간 / 오늘 출석 체크 / 월 달력) ──
-  let _mdAtt = { phone: null, set: new Set(), y: 0, m: 0, lastTime: '' };
+  let _mdAtt = { phone: null, set: new Set(), y: 0, m: 0, lastTime: '', times: null, sel: '' }; // times: null=불러오는 중 / false=실패 / {날짜:시간}
 
   function _mdAttInjectStyle() {
     if (document.getElementById('md-att-style')) return;
@@ -4905,6 +4905,11 @@
       .md-cal-w.s,.md-cal-d.s{color:#d64545;} .md-cal-w.t,.md-cal-d.t{color:#1a6fd4;}
       .md-cal-d.on{background:#2e9e5b;color:#fff;font-weight:700;}
       .md-cal-d.today{outline:2px solid var(--blue);outline-offset:-2px;}
+      .md-cal-d.on{cursor:pointer;position:relative;}
+      .md-cal-d.on::before{content:'';position:absolute;left:0;right:0;top:-2px;bottom:-2px;}
+      .md-cal-d.sel{outline:2px solid var(--text);outline-offset:-2px;}
+      .md-cal-info{margin-top:4px;padding:6px 8px;border-radius:8px;background:var(--bg);font-size:11.5px;color:var(--text-sub);}
+      .md-cal-info b{color:var(--text);}
       body.pc-mode .md-main{min-width:0;}
       body.pc-mode .md-basic-wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;min-width:0;}
       body.pc-mode .md-basic-wrap > .md-main-card-body{padding-right:18px;min-width:0;}
@@ -4926,7 +4931,7 @@
 
   // 다른 회원 화면으로 바뀔 때 이전 회원 내용이 잠깐 보이지 않도록 초기화
   function _mdAttReset() {
-    _mdAtt = { phone: null, set: new Set(), y: 0, m: 0, lastTime: '' };
+    _mdAtt = { phone: null, set: new Set(), y: 0, m: 0, lastTime: '', times: null, sel: '' };
     const box = _mdAttEl('md-att');
     if (box) box.classList.remove('open');
     ['md-att-sum', 'md-att-fold-txt'].forEach(id => { const e = _mdAttEl(id); if (e) e.textContent = '불러오는 중...'; });
@@ -4946,8 +4951,18 @@
       if (d) set.add(_isoDate(d));
     });
     const now = new Date();
-    _mdAtt = { phone, set, y: now.getFullYear(), m: now.getMonth(), lastTime: '' };
+    _mdAtt = { phone, set, y: now.getFullYear(), m: now.getMonth(), lastTime: '', times: null, sel: '' };
     _mdAttRender();
+    // 날짜별 방문시간 (달력에서 날짜를 눌렀을 때 보여줌) — 한 번에 읽어서 날짜 형식을 통일해 보관
+    db.ref('users/' + phone + '/attendanceTime').once('value').then(sn => {
+      if (_mdAtt.phone !== phone) return;
+      _mdAtt.times = _attTimeMap(sn.val());
+      _mdAttRender();
+    }).catch(() => {
+      if (_mdAtt.phone !== phone) return;
+      _mdAtt.times = false;
+      _mdAttRender();
+    });
     const last = Array.from(set).sort().pop();
     if (last) {
       db.ref('users/' + phone + '/attendanceTime/' + last).once('value').then(sn => {
@@ -4969,7 +4984,7 @@
     const sumEl = _mdAttEl('md-att-sum');
     if (sumEl) {
       sumEl.innerHTML = total
-        ? `총 <b style="cursor:pointer;text-decoration:underline dotted;" onclick="openAttendTotalModal(currentMemberPhone)" title="누르면 상세 보기">${total}일</b> · 최근 <b>${last}</b>${st.lastTime ? ' <span class="t">' + st.lastTime + '</span>' : ''}`
+        ? `총 <b style="cursor:pointer;text-decoration:underline dotted;" onclick="openAttendTotalModal(currentMemberPhone)" title="누르면 상세 보기">${total}일</b> · 최근 <b>${last}</b>${(function () { const lt = (st.times && st.times[last]) || st.lastTime; return lt ? ' <span class="t">' + _fmtAttTime(lt) + '</span>' : ''; })()}`
         : '출석 기록이 없어요';
     }
     const foldEl = _mdAttEl('md-att-fold-txt');
@@ -4996,11 +5011,21 @@
       const on = st.set.has(iso);
       if (on) cnt++;
       const dow = (first + d - 1) % 7;
-      cells += `<div class="md-cal-d ${dow === 0 ? 's' : dow === 6 ? 't' : ''} ${on ? 'on' : ''} ${iso === today ? 'today' : ''}">${d}</div>`;
+      cells += `<div class="md-cal-d ${dow === 0 ? 's' : dow === 6 ? 't' : ''} ${on ? 'on' : ''} ${on && st.sel === iso ? 'sel' : ''} ${iso === today ? 'today' : ''}"${on ? ` onclick="_mdAttPick('${iso}')"` : ''}>${d}</div>`;
+    }
+    let info;
+    if (st.sel && st.sel.slice(0, 7) === y + '-' + mm) {
+      let txt;
+      if (st.times === null) txt = '불러오는 중...';
+      else if (st.times === false) txt = '방문시간을 불러오지 못했어요';
+      else { const tm = st.times[st.sel]; txt = tm ? _fmtAttTime(tm) + ' 방문' : '방문시간 기록 없음'; }
+      info = `<div class="md-cal-info"><b>${_attDayLabel(st.sel)}</b> ${txt}</div>`;
+    } else {
+      info = '<div class="md-cal-info">출석한 날짜를 누르면 방문시간이 나와요</div>';
     }
     const calEl = _mdAttEl('md-att-cal');
     if (calEl) {
-      calEl.innerHTML = `<div class="md-cal"><div class="md-cal-h"><span class="md-cal-nav" onclick="_mdAttNav(-1)">◀</span><span>${y}년 ${m + 1}월 <em>(${cnt}일 출석)</em></span><span class="md-cal-nav" onclick="_mdAttNav(1)">▶</span></div><div class="md-cal-g">${cells}</div></div>`;
+      calEl.innerHTML = `<div class="md-cal"><div class="md-cal-h"><span class="md-cal-nav" onclick="_mdAttNav(-1)">◀</span><span>${y}년 ${m + 1}월 <em>(${cnt}일 출석)</em></span><span class="md-cal-nav" onclick="_mdAttNav(1)">▶</span></div><div class="md-cal-g">${cells}</div>${info}</div>`;
     }
   }
 
@@ -5008,6 +5033,14 @@
     let y = _mdAtt.y, m = _mdAtt.m + delta;
     if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
     _mdAtt.y = y; _mdAtt.m = m;
+    _mdAtt.sel = '';
+    _mdAttRender();
+  }
+
+  // 달력의 출석한 날짜를 누르면 그날 방문시간 표시 (같은 날짜를 다시 누르면 닫힘)
+  function _mdAttPick(iso) {
+    if (!_mdAtt.phone || !_mdAtt.set.has(iso)) return;
+    _mdAtt.sel = (_mdAtt.sel === iso) ? '' : iso;
     _mdAttRender();
   }
 
@@ -5019,7 +5052,33 @@
     if (chev) chev.textContent = box.classList.contains('open') ? '▲ 접기' : '▼ 달력 보기';
   }
   window._mdAttNav = _mdAttNav;
+  window._mdAttPick = _mdAttPick;
   window._mdAttToggle = _mdAttToggle;
+
+  // 방문시간 기록 {저장키: "HH:MM"} → {"YYYY-MM-DD": "HH:MM"} (날짜 형식이 섞여 있어도 하나로 통일, 같은 날 중복이면 시간이 있는 값 우선)
+  function _attTimeMap(node) {
+    const map = {};
+    Object.keys(node || {}).forEach(k => {
+      const d = _parseAttendKey(k);
+      const v = node[k];
+      if (!d || !v || typeof v !== 'string') return;
+      const iso = _isoDate(d);
+      if (!map[iso]) map[iso] = v;
+    });
+    return map;
+  }
+  // "19:42" → "오후 7:42" (형식이 다르면 저장된 그대로 표시)
+  function _fmtAttTime(t) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(String(t || ''));
+    if (!m || Number(m[1]) > 23) return t ? String(t) : '';
+    const h = Number(m[1]);
+    return (h < 12 ? '오전 ' : '오후 ') + (h % 12 === 0 ? 12 : h % 12) + ':' + m[2];
+  }
+  // "2026-11-20" → "11/20(금)"
+  function _attDayLabel(iso) {
+    const p = String(iso).split('-').map(Number);
+    return p[1] + '/' + p[2] + '(' + ['일', '월', '화', '수', '목', '금', '토'][new Date(p[0], p[1] - 1, p[2]).getDay()] + ')';
+  }
 
   // 출석 기록 키("YYYY-M-D", 0패딩 없음)를 Date로 파싱
   function _parseAttendKey(k) {
@@ -5029,6 +5088,9 @@
   }
 
   // ── 누적 출석 카드: 총 출석일 + 첫/최근 출석일 + 마일스톤 ──
+  // 누적 출석 창의 월별 방문 목록 상태 (창을 열 때마다 새로 만듦)
+  let _atm = null;
+
   function openAttendTotalModal(phone) {
     if (!phone) return;
     db.ref('users/' + phone + '/attendance').once('value').then(snap => {
@@ -5043,12 +5105,21 @@
       const nextMilestone = milestones.find(mm => total < mm);
       const lastAchieved = achieved[achieved.length - 1];
 
+      // 월별 목록용 상태: 첫 출석 달 ~ 이번 달(또는 마지막 출석 달)
+      const dates = new Set(validDates.map(d => _isoDate(d)));
+      const monthsWith = new Set(Array.from(dates).map(iso => iso.slice(0, 7)));
+      const curKey = _todayISO().slice(0, 7);
+      const lastKey = last ? _isoDate(last).slice(0, 7) : curKey;
+      const maxKey = lastKey > curKey ? lastKey : curKey;
+      const st = { phone, dates, monthsWith, minKey: first ? _isoDate(first).slice(0, 7) : curKey, maxKey, key: maxKey, times: null };
+      _atm = st;
+
       document.getElementById('attend-total-modal')?.remove();
       const modal = document.createElement('div');
       modal.id = 'attend-total-modal';
       modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
       modal.innerHTML = `
-        <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:320px;box-sizing:border-box;">
+        <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:320px;box-sizing:border-box;max-height:90vh;overflow-y:auto;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
             <div style="font-size:15px;font-weight:700;color:var(--text);">📅 누적 출석</div>
             <button onclick="document.getElementById('attend-total-modal').remove()" style="background:none;border:none;font-size:18px;color:var(--text-hint);cursor:pointer;">✕</button>
@@ -5057,16 +5128,83 @@
             <div style="font-size:28px;font-weight:700;color:var(--blue);">${total}일</div>
             <div style="font-size:12px;color:var(--text-hint);margin-top:4px;">누적 출석</div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;margin-bottom:${lastAchieved ? 16 : 0}px;">
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;margin-bottom:${lastAchieved || total ? 16 : 0}px;">
             <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-hint);">첫 출석일</span><span style="color:var(--text);">${first ? _isoDate(first) : '-'}</span></div>
             <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-hint);">최근 출석일</span><span style="color:var(--text);">${last ? _isoDate(last) + (daysSinceLast != null ? ' (' + daysSinceLast + '일 전)' : '') : '-'}</span></div>
             ${nextMilestone ? `<div style="display:flex;justify-content:space-between;"><span style="color:var(--text-hint);">다음 목표</span><span style="color:var(--text);">${nextMilestone}회 (${nextMilestone - total}회 남음)</span></div>` : ''}
           </div>
+          ${total ? '<div id="atm-box" style="margin-bottom:' + (lastAchieved ? 16 : 0) + 'px;"></div>' : ''}
           ${lastAchieved ? `<div style="text-align:center;padding:10px;background:var(--blue-light);border-radius:10px;font-size:13px;color:var(--blue);font-weight:700;">🏅 ${lastAchieved}회 출석 달성!</div>` : ''}
         </div>`;
       document.body.appendChild(modal);
+
+      if (total) {
+        _atmRender();
+        // 방문시간은 창을 먼저 보여준 뒤 채움 (실패해도 나머지 정보는 그대로)
+        db.ref('users/' + phone + '/attendanceTime').once('value').then(sn => {
+          if (_atm !== st) return;
+          st.times = _attTimeMap(sn.val());
+          _atmRender();
+        }).catch(() => {
+          if (_atm !== st) return;
+          st.times = false;
+          _atmRender();
+        });
+      }
     });
   }
+
+  // 월 이동 (delta: -1 이전 달 / 1 다음 달) — 첫 출석 달 ~ 이번 달 범위 안에서만 이동
+  function _atmGo(delta) {
+    const st = _atm; if (!st) return;
+    let y = Number(st.key.slice(0, 4)), m = Number(st.key.slice(5, 7)) + delta;
+    if (m < 1) { m = 12; y--; } else if (m > 12) { m = 1; y++; }
+    const nk = y + '-' + String(m).padStart(2, '0');
+    if (nk < st.minKey || nk > st.maxKey) return;
+    st.key = nk;
+    _atmRender();
+  }
+  function _atmSet(key) {
+    const st = _atm; if (!st || !/^\d{4}-\d{2}$/.test(key || '')) return;
+    st.key = key;
+    _atmRender();
+  }
+
+  function _atmRender() {
+    const st = _atm;
+    const box = document.getElementById('atm-box');
+    if (!st || !box) return;
+    const key = st.key;
+    const days = Array.from(st.dates).filter(iso => iso.slice(0, 7) === key).sort().reverse();
+    const optKeys = Array.from(new Set(Array.from(st.monthsWith).concat([key]))).sort().reverse();
+    const opts = optKeys.map(k => `<option value="${k}"${k === key ? ' selected' : ''}>${k.slice(0, 4)}년 ${Number(k.slice(5))}월</option>`).join('');
+    const canPrev = key > st.minKey, canNext = key < st.maxKey;
+    const navBtn = (d, label, ok) => `<button type="button" onclick="_atmGo(${d})" style="width:34px;height:30px;border:1px solid var(--border);background:var(--bg);border-radius:8px;font-size:12px;cursor:pointer;color:${ok ? 'var(--text)' : 'var(--text-hint)'};">${label}</button>`;
+    let rows;
+    if (!days.length) {
+      rows = '<div style="padding:12px 2px;font-size:13px;color:var(--text-hint);">이 달은 출석 기록이 없어요.</div>';
+    } else {
+      rows = days.map(iso => {
+        let t;
+        if (st.times === null) t = '<span style="color:var(--text-hint);">...</span>';
+        else if (st.times === false) t = '<span style="color:var(--text-hint);">-</span>';
+        else if (st.times[iso]) t = '<span style="color:var(--text);">' + _fmtAttTime(st.times[iso]) + '</span>';
+        else t = '<span style="color:var(--text-hint);">시간 기록 없음</span>';
+        return `<div style="display:flex;justify-content:space-between;padding:7px 2px;font-size:13px;border-bottom:1px solid var(--border);"><span style="color:var(--text);">${_attDayLabel(iso)}</span>${t}</div>`;
+      }).join('');
+    }
+    box.innerHTML = `
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        ${navBtn(-1, '◀', canPrev)}
+        <select onchange="_atmSet(this.value)" aria-label="월 선택" style="flex:1;min-width:0;height:30px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:13px;padding:0 6px;">${opts}</select>
+        ${navBtn(1, '▶', canNext)}
+      </div>
+      <div style="text-align:right;font-size:12px;color:var(--text-hint);margin-bottom:4px;">${days.length}일 출석</div>
+      ${st.times === false ? '<div style="font-size:12px;color:var(--text-hint);margin-bottom:4px;">방문시간을 불러오지 못했어요.</div>' : ''}
+      <div style="max-height:200px;overflow-y:auto;border-top:1px solid var(--border);">${rows}</div>`;
+  }
+  window._atmGo = _atmGo;
+  window._atmSet = _atmSet;
   window.openAttendTotalModal = openAttendTotalModal;
 
   // 회원권현황 (구 수업현황) — 헬스/GX처럼 기간제 상품은 계약이력에서 잔여일 계산, PT/필라테스처럼 횟수제 상품은 기존처럼 강사배정 잔여횟수 표시
