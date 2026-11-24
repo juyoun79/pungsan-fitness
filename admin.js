@@ -6223,6 +6223,7 @@
     const actions = [
       { icon: '✏️', name: '정보 수정', act: 'edit' },
       { icon: '🧾', name: '영수증', act: 'receipt' },
+      { icon: '📄', name: '계약서 보기/인쇄', act: 'contract' },
       { icon: '💰', name: '환불', act: 'refund' },
       { icon: '🔁', name: '양도', act: 'transfer' },
       { icon: '🔄', name: '프로그램 변경', act: 'change' },
@@ -6412,6 +6413,11 @@
 
   // 처리 메뉴 항목 클릭 시 실행 (환불은 실제 동작, 나머지는 다음 단계에서 차례로 채워질 예정)
   function handleContractAction(act, phone, contractKeyOrKeys, progKey) {
+    if (act === 'contract') {
+      document.querySelectorAll('.contract-action-menu').forEach(m => m.style.display = 'none');
+      openAdminContract(phone, contractKeyOrKeys);
+      return;
+    }
     if (act === 'receipt' && contractKeyOrKeys.indexOf(',') === -1) {
       document.querySelectorAll('.contract-action-menu').forEach(m => m.style.display = 'none');
       openReceiptModal(phone, contractKeyOrKeys, progKey);
@@ -16311,7 +16317,7 @@
     const termsHtml = termsSplit
       ? `<div class="terms-cols"><div>${termsSplit.col1}</div><div>${termsSplit.col2}</div></div>`
       : _formatTermsHtml(rawTerms);
-    const genderStr  = d.gender === 'female' ? '여' : '남';
+    const genderStr  = (d.gender === 'female' || d.gender === '여') ? '여' : ((d.gender === 'male' || d.gender === '남') ? '남' : '-');
     const typeStr    = d.type   === 're'     ? '재등록' : '신규 등록';
     const birthFmt   = d.birth ? d.birth.replace(/(\d{4})(\d{2})(\d{2})/,'$1년 $2월 $3일') : '-';
     // 주소 특수문자 안전하게 처리
@@ -16577,6 +16583,87 @@ td { border:0.5px solid #aaa; padding:3px 5px; vertical-align:middle; line-heigh
     window.open(url, '_blank');
   }
   window._shareMyContract = _shareMyContract;
+
+  // ── 관리자모드: 이미 만든 계약서 다시 보기/인쇄 (회원 앱 '내 계약서'와 같은 계약서를 새 탭으로 엶) ──
+  let _adminContractBusy = false;     // 불러오는 중 중복 클릭 방지
+  let _adminContractPending = null;   // 서명 없는 계약 확인 창에서 '그래도 열기'를 눌렀을 때 열 계약서 데이터
+
+  async function openAdminContract(phone, contractKey) {
+    if (!phone || !contractKey) return;
+    if (String(contractKey).indexOf(',') !== -1) { showToast('계약을 하나씩 선택해서 열어주세요.', 'info'); return; }
+    if (_adminContractBusy) return;
+    _adminContractBusy = true;
+    showToast('계약서 불러오는 중...', 'info');
+    try {
+      try { await ensureCtProgramSettingsLoaded(); } catch (e) { /* 설정을 못 읽어도 기본 프로그램 이름으로 표시 */ }
+      const [cSnap, mSnap] = await Promise.all([
+        db.ref('contracts/' + phone + '/' + contractKey).once('value'),
+        db.ref('members/' + phone).once('value')
+      ]);
+      if (!cSnap.exists()) { showToast('계약 정보를 찾을 수 없어요.', 'error'); return; }
+      const c = cSnap.val() || {};
+      // 예전 프로그램에서 옮겨왔거나 락카탭에서 바로 배정한 계약은 계약서 자체가 없음 (서명·약관·금액이 비어 있음)
+      if (c.type === 'import' || c.registeredBy === 'import') {
+        showToast('이관되었거나 직접 배정한 계약은 계약서가 없어요.', 'info');
+        return;
+      }
+      const m = mSnap.val() || {};
+      const signUrl = await _ctLoadSignUrl(phone, contractKey, c);
+      // 계약에 빠져 있는 회원 정보는 회원 정보에서 채움 (비어 있는 채로 두면 계약서에 '-'로 나옴)
+      const data = Object.assign({}, c, {
+        phone: c.phone || phone,
+        name: c.name || String(m.name || '').replace(/\(\d{4}\)$/, ''),
+        birth: c.birth || m.birth || '',
+        address: c.address || m.address || '',
+        gender: c.gender || (m.body && m.body.gender) || m['body/gender'] || '',
+        signUrl: signUrl || ''
+      });
+      if (!signUrl) {
+        _adminContractPending = data;
+        _adminContractAskNoSign(!c.terms);
+      } else {
+        _adminContractOpenTab(data);
+      }
+    } catch (e) {
+      console.error('계약서 열기 오류:', e);
+      showToast('계약서를 불러오지 못했어요. 다시 시도해 주세요.', 'error');
+    } finally {
+      _adminContractBusy = false;
+    }
+  }
+  window.openAdminContract = openAdminContract;
+
+  function _adminContractOpenTab(data) {
+    const html = buildContractHtml(data);
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const w = window.open(URL.createObjectURL(blob), '_blank');
+    if (!w) showToast('새 탭이 차단됐어요. 주소창 오른쪽에서 팝업을 허용한 뒤 다시 눌러주세요.', 'error');
+  }
+
+  // 서명이 없는 계약은 열기 전에 한 번 확인 (noTerms: 계약에 약관이 저장되어 있지 않아 현재 약관이 대신 표시되는 경우)
+  function _adminContractAskNoSign(noTerms) {
+    document.getElementById('contract-nosign-confirm')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'contract-nosign-confirm';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+    modal.innerHTML = `
+      <div style="background:var(--card);border-radius:16px;padding:20px;width:100%;max-width:340px;box-sizing:border-box;">
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px;">서명이 없는 계약이에요</div>
+        <div style="font-size:13px;color:var(--text-sub);line-height:1.6;">회원 서명이 비어 있어요.${noTerms ? ' 이 계약에는 약관도 저장되어 있지 않아서 현재 약관이 표시돼요.' : ''} 그래도 여시겠어요?</div>
+        <div style="display:flex;gap:8px;margin-top:16px;">
+          <button onclick="_adminContractConfirm(false)" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+          <button onclick="_adminContractConfirm(true)" style="flex:1;padding:10px;background:var(--blue);border:none;border-radius:8px;font-size:13px;font-weight:700;color:white;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">그래도 열기</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  function _adminContractConfirm(ok) {
+    document.getElementById('contract-nosign-confirm')?.remove();
+    const data = _adminContractPending;
+    _adminContractPending = null;
+    if (ok && data) _adminContractOpenTab(data);
+  }
+  window._adminContractConfirm = _adminContractConfirm;
 
   // ── 5단계 완료 후 PDF 새탭 열기 ──
   // ── 계약서 회원앱으로 전송 (FCM) ──
