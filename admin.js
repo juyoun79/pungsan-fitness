@@ -3464,6 +3464,62 @@
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
+
+  // 매출 상세내역 엑셀(.xlsx) 내려받기 — CSV와 같은 내용인데 전화번호를 '글자'로 저장해서 앞자리 0이 지워지지 않음
+  let _revXlsxBusy = false;
+  async function exportRevXlsx() {
+    const list = [..._revFilteredEntries].sort((a, b) => a.date.localeCompare(b.date));
+    if (!list.length) { showToast('내보낼 데이터가 없어요.', 'error'); return; }
+    if (_revXlsxBusy) return;
+    _revXlsxBusy = true;
+    try {
+      showToast('엑셀 만드는 중...', 'info');
+      await _loadSheetJS();
+      const header = ['날짜', '회원명', '전화번호', '성별', '프로그램', '유형', '금액', '현금', '카드', '계좌', '미수금'];
+      const rows = list.map(e => [
+        e.date || '', String(e.name || ''), String(e.phone || ''),
+        e.gender === 'male' ? '남' : (e.gender === 'female' ? '여' : ''),
+        String(e.label || ''), e.contractType || '',
+        e.price || 0, e.cash || 0, e.card || 0, e.transfer || 0,
+        Math.max(0, (e.price || 0) - (e.cash || 0) - (e.card || 0) - (e.transfer || 0))
+      ]);
+      const aoa = [header, ...rows];
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      // 금액 칸(7~11번째 열)은 1,000 단위 쉼표 서식
+      for (let r = 1; r < aoa.length; r++) {
+        for (let c = 6; c <= 10; c++) {
+          const cell = ws[XLSX.utils.encode_cell({ r, c })];
+          if (cell) cell.z = '#,##0';
+        }
+      }
+      const wid = s => { s = String(s == null ? '' : s); let w = 0; for (const ch of s) w += ch.charCodeAt(0) > 255 ? 2 : 1; return w; };
+      ws['!cols'] = header.map((hd, i) => {
+        let w = wid(hd);
+        rows.forEach(r => { const l = wid(r[i]); if (l > w) w = l; });
+        return { wch: Math.min(Math.max(w + 2, 8), 40) };
+      });
+      ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: aoa.length - 1, c: header.length - 1 } }) };
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '매출내역');
+      const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '매출내역_' + _todayISO() + '.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      showToast('✅ 엑셀 완성! ' + rows.length + '줄', 'success');
+    } catch (e) {
+      console.error('매출 엑셀 내려받기 오류:', e);
+      showToast('엑셀 만들기에 실패했어요. 인터넷 연결을 확인하고 다시 눌러주세요. (급하면 CSV로 받을 수 있어요)', 'error');
+    } finally {
+      _revXlsxBusy = false;
+    }
+  }
+  window.exportRevXlsx = exportRevXlsx;
   window.exportRevCsv = exportRevCsv;
 
   // ══════════════════════════════════════════════════════════════════════════
