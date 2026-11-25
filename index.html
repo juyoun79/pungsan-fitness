@@ -2947,6 +2947,9 @@
               <div style="font-size:11px;color:var(--text-hint);margin:12px 0 6px;">계약유형</div>
               <div id="rev-filter-types" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
 
+              <div style="font-size:11px;color:var(--text-hint);margin:12px 0 6px;">성별</div>
+              <div id="rev-filter-genders" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+
               <div style="font-size:11px;color:var(--text-hint);margin:12px 0 6px;">결제수단</div>
               <div id="rev-filter-methods" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
 
@@ -2960,9 +2963,9 @@
 
               <div style="font-size:11px;color:var(--text-hint);margin:12px 0 6px;">금액 범위</div>
               <div style="display:flex;gap:8px;align-items:center;">
-                <input type="number" id="rev-min-amount" placeholder="최소" style="flex:1;box-sizing:border-box;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+                <input type="text" inputmode="numeric" autocomplete="off" oninput="_revAmtInput(this)" id="rev-min-amount" placeholder="최소" style="flex:1;box-sizing:border-box;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
                 <span style="color:var(--text-hint);">~</span>
-                <input type="number" id="rev-max-amount" placeholder="최대" style="flex:1;box-sizing:border-box;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
+                <input type="text" inputmode="numeric" autocomplete="off" oninput="_revAmtInput(this)" id="rev-max-amount" placeholder="최대" style="flex:1;box-sizing:border-box;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;">
               </div>
 
               <div style="font-size:11px;color:var(--text-hint);margin:12px 0 6px;">회원 검색</div>

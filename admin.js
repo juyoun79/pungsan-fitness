@@ -2336,7 +2336,7 @@
   let _revSubTab = 'summary';  // 세부탭: summary/chart/detail
   let _revUnit = 'day';        // 날짜 단위: day/week/month/year/custom
   let _revRefDate = new Date(); // 현재 보고 있는 기준 날짜
-  let _revFilters = { programs: new Set(), types: new Set(), methods: new Set(), payStatus: 'all', trainerId: '', minAmount: null, maxAmount: null, search: '' };
+  let _revFilters = { programs: new Set(), types: new Set(), genders: new Set(), methods: new Set(), payStatus: 'all', trainerId: '', minAmount: null, maxAmount: null, search: '' };
   let _revDetailShown = 20;
   let _revFilteredEntries = [];
   let _revChartInstances = {};
@@ -2350,7 +2350,7 @@
   ];
 
   function initRevenueTab() {
-    _revFilters = { programs: new Set(), types: new Set(), methods: new Set(), payStatus: 'all', trainerId: '', minAmount: null, maxAmount: null, search: '' };
+    _revFilters = { programs: new Set(), types: new Set(), genders: new Set(), methods: new Set(), payStatus: 'all', trainerId: '', minAmount: null, maxAmount: null, search: '' };
     _revDetailShown = 20;
     _revSubTab = 'summary';
     _revUnit = 'day';
@@ -2607,6 +2607,7 @@
       const entries = [];
       const refunds = [];
       const seenTransferFeeKeys = new Set(); // 패키지 양도 시 항목마다 동일한 transferOut이 찍히므로 중복집계 방지
+      const contractGender = {}; // 회원 정보에 성별이 없을 때 쓰는 계약서상의 성별 {전화번호: male|female}
       contractsSnap.forEach(phoneSnap => {
         const phone = phoneSnap.key;
         const memberInfo = members[phone];
@@ -2614,6 +2615,7 @@
         phoneSnap.forEach(cSnap => {
           const c = cSnap.val();
           if (!c) return;
+          if (c.gender === 'male' || c.gender === 'female') contractGender[phone] = c.gender;
           const contractType = c.type === 're' ? '재등록' : (c.type === 'progChange' ? '변경' : (c.type === 'import' ? '이관' : '신규'));
           _flattenContractItems(c).forEach(it => {
             const d = it.data;
@@ -2718,6 +2720,15 @@
           daypassKey: dSnap.key, daypassType: dp.type || 'normal', daypassMethod: dp.method || ''
         });
       });
+      // 성별: 회원 정보(body/gender) 우선, 없으면 계약서에 적힌 성별. 둘 다 없으면 '' (필터의 "미입력")
+      const _revGenderOf = (phone) => {
+        const m = members[phone];
+        const g = m ? ((m.body && m.body.gender) || m['body/gender'] || '') : '';
+        const v = (g === 'male' || g === 'female') ? g : (contractGender[phone] || '');
+        return v;
+      };
+      entries.forEach(e => { e.gender = _revGenderOf(e.phone); });
+      refunds.forEach(r => { r.gender = _revGenderOf(r.phone); });
       _revAllEntries = entries;
       _revAllRefunds = refunds;
     });
@@ -2984,6 +2995,8 @@
   function _revRenderFilterOptions() {
     document.getElementById('rev-filter-programs').innerHTML = REV_PROGRAM_OPTIONS.map(([k, l]) => _revToggleFilterBtnHtml('programs', k, l, false)).join('');
     document.getElementById('rev-filter-types').innerHTML = ['신규', '재등록'].map(t => _revToggleFilterBtnHtml('types', t, t, false)).join('');
+    const gEl = document.getElementById('rev-filter-genders');
+    if (gEl) gEl.innerHTML = [['male', '남'], ['female', '여'], ['none', '미입력']].map(([k, l]) => _revToggleFilterBtnHtml('genders', k, l, false)).join('');
     document.getElementById('rev-filter-methods').innerHTML = [['cash', '현금'], ['card', '카드'], ['transfer', '계좌']].map(([k, l]) => _revToggleFilterBtnHtml('methods', k, l, false)).join('');
     document.getElementById('rev-filter-paystatus').innerHTML =
       _revToggleFilterBtnHtml('paystatus', 'all', '전체', true) + _revToggleFilterBtnHtml('paystatus', 'unpaid', '미수금만', false) + _revToggleFilterBtnHtml('paystatus', 'refund', '환불만', false);
@@ -3041,7 +3054,7 @@
   window.toggleRevFilterPanel = toggleRevFilterPanel;
 
   function resetRevFilters() {
-    _revFilters = { programs: new Set(), types: new Set(), methods: new Set(), payStatus: 'all', trainerId: '', minAmount: null, maxAmount: null, search: '' };
+    _revFilters = { programs: new Set(), types: new Set(), genders: new Set(), methods: new Set(), payStatus: 'all', trainerId: '', minAmount: null, maxAmount: null, search: '' };
     document.getElementById('rev-min-amount').value = '';
     document.getElementById('rev-max-amount').value = '';
     document.getElementById('rev-member-search').value = '';
@@ -3067,18 +3080,41 @@
     return { start: _isoDate(prevStart), end: _isoDate(prevEnd) };
   }
 
+  // 금액 범위 입력칸: 쉼표(1,000,000)를 자동으로 붙이고, 입력을 멈추면 바로 목록에 적용
+  let _revAmtTimer = null;
+  function _revAmtInput(el) {
+    const raw = el.value;
+    const pos = el.selectionStart == null ? raw.length : el.selectionStart;
+    const digitsBefore = raw.slice(0, pos).replace(/\D/g, '').length;
+    let digits = raw.replace(/\D/g, '').slice(0, 12).replace(/^0+(?=\d)/, '');
+    const fmt = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    el.value = fmt;
+    let np = 0, seen = 0;
+    while (np < fmt.length && seen < digitsBefore) { if (fmt[np] !== ',') seen++; np++; }
+    try { el.setSelectionRange(np, np); } catch (e) {}
+    clearTimeout(_revAmtTimer);
+    _revAmtTimer = setTimeout(loadRevenueStats, 350);
+  }
+  window._revAmtInput = _revAmtInput;
+  function _revAmtVal(id) {
+    const el = document.getElementById(id);
+    const v = el ? el.value.replace(/\D/g, '') : '';
+    return v ? parseInt(v, 10) : null;
+  }
+
   function loadRevenueStats() {
     if (!_revAllEntries) return;
     const range = _revGetUnitRange(_revUnit, _revRefDate);
     const filters = _revFilters;
     filters.trainerId = document.getElementById('rev-filter-trainer').value;
-    filters.minAmount = document.getElementById('rev-min-amount').value ? parseInt(document.getElementById('rev-min-amount').value) : null;
-    filters.maxAmount = document.getElementById('rev-max-amount').value ? parseInt(document.getElementById('rev-max-amount').value) : null;
+    filters.minAmount = _revAmtVal('rev-min-amount');
+    filters.maxAmount = _revAmtVal('rev-max-amount');
     filters.search = (document.getElementById('rev-member-search').value || '').trim();
 
     const matchesFilters = (entry) => {
       if (filters.programs.size && !filters.programs.has(entry.progKey)) return false;
       if (filters.types.size && !filters.types.has(entry.contractType)) return false;
+      if (filters.genders.size && !filters.genders.has(entry.gender || 'none')) return false;
       if (filters.methods.size && ![...filters.methods].some(m => (entry[m] || 0) > 0)) return false;
       if (filters.payStatus === 'unpaid' && (entry.price - entry.cash - entry.card - entry.transfer) <= 0) return false;
       if (filters.trainerId && entry.trainerId !== filters.trainerId) return false;
@@ -3092,6 +3128,7 @@
     const matchesRefundFilters = (r) => {
       if (filters.programs.size && !filters.programs.has(r.progKey)) return false;
       if (filters.trainerId && r.trainerId !== filters.trainerId) return false;
+      if (filters.genders.size && !filters.genders.has(r.gender || 'none')) return false;
       if (filters.search && !(r.name.includes(filters.search) || r.phone.includes(filters.search))) return false;
       return true;
     };
@@ -3103,12 +3140,12 @@
     const refundEntries = curRefunds.map(r => ({
       phone: r.phone, name: r.name, label: r.label, date: r.date,
       price: -(r.refundAmount || 0), cash: 0, card: 0, transfer: 0,
-      progKey: r.progKey, contractType: '환불', trainerId: r.trainerId || '', isRefund: true,
+      progKey: r.progKey, contractType: '환불', trainerId: r.trainerId || '', isRefund: true, gender: r.gender || '',
       methodLabel: _revRefundMethodNames[r.method] || r.method || ''
     }));
     _revFilteredEntries = curEntries.concat(refundEntries);
 
-    const filterCount = filters.programs.size + filters.types.size + filters.methods.size +
+    const filterCount = filters.programs.size + filters.types.size + filters.genders.size + filters.methods.size +
       (filters.payStatus !== 'all' ? 1 : 0) + (filters.trainerId ? 1 : 0) +
       (filters.minAmount != null || filters.maxAmount != null ? 1 : 0) + (filters.search ? 1 : 0);
     const badge = document.getElementById('rev-filter-badge');
@@ -3411,9 +3448,9 @@
   function exportRevCsv() {
     const list = [..._revFilteredEntries].sort((a, b) => a.date.localeCompare(b.date));
     if (!list.length) { showToast('내보낼 데이터가 없어요.', 'error'); return; }
-    const header = ['날짜', '회원명', '전화번호', '프로그램', '유형', '금액', '현금', '카드', '계좌', '미수금'];
+    const header = ['날짜', '회원명', '전화번호', '성별', '프로그램', '유형', '금액', '현금', '카드', '계좌', '미수금'];
     const rows = list.map(e => [
-      e.date, e.name, e.phone, e.label.replace(/,/g, ' '), e.contractType,
+      e.date, e.name, e.phone, e.gender === 'male' ? '남' : (e.gender === 'female' ? '여' : ''), e.label.replace(/,/g, ' '), e.contractType,
       e.price, e.cash, e.card, e.transfer, Math.max(0, e.price - e.cash - e.card - e.transfer)
     ]);
     const csvContent = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
