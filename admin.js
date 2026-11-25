@@ -3445,12 +3445,20 @@
   }
   window.renderRevDetailList = renderRevDetailList;
 
+  // CSV 전용: 앞자리 0이 숫자로 바뀌어 지워지지 않도록 010-1234-5678 모양(하이픈)으로 내보냄
+  function _csvPhone(ph) {
+    const d = String(ph || '').replace(/[^0-9]/g, '');
+    if (d.length === 11) return d.slice(0, 3) + '-' + d.slice(3, 7) + '-' + d.slice(7);
+    if (d.length === 10) return d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6);
+    return d;
+  }
+
   function exportRevCsv() {
     const list = [..._revFilteredEntries].sort((a, b) => a.date.localeCompare(b.date));
     if (!list.length) { showToast('내보낼 데이터가 없어요.', 'error'); return; }
     const header = ['날짜', '회원명', '전화번호', '성별', '프로그램', '유형', '금액', '현금', '카드', '계좌', '미수금'];
     const rows = list.map(e => [
-      e.date, e.name, e.phone, e.gender === 'male' ? '남' : (e.gender === 'female' ? '여' : ''), e.label.replace(/,/g, ' '), e.contractType,
+      e.date, e.name, _csvPhone(e.phone), e.gender === 'male' ? '남' : (e.gender === 'female' ? '여' : ''), e.label.replace(/,/g, ' '), e.contractType,
       e.price, e.cash, e.card, e.transfer, Math.max(0, e.price - e.cash - e.card - e.transfer)
     ]);
     const csvContent = [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\r\n');
