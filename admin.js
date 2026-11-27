@@ -3445,9 +3445,16 @@
   }
   window.renderRevDetailList = renderRevDetailList;
 
+  // 전화번호를 숫자만 남기고, 엑셀이 앞자리 0을 지운 번호(10으로 시작하는 10자리)는 0을 다시 붙임
+  // 010 번호만 보정 (011·016 등 옛 번호는 잘못 바꾸지 않도록 그대로 둠)
+  function _fixPhone0(ph) {
+    const d = String(ph || '').replace(/[^0-9]/g, '');
+    return (d.length === 10 && d.startsWith('10')) ? '0' + d : d;
+  }
+
   // CSV 전용: 앞자리 0이 숫자로 바뀌어 지워지지 않도록 010-1234-5678 모양(하이픈)으로 내보냄
   function _csvPhone(ph) {
-    const d = String(ph || '').replace(/[^0-9]/g, '');
+    const d = _fixPhone0(ph);
     if (d.length === 11) return d.slice(0, 3) + '-' + d.slice(3, 7) + '-' + d.slice(7);
     if (d.length === 10) return d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6);
     return d;
@@ -14064,7 +14071,8 @@
     const parsed = [];
     _mImport.rows.forEach((r, rowIdx) => {
       const name = iName >= 0 ? String(r[iName] || '').trim() : '';
-      const phone = iPhone >= 0 ? String(r[iPhone] || '').replace(/[^0-9]/g, '') : '';
+      const rawPhone = iPhone >= 0 ? String(r[iPhone] || '').replace(/[^0-9]/g, '') : '';
+      const phone = _fixPhone0(rawPhone);
       if (!name || !phone) { errors.push({ rowIdx, reason: !name ? '이름없음' : '전화번호없음' }); return; }
       const birth = iBirth >= 0 ? _normalizeImportBirth(r[iBirth]) : '';
       const genderRaw = iGender >= 0 ? String(r[iGender] || '').trim() : '';
@@ -14091,7 +14099,7 @@
       if (refParts.length) importMemo = (importMemo ? importMemo + '\n' : '') + '[이관참고] ' + refParts.join(' / ');
 
       parsed.push({
-        name, phone, birth, gender, address, importMemo, startDate, endDate, progType, progTextRaw,
+        name, phone, rawPhone, birth, gender, address, importMemo, startDate, endDate, progType, progTextRaw,
         lockerTypeRaw, lockerNo, lockerStart, lockerEnd
       });
     });
@@ -14117,6 +14125,8 @@
       let lockerAuto = 0, lockerExact = 0, lockerNeedCheck = 0;
 
       parsed.forEach(p => {
+        // 예전에 0이 빠진 번호 그대로 등록된 회원은 그 기록에 맞춤 (같은 사람이 두 번 등록되는 것 방지)
+        if (!existing[p.phone] && existing[p.rawPhone]) p.phone = p.rawPhone;
         if (existing[p.phone]) { p.isDup = true; p.existingMemo = existing[p.phone].memo || ''; dupCount++; }
         else newCount++;
 
@@ -14692,14 +14702,15 @@
     const errors = [];
     const parsed = [];
     _lImport.rows.forEach((r, rowIdx) => {
-      const phone = iPhone >= 0 ? String(r[iPhone] || '').replace(/[^0-9]/g, '') : '';
+      const rawPhone = iPhone >= 0 ? String(r[iPhone] || '').replace(/[^0-9]/g, '') : '';
+      const phone = _fixPhone0(rawPhone);
       const lockerTypeRaw = iType >= 0 ? String(r[iType] || '').trim() : '';
       const lockerNo = iNo >= 0 ? _normalizeLockerNo(r[iNo]) : '';
       if (!phone || !lockerTypeRaw || !lockerNo) { errors.push({ rowIdx, reason: !phone ? '전화번호없음' : '락커정보없음' }); return; }
       const name = iName >= 0 ? String(r[iName] || '').trim() : '';
       const lockerStart = iStart >= 0 ? _normalizeImportDate(r[iStart]) : _todayISO();
       const lockerEnd = iEnd >= 0 ? _normalizeImportDate(r[iEnd]) : '';
-      parsed.push({ name, phone, lockerTypeRaw, lockerNo, lockerStart, lockerEnd });
+      parsed.push({ name, phone, rawPhone, lockerTypeRaw, lockerNo, lockerStart, lockerEnd });
     });
     return { parsed, errors };
   }
@@ -14718,6 +14729,8 @@
 
       let noMemberCount = 0, autoCount = 0, exactCount = 0, needCheckCount = 0;
       parsed.forEach(p => {
+        // 예전에 0이 빠진 번호 그대로 등록된 회원은 그 기록에 맞춤
+        if (!existingMembers[p.phone] && existingMembers[p.rawPhone]) p.phone = p.rawPhone;
         const member = existingMembers[p.phone];
         if (!member) { p.lockerCase = 'noMember'; noMemberCount++; return; }
         p.memberName = member.name || p.name || '';
