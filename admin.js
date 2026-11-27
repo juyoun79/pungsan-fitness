@@ -14106,6 +14106,80 @@
     return { parsed, errors };
   }
 
+  // 한 파일에 같은 전화번호가 여러 줄 있는 경우 정리
+  //  - 이름이 서로 다르면: 그 번호의 줄은 모두 제외하고 명단으로 알려줌 (가족 번호 등 직접 확인 필요)
+  //  - 내용이 완전히 같은 줄: 한 번만 저장
+  function _splitImportRows(parsed) {
+    const nameKey = n => String(n || '').replace(/\s+/g, '').replace(/\(\d{4}\)$/, '');
+    const namesByPhone = new Map();
+    parsed.forEach(p => {
+      if (!namesByPhone.has(p.phone)) namesByPhone.set(p.phone, new Map());
+      const names = namesByPhone.get(p.phone);
+      if (!names.has(nameKey(p.name))) names.set(nameKey(p.name), p.name);
+    });
+    const nameConflicts = [];
+    namesByPhone.forEach((names, phone) => {
+      if (names.size > 1) nameConflicts.push({ phone, names: Array.from(names.values()), rowCount: parsed.filter(p => p.phone === phone).length });
+    });
+    const seen = new Set();
+    let sameRowCount = 0;
+    const kept = parsed.filter(p => {
+      if (namesByPhone.get(p.phone).size > 1) return false;
+      const sig = JSON.stringify([p.phone, nameKey(p.name), p.birth, p.gender, p.address, p.importMemo, p.startDate, p.endDate,
+        p.progType, p.progTextRaw, p.lockerTypeRaw, p.lockerNo, p.lockerStart, p.lockerEnd]);
+      if (seen.has(sig)) { sameRowCount++; return false; }
+      seen.add(sig);
+      return true;
+    });
+    return { kept, nameConflicts, sameRowCount };
+  }
+
+  // 배정 가능(free/exact)한 락커 줄 중에서 실제로 배정할 줄을 고름 (한 락커는 한 사람, 한 사람은 락커 하나)
+  function _pickImportLockers(rows) {
+    const iso = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : '';
+    const newer = (a, b) => iso(b.lockerEnd).localeCompare(iso(a.lockerEnd)) || iso(b.lockerStart).localeCompare(iso(a.lockerStart));
+    // 1) 비어있는 같은 락커를 여러 사람이 가리키면: 만료일이 가장 늦은 한 사람만, 같으면 모두 확인필요
+    const byLocker = new Map();
+    rows.filter(p => p.lockerCase === 'free').forEach(p => {
+      if (!byLocker.has(p.lockerKey)) byLocker.set(p.lockerKey, []);
+      byLocker.get(p.lockerKey).push(p);
+    });
+    byLocker.forEach(list => {
+      if (new Set(list.map(p => p.phone)).size < 2) return;
+      const latest = list.reduce((m, p) => iso(p.lockerEnd) > m ? iso(p.lockerEnd) : m, '');
+      const winners = new Set(list.filter(p => latest && iso(p.lockerEnd) === latest).map(p => p.phone));
+      list.forEach(p => { if (winners.size !== 1 || !winners.has(p.phone)) p.lockerCase = 'fileConflict'; });
+    });
+    // 2) 한 사람에게 후보가 여러 줄이면: 이미 일치하는 락커 우선, 그다음 만료일이 늦은 것
+    const byPhone = new Map();
+    rows.filter(p => p.lockerCase === 'free' || p.lockerCase === 'exact').forEach(p => {
+      if (!byPhone.has(p.phone)) byPhone.set(p.phone, []);
+      byPhone.get(p.phone).push(p);
+    });
+    byPhone.forEach(list => {
+      list.sort((a, b) => ((b.lockerCase === 'exact') - (a.lockerCase === 'exact')) || newer(a, b));
+      const chosen = list[0];
+      list.slice(1).forEach(p => { p.lockerCase = p.lockerKey === chosen.lockerKey ? 'sameLocker' : 'multi'; });
+    });
+  }
+
+  const IMPORT_LOCKER_REASON = {
+    unmatched: '락커종류 매칭안됨', mismatch: '성별 불일치', conflict: '다른 회원이 사용중', ownsOther: '이미 다른 락커 보유',
+    outOfRange: '번호가 설정범위 밖', fileConflict: '파일 안에서 여러 회원이 같은 락커', multi: '한 회원에게 락커 여러 개'
+  };
+
+  function _importNameConflictHtml(list) {
+    if (!list || !list.length) return '';
+    return `<div style="text-align:left;margin:0 0 14px;">
+      <div style="font-size:12.5px;font-weight:700;color:#ef4444;margin-bottom:6px;">⚠️ 같은 번호에 이름이 다름 ${list.length}건 (등록 안 함, 직접 확인 필요)</div>
+      <div style="max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
+        ${list.map(n => `<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 8px;border-bottom:1px solid var(--border);font-size:11.5px;">
+          <span>${escapeHtml((n.names || []).join(', '))}</span><span style="color:var(--text-hint);white-space:nowrap;">${escapeHtml(n.phone)} · ${n.rowCount}줄</span>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
   function _renderImportPreviewStep(area) {
     area.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);">확인 중...</div>';
     const { parsed, errors } = _buildParsedMembers();
@@ -14124,11 +14198,15 @@
       let dupCount = 0, newCount = 0;
       let lockerAuto = 0, lockerExact = 0, lockerNeedCheck = 0;
 
-      parsed.forEach(p => {
-        // 예전에 0이 빠진 번호 그대로 등록된 회원은 그 기록에 맞춤 (같은 사람이 두 번 등록되는 것 방지)
-        if (!existing[p.phone] && existing[p.rawPhone]) p.phone = p.rawPhone;
-        if (existing[p.phone]) { p.isDup = true; p.existingMemo = existing[p.phone].memo || ''; dupCount++; }
-        else newCount++;
+      // 예전에 0이 빠진 번호 그대로 등록된 회원은 그 기록에 맞춤 (같은 사람이 두 번 등록되는 것 방지)
+      parsed.forEach(p => { if (!existing[p.phone] && existing[p.rawPhone]) p.phone = p.rawPhone; });
+      const { kept: rows, nameConflicts, sameRowCount } = _splitImportRows(parsed);
+      const counted = new Set();
+
+      rows.forEach(p => {
+        const isExisting = !!existing[p.phone];
+        if (isExisting) { p.isDup = true; p.existingMemo = existing[p.phone].memo || ''; }
+        if (!counted.has(p.phone)) { counted.add(p.phone); if (isExisting) dupCount++; else newCount++; }
 
         if (lockerMapped && p.lockerTypeRaw && p.lockerNo) {
           const catId = _mImport.lockerCatMap[p.lockerTypeRaw] || '';
@@ -14150,32 +14228,40 @@
               const slot = existingLockers[lockerKey];
               const memberCurLockerKey = existing[p.phone]?.lockerKey || '';
               if (slot && slot.phone && slot.phone === p.phone) {
-                p.lockerCase = 'exact'; lockerExact++;
+                p.lockerCase = 'exact';
               } else if (slot && slot.phone && slot.phone !== p.phone) {
                 p.lockerCase = 'conflict';
               } else if (memberCurLockerKey && memberCurLockerKey !== lockerKey) {
                 p.lockerCase = 'ownsOther';
               } else {
-                p.lockerCase = 'free'; lockerAuto++;
+                p.lockerCase = 'free';
               }
               p.lockerKey = lockerKey; p.lockerCatId = catId;
               p.lockerSlot = slot || null;
             }
             }
           }
-          if (p.lockerCase && p.lockerCase !== 'free' && p.lockerCase !== 'exact') {
-            lockerNeedCheck++;
-            const reasonLabel = { unmatched: '락커종류 매칭안됨', mismatch: '성별 불일치', conflict: '다른 회원이 사용중', ownsOther: '이미 다른 락커 보유', outOfRange: '락커번호가 설정범위 밖' }[p.lockerCase] || '확인필요';
-            p.importMemo = (p.importMemo ? p.importMemo + '\n' : '') + '[락커 확인필요: ' + reasonLabel + '] ' + p.lockerTypeRaw + ' ' + p.lockerNo + '번 (' + p.lockerStart + '~' + p.lockerEnd + ')';
-          }
         }
       });
 
-      _mImport.parsedMembers = parsed;
-      _mImport.importErrors = errors;
+      if (lockerMapped) _pickImportLockers(rows.filter(p => !p.isDup || _mImport.dupAction !== 'skip'));
+      rows.forEach(p => {
+        if (p.lockerCase === 'free') lockerAuto++;
+        else if (p.lockerCase === 'exact') lockerExact++;
+        else if (p.lockerCase && p.lockerCase !== 'sameLocker') {
+          lockerNeedCheck++;
+          const reason = IMPORT_LOCKER_REASON[p.lockerCase] || '확인필요';
+          p.importMemo = (p.importMemo ? p.importMemo + '\n' : '') + '[락커 확인필요: ' + reason + '] ' + p.lockerTypeRaw + ' ' + p.lockerNo + '번 (' + p.lockerStart + '~' + p.lockerEnd + ')';
+        }
+      });
 
-      const sampleRows = parsed.slice(0, 8).map(p => {
-        const lockerBadge = p.lockerCase === 'free' ? ' 🔑자동배정' : (p.lockerCase === 'exact' ? ' 🔑일치' : (p.lockerCase ? ' 🔑확인필요' : ''));
+      _mImport.parsedMembers = rows;
+      _mImport.importErrors = errors;
+      _mImport.nameConflicts = nameConflicts;
+      const contractCount = rows.filter(p => !p.isDup || _mImport.dupAction !== 'skip').length;
+
+      const sampleRows = rows.slice(0, 8).map(p => {
+        const lockerBadge = p.lockerCase === 'free' ? ' 🔑자동배정' : (p.lockerCase === 'exact' ? ' 🔑일치' : (p.lockerCase && p.lockerCase !== 'sameLocker' ? ' 🔑확인필요' : ''));
         return `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
           <span>${escapeHtml(p.name)} (${p.phone.slice(-4)})</span>
           <span style="color:${p.isDup ? '#f59e0b' : 'var(--text-hint)'};">${p.isDup ? '⚠️ 중복' : p.progType + (p.startDate ? (' · ' + p.startDate + '~' + p.endDate) : '')}${lockerBadge}</span>
@@ -14220,11 +14306,15 @@
         ${dupCount > 0 ? `
         <div style="font-size:12.5px;margin-bottom:14px;">
           중복 회원은 어떻게 처리할까요?
-          <select id="import-dup-action" onchange="_mImport.dupAction=this.value;" style="margin-left:6px;padding:5px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'Noto Sans KR',sans-serif;">
+          <select id="import-dup-action" onchange="_mImport.dupAction=this.value;renderMemberImportStep();" style="margin-left:6px;padding:5px 8px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:'Noto Sans KR',sans-serif;">
             <option value="addContractOnly" ${_mImport.dupAction === 'addContractOnly' ? 'selected' : ''}>기본정보는 유지하고 이관계약만 추가</option>
             <option value="skip" ${_mImport.dupAction === 'skip' ? 'selected' : ''}>건너뛰기 (손대지 않음)</option>
           </select>
         </div>` : ''}
+        ${_importNameConflictHtml(nameConflicts)}
+        <div style="font-size:12.5px;color:var(--text);margin-bottom:14px;">
+          저장될 계약 <b style="color:var(--blue);">${contractCount}건</b>${sameRowCount ? ` · 완전히 같은 줄 ${sameRowCount}개는 한 번만 저장` : ''}
+        </div>
         ${lockerSummaryHtml}
         <div style="font-size:12px;color:var(--text-hint);margin-bottom:6px;">미리보기 (최대 8명)</div>
         <div style="max-height:260px;overflow-y:auto;margin-bottom:14px;">${sampleRows || '표시할 데이터가 없어요.'}</div>
@@ -14234,7 +14324,7 @@
         </div>
         <div style="display:flex;gap:8px;">
           <button onclick="_goImportStep(-1)" style="flex:1;padding:11px;border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">이전</button>
-          <button onclick="executeMemberImport()" class="btn-primary" style="flex:2;padding:11px;" ${(newCount + dupCount) === 0 ? 'disabled' : ''}>가져오기 실행 (${newCount + dupCount}명)</button>
+          <button onclick="executeMemberImport()" class="btn-primary" style="flex:2;padding:11px;" ${contractCount === 0 ? 'disabled' : ''}>가져오기 실행 (${newCount + (_mImport.dupAction !== 'skip' ? dupCount : 0)}명 · 계약 ${contractCount}건)</button>
         </div>`;
     }).catch(err => {
       console.error('회원목록 확인 오류:', err);
@@ -14247,18 +14337,23 @@
     const targets = list.filter(p => !p.isDup || _mImport.dupAction !== 'skip');
     if (!targets.length) { showToast('등록할 대상이 없어요.', 'error'); return; }
 
-    const reasonLabel = { unmatched: '락커종류 매칭안됨', mismatch: '성별 불일치', conflict: '다른 회원이 사용중', ownsOther: '이미 다른 락커 보유', outOfRange: '번호가 설정범위 밖' };
-    const needCheckList = _mImport.lockerToggle ? targets.filter(p => p.lockerCase && p.lockerCase !== 'free' && p.lockerCase !== 'exact').map(p => ({
-      name: p.name, phone: p.phone, lockerType: p.lockerTypeRaw || '', lockerNo: p.lockerNo || '', reason: reasonLabel[p.lockerCase] || p.lockerCase
+    const needCheckList = _mImport.lockerToggle ? targets.filter(p => p.lockerCase && !['free', 'exact', 'sameLocker'].includes(p.lockerCase)).map(p => ({
+      name: p.name, phone: p.phone, lockerType: p.lockerTypeRaw || '', lockerNo: p.lockerNo || '', reason: IMPORT_LOCKER_REASON[p.lockerCase] || p.lockerCase
     })) : [];
     const exactList = _mImport.lockerToggle ? targets.filter(p => p.lockerCase === 'exact').map(p => ({
       name: p.name, phone: p.phone, lockerType: p.lockerTypeRaw || '', lockerNo: p.lockerNo || '',
       action: _mImport.lockerExactAction === 'update' ? '기간 갱신' : '유지'
     })) : [];
 
-    showConfirm('총 ' + targets.length + '명을 등록할까요?\n\n실행 후에는 "가져오기 이력"에서 최근 1건에 한해 되돌릴 수 있어요.', () => {
+    // 회원(전화번호)별로 묶고, 시작일이 빠른 계약부터 저장 (계약이력에서 최근 계약이 위에 보이도록)
+    const groups = new Map();
+    targets.forEach(p => { if (!groups.has(p.phone)) groups.set(p.phone, []); groups.get(p.phone).push(p); });
+    groups.forEach(list => list.sort((a, b) => String(a.startDate || '').localeCompare(String(b.startDate || ''))));
+    const nameConflictList = _mImport.nameConflicts || [];
+
+    showConfirm('회원 ' + groups.size + '명, 계약 ' + targets.length + '건을 등록할까요?\n\n실행 후에는 "가져오기 이력"에서 최근 1건에 한해 되돌릴 수 있어요.', () => {
       const area = document.getElementById('import-step-area');
-      if (area) area.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);">등록 중... (' + targets.length + '명)</div>';
+      if (area) area.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-hint);">등록 중... (' + groups.size + '명 · 계약 ' + targets.length + '건)</div>';
 
       const updates = {};
       const newMemberPhones = [];
@@ -14267,8 +14362,11 @@
       const importedAt = Date.now();
       const logKey = 'import_' + _todayISO() + '_' + importedAt;
 
-      targets.forEach(p => {
-        const contractKey = 'import_' + importedAt + '_' + p.phone;
+      groups.forEach((list, phone) => {
+      let memberLockerKey = null;
+      list.forEach((p, i) => {
+        // 계약 이름표는 줄마다 달라야 함 (같으면 뒤의 줄이 앞의 줄을 덮어씀)
+        const contractKey = 'import_' + importedAt + '_' + p.phone + (i ? '_' + (i + 1) : '');
         const contractData = {
           name: p.name, phone: p.phone, birth: p.birth || '', gender: p.gender || '', address: p.address || '',
           type: 'import', memo: '',
@@ -14281,7 +14379,7 @@
           },
           packages: [], extras: {},
           signDate: p.startDate || _todayISO(), signUrl: '', terms: '',
-          createdAt: importedAt, registeredBy: 'import', importBatch: logKey,
+          createdAt: importedAt + i, registeredBy: 'import', importBatch: logKey,
           salesStaffId: '', salesStaffName: ''
         };
 
@@ -14323,33 +14421,37 @@
 
         updates['contracts/' + p.phone + '/' + contractKey] = contractData;
         contractEntries.push({ phone: p.phone, contractKey });
+        if (pendingLockerKey) memberLockerKey = pendingLockerKey;
+      });
 
-        if (!p.isDup) {
+        // 회원 정보는 한 사람당 한 번만 저장 (여러 줄의 메모는 합치고, 빈 항목은 다른 줄 값으로 채움)
+        const latestFirst = list.slice().reverse();
+        const pick = key => (latestFirst.find(r => r[key]) || {})[key] || '';
+        const memo = Array.from(new Set(list.flatMap(r => String(r.importMemo || '').split('\n')).filter(Boolean))).join('\n');
+        const first = latestFirst[0];
+        if (!first.isDup) {
           // 신규회원: members/{phone} 전체를 한 번에 쓰므로, lockerKey도 반드시 이 객체 안에 같이 넣어야 함
           // (전체객체 경로와 그 하위경로를 같은 update()에서 따로따로 쓰면 Firebase가 "경로충돌"로 거부함)
-          const memberData = { name: p.name + '(' + p.phone.slice(-4) + ')', pw: p.phone.slice(-4), programs: {} };
-          if (p.birth) memberData.birth = p.birth;
-          if (p.address) memberData.address = p.address;
-          if (p.gender) memberData.body = { gender: p.gender };
-          if (p.importMemo) memberData.memo = p.importMemo;
-          if (pendingLockerKey) memberData.lockerKey = pendingLockerKey;
-          updates['members/' + p.phone] = memberData;
-          newMemberPhones.push(p.phone);
+          const memberData = { name: first.name + '(' + phone.slice(-4) + ')', pw: phone.slice(-4), programs: {} };
+          if (pick('birth')) memberData.birth = pick('birth');
+          if (pick('address')) memberData.address = pick('address');
+          if (pick('gender')) memberData.body = { gender: pick('gender') };
+          if (memo) memberData.memo = memo;
+          if (memberLockerKey) memberData.lockerKey = memberLockerKey;
+          updates['members/' + phone] = memberData;
+          newMemberPhones.push(phone);
         } else {
           // 기존회원: 전체객체를 새로 쓰지 않으므로, 하위경로(memo, lockerKey)를 각각 따로 써도 충돌 없음
-          if (p.importMemo) {
-            const mergedMemo = p.existingMemo ? (p.existingMemo + '\n' + p.importMemo) : p.importMemo;
-            updates['members/' + p.phone + '/memo'] = mergedMemo;
-          }
-          if (pendingLockerKey) updates['members/' + p.phone + '/lockerKey'] = pendingLockerKey;
+          if (memo) updates['members/' + phone + '/memo'] = first.existingMemo ? (first.existingMemo + '\n' + memo) : memo;
+          if (memberLockerKey) updates['members/' + phone + '/lockerKey'] = memberLockerKey;
         }
       });
 
       const safeLog = JSON.parse(JSON.stringify({
         executedAt: importedAt, date: _todayISO(),
-        totalCount: targets.length, newCount: newMemberPhones.length, dupCount: contractEntries.length - newMemberPhones.length,
+        totalCount: groups.size, contractCount: contractEntries.length, newCount: newMemberPhones.length, dupCount: groups.size - newMemberPhones.length,
         lockerCount: lockerEntries.length,
-        newMemberPhones, contractEntries, lockerEntries, needCheckList, exactList
+        newMemberPhones, contractEntries, lockerEntries, needCheckList, exactList, nameConflictList
       }));
       updates['member_import_logs/' + logKey] = safeLog;
 
@@ -14367,7 +14469,8 @@
         if (area) area.innerHTML = `<div style="text-align:center;padding:24px 10px;">
           <div style="font-size:34px;margin-bottom:10px;">✅</div>
           <div style="font-size:15px;font-weight:700;margin-bottom:6px;">가져오기 완료!</div>
-          <div style="font-size:13px;color:var(--text-sub);">신규 ${newMemberPhones.length}명 · 기존회원 계약추가 ${contractEntries.length - newMemberPhones.length}명 · 락커배정 ${lockerEntries.length}건</div>
+          <div style="font-size:13px;color:var(--text-sub);">신규 ${newMemberPhones.length}명 · 기존회원 계약추가 ${groups.size - newMemberPhones.length}명 · 계약 ${contractEntries.length}건 · 락커배정 ${lockerEntries.length}건</div>
+          <div style="margin-top:14px;">${_importNameConflictHtml(nameConflictList)}</div>
           ${needCheckHtml}
           <button onclick="resetMemberImport()" class="btn-primary" style="margin-top:16px;padding:10px 20px;">새로 가져오기</button>
         </div>`;
@@ -14409,11 +14512,11 @@
       const undoBtn = log.reverted
         ? '<div style="margin-top:6px;font-size:11.5px;color:#22c55e;font-weight:700;">✅ 되돌림 완료</div>'
         : (canUndo ? `<button onclick="undoMemberImport('${log.key}')" style="margin-top:8px;width:100%;padding:8px;background:none;border:1px solid #ef4444;color:#ef4444;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">↩️ 이 가져오기 되돌리기</button>` : '');
-      const hasDetails = (log.needCheckList && log.needCheckList.length) || (log.exactList && log.exactList.length);
-      const detailsBtn = hasDetails ? `<button onclick="_toggleMemberImportDetails('${log.key}')" style="margin-top:8px;width:100%;padding:8px;background:none;border:1px solid var(--border);color:var(--text-sub);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📋 락커 확인필요·이미일치 명단 보기</button>` : '';
+      const hasDetails = (log.needCheckList && log.needCheckList.length) || (log.exactList && log.exactList.length) || (log.nameConflictList && log.nameConflictList.length);
+      const detailsBtn = hasDetails ? `<button onclick="_toggleMemberImportDetails('${log.key}')" style="margin-top:8px;width:100%;padding:8px;background:none;border:1px solid var(--border);color:var(--text-sub);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">📋 확인필요 명단 보기</button>` : '';
       return `<div style="background:var(--card);border-radius:10px;padding:12px;margin-bottom:8px;">
         <div style="font-size:13px;font-weight:700;color:var(--text);">${timeLabel}</div>
-        <div style="font-size:12px;color:var(--text-hint);margin-top:2px;">총 ${log.totalCount || 0}명 (신규 ${log.newCount || 0} · 기존회원 계약추가 ${log.dupCount || 0} · 락커배정 ${log.lockerCount || 0}건)</div>
+        <div style="font-size:12px;color:var(--text-hint);margin-top:2px;">총 ${log.totalCount || 0}명 (신규 ${log.newCount || 0} · 기존회원 계약추가 ${log.dupCount || 0} · 계약 ${(log.contractEntries || []).length}건 · 락커배정 ${log.lockerCount || 0}건)</div>
         ${detailsBtn}
         <div id="member-import-details-${log.key}" style="display:none;"></div>
         ${undoBtn}
@@ -14428,7 +14531,9 @@
       const log = _mImportHistoryLogs[logKey] || {};
       const needList = log.needCheckList || [];
       const exactList = log.exactList || [];
+      const conflictList = log.nameConflictList || [];
       el.innerHTML = `
+        <div style="margin-top:8px;">${_importNameConflictHtml(conflictList)}</div>
         ${needList.length ? `<div style="font-size:11.5px;font-weight:700;color:#ef4444;margin:8px 0 4px;">⚠️ 락커 확인필요 ${needList.length}건</div>
         <div style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;">
           ${needList.map(n => `<div style="display:flex;justify-content:space-between;padding:5px 8px;border-bottom:1px solid var(--border);font-size:11px;">
@@ -14441,7 +14546,7 @@
             <span>${escapeHtml(n.name)} (${(n.phone || '').slice(-4)})</span><span style="color:var(--text-hint);">${escapeHtml(n.lockerType || '')} ${n.lockerNo || ''}번 · ${escapeHtml(n.action || '')}</span>
           </div>`).join('')}
         </div>` : ''}
-        ${(!needList.length && !exactList.length) ? '<div style="font-size:11.5px;color:var(--text-hint);padding:6px 0;">표시할 목록이 없어요.</div>' : ''}`;
+        ${(!needList.length && !exactList.length && !conflictList.length) ? '<div style="font-size:11.5px;color:var(--text-hint);padding:6px 0;">표시할 목록이 없어요.</div>' : ''}`;
       el.style.display = 'block';
     } else {
       el.style.display = 'none';
@@ -14455,7 +14560,7 @@
       if (!log) { showToast('이력을 찾을 수 없어요.', 'error'); return; }
       if (log.reverted) { showToast('이미 되돌린 이력이에요.', 'error'); return; }
       showConfirm(
-        '이 가져오기(신규 ' + (log.newCount || 0) + '명, 기존회원 계약추가 ' + (log.dupCount || 0) + '명, 락커배정 ' + (log.lockerCount || 0) + '건)를 되돌릴까요?\n\n' +
+        '이 가져오기(신규 ' + (log.newCount || 0) + '명, 기존회원 계약추가 ' + (log.dupCount || 0) + '명, 계약 ' + (log.contractEntries || []).length + '건, 락커배정 ' + (log.lockerCount || 0) + '건)를 되돌릴까요?\n\n' +
         '⚠️ 이 작업 이후 해당 회원에게 출석기록/추가계약/메모 수정/락커 재배정 등이 있었다면 함께 사라질 수 있어요.',
         () => {
           const removeUpdates = {};
