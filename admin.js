@@ -1498,6 +1498,8 @@
     if (savedLayout === 'pc') applyAdminLayout('pc');
     // 담당강사 명단을 미리 불러와둠 (강사관리 탭을 안 거쳐도 계약서 화면에서 바로 사용 가능하게)
     try { loadAdminTrainerList(); } catch(e) { console.error('강사명단 사전로딩 오류(무시):', e); }
+    // 매출 카드는 회원목록 계산을 기다리지 않고 바로 새로 불러옴 (다른 기기에서 등록한 매출도 반영)
+    _refreshDashRevenue();
     // 만료임박 기준일수를 먼저 불러온 다음 회원목록을 미리 불러와둠 (기준값이 반영된 상태로 계산되게)
     loadExpiringThreshold().then(() => {
       loadMemberList('').then(() => {
@@ -2056,6 +2058,48 @@
     });
   }
 
+  // 현황탭 매출 카드(오늘 매출/이번달 매출/신규·재등록) — 매출통계 탭과 같은 원본 데이터를 써서 숫자가 다르게 나오지 않게 함
+  function _renderDashRevenue() {
+    if (!_revAllEntries) return; // 아직 불러온 자료가 없으면 화면의 이전 숫자를 그대로 둠
+    const today = _todayISO();
+    const monthPrefix = today.slice(0, 8); // 'YYYY-MM-' (이미 zero-padded)
+    const entries = _revAllEntries;
+    const refundsAll = _revAllRefunds || [];
+    const todayRevenue = entries.filter(e => e.date === today).reduce((s, e) => s + e.cash + e.card + e.transfer, 0)
+      - refundsAll.filter(rf => rf.date === today).reduce((s, rf) => s + (rf.refundAmount || 0), 0);
+    const monthEntries = entries.filter(e => (e.date || '').startsWith(monthPrefix));
+    const monthRefunds = refundsAll.filter(rf => (rf.date || '').startsWith(monthPrefix));
+    const monthRevenue = monthEntries.reduce((s, e) => s + e.cash + e.card + e.transfer, 0)
+      - monthRefunds.reduce((s, rf) => s + (rf.refundAmount || 0), 0);
+    // 신규·재등록 건수는 프로그램만 셈 (락카·운동복·양도비는 매출 금액에만 포함)
+    const regEntries = monthEntries.filter(e => !e.isSettlement && e.progKey !== '양도' && !String(e.progKey || '').startsWith('extra:'));
+    const newCount = regEntries.filter(e => e.contractType === '신규').length;
+    const reCount = regEntries.filter(e => e.contractType === '재등록').length;
+
+    const todayEl = document.getElementById('admin-today-revenue');
+    if (todayEl) todayEl.textContent = todayRevenue.toLocaleString() + '원';
+    const monthEl = document.getElementById('admin-month-revenue');
+    if (monthEl) monthEl.textContent = monthRevenue.toLocaleString() + '원';
+    const newRegEl = document.getElementById('admin-newreg-count');
+    if (newRegEl) newRegEl.textContent = newCount + ' · ' + reCount + '건';
+  }
+
+  // 보관해 둔 숫자를 먼저 보여주고, 새 자료를 불러와 교체. 실패하면 이전 숫자를 유지
+  function _refreshDashRevenue() {
+    try { _renderDashRevenue(); } catch (e) { console.error('대시보드 매출 렌더 오류(무시):', e); }
+    return Promise.resolve(ensureCtProgramSettingsLoaded())
+      .catch(() => {}) // 프로그램 설정을 못 읽어도 매출은 계산
+      .then(() => _revBuildData())
+      .then(_renderDashRevenue)
+      .catch(e => console.error('대시보드 매출 새로고침 오류(무시):', e));
+  }
+
+  // 현황탭이 지금 화면에 보일 때만 매출 카드를 다시 불러옴
+  function _refreshDashRevenueIfVisible() {
+    const tab = document.getElementById('tab-dashboard');
+    if (tab && tab.classList.contains('active') && tab.getClientRects().length > 0) _refreshDashRevenue();
+  }
+
   function renderDashboardExtras() {
     const memberData = _lastMemberData || [];
 
@@ -2073,47 +2117,24 @@
     const expiringEl = document.getElementById('admin-expiring-members');
     if (expiringEl) expiringEl.textContent = memberData.filter(m => m.statusKey === 'expiring').length;
 
-    // 매출/신규·재등록/순증감 (매출통계 탭과 같은 원본 데이터(_revAllEntries)를 재사용해서 숫자가 서로 다르게 나오지 않게 함)
-    const finishRevenuePart = () => {
-      const today = _todayISO();
-      const monthPrefix = today.slice(0, 8); // 'YYYY-MM-' (이미 zero-padded)
-      const entries = _revAllEntries || [];
-      const refundsAll = _revAllRefunds || [];
-      const todayRevenue = entries.filter(e => e.date === today).reduce((s, e) => s + e.cash + e.card + e.transfer, 0)
-        - refundsAll.filter(rf => rf.date === today).reduce((s, rf) => s + (rf.refundAmount || 0), 0);
-      const monthEntries = entries.filter(e => (e.date || '').startsWith(monthPrefix));
-      const monthRefunds = refundsAll.filter(rf => (rf.date || '').startsWith(monthPrefix));
-      const monthRevenue = monthEntries.reduce((s, e) => s + e.cash + e.card + e.transfer, 0)
-        - monthRefunds.reduce((s, rf) => s + (rf.refundAmount || 0), 0);
-      const newCount = monthEntries.filter(e => e.contractType === '신규' && !e.isSettlement).length;
-      const reCount = monthEntries.filter(e => e.contractType === '재등록' && !e.isSettlement).length;
-
-      const todayEl = document.getElementById('admin-today-revenue');
-      if (todayEl) todayEl.textContent = todayRevenue.toLocaleString() + '원';
-      const monthEl = document.getElementById('admin-month-revenue');
-      if (monthEl) monthEl.textContent = monthRevenue.toLocaleString() + '원';
-      const newRegEl = document.getElementById('admin-newreg-count');
-      if (newRegEl) newRegEl.textContent = newCount + ' · ' + reCount + '건';
-
-      // 이번달 순증감 = 이번달 신규가입 회원수 - 이번달 만료된 회원수 (명단도 같이 수집해서 클릭 시 보여줌)
-      const newMembers = memberData.filter(m => (m.joinDate || '').startsWith(monthPrefix));
-      const expiredMembers = memberData.filter(m => _dashExpiredThisMonth(m, monthPrefix));
-      const newMembersThisMonth = newMembers.length;
-      const expiredThisMonth = expiredMembers.length;
-      const netChange = newMembersThisMonth - expiredThisMonth;
-      _dashNetChangeDetail = {
-        newNames: newMembers.map(m => (m.info && m.info.name) || m.phone),
-        expiredNames: expiredMembers.map(m => (m.info && m.info.name) || m.phone)
-      };
-      const netEl = document.getElementById('dash-net-change-badge');
-      if (netEl) {
-        const sign = netChange > 0 ? '▲' : (netChange < 0 ? '▼' : '');
-        const color = netChange > 0 ? '#22c55e' : (netChange < 0 ? '#ef4444' : 'var(--text-hint)');
-        netEl.innerHTML = `<span onclick="showNetChangeDetail()" style="color:${color};cursor:pointer;text-decoration:underline dotted;">이번달 순증감 ${sign}${Math.abs(netChange)}명</span> <span onclick="showStatInfo('📊 이번달 순증감','이번달 신규가입 인원에서 이번달 만료된 인원을 뺀 숫자예요.\\n숫자를 누르면 대상 명단도 볼 수 있어요.')" style="cursor:pointer;color:var(--text-hint);font-size:11px;">ⓘ</span>`;
-      }
+    // 이번 달 순증감 (매출 카드는 _refreshDashRevenue에서 따로 처리)
+    const monthPrefix = _todayISO().slice(0, 8); // 'YYYY-MM-' (이미 zero-padded)
+    // 이번달 순증감 = 이번달 신규가입 회원수 - 이번달 만료된 회원수 (명단도 같이 수집해서 클릭 시 보여줌)
+    const newMembers = memberData.filter(m => (m.joinDate || '').startsWith(monthPrefix));
+    const expiredMembers = memberData.filter(m => _dashExpiredThisMonth(m, monthPrefix));
+    const newMembersThisMonth = newMembers.length;
+    const expiredThisMonth = expiredMembers.length;
+    const netChange = newMembersThisMonth - expiredThisMonth;
+    _dashNetChangeDetail = {
+      newNames: newMembers.map(m => (m.info && m.info.name) || m.phone),
+      expiredNames: expiredMembers.map(m => (m.info && m.info.name) || m.phone)
     };
-    if (_revAllEntries) finishRevenuePart();
-    else _revBuildData().then(finishRevenuePart);
+    const netEl = document.getElementById('dash-net-change-badge');
+    if (netEl) {
+      const sign = netChange > 0 ? '▲' : (netChange < 0 ? '▼' : '');
+      const color = netChange > 0 ? '#22c55e' : (netChange < 0 ? '#ef4444' : 'var(--text-hint)');
+      netEl.innerHTML = `<span onclick="showNetChangeDetail()" style="color:${color};cursor:pointer;text-decoration:underline dotted;">이번달 순증감 ${sign}${Math.abs(netChange)}명</span> <span onclick="showStatInfo('📊 이번달 순증감','이번달 신규가입 인원에서 이번달 만료된 인원을 뺀 숫자예요.\\n숫자를 누르면 대상 명단도 볼 수 있어요.')" style="cursor:pointer;color:var(--text-hint);font-size:11px;">ⓘ</span>`;
+    }
 
     // 프로그램 구성 비율 (유효회원 기준, 패키지는 패키지 이름 그대로 한 조각으로)
     const progCounts = {};
@@ -2325,6 +2346,7 @@
     if (_revGoalRefreshTimer) clearTimeout(_revGoalRefreshTimer);
     _revGoalRefreshTimer = setTimeout(() => {
       _revGoalRefreshTimer = null;
+      _refreshDashRevenueIfVisible(); // 현황탭을 보고 있으면 매출 카드도 바로 갱신
       const gv = document.getElementById('rev-goal-view');
       // 실제로 보이는 경우에만 (다른 탭에 있거나 숨겨져 있으면 아무것도 안 함)
       if (gv && gv.getClientRects().length > 0 && typeof renderSalesGoalReport === 'function') {
@@ -2598,8 +2620,11 @@
   }
 
   // 계약이력(contracts) 전체를 한번 읽어와서 매출/환불 항목으로 평탄화 — 실제 판매금액만 집계(진행상황 D-day 계산과 달리 환불/양도된 것도 "그 당시엔 매출이었으므로" 포함)
+  let _revBuildSeq = 0;        // 불러오기 요청 순번
+  let _revBuildLatest = null;  // 가장 마지막에 시작한 불러오기
   function _revBuildData() {
-    return Promise.all([
+    const mySeq = ++_revBuildSeq;
+    const job = Promise.all([
       db.ref('contracts').once('value'),
       getMemberDB(),
       db.ref('daypass_sales').once('value')
@@ -2729,9 +2754,13 @@
       };
       entries.forEach(e => { e.gender = _revGenderOf(e.phone); });
       refunds.forEach(r => { r.gender = _revGenderOf(r.phone); });
+      // 그 사이 더 최신 요청이 시작됐으면 이 결과는 버리고, 최신 결과가 올 때까지 기다림
+      if (mySeq !== _revBuildSeq) return _revBuildLatest;
       _revAllEntries = entries;
       _revAllRefunds = refunds;
     });
+    _revBuildLatest = job;
+    return job;
   }
 
   // ── 일일권 등록 모달 (금액·결제수단만 필수 / 이름·전화번호는 선택) ──
@@ -2841,7 +2870,7 @@
       document.getElementById('daypass-modal')?.remove();
       showToast('✅ ' + meta.label + ' 등록됐어요.', 'success');
       // 전체 재조회 대신, 지금 캐시에 바로 항목을 추가해서 화면을 즉시 갱신
-      if (_revAllEntries) {
+      if (_revAllEntries && !_revAllEntries.some(e => e.daypassKey === newRef.key)) {
         _revAllEntries.push({
           phone: phone || '', name: name || '이름없음', progKey: meta.progKey, label: meta.label,
           price: amount,
@@ -2854,6 +2883,7 @@
         });
         loadRevenueStats();
       }
+      _refreshDashRevenueIfVisible();
     }).catch(err => {
       console.error('일일권 저장 오류:', err);
       showToast('저장 중 오류가 발생했어요.', 'error');
@@ -11409,6 +11439,7 @@
         salesStaffId: staffId, salesStaffName: staffName,
         source: 'locker_tab',
       });
+      _invalidateRevenueCache();
     } catch (e) {
       console.error('락카 계약이력 저장 실패:', e);
     }
