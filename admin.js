@@ -2058,6 +2058,33 @@
     });
   }
 
+  // 신규·재등록 건수와 결제 건수 — 현황탭과 매출통계 탭이 같은 기준을 씀
+  //  - 같은 사람이 같은 날 결제한 것은 1건 (패키지처럼 여러 줄이어도 1건)
+  //  - 판매금액 0원(서비스)은 제외. 미수금은 원래 판매금액(origPrice) 기준이라 포함
+  //  - 유료 패키지에 든 0원 항목은 판매한 것으로 봄(pkgPaid) — 프로그램 필터를 걸어도 건수에 포함
+  //  - 신규·재등록은 회원권만 (락카·운동복·양도비 제외), 같은 날 신규와 재등록이 섞이면 신규
+  //  - 번호가 없는 일일권은 같은 사람인지 알 수 없으므로 각각 1건
+  function _revCountStats(entries) {
+    const pays = new Set();
+    const regs = new Map(); // 사람·날짜 → '신규' | '재등록'
+    (entries || []).forEach((e, i) => {
+      if (e.isSettlement) return;
+      if (!e.pkgPaid && !((e.origPrice != null ? e.origPrice : e.price) > 0)) return;
+      const key = (e.phone || ('번호없음' + i)) + '|' + e.date;
+      pays.add(key);
+      const progKey = String(e.progKey || '');
+      if (progKey === '양도' || progKey.startsWith('extra:')) return;
+      if (e.contractType !== '신규' && e.contractType !== '재등록') return;
+      if (regs.get(key) !== '신규') regs.set(key, e.contractType);
+    });
+    const types = Array.from(regs.values());
+    return {
+      newCount: types.filter(t => t === '신규').length,
+      reCount: types.filter(t => t === '재등록').length,
+      payCount: pays.size
+    };
+  }
+
   // 현황탭 매출 카드(오늘 매출/이번달 매출/신규·재등록) — 매출통계 탭과 같은 원본 데이터를 써서 숫자가 다르게 나오지 않게 함
   function _renderDashRevenue() {
     if (!_revAllEntries) return; // 아직 불러온 자료가 없으면 화면의 이전 숫자를 그대로 둠
@@ -2071,10 +2098,7 @@
     const monthRefunds = refundsAll.filter(rf => (rf.date || '').startsWith(monthPrefix));
     const monthRevenue = monthEntries.reduce((s, e) => s + e.cash + e.card + e.transfer, 0)
       - monthRefunds.reduce((s, rf) => s + (rf.refundAmount || 0), 0);
-    // 신규·재등록 건수는 프로그램만 셈 (락카·운동복·양도비는 매출 금액에만 포함)
-    const regEntries = monthEntries.filter(e => !e.isSettlement && e.progKey !== '양도' && !String(e.progKey || '').startsWith('extra:'));
-    const newCount = regEntries.filter(e => e.contractType === '신규').length;
-    const reCount = regEntries.filter(e => e.contractType === '재등록').length;
+    const { newCount, reCount } = _revCountStats(monthEntries);
 
     const todayEl = document.getElementById('admin-today-revenue');
     if (todayEl) todayEl.textContent = todayRevenue.toLocaleString() + '원';
@@ -2654,7 +2678,7 @@
             const pkgGroupKey = it.pkgName ? (cSnap.key + '::' + it.pkgIndex + '::' + it.pkgName) : null;
             entries.push({
               phone, name, progKey: it.progKey, label, pkgGroupKey,
-              price: (d.price || 0) - settleAmt, cash: signCash, card: signCard, transfer: signTransfer,
+              price: (d.price || 0) - settleAmt, origPrice: d.price || 0, cash: signCash, card: signCard, transfer: signTransfer,
               date: c.signDate || '', contractType,
               trainerId: ctProgramTrainerRequired(it.progKey) ? (d.trainerId || '') : '',
               salesStaffId: d.salesStaffId || c.salesStaffId || '', salesStaffName: d.salesStaffName || c.salesStaffName || ''
@@ -2706,7 +2730,7 @@
             const signTransfer = (e.transfer || 0) - (settleMethod === 'transfer' ? settleAmt : 0);
             entries.push({
               phone, name, progKey: 'extra:' + key, label,
-              price: (e.price || 0) - settleAmt, cash: signCash, card: signCard, transfer: signTransfer,
+              price: (e.price || 0) - settleAmt, origPrice: e.price || 0, cash: signCash, card: signCard, transfer: signTransfer,
               date: c.signDate || '', contractType, trainerId: '',
               salesStaffId: e.salesStaffId || c.salesStaffId || '', salesStaffName: e.salesStaffName || c.salesStaffName || ''
             });
@@ -2752,6 +2776,10 @@
         const v = (g === 'male' || g === 'female') ? g : (contractGender[phone] || '');
         return v;
       };
+      // 패키지 중 한 항목이라도 돈을 받고 팔았으면, 그 패키지의 모든 항목에 표시
+      const pkgIdOf = e => e.phone + '|' + e.pkgGroupKey;
+      const paidPkgs = new Set(entries.filter(e => e.pkgGroupKey && e.origPrice > 0).map(pkgIdOf));
+      entries.forEach(e => { if (e.pkgGroupKey && paidPkgs.has(pkgIdOf(e))) e.pkgPaid = true; });
       entries.forEach(e => { e.gender = _revGenderOf(e.phone); });
       refunds.forEach(r => { r.gender = _revGenderOf(r.phone); });
       // 그 사이 더 최신 요청이 시작됐으면 이 결과는 버리고, 최신 결과가 올 때까지 기다림
@@ -3185,10 +3213,8 @@
     const refundTotal = curRefunds.reduce((s, r) => s + r.refundAmount, 0);
     const netRevenue = grossRevenue - refundTotal;
     const unpaidTotal = curEntries.reduce((s, e) => s + Math.max(0, e.price - e.cash - e.card - e.transfer), 0);
-    const newCount = curEntries.filter(e => e.contractType === '신규' && !e.isSettlement).length;
-    const reCount = curEntries.filter(e => e.contractType === '재등록' && !e.isSettlement).length;
-    const totalCount = curEntries.filter(e => !e.isSettlement).length;
-    const avgPrice = totalCount ? Math.round(grossRevenue / totalCount) : 0;
+    const { newCount, reCount, payCount } = _revCountStats(curEntries);
+    const avgPrice = payCount ? Math.round(grossRevenue / payCount) : 0;
 
     let compareHtml = '';
     if (document.getElementById('rev-compare-mode').value !== 'none') {
